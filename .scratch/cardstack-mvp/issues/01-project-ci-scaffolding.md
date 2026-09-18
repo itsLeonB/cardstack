@@ -13,4 +13,3 @@
 - [ ] Frontend calls the health endpoint via the generated client and renders the result, proving the full toolchain round-trip end to end
 - [ ] GitHub Actions CI runs backend verification (`go build`/`go vet`/`gofmt -l`/`go test`) and frontend verification (lint/typecheck/test/build) on every PR
 - [ ] otel instrumentation points are scaffolded in the backend, but tracing is disabled (no collector wired) — enabling it later should require no code changes
-- [ ] The existing Neon/Railway/Vercel per-PR preview GitHub Action is wired into this repo
