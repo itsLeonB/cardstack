@@ -1,6 +1,6 @@
-Status: ready-for-agent
-
 # Cardstack MVP
+
+Status: ready-for-agent
 
 ## Problem Statement
 
