@@ -1,0 +1,92 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**"]
+  pull_request:
+    branches: [main, mvp]
+    paths: ["backend/**"]
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Go with cache
+        uses: ./.github/actions/setup-go
+        with:
+          go-version-file: "backend/go.mod"
+          working-directory: backend
+
+      - name: Build
+        run: go build ./...
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cardstack
+          POSTGRES_PASSWORD: cardstack
+          POSTGRES_DB: cardstack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: cardstack
+      DB_PASSWORD: cardstack
+      DB_NAME: cardstack
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Go with cache
+        uses: ./.github/actions/setup-go
+        with:
+          go-version-file: "backend/go.mod"
+          working-directory: backend
+
+      - name: Run tests
+        run: go test -race ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Go with cache
+        uses: ./.github/actions/setup-go
+        with:
+          go-version-file: "backend/go.mod"
+          working-directory: backend
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --timeout=5m
+          working-directory: backend
