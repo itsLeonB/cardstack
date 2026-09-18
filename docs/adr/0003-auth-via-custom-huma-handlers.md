@@ -1,0 +1,3 @@
+# Auth wired through custom Huma handlers, not authgin
+
+go-authkit ships a framework-agnostic core plus a ready-made Gin adapter (`authgin`), but no Huma adapter. Running `authgin` would mean a second router/framework mounted alongside the Huma API just for `/auth/*`. We chose to write custom Huma handlers that call `authkit.Kit`'s core methods directly instead, so auth endpoints stay in the same generated OpenAPI spec that the frontend's orval codegen (zod schemas + TanStack Query hooks) consumes. A second router's routes would be invisible to that pipeline and need to be hand-typed on the frontend.

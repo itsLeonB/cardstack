@@ -1,0 +1,3 @@
+# Generalize the card domain across games from day one
+
+MVP only covers Pokémon TCG (SV, MA), but Riftbound and other games are named as immediate next steps. We modeled `Game` → `Expansion Set` → `Card` → `Card Variant` as game-agnostic from the start, with game-specific attributes (Pokémon's HP/types/attacks) attached per-Game rather than as fixed columns, instead of building a Pokémon-specific schema now and migrating later. Chosen because a later migration would touch every layer (schema, ingestion, API, frontend types) at once, while building game-agnostic now costs little extra since the shape (name, set, number, rarity, variant) is already game-agnostic in practice.

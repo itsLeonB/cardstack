@@ -1,0 +1,3 @@
+# MVP ships registration + login only, no email verification or password reset
+
+The original spec named Resend for mailing, and go-authkit supports verification and reset out of the box. For MVP — personal use by the project owner only, before any wider audience — we're explicitly *not* wiring these up: registration creates an account with no verification step, and there is no password-reset flow. Resend is not integrated at all for MVP. This is a deliberate scope cut, not an oversight: add both together later (they share the same `MailService` interface / token-link plumbing in go-authkit), once the audience moves beyond "just me."

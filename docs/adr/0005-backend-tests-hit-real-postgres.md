@@ -1,0 +1,3 @@
+# Backend unit and feature tests run against a real Postgres, not mocks
+
+Repository-layer unit tests and feature tests both run against a real local Postgres instance rather than a mocked persistence layer; CI provisions a temporary Postgres to match. Chosen deliberately over mocking the DB layer: go-crud's generic repository leans on real GORM/SQL behavior (specs, scopes, transactions) that a mock would have to reimplement and could silently drift from. Frontend feature tests take the opposite approach and mock the network layer, since the frontend's contract is the API surface, not the database.
