@@ -1,0 +1,13 @@
+{
+  "settings": {
+    "createdAt": 1789960071082,
+    "framework": null,
+    "devCommand": "bun run dev",
+    "installCommand": "bun install",
+    "buildCommand": "bun run build",
+    "outputDirectory": "dist/client",
+    "rootDirectory": "frontend",
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
