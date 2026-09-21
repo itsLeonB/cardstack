@@ -12,6 +12,8 @@ import (
 // so cmd/genspec can register routes without booting a DB connection.
 func RegisterRoutes(api huma.API, services *provider.Services) {
 	healthHandler := handler.NewHealthHandler(services.Health)
+	authHandler := handler.NewAuthHandler(services.Auth)
 
 	endpoint.RegisterAll(api, healthHandler.Routes())
+	endpoint.RegisterAll(api, authHandler.Routes())
 }
