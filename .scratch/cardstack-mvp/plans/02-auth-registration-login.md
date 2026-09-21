@@ -1,5 +1,7 @@
 # Plan: 02 — Auth: registration & login
 
+**Status:** done — implemented, merged into `claude/focused-tesla-8qtnaj` (PR itsLeonB/cardstack#5), verified end-to-end over real HTTP. See the ticket's Comments for the two bugs the end-to-end pass caught beyond what this plan anticipated.
+
 Handoff doc for `backend-agent` / `frontend-agent`. Ticket: `.scratch/cardstack-mvp/issues/02-auth-registration-login.md`. Blocked by ticket 01 (done — see `01-project-ci-scaffolding.md`).
 
 Reference implementation: `github.com/itsLeonB/go-authkit` (same author, the library ADR-0003/ADR-0004 and `spec.md` name explicitly). No local reference backend was available for this ticket the way cashus was for ticket 01, so this plan is grounded directly in `go-authkit`'s source (`auth.go`, `session.go`, `middleware.go`, `stores.go`, `config.go`, `errors.go`, `authgin/{handler,transport,middleware}.go`) rather than a sibling app's usage of it. Verify exact signatures against the actual installed module version at implementation time — the library is under active development.
