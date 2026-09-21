@@ -8,7 +8,14 @@ export function HealthCheck() {
       <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
         <h1 className="font-medium">Backend health check</h1>
         {isPending && <p>Checking backend status...</p>}
-        {isError && <p>Failed to reach backend: {error.detail}</p>}
+        {isError && (
+          <p>
+            Failed to reach backend:{" "}
+            {error instanceof Error
+              ? error.message
+              : (error.detail ?? "Unknown error")}
+          </p>
+        )}
         {data && data.status === 200 && (
           // data.data.data: outer .data is the fetch wrapper ({status, data}),
           // inner .data is the backend's Envelope[HealthStatus] response body.

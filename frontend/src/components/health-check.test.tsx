@@ -35,4 +35,19 @@ describe("HealthCheck", () => {
 
     expect(screen.getByText("Checking backend status...")).toBeTruthy()
   })
+
+  it("renders the native error message when fetch itself fails", () => {
+    mockUseGetHealth.mockReturnValue({
+      isPending: false,
+      isError: true,
+      error: new TypeError("Failed to fetch"),
+      data: undefined,
+    } as any)
+
+    render(<HealthCheck />)
+
+    expect(
+      screen.getByText("Failed to reach backend: Failed to fetch"),
+    ).toBeTruthy()
+  })
 })
