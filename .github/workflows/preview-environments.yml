@@ -63,7 +63,17 @@ jobs:
         run: |
           url="https://console.neon.tech/api/v2/projects"
           url="$url/$NEON_PROJECT_ID/branches"
-          exists=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" "$url" \
+          # -G/--data-urlencode narrows the API's own branch list to ones
+          # matching NEON_BRANCH_NAME (a substring search, hence the exact
+          # -eq filter below still needed) rather than paging through every
+          # branch in the project — an unfiltered list can paginate past
+          # NEON_BRANCH_NAME, making `exists` false and letting
+          # create-branch-action@v5 silently reuse a stale existing branch
+          # instead of recreating it fresh from production.
+          exists=$(curl -fsS -G \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            --data-urlencode "search=$NEON_BRANCH_NAME" \
+            "$url" \
             | jq -r --arg name "$NEON_BRANCH_NAME" \
               '[.branches[] | select(.name == $name)] | length > 0')
           echo "exists=$exists" >> "$GITHUB_OUTPUT"
@@ -232,7 +242,7 @@ jobs:
           # frontend/.env.example's VITE_API_BASE_URL=http://localhost:8080.
           printf '%s' "${RAILWAY_API_URL}" | \
             vercel env add VITE_API_BASE_URL preview "$HEAD_REF" \
-              --token "$VERCEL_TOKEN" --force
+              --cwd frontend --token "$VERCEL_TOKEN" --force
 
           # Deploy without --prebuilt so the build runs on Vercel's own
           # infrastructure instead of locally on this runner. A local
@@ -245,6 +255,7 @@ jobs:
           # cause reported for pnpm). Building remotely also means the
           # branch-scoped env var above is honored automatically.
           deployment_url=$(vercel deploy \
+            --cwd frontend \
             --token "$VERCEL_TOKEN" \
             --yes \
             -m "githubDeployment=1" \
