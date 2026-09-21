@@ -2,9 +2,11 @@
 
 **What to build:** A user can register an account with an email and password and log in, so that they have a private, persistent session to work in. No email verification or password reset in MVP (ADR-0004) — just registration and login, backed by `go-authkit` in stateful mode wired through custom Huma handlers (ADR-0003).
 
-**Blocked by:** 01 (Project & CI scaffolding)
+**Blocked by:** 01 (Project & CI scaffolding) — done.
 
 **Status:** ready-for-agent
+
+**Plan:** `.scratch/cardstack-mvp/plans/02-auth-registration-login.md`
 
 - [ ] User can register with an email and password
 - [ ] User can log in with email and password

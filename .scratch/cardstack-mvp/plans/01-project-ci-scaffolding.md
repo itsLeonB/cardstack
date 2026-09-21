@@ -1,5 +1,7 @@
 # Plan: 01 — Project & CI scaffolding
 
+**Status:** done — implemented and merged to `main`.
+
 Handoff doc for `backend-agent` / `frontend-agent`. Ticket: `.scratch/cardstack-mvp/issues/01-project-ci-scaffolding.md`.
 
 Reference implementation: `/home/leon/Projects/itsLeonB/cashus/backend` (sibling repo, same author, same stack: Huma v2 + Gin + GORM + goose + wire + otel). Cited paths below are read-only references in that repo — open them directly for exact code shape rather than re-deriving from scratch. Do not copy app-specific business logic (auth, debts, monetization) — only the scaffolding patterns listed here.
