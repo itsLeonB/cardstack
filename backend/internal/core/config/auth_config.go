@@ -13,7 +13,13 @@ type Auth struct {
 	RefreshTokenTTL time.Duration `split_words:"true" default:"168h"`
 	CookieDomain    string        `split_words:"true"`
 	CookieSecure    bool          `split_words:"true" default:"true"`
-	CookieSameSite  string        `split_words:"true" default:"Lax"`
+	// CookieSameSite defaults to "None" because the deployed frontend
+	// (Vercel) and backend (Railway) are on different sites: browsers
+	// exclude SameSite=Lax cookies from cross-site fetch/XHR requests even
+	// with credentials: "include", so Lax would silently break every
+	// authenticated request in production. None requires Secure, which
+	// CookieSecure already defaults to.
+	CookieSameSite string `split_words:"true" default:"None"`
 }
 
 func (Auth) Prefix() string { return "AUTH" }

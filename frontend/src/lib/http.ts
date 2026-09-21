@@ -7,6 +7,20 @@
 // the (non-HttpOnly) csrf_token cookie.
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 
+// Cross-origin (Vercel frontend, Railway backend), document.cookie can't
+// see the backend-origin csrf_token cookie at all — the browser still sends
+// it TO the backend automatically, but this page's JS has no read access to
+// a cookie scoped to a different site. So the login/refresh response body
+// (which already echoes csrfToken, see AuthHandler.cookieResponse) is the
+// real source for the header; session.ts calls setCsrfToken() once it has
+// that value. readCookie stays as the same-origin/local-dev fallback, where
+// the cookie is readable.
+let inMemoryCsrfToken: string | null = null
+
+export function setCsrfToken(token: string | null): void {
+  inMemoryCsrfToken = token
+}
+
 function readCookie(name: string): string | null {
   // SSR guard: TanStack Start loaders can run this on the server, where
   // there is no `document`/cookie jar to read from.
@@ -27,7 +41,7 @@ export const customFetch = async <T>(
   const headers = new Headers(options.headers)
 
   if (MUTATING_METHODS.has(method)) {
-    const csrfToken = readCookie("csrf_token")
+    const csrfToken = inMemoryCsrfToken ?? readCookie("csrf_token")
     if (csrfToken) headers.set("X-CSRF-Token", csrfToken)
   }
 

@@ -7,6 +7,7 @@ import {
   useRegister,
 } from "@/generated/endpoints/auth/auth"
 import type { MeResponse } from "@/generated/models"
+import { setCsrfToken } from "./http"
 
 // GET /auth/me never throws on a 401 (the fetch mutator resolves for every
 // HTTP status), so an unauthenticated visitor reads as an ordinary
@@ -48,6 +49,11 @@ export function useLoginMutation() {
     mutation: {
       onSuccess: (response) => {
         if (response.status === 200) {
+          // The csrf_token cookie is on the backend's origin, not readable
+          // by this page's JS once frontend/backend are cross-site (Vercel/
+          // Railway) — the response body is the only place this page can
+          // actually get it from. See http.ts's setCsrfToken doc comment.
+          setCsrfToken(response.data.data.csrfToken ?? null)
           queryClient.invalidateQueries({
             queryKey: getGetCurrentUserQueryKey(),
           })
@@ -70,6 +76,7 @@ export function useLogoutMutation() {
     mutation: {
       onSuccess: (response) => {
         if (response.status === 204) {
+          setCsrfToken(null)
           queryClient.invalidateQueries({
             queryKey: getGetCurrentUserQueryKey(),
           })

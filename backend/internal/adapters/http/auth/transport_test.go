@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
+	"github.com/stretchr/testify/assert"
 )
 
 // The "__Secure-" cookie name prefix is only valid on a cookie that also
@@ -15,14 +16,10 @@ import (
 // doc comment.
 func TestFingerprintCookieName(t *testing.T) {
 	secure := NewTransport(config.Auth{CookieSecure: true})
-	if got := secure.FingerprintCookieName(); got != "__Secure-Fgp" {
-		t.Errorf("FingerprintCookieName() with CookieSecure=true = %q, want %q", got, "__Secure-Fgp")
-	}
+	assert.Equal(t, "__Secure-Fgp", secure.FingerprintCookieName())
 
 	insecure := NewTransport(config.Auth{CookieSecure: false})
-	if got := insecure.FingerprintCookieName(); got != "Fgp" {
-		t.Errorf("FingerprintCookieName() with CookieSecure=false = %q, want %q", got, "Fgp")
-	}
+	assert.Equal(t, "Fgp", insecure.FingerprintCookieName())
 }
 
 func TestSetCookiesAndClearCookiesUseMatchingFingerprintName(t *testing.T) {
@@ -37,18 +34,15 @@ func TestSetCookiesAndClearCookiesUseMatchingFingerprintName(t *testing.T) {
 		cleared := transport.ClearCookies()
 
 		wantName := transport.FingerprintCookieName()
-		if cookie, ok := findCookie(set, wantName); !ok {
-			t.Errorf("SetCookies() missing cookie %q (CookieSecure=%v)", wantName, cookieSecure)
-		} else if cookie.Secure != cookieSecure {
+		if cookie, ok := findCookie(set, wantName); assert.Truef(t, ok, "SetCookies() missing cookie %q (CookieSecure=%v)", wantName, cookieSecure) {
 			// The whole point of deriving the name from CookieSecure is that
 			// the two never drift apart: a "__Secure-" name always carries
 			// Secure, a plain name never falsely claims it.
-			t.Errorf("cookie %q has Secure=%v, want %v", wantName, cookie.Secure, cookieSecure)
+			assert.Equal(t, cookieSecure, cookie.Secure)
 		}
 
-		if _, ok := findCookie(cleared, wantName); !ok {
-			t.Errorf("ClearCookies() missing cookie %q (CookieSecure=%v)", wantName, cookieSecure)
-		}
+		_, ok := findCookie(cleared, wantName)
+		assert.Truef(t, ok, "ClearCookies() missing cookie %q (CookieSecure=%v)", wantName, cookieSecure)
 	}
 }
 
