@@ -177,12 +177,23 @@ jobs:
           # Only one service (backend/infra/.railway/railway.ts defines
           # just "api" — cardstack has no worker/job services like cashus
           # did), so no per-service loop is needed here.
+          #
+          # AUTH_JWT_SECRET has no default (config.Auth's only
+          # required:"true" field with no fallback — see
+          # internal/core/config/auth_config.go) — without it config.Load()
+          # fails and the api service never boots. Generated fresh per run
+          # rather than a fixed repo secret: this is a throwaway preview
+          # environment (its Neon branch is deleted and recreated the same
+          # way on every push), so there's no session continuity to
+          # preserve across pushes, and a fresh secret per push is strictly
+          # safer than a long-lived one shared across every PR preview.
           railway variable set \
             "DB_HOST=${{ steps.neon.outputs.host }}" \
             "DB_PORT=5432" \
             "DB_USER=${{ secrets.NEON_ROLE_NAME }}" \
             "DB_PASSWORD=${{ steps.neon.outputs.password }}" \
             "DB_NAME=${{ secrets.NEON_DATABASE_NAME }}" \
+            "AUTH_JWT_SECRET=$(openssl rand -hex 32)" \
             --service api \
             --environment "$RAILWAY_ENV"
 
