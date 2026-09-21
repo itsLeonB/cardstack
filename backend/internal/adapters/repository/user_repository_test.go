@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	authkit "github.com/itsLeonB/go-authkit"
 )
 
@@ -78,8 +80,42 @@ func TestUserRepository_SetVerified(t *testing.T) {
 	if !updated.Verified {
 		t.Fatal("expected Verified to be true after SetVerified")
 	}
-	if updated.ProfileID != "Bob" {
-		t.Fatalf("expected ProfileID %q, got %q", "Bob", updated.ProfileID)
+
+	// ProfileID is now an opaque FK into user_profiles (see
+	// entity/user_profile.go), not the name itself — check it via the
+	// row it actually points to.
+	profileID, err := uuid.Parse(updated.ProfileID)
+	if err != nil {
+		t.Fatalf("expected ProfileID to be a valid UUID, got %q: %v", updated.ProfileID, err)
+	}
+
+	var profile entity.UserProfile
+	if err := db.First(&profile, "id = ?", profileID).Error; err != nil {
+		t.Fatalf("expected a user_profiles row for id %s: %v", profileID, err)
+	}
+	if profile.Name != "Bob" {
+		t.Fatalf("expected user_profiles.name %q, got %q", "Bob", profile.Name)
+	}
+	if profile.UserID.String() != created.ID {
+		t.Fatalf("expected user_profiles.user_id %q, got %q", created.ID, profile.UserID)
+	}
+
+	// A second SetVerified call updates the same profile row rather than
+	// creating a duplicate.
+	updatedAgain, err := repo.SetVerified(ctx, created.ID, "Bobby", "")
+	if err != nil {
+		t.Fatalf("second SetVerified: %v", err)
+	}
+	if updatedAgain.ProfileID != updated.ProfileID {
+		t.Fatalf("expected ProfileID to stay %q on a second SetVerified, got %q", updated.ProfileID, updatedAgain.ProfileID)
+	}
+
+	var reloaded entity.UserProfile
+	if err := db.First(&reloaded, "id = ?", profileID).Error; err != nil {
+		t.Fatalf("expected the same user_profiles row to still exist: %v", err)
+	}
+	if reloaded.Name != "Bobby" {
+		t.Fatalf("expected user_profiles.name to be updated to %q, got %q", "Bobby", reloaded.Name)
 	}
 }
 
