@@ -100,6 +100,39 @@ jobs:
           username: ${{ secrets.NEON_ROLE_NAME }}
           database: ${{ secrets.NEON_DATABASE_NAME }}
 
+      # cmd/api never runs migrations itself (see cmd/job's own build-tag
+      # split) and nothing else in this pipeline did either — a fresh Neon
+      # branch has no tables at all, so every /auth/* request 500s until
+      # this runs. goose migrations are idempotent (tracked by version in
+      # goose_db_version), so running this on every provision/sync is safe
+      # regardless of what production's branch (this one's parent) already
+      # has applied.
+      - name: Checkout backend
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Go with cache
+        uses: ./.github/actions/setup-go
+        with:
+          go-version-file: "backend/go.mod"
+          working-directory: backend
+
+      - name: Run database migrations against the Neon branch
+        working-directory: backend
+        env:
+          DB_HOST: ${{ steps.neon.outputs.host }}
+          DB_PORT: "5432"
+          DB_USER: ${{ secrets.NEON_ROLE_NAME }}
+          DB_PASSWORD: ${{ steps.neon.outputs.password }}
+          DB_NAME: ${{ secrets.NEON_DATABASE_NAME }}
+          # cmd/job loads the full Config (config.Load() validates every
+          # sub-struct, not just DB) even though the migration runner
+          # itself never touches auth — AUTH_JWT_SECRET is the only field
+          # with no default, so it needs *a* value, not the real one.
+          AUTH_JWT_SECRET: unused-by-migrations
+        run: go run -tags job ./cmd/job
+
       - name: Install Railway CLI
         # Pinned + installed through npm's integrity-checked registry
         # rather than piping the mutable install script through sh.
