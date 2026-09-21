@@ -19,7 +19,14 @@ type Auth struct {
 	// with credentials: "include", so Lax would silently break every
 	// authenticated request in production. None requires Secure, which
 	// CookieSecure already defaults to.
-	CookieSameSite string `split_words:"true" default:"None"`
+	//
+	// envconfig tag is explicit rather than split_words: split_words'
+	// camelCase splitter treats "SameSite" as two words ("Same", "Site"),
+	// producing AUTH_COOKIE_SAME_SITE — not the AUTH_COOKIE_SAMESITE this
+	// struct, .env.example, and every deploy config actually use. Left as
+	// split_words, an operator's AUTH_COOKIE_SAMESITE override is silently
+	// ignored and the default always wins.
+	CookieSameSite string `envconfig:"COOKIE_SAMESITE" default:"None"`
 }
 
 func (Auth) Prefix() string { return "AUTH" }

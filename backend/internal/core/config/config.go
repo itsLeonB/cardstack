@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -38,6 +39,9 @@ func Load() error {
 	if err := envconfig.Process(auth.Prefix(), &auth); err != nil {
 		errs = errors.Join(errs, err)
 	}
+	if err := validateAuthCookiePolicy(auth); err != nil {
+		errs = errors.Join(errs, err)
+	}
 
 	if errs != nil {
 		return fmt.Errorf("error loading config: %w", errs)
@@ -45,5 +49,17 @@ func Load() error {
 
 	Global = &Config{app, db, otel, auth}
 
+	return nil
+}
+
+// validateAuthCookiePolicy rejects SameSite=None without Secure: browsers
+// reject that combination outright, so every auth cookie
+// (access/refresh/fingerprint/csrf) would silently never get stored —
+// identical in effect to the __Secure-Fgp naming bug fixed earlier. Caught
+// at boot instead of at the first login attempt.
+func validateAuthCookiePolicy(auth Auth) error {
+	if strings.EqualFold(auth.CookieSameSite, "none") && !auth.CookieSecure {
+		return errors.New("AUTH_COOKIE_SAMESITE=None requires AUTH_COOKIE_SECURE=true")
+	}
 	return nil
 }

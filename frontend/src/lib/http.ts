@@ -15,10 +15,33 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 // real source for the header; session.ts calls setCsrfToken() once it has
 // that value. readCookie stays as the same-origin/local-dev fallback, where
 // the cookie is readable.
+//
+// Also persisted to sessionStorage: the in-memory value alone is lost on a
+// page reload or a new tab, and since it's the *only* source in the
+// cross-origin deployment (the cookie fallback never applies there), losing
+// it would silently break logout/refresh for the rest of that session.
+const CSRF_STORAGE_KEY = "csrf_token"
 let inMemoryCsrfToken: string | null = null
+
+function storedCsrfToken(): string | null {
+  if (!("sessionStorage" in globalThis)) return null
+  try {
+    return sessionStorage.getItem(CSRF_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
 
 export function setCsrfToken(token: string | null): void {
   inMemoryCsrfToken = token
+  if (!("sessionStorage" in globalThis)) return
+  try {
+    if (token) sessionStorage.setItem(CSRF_STORAGE_KEY, token)
+    else sessionStorage.removeItem(CSRF_STORAGE_KEY)
+  } catch {
+    // Private-browsing/storage-blocked: in-memory token still works for
+    // the rest of this page's lifetime.
+  }
 }
 
 function readCookie(name: string): string | null {
@@ -41,7 +64,8 @@ export const customFetch = async <T>(
   const headers = new Headers(options.headers)
 
   if (MUTATING_METHODS.has(method)) {
-    const csrfToken = inMemoryCsrfToken ?? readCookie("csrf_token")
+    const csrfToken =
+      inMemoryCsrfToken ?? storedCsrfToken() ?? readCookie("csrf_token")
     if (csrfToken) headers.set("X-CSRF-Token", csrfToken)
   }
 

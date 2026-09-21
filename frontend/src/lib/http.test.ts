@@ -38,4 +38,30 @@ describe("customFetch CSRF header", () => {
     const headers = new Headers(init.headers)
     expect(headers.get("X-CSRF-Token")).toBeNull()
   })
+
+  it("recovers the CSRF token from sessionStorage after a page reload", async () => {
+    setCsrfToken("stored-token")
+
+    // vi.resetModules + a fresh dynamic import simulates a page reload:
+    // module-level state (inMemoryCsrfToken) resets, but sessionStorage
+    // (a jsdom global, not module-scoped) survives — the one difference
+    // that matters for this regression.
+    vi.resetModules()
+    const { customFetch: freshCustomFetch } = await import("./http")
+
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await freshCustomFetch("https://api.example.com/auth/logout", {
+      method: "POST",
+    })
+
+    // SAFETY: fetchMock is called exactly once per customFetch call above,
+    // with (url, init) — asserted implicitly by indexing call 0.
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const headers = new Headers(init.headers)
+    expect(headers.get("X-CSRF-Token")).toBe("stored-token")
+
+    sessionStorage.clear()
+  })
 })

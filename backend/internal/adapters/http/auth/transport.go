@@ -83,13 +83,18 @@ func (t *Transport) sameSite() http.SameSite {
 // token, refresh token, fingerprint, and a JS-readable CSRF token (the
 // double-submit cookie CSRFGuard checks against the X-CSRF-Token header).
 // The refresh token cookie is scoped to "/auth" only, mirroring authgin's
-// own intent of exposing it solely to the auth routes that need it.
+// own intent of exposing it solely to the auth routes that need it. The
+// CSRF cookie's lifetime matches RefreshTokenTTL, not JWTDuration: the
+// refresh endpoint's whole purpose is handling an expired access token, so
+// a CSRF cookie that expired at the same time as the access token would
+// make CSRFGuard reject POST /auth/refresh (and /auth/logout) with 403
+// before kit.RefreshToken ever got a chance to run.
 func (t *Transport) SetCookies(access, refresh, fingerprint, csrfToken string) []http.Cookie {
 	return []http.Cookie{
 		t.cookie(accessTokenCookie, access, "/", true, t.cfg.JWTDuration),
 		t.cookie(refreshTokenCookie, refresh, "/auth", true, t.cfg.RefreshTokenTTL),
 		t.cookie(t.FingerprintCookieName(), fingerprint, "/", true, t.cfg.RefreshTokenTTL),
-		t.cookie(csrfTokenCookie, csrfToken, "/", false, t.cfg.JWTDuration),
+		t.cookie(csrfTokenCookie, csrfToken, "/", false, t.cfg.RefreshTokenTTL),
 	}
 }
 
