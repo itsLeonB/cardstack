@@ -15,6 +15,9 @@ import (
 	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -32,6 +35,14 @@ func InitSDK(ctx context.Context, cfg config.OTel) (func(context.Context) error,
 		return func(context.Context) error { return nil }, nil
 	}
 
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName(cfg.ServiceName)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build otel resource: %w", err)
+	}
+
 	var shutdownFuncs []func(context.Context) error
 	shutdown := func(ctx context.Context) error {
 		var err error
@@ -46,10 +57,10 @@ func InitSDK(ctx context.Context, cfg config.OTel) (func(context.Context) error,
 
 	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
 
-	for _, initFn := range []func(context.Context) (func(context.Context) error, error){
+	for _, initFn := range []func(context.Context, *resource.Resource) (func(context.Context) error, error){
 		initMetrics, initLogs, initTraces,
 	} {
-		shutdownFunc, err := initFn(ctx)
+		shutdownFunc, err := initFn(ctx, res)
 		if err != nil {
 			if e := shutdown(ctx); e != nil {
 				logger.Error(e)
@@ -62,37 +73,40 @@ func InitSDK(ctx context.Context, cfg config.OTel) (func(context.Context) error,
 	return shutdown, nil
 }
 
-func initMetrics(ctx context.Context) (func(context.Context) error, error) {
+func initMetrics(ctx context.Context, res *resource.Resource) (func(context.Context) error, error) {
 	reader, err := autoexport.NewMetricReader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metric reader: %w", err)
 	}
 
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader), sdkmetric.WithResource(res))
 	otel.SetMeterProvider(mp)
 
 	return mp.Shutdown, nil
 }
 
-func initLogs(ctx context.Context) (func(context.Context) error, error) {
+func initLogs(ctx context.Context, res *resource.Resource) (func(context.Context) error, error) {
 	exporter, err := autoexport.NewLogExporter(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create log exporter: %w", err)
 	}
 
-	lp := sdklog.NewLoggerProvider(sdklog.WithProcessor(sdklog.NewBatchProcessor(exporter)))
+	lp := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(exporter)),
+		sdklog.WithResource(res),
+	)
 	global.SetLoggerProvider(lp)
 
 	return lp.Shutdown, nil
 }
 
-func initTraces(ctx context.Context) (func(context.Context) error, error) {
+func initTraces(ctx context.Context, res *resource.Resource) (func(context.Context) error, error) {
 	exporter, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res))
 	otel.SetTracerProvider(tp)
 	Tracer = tp.Tracer(scopeName)
 

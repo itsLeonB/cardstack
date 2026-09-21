@@ -3,6 +3,8 @@ package datasource
 import (
 	"database/sql"
 	"fmt"
+	"net"
+	"net/url"
 
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
@@ -41,12 +43,11 @@ func ProvideAndConfigureSQL(cfg config.DB) (*gorm.DB, *sql.DB, error) {
 }
 
 func dsn(cfg config.DB) string {
-	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s",
-		cfg.Host,
-		cfg.User,
-		cfg.Password,
-		cfg.Name,
-		cfg.Port,
-	)
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(cfg.User, cfg.Password),
+		Host:   net.JoinHostPort(cfg.Host, cfg.Port),
+		Path:   "/" + cfg.Name,
+	}
+	return u.String()
 }

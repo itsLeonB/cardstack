@@ -12,25 +12,22 @@ import (
 )
 
 func main() {
-	var exitCode int
-	defer func() {
-		os.Exit(exitCode)
-	}()
+	os.Exit(run())
+}
 
+func run() int {
 	logger.Init(config.AppName)
 
 	if err := config.Load(); err != nil {
 		logger.Error(err)
-		exitCode = 1
-		return
+		return 1
 	}
 
 	ctx := context.Background()
 	otelShutdown, err := otel.InitSDK(ctx, config.Global.OTel)
 	if err != nil {
 		logger.Error(err)
-		exitCode = 1
-		return
+		return 1
 	}
 	defer func() {
 		if err := otelShutdown(ctx); err != nil {
@@ -41,13 +38,14 @@ func main() {
 	srv, shutdownFunc, err := http.Setup(*config.Global)
 	if err != nil {
 		logger.Error(err)
-		exitCode = 1
-		return
+		return 1
 	}
 	defer shutdownFunc()
 
 	if err := srv.ListenAndServe(ctx); err != nil {
 		logger.Error(err)
-		exitCode = 1
+		return 1
 	}
+
+	return 0
 }

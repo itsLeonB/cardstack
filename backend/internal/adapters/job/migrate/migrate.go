@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	appembed "github.com/itsLeonB/cardstack/backend"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 	"github.com/pressly/goose/v3"
@@ -15,7 +15,7 @@ type Migrate struct {
 }
 
 func Setup(providers *provider.Providers) (*Migrate, error) {
-	goose.SetBaseFS(appembed.Migrations)
+	goose.SetBaseFS(migrations.Migrations)
 	goose.SetLogger(logger.Global)
 
 	if err := goose.SetDialect("postgres"); err != nil {
@@ -26,7 +26,7 @@ func Setup(providers *provider.Providers) (*Migrate, error) {
 }
 
 func (m *Migrate) Run() error {
-	if err := goose.Up(m.db, "internal/adapters/db/postgres/migrations"); err != nil {
+	if err := goose.Up(m.db, "."); err != nil {
 		return fmt.Errorf("error running migrations: %w", err)
 	}
 	return nil
