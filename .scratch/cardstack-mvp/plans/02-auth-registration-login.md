@@ -15,9 +15,9 @@ Reference implementation: `github.com/itsLeonB/go-authkit` (same author, the lib
 | Session guard middleware | New Huma middleware (`func(huma.Context, func(huma.Context))`) in `adapters/http/auth/middleware.go` that ports `authgin.AuthMiddleware`'s three-line body (`transport.ReadAccessToken` → `transport.ReadFingerprint` → `kit.VerifyToken` → stash claims) to Huma's context shape | The logic is already framework-agnostic; only its `gin.HandlerFunc` signature and `gin.Context.Set` calls don't transfer. Claims go into `context.Context` via a typed key (e.g. `authctx.UserID(ctx)`) instead of Gin's context map. |
 | CSRF | Same treatment for `authgin.CSRFMiddleware` (double-submit `csrf_token` cookie vs. `X-CSRF-Token` header, skipped on GET/HEAD/OPTIONS) — port as a second Huma middleware, applied to `logout` and `refresh` (the two mutating routes that run against an *existing* session/cookie set) | Register/login are the requests that *create* the CSRF cookie in the first place, so there's nothing to double-submit against yet on that first call — matches why `sentinel-go`'s CORS config (already scaffolded in ticket 01, `setup_sentinel.go`) already allow-lists `X-CSRF-Token` and sets `AllowCredentials: true`, i.e. this was anticipated, not new scope creep. |
 | **OpenAPI security scheme correction** | Replace `huma/config.go`'s `"BearerAuth"` scheme (`type: http, scheme: bearer`) with a cookie-based one — `type: apiKey, in: cookie, name: "access_token"`, and rename `internal/endpoint`'s hardcoded `bearerAuthSecurity` var (and the `"BearerAuth"` map key) to match, e.g. `cookieAuthSecurity` / `"CookieAuth"` | Ticket 01 scaffolded `BearerAuth` as a placeholder before any real auth flow existed ("registered but unused"). This ticket is that flow landing, and the flow the project actually chose (ADR-0003 stateful mode) authenticates via cookies, not an `Authorization: Bearer` header. Leaving `BearerAuth` as-is would make `Secured: true` routes advertise a transport the middleware doesn't actually check — the generated OpenAPI spec (and therefore orval's client) would describe the wrong auth mechanism. This is a one-time correction to `internal/adapters/http/huma/config.go` and the one `var` in `internal/endpoint/endpoint.go`; no other file in `endpoint/` needs to change since `Secured: true` already plumbs through generically. |
-| Stores | Hand-written GORM repositories (`adapters/repository/{user,session,refresh_token}_repository.go`) implementing `authkit.UserStore`, `authkit.SessionStore`, `authkit.RefreshTokenStore`. `Deps.Resets`/`Deps.OAuth`/`Deps.State` left `nil` (unused — no password reset, no OAuth this ticket). | Matches ticket 01's own repository rule (spec.md / decision table): `go-crud`'s generic `crud.Repository[T]` covers plain CRUD, but `authkit`'s store interfaces need queries `go-crud` doesn't shape (`FindByEmail`, `SetVerified` with side-fields, hashed-token lookup by hash, session touch). This is also the first ticket that actually needs a repository, so it's the point ticket 01 deferred `go-crud`/`crud.Transactor` wiring to (`provider/repository_provider.go`, `ProvideTransactor`, mirroring cashus's shape) — add it now, not before. |
+| Stores | Three adapter types (`adapters/repository/{user,session,refresh_token}_repository.go`) implementing `authkit.UserStore`/`authkit.SessionStore`/`authkit.RefreshTokenStore` — one per interface, since `authkit` itself splits them that way, there's no avoiding three types. Each **embeds a `crud.Repository[entity.X]`** (go-crud) for the plain-CRUD portion (create, find-by-ID, delete) and adds hand-written methods only for the queries `go-crud` doesn't shape (`FindByEmail`, `SetVerified`, hashed-token lookup by hash, `Touch`, `DeleteBySession`) — not fully hand-rolled GORM from scratch. `Deps.Resets`/`Deps.OAuth`/`Deps.State` left `nil` (unused — no password reset, no OAuth this ticket). | Matches ticket 01's own repository rule (spec.md / decision table): reach for `go-crud`'s generic `crud.Repository[T]` wherever a method is plain CRUD, hand-write only the methods that need more. This is also the first ticket that actually needs a repository, so it's the point ticket 01 deferred `go-crud`/`crud.Transactor` wiring to (`provider/repository_provider.go`, `ProvideTransactor`, mirroring cashus's shape) — add it now, not before. |
 | Session cache | Minimal in-process `SessionCache` (`adapters/core/service` or a small `internal/core/sessioncache` package — a mutex/`sync.Map`-backed map with TTL eviction, satisfying `authkit.SessionCache`'s 3-method interface) | MVP runs one Railway instance; no multi-instance cache-consistency requirement yet that would justify Redis. `SessionCache` is a tiny interface (`Get`/`Delete`/`Shutdown`) — hand-rolling it is less work and less infra than adding a dependency for a single-process app. Revisit if the backend ever scales beyond one instance. |
-| Schema | New goose migration (`internal/adapters/db/postgres/migrations/`) creating `users`, `sessions`, `refresh_tokens` — replaces the ticket-01 bootstrap placeholder's "no schema changes yet" state | The bootstrap migration's own comment says to replace it once real schema exists; this is the first ticket that needs any. PG18 native `gen_random_uuid()` for PKs (per ticket 01's decision, no pgcrypto extension). |
+| Schema | New goose migration (`internal/adapters/db/postgres/migrations/`) creating `users`, `sessions`, `refresh_tokens` — replaces the ticket-01 bootstrap placeholder's "no schema changes yet" state | The bootstrap migration's own comment says to replace it once real schema exists; this is the first ticket that needs any. PG18 native `uuidv7()` for PKs (per ticket 01's decision, no pgcrypto extension). |
 | Auth config | New `internal/core/config/auth_config.go` (`Auth` struct, prefix `AUTH`): `JWTSecret`, `JWTIssuer` (default `cardstack`), `JWTDuration` (default `15m`), `RefreshTokenTTL` (default `168h`), `CookieDomain`, `CookieSecure` (default `true`), `CookieSameSite` (default `Lax`) — added to the top-level `config.Config` struct alongside `App`/`DB`/`OTel` | Mirrors how `App`/`DB`/`OTel` are already loaded (`envconfig.Process(prefix, &struct)` in `config.Load()`); auth secrets/TTLs are config, not hardcoded. |
 | `GET /auth/me` | Add a small secured endpoint returning the current session's user (id, email) — **not** explicitly listed in the ticket checklist, added as necessary connective tissue | Access/fingerprint/refresh cookies are `HttpOnly` by design (`CookieTransport`) — frontend JS cannot read them to decide "am I logged in." Without some endpoint to probe, "frontend redirects unauthenticated users away from protected routes" (an actual checklist item) has no way to determine auth state on page load/refresh. `/auth/me` is the standard shape for this and reuses the same session-guard middleware as every other secured route — no new auth logic. |
 | Frontend cookie transport | Extend `frontend/orval.config.ts`'s fetch output with a `mutator` (or an equivalent wrapper module under `src/lib/`) that sets `credentials: "include"` on every generated call, and attaches `X-CSRF-Token` (read from the non-`HttpOnly` `csrf_token` cookie) on mutating requests | The current generated client (`src/generated/endpoints/health/health.ts`, ticket 01) calls bare `fetch()` with no `credentials` option — cookies are never sent cross-origin (frontend on Vercel, backend on Railway in prod; different ports in dev) without this. This has to land now, the first ticket where any endpoint relies on cookies, or every generated auth call silently fails. |
@@ -30,25 +30,21 @@ backend/
     core/
       config/
         auth_config.go          Auth struct (JWT secret/issuer/duration, refresh TTL, cookie domain/secure/samesite) — wired into config.Config + config.Load()
-    domain/
-      service/
-        auth_service.go          AuthService interface: Register/Login/Logout/RefreshToken/Me — thin wrapper the handler calls, matching HealthService's shape
     adapters/
       core/
         service/
-          auth_service.go         AuthService impl: holds *authkit.AuthKit, calls its methods, maps authkit sentinel errors (ErrUserExists, ErrInvalidCredentials, ErrSessionNotFound, ...) to the project's HTTP error conventions
           session_cache.go        hand-rolled authkit.SessionCache (sync.Map + TTL eviction + background sweep, Shutdown stops the sweeper)
       repository/
-        user_repository.go        implements authkit.UserStore over GORM
-        session_repository.go     implements authkit.SessionStore over GORM
-        refresh_token_repository.go  implements authkit.RefreshTokenStore over GORM
+        user_repository.go        implements authkit.UserStore; embeds crud.Repository[entity.User] for Create/FindByID, hand-written FindByEmail/SetVerified/UpdatePassword/Exists
+        session_repository.go     implements authkit.SessionStore; embeds crud.Repository[entity.Session] for Create/GetByID/Delete, hand-written Touch
+        refresh_token_repository.go  implements authkit.RefreshTokenStore; embeds crud.Repository[entity.RefreshToken] for Create/Delete, hand-written FindByHash/DeleteBySession
       http/
         auth/
           transport.go            re-exports/wraps authgin.CookieTransport construction from config.Auth (or a hand-rolled equivalent — see Key decisions)
           middleware.go            SessionGuard (ports authgin.AuthMiddleware) + CSRFGuard (ports authgin.CSRFMiddleware), both as func(huma.Context, func(huma.Context))
           claims.go                 typed accessors (UserID(ctx), SessionID(ctx)) over the context values SessionGuard stashes
         handler/
-          auth_handler.go          Register/Login/Logout/Refresh/Me — mirrors health_handler.go's Routes() []endpoint.Registrable shape; Logout/Refresh/Me use Secured: true (Refresh's "auth" is its own refresh-cookie check inside authkit, not the access-token guard — see below) plus the CSRF middleware on Logout/Refresh via Endpoint.Middlewares
+          auth_handler.go          holds *authkit.AuthKit directly (no domain-service indirection — see Key decisions' "Wiring style"), calls Register/Login/Logout/RefreshToken/VerifyToken on it and maps authkit's sentinel errors to the project's HTTP error conventions inline; mirrors health_handler.go's Routes() []endpoint.Registrable shape; Logout/Refresh/Me use Secured: true (Refresh's "auth" is its own refresh-cookie check inside authkit, not the access-token guard — see below) plus the CSRF middleware on Logout/Refresh via Endpoint.Middlewares
         huma/
           config.go                 EDIT: "BearerAuth" → cookie-based apiKey scheme (see Key decisions)
         routes/
@@ -62,7 +58,7 @@ backend/
     provider/
       repository_provider.go       NEW: RepositorySet — provides the three GORM repositories + crud.Transactor (go-crud, added to go.mod now)
       auth_provider.go             NEW: builds authkit.Config from config.Global.Auth, authkit.Deps from the repository providers + session cache, constructs *authkit.AuthKit
-      service_provider.go          EDIT: Services gains Auth service.AuthService
+      service_provider.go          EDIT: Services gains Auth *authkit.AuthKit (no domain interface — the handler calls it directly)
       wire.go / wire_gen.go        EDIT: regenerate (`make wire`) to include RepositorySet + auth provider
   go.mod                            ADD: github.com/itsLeonB/go-authkit, github.com/itsLeonB/go-crud
   .env.example                      ADD: AUTH_JWT_SECRET, AUTH_JWT_ISSUER, AUTH_JWT_DURATION, AUTH_REFRESH_TOKEN_TTL, AUTH_COOKIE_DOMAIN, AUTH_COOKIE_SECURE, AUTH_COOKIE_SAMESITE
@@ -82,7 +78,7 @@ Set-Cookie handling: prefer Huma's native `[]http.Cookie` output field tagged `h
 
 ### Error mapping
 
-`authkit` returns its own sentinel errors (`ErrUserExists`, `ErrInvalidCredentials`, `ErrSessionNotFound`, `ErrTokenInvalid`, `ErrTokenExpired`, `ErrTooManyRequests`, ...) — map these to `huma.Error4xx`/existing error-handling conventions in `auth_service.go` (or a shared `errors.go` in `adapters/core/service`), the same boundary point ticket 01 didn't need since health has no error paths.
+`authkit` returns its own sentinel errors (`ErrUserExists`, `ErrInvalidCredentials`, `ErrSessionNotFound`, `ErrTokenInvalid`, `ErrTokenExpired`, `ErrTooManyRequests`, ...) — map these to `huma.Error4xx`/existing error-handling conventions directly in `auth_handler.go` (a small unexported helper if the switch gets long), the same boundary point ticket 01 didn't need since health has no error paths.
 
 ## Frontend layout
 
@@ -101,7 +97,7 @@ No changes expected — ticket 01's `backend-ci.yml`/`frontend-ci.yml` already p
 ## Testing (per spec.md's testing decisions)
 
 - Repository tests: real local Postgres (user/session/refresh-token CRUD, `FindByEmail`, hashed-token lookup).
-- Service tests: mock `authkit`-shaped store interfaces (or mock `*authkit.AuthKit` behavior at the `AuthService` boundary) via `mockery`.
+- Service tests: mock the `authkit`-shaped store interfaces (`UserStore`/`SessionStore`/`RefreshTokenStore`) via `mockery`, so `auth_handler.go`'s error-mapping and the repository layer are each testable without a real `*authkit.AuthKit`/DB.
 - Feature tests: full HTTP boundary — register → login → cookies set → `/auth/me` returns the user → logout → `/auth/me` 401s → refresh flow. This is the first ticket exercising `endpoint.Endpoint`'s `Secured`/`Middlewares` fields for real, so also a natural place to add a feature test asserting an unauthenticated request to a `Secured: true` route is rejected (a ticket checklist item).
 - Frontend: `useSession`/login/register component tests mocking the generated client module (`vi.mock`), per spec.md's frontend testing decision (no MSW).
 
@@ -115,7 +111,4 @@ Per `docs/agents/orchestration.md`: touches both `./backend` and `./frontend` �
 4. Each subagent runs its own verification script, self-reviews via `code-review` skill, commits on its own branch (`feat(backend): add registration and login`, `feat(frontend): add registration and login`).
 5. Orchestrator runs a cross-component architecture review on the merged diff — pay particular attention to the cookie/CSRF contract actually matching between backend `Set-Cookie` behavior and the frontend fetch wrapper (this is the one place a mismatch would pass both components' own tests but fail end-to-end) — merges worktrees back, pushes after confirmation.
 
-## Open questions worth a quick confirmation before/while implementing
-
-- **CSRF scope on register/login**: this plan applies the CSRF guard only to logout/refresh (routes that ride an existing cookie set), not register/login (which create it). This defends against classic CSRF on state-changing authenticated actions but not "login CSRF" (tricking a victim into authenticating as the attacker). Given MVP is single-owner/personal use (ADR-0004's own framing), this plan treats that as acceptable for now — flag if that framing has changed.
-- **`GET /auth/me` naming/shape**: not in the ticket's checklist; confirm the addition (or an equivalent mechanism) is wanted before or during implementation rather than after, since the frontend redirect-guard checklist item depends on it existing in some form.
+Confirmed: CSRF guard stays scoped to logout/refresh only (not register/login) per the reasoning in Key decisions — acceptable for MVP's single-owner framing. `GET /auth/me` proceeds as scoped above.
