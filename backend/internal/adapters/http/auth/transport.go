@@ -16,7 +16,15 @@ const (
 	accessTokenCookie  = "access_token"
 	refreshTokenCookie = "refresh_token"
 	csrfTokenCookie    = "csrf_token"
-	fingerprintCookie  = "__Secure-Fgp"
+	// fingerprintCookie and secureFingerprintCookie are chosen by
+	// Transport.fingerprintCookieName based on cfg.CookieSecure: the
+	// "__Secure-" prefix is only valid on a cookie that actually carries the
+	// Secure attribute (RFC 6265bis) — browsers (and modern curl) silently
+	// refuse to store a "__Secure-"-prefixed cookie otherwise, which would
+	// break every authenticated request whenever CookieSecure=false (a
+	// legitimate config for non-TLS local/preview deploys).
+	fingerprintCookie       = "Fgp"
+	secureFingerprintCookie = "__Secure-Fgp"
 )
 
 // Transport builds the Set-Cookie values go-authkit's stateful flow needs.
@@ -49,6 +57,17 @@ func NewTransport(cfg config.Auth) *Transport {
 	return &Transport{cfg: cfg}
 }
 
+// FingerprintCookieName returns the fingerprint cookie's name for this
+// Transport's config — the "__Secure-" prefixed name when CookieSecure is
+// on, the plain name otherwise (see the constants' doc comment). Exported
+// so SessionGuard can read the same cookie SetCookies writes.
+func (t *Transport) FingerprintCookieName() string {
+	if t.cfg.CookieSecure {
+		return secureFingerprintCookie
+	}
+	return fingerprintCookie
+}
+
 func (t *Transport) sameSite() http.SameSite {
 	switch strings.ToLower(t.cfg.CookieSameSite) {
 	case "strict":
@@ -69,7 +88,7 @@ func (t *Transport) SetCookies(access, refresh, fingerprint, csrfToken string) [
 	return []http.Cookie{
 		t.cookie(accessTokenCookie, access, "/", true, t.cfg.JWTDuration),
 		t.cookie(refreshTokenCookie, refresh, "/auth", true, t.cfg.RefreshTokenTTL),
-		t.cookie(fingerprintCookie, fingerprint, "/", true, t.cfg.RefreshTokenTTL),
+		t.cookie(t.FingerprintCookieName(), fingerprint, "/", true, t.cfg.RefreshTokenTTL),
 		t.cookie(csrfTokenCookie, csrfToken, "/", false, t.cfg.JWTDuration),
 	}
 }
@@ -80,7 +99,7 @@ func (t *Transport) ClearCookies() []http.Cookie {
 	return []http.Cookie{
 		t.expired(accessTokenCookie, "/", true),
 		t.expired(refreshTokenCookie, "/auth", true),
-		t.expired(fingerprintCookie, "/", true),
+		t.expired(t.FingerprintCookieName(), "/", true),
 		t.expired(csrfTokenCookie, "/", false),
 	}
 }

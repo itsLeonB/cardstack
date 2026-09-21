@@ -12,7 +12,11 @@ import (
 // and stash the resulting userID/sessionID claims into the request context
 // for downstream handlers (see claims.go). A request without a valid
 // session is rejected with 401 and never reaches the handler.
-func SessionGuard(api huma.API, kit *authkit.AuthKit) func(huma.Context, func(huma.Context)) {
+//
+// It reads the fingerprint cookie by transport.FingerprintCookieName()
+// rather than a fixed name, so it always matches whichever name SetCookies
+// actually wrote (plain vs. "__Secure-" prefixed, per CookieSecure).
+func SessionGuard(api huma.API, kit *authkit.AuthKit, transport *Transport) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		token, err := readCookie(ctx, accessTokenCookie)
 		if err != nil || token == "" {
@@ -20,7 +24,7 @@ func SessionGuard(api huma.API, kit *authkit.AuthKit) func(huma.Context, func(hu
 			return
 		}
 
-		fingerprint, _ := readCookie(ctx, fingerprintCookie)
+		fingerprint, _ := readCookie(ctx, transport.FingerprintCookieName())
 
 		claims, err := kit.VerifyToken(ctx.Context(), token, fingerprint)
 		if err != nil {

@@ -18,8 +18,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { useLoginMutation } from "@/lib/session"
 
+// `redirect` only ever needs to point back into this app (requireAuth sets
+// it from the router's own same-origin location.href), so it's restricted
+// to a same-origin relative path here. Left unvalidated, a crafted
+// `/login?redirect=` link could send a successful login to an attacker
+// controlled destination (open redirect).
 const loginSearchSchema = z.object({
-  redirect: z.string().optional(),
+  redirect: z
+    .string()
+    .refine((path) => path.startsWith("/") && !path.startsWith("//"))
+    .optional(),
   registered: z.boolean().optional(),
 })
 
@@ -45,7 +53,12 @@ function LoginPage() {
       {
         onSuccess: (response) => {
           if (response.status === 200) {
-            void navigate({ to: redirect || "/account" })
+            // SAFETY: redundant with loginSearchSchema's refine, kept here
+            // so a post-login redirect is never sent off-site even if
+            // validateSearch's own enforcement ever changes.
+            const isSameOriginPath =
+              redirect?.startsWith("/") && !redirect.startsWith("//")
+            void navigate({ to: isSameOriginPath ? redirect : "/account" })
             return
           }
           setFormError(response.data.detail ?? "Invalid email or password.")

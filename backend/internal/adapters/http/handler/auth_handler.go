@@ -246,7 +246,7 @@ func withGuards(shared []func(huma.Context, func(huma.Context)), guards ...func(
 // plan's "Route surface" section for each route's Secured/Middlewares.
 func (h *AuthHandler) Routes() []endpoint.Registrable {
 	sessionGuard := func(api huma.API) func(huma.Context, func(huma.Context)) {
-		return authpkg.SessionGuard(api, h.kit)
+		return authpkg.SessionGuard(api, h.kit, h.transport)
 	}
 
 	return []endpoint.Registrable{
