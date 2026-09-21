@@ -1,0 +1,360 @@
+name: Preview Environments
+
+# Provisions a temporary preview stack for every pull request:
+#   1. a Neon database branch, forked from the production branch
+#   2. Neon's credentials pushed into Railway's PR environment for this PR
+#      (Railway auto-creates that environment once "PR Deploys" is enabled
+#      on the project)
+#   3. a fresh Vercel preview deployment pointed at that Railway environment
+#
+# Railway's own PR environment and Vercel's own preview deployment are torn
+# down automatically by those platforms when the PR is merged/closed; this
+# workflow only owns the Neon branch lifecycle and the cross-wiring between
+# all three.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+concurrency:
+  group: preview-environment-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Default to no GITHUB_TOKEN permissions; each job opts into only what it
+# needs.
+permissions: {}
+
+env:
+  NEON_BRANCH_NAME: preview/pr-${{ github.event.pull_request.number }}
+  RAILWAY_PR_NUMBER: ${{ github.event.pull_request.number }}
+
+jobs:
+  provision:
+    name: Provision preview stack
+    # pull_request from a fork (or Dependabot) doesn't get repo secrets, so
+    # every credential below would be empty for them. Skip provisioning
+    # rather than failing noisily; forked PRs simply don't get a preview.
+    # Do NOT switch this to pull_request_target to "fix" that — it would
+    # run this workflow (and expose secrets to) unreviewed PR code.
+    if: >
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The action returns an existing branch's details as-is rather than
+      # resetting it, so a `synchronize` run would otherwise keep stale
+      # schema/data from the branch's first creation. Delete it first so
+      # every run starts from a fresh copy of `production`.
+      #
+      # Check existence first rather than blanket continue-on-error: the
+      # delete action's neonctl call fails identically on "branch not
+      # found" and on real errors (auth, API, conflict), and swallowing
+      # all of those would hide a genuine failure and let the next step
+      # silently reuse an undeleted, stale branch.
+      - name: Check for a stale Neon branch from a previous run
+        id: neon-stale-check
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          url="https://console.neon.tech/api/v2/projects"
+          url="$url/$NEON_PROJECT_ID/branches"
+          exists=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" "$url" \
+            | jq -r --arg name "$NEON_BRANCH_NAME" \
+              '[.branches[] | select(.name == $name)] | length > 0')
+          echo "exists=$exists" >> "$GITHUB_OUTPUT"
+
+      - name: Delete stale Neon branch
+        if: steps.neon-stale-check.outputs.exists == 'true'
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: ${{ env.NEON_BRANCH_NAME }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Create Neon branch
+        id: neon
+        uses: neondatabase/create-branch-action@v5
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          parent: production
+          branch_name: ${{ env.NEON_BRANCH_NAME }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          # Must already exist as a role/database on the `production`
+          # branch (branching copies them); the action looks up their
+          # connection details rather than creating new ones.
+          username: ${{ secrets.NEON_ROLE_NAME }}
+          database: ${{ secrets.NEON_DATABASE_NAME }}
+
+      - name: Install Railway CLI
+        # Pinned + installed through npm's integrity-checked registry
+        # rather than piping the mutable install script through sh.
+        run: npm install -g @railway/cli@5.49.3
+
+      - name: Link Railway CLI to the project
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          # Unlike a project token, an account token carries no implicit
+          # project/environment context, so `environment list` needs an
+          # explicit link first (it errors without one, non-interactively).
+          # Any valid environment works here — this only bootstraps project
+          # context; `environment list` returns every environment in the
+          # linked *project*, ephemeral ones included, and later steps pass
+          # --environment explicitly per call regardless.
+          railway link --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT_ID"
+
+      - name: Find this PR's Railway environment
+        id: railway-env
+        env:
+          # Must be an account-scoped token (RAILWAY_API_TOKEN), not a
+          # project token — project tokens are pinned to the single
+          # environment they were created for and can't see or act on
+          # this PR's dynamically-created ephemeral environment (per
+          # cashus's preview-environments.yml, where this was verified
+          # against a live run against the same Railway account).
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+        run: |
+          # Railway auto-creates a PR environment once "PR Deploys" is on
+          # for the project. Poll for it to show up — creation happens
+          # async after PR open.
+          #
+          # Match by name (not verified live for this project yet — carried
+          # over from cashus, where the observed name was
+          # "cashus-pr-<number>"; expect "cardstack-pr-<number>" here), not
+          # the --ephemeral flag or meta.pr_number field — a cashus run
+          # showed Railway had created and fully deployed the PR's
+          # environment while --ephemeral/meta.pr_number-based matching
+          # still found nothing for the full 5-minute window, so neither is
+          # reliably queryable this way for environments Railway creates
+          # natively via PR Deploys. `environment list --json` wraps the
+          # array as {"environments": [...]} (verified against
+          # railwayapp/cli's list.rs).
+          last_list=""
+          for i in $(seq 1 30); do
+            last_list=$(railway environment list --json 2>/dev/null)
+            match=$(echo "$last_list" | jq -r --arg pr "$RAILWAY_PR_NUMBER" \
+              '[.environments[] | select(.name
+                | test("(^|[^0-9])" + $pr + "([^0-9]|$)"))][0].name // empty')
+            if [[ -n "$match" ]]; then
+              echo "name=$match" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::No Railway environment found for PR" \
+            "#$RAILWAY_PR_NUMBER after 5 minutes." \
+            "Is 'PR Deploys' enabled on the Railway project?"
+          echo "Last 'railway environment list --json' output:"
+          echo "$last_list"
+          exit 1
+
+      - name: Push Neon credentials into the Railway PR environment
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
+        run: |
+          # Variable changes trigger a redeploy by default, so no separate
+          # redeploy step is needed once these are set.
+          #
+          # Only one service (backend/infra/.railway/railway.ts defines
+          # just "api" — cardstack has no worker/job services like cashus
+          # did), so no per-service loop is needed here.
+          railway variable set \
+            "DB_HOST=${{ steps.neon.outputs.host }}" \
+            "DB_PORT=5432" \
+            "DB_USER=${{ secrets.NEON_ROLE_NAME }}" \
+            "DB_PASSWORD=${{ steps.neon.outputs.password }}" \
+            "DB_NAME=${{ secrets.NEON_DATABASE_NAME }}" \
+            --service api \
+            --environment "$RAILWAY_ENV"
+
+      - name: Wait for the Railway API's public domain
+        id: railway-domain
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
+        run: |
+          # `domain list --json` wraps the array as {"domains": [...]}
+          # (verified against railwayapp/cli's domain.rs).
+          for i in $(seq 1 30); do
+            domain=$(railway domain list --service api \
+              --environment "$RAILWAY_ENV" --json 2>/dev/null \
+              | jq -r '[.domains[].domain][0] // empty')
+            if [[ -n "$domain" ]]; then
+              echo "url=https://$domain" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::api service in Railway environment $RAILWAY_ENV" \
+            "never got a public domain."
+          exit 1
+
+      - name: Checkout frontend
+        uses: actions/checkout@v7
+        with:
+          # No later step needs authenticated git commands; avoid
+          # persisting the GITHUB_TOKEN into the checkout while VERCEL_TOKEN
+          # is also in scope for the build that follows.
+          persist-credentials: false
+
+      - name: Point this PR's Vercel preview at the Railway API
+        id: vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Required for `vercel deploy` to resolve which project to act on
+          # non-interactively — without these it expects a checked-in
+          # .vercel/project.json from `vercel link` instead.
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          RAILWAY_API_URL: ${{ steps.railway-domain.outputs.url }}
+          # PR head ref is attacker-controlled (fork PRs); keep it out of
+          # the shell command line entirely and pass it as data instead.
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          npm install -g vercel@59.11.7
+
+          # Scope VITE_API_BASE_URL to this PR's git branch (Vite bakes
+          # VITE_* vars in at build time, so this must be set before the
+          # build runs). Unlike cashus, cardstack's backend mounts its API
+          # at the engine root (no "/api" prefix — see
+          # backend/internal/adapters/http/routes/register_routes.go), so
+          # this points straight at the Railway domain, matching
+          # frontend/.env.example's VITE_API_BASE_URL=http://localhost:8080.
+          printf '%s' "${RAILWAY_API_URL}" | \
+            vercel env add VITE_API_BASE_URL preview "$HEAD_REF" \
+              --token "$VERCEL_TOKEN" --force
+
+          # Deploy without --prebuilt so the build runs on Vercel's own
+          # infrastructure instead of locally on this runner. A local
+          # `vercel build` is broken for this project: Vercel's
+          # build-utils hardcodes infra-specific PATH overrides for the
+          # detected package manager's install step (bun here), which
+          # don't resolve to a real shell outside Vercel's own servers
+          # ("spawn sh ENOENT" — see
+          # https://github.com/vercel/vercel/issues/15204, same root
+          # cause reported for pnpm). Building remotely also means the
+          # branch-scoped env var above is honored automatically.
+          deployment_url=$(vercel deploy \
+            --token "$VERCEL_TOKEN" \
+            --yes \
+            -m "githubDeployment=1" \
+            -m "githubCommitRef=$HEAD_REF" \
+            -m "githubCommitSha=$HEAD_SHA")
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview links on the PR
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = [
+              "### Preview environment ready",
+              "",
+              `| | |`,
+              `|---|---|`,
+              `| Neon branch | \`${{ env.NEON_BRANCH_NAME }}\` |`,
+              `| Railway API | ${{ steps.railway-domain.outputs.url }} |`,
+              `| Vercel frontend | ${{ steps.vercel.outputs.url }} |`,
+              "",
+              "Torn down automatically when this PR is merged or closed.",
+            ].join("\n");
+            const marker = "### Preview environment ready";
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  cleanup:
+    name: Delete preview stack
+    # Mirror provision's fork/Dependabot guard: those PRs were never
+    # provisioned (no secrets), so there's nothing here to clean up either.
+    if: >
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Delete Neon branch
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: ${{ env.NEON_BRANCH_NAME }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+      # Railway's PR environment is deleted automatically by Railway on
+      # PR close/merge — nothing to do here for it.
+
+      - name: Delete this PR's Vercel preview deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # Vercel doesn't delete a preview deployment just because its
+          # branch/PR is gone — it only loses "active" protection and then
+          # waits on the project's retention policy. Delete it here so
+          # cleanup actually happens on PR close.
+          #
+          # /v6/deployments is paginated (~20/page by default); a branch
+          # with more deployments than that would otherwise leave older
+          # ones undeleted.
+          until_param=""
+          deleted_any=false
+          while true; do
+            extra_args=()
+            if [[ -n "$until_param" ]]; then
+              extra_args=(--data-urlencode "until=$until_param")
+            fi
+            page=$(curl -fsS \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -G "https://api.vercel.com/v6/deployments" \
+              --data-urlencode "projectId=$VERCEL_PROJECT_ID" \
+              --data-urlencode "teamId=$VERCEL_ORG_ID" \
+              --data-urlencode "branch=$HEAD_REF" \
+              --data-urlencode "target=preview" \
+              "${extra_args[@]}")
+
+            deployment_ids=$(echo "$page" | jq -r '.deployments[].uid')
+            for id in $deployment_ids; do
+              echo "Deleting Vercel deployment $id"
+              curl -fsS -X DELETE \
+                -H "Authorization: Bearer $VERCEL_TOKEN" \
+                -G "https://api.vercel.com/v13/deployments/$id" \
+                --data-urlencode "teamId=$VERCEL_ORG_ID"
+              deleted_any=true
+            done
+
+            until_param=$(echo "$page" | jq -r '.pagination.next // empty')
+            [[ -n "$until_param" ]] || break
+          done
+
+          if [[ "$deleted_any" == false ]]; then
+            echo "No Vercel preview deployments found for branch $HEAD_REF."
+          fi
