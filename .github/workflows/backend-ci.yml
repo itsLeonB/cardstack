@@ -3,10 +3,16 @@ name: Backend CI
 on:
   push:
     branches: [main]
-    paths: ["backend/**", ".github/workflows/backend-ci.yml", ".github/actions/setup-go/**"]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/actions/setup-go/**"
   pull_request:
     branches: [main]
-    paths: ["backend/**", ".github/workflows/backend-ci.yml", ".github/actions/setup-go/**"]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/actions/setup-go/**"
 
 permissions:
   contents: read
