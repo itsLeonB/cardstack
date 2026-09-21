@@ -3,10 +3,13 @@ name: Frontend CI
 on:
   push:
     branches: [main]
-    paths: ["frontend/**"]
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml", ".github/actions/setup-bun/**"]
   pull_request:
-    branches: [main, mvp]
-    paths: ["frontend/**"]
+    branches: [main]
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml", ".github/actions/setup-bun/**"]
+
+permissions:
+  contents: read
 
 defaults:
   run:
@@ -18,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup
         uses: ./.github/actions/setup-bun
         with:
@@ -29,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup
         uses: ./.github/actions/setup-bun
         with:
@@ -40,6 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup
         uses: ./.github/actions/setup-bun
         with:
@@ -51,6 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup
         uses: ./.github/actions/setup-bun
         with:
