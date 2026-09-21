@@ -242,8 +242,17 @@ jobs:
           # frontend/.env.example's VITE_API_BASE_URL=http://localhost:8080.
           printf '%s' "${RAILWAY_API_URL}" | \
             vercel env add VITE_API_BASE_URL preview "$HEAD_REF" \
-              --cwd frontend --token "$VERCEL_TOKEN" --force
+              --token "$VERCEL_TOKEN" --force
 
+          # Deliberately run from the repo root, not --cwd frontend: the
+          # Vercel project already has Root Directory set to "frontend"
+          # server-side (see frontend/.vercel/project.json), and Vercel
+          # joins cwd + rootDirectory. --cwd frontend here resolves to the
+          # nonexistent frontend/frontend and fails deploy outright
+          # ("The provided path ... does not exist" — verified against a
+          # live run). Repo root + the project's own rootDirectory setting
+          # is the only combination that resolves to frontend/.
+          #
           # Deploy without --prebuilt so the build runs on Vercel's own
           # infrastructure instead of locally on this runner. A local
           # `vercel build` is broken for this project: Vercel's
@@ -255,7 +264,6 @@ jobs:
           # cause reported for pnpm). Building remotely also means the
           # branch-scoped env var above is honored automatically.
           deployment_url=$(vercel deploy \
-            --cwd frontend \
             --token "$VERCEL_TOKEN" \
             --yes \
             -m "githubDeployment=1" \
