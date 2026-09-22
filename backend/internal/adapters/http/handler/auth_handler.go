@@ -37,16 +37,18 @@ func generateCSRFToken() (string, error) {
 type AuthHandler struct {
 	kit       *authkit.AuthKit
 	transport *authpkg.Transport
+	profiles  authpkg.ProfileLookup
 }
 
 // NewAuthHandler builds an AuthHandler. It reads config.Global.Auth directly
 // (matching setup_sentinel.go's existing convention of reading config.Global
 // in the http layer) rather than threading cookie config through the wire
 // graph.
-func NewAuthHandler(kit *authkit.AuthKit) *AuthHandler {
+func NewAuthHandler(kit *authkit.AuthKit, profiles authpkg.ProfileLookup) *AuthHandler {
 	return &AuthHandler{
 		kit:       kit,
 		transport: authpkg.NewTransport(config.Global.Auth),
+		profiles:  profiles,
 	}
 }
 
@@ -246,7 +248,7 @@ func withGuards(shared []func(huma.Context, func(huma.Context)), guards ...func(
 // plan's "Route surface" section for each route's Secured/Middlewares.
 func (h *AuthHandler) Routes() []endpoint.Registrable {
 	sessionGuard := func(api huma.API) func(huma.Context, func(huma.Context)) {
-		return authpkg.SessionGuard(api, h.kit, h.transport)
+		return authpkg.SessionGuard(api, h.kit, h.transport, h.profiles)
 	}
 
 	return []endpoint.Registrable{

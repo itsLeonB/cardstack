@@ -12,6 +12,7 @@ const (
 	userIDKey contextKey = iota
 	sessionIDKey
 	emailKey
+	profileIDKey
 )
 
 // EmailClaim is the JWT claim key the auth provider's ClaimsBuilder hook
@@ -23,12 +24,15 @@ const (
 const EmailClaim = "email"
 
 // WithClaims stashes the userID/sessionID/email SessionGuard extracted from
-// a verified access token into ctx, so handlers downstream of the guard can
-// read them via UserID/SessionID/Email.
-func WithClaims(ctx huma.Context, userID, sessionID, email string) huma.Context {
+// a verified access token, plus the profileID it resolved afterward via
+// ProfileLookup (see FindProfileIDByUserID's doc comment — profile_id is
+// never itself a JWT claim), into ctx, so handlers downstream of the guard
+// can read them via UserID/SessionID/Email/ProfileID.
+func WithClaims(ctx huma.Context, userID, sessionID, email, profileID string) huma.Context {
 	ctx = huma.WithValue(ctx, userIDKey, userID)
 	ctx = huma.WithValue(ctx, sessionIDKey, sessionID)
 	ctx = huma.WithValue(ctx, emailKey, email)
+	ctx = huma.WithValue(ctx, profileIDKey, profileID)
 	return ctx
 }
 
@@ -50,5 +54,13 @@ func SessionID(ctx context.Context) (string, bool) {
 // EmailClaim), and whether one was present.
 func Email(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(emailKey).(string)
+	return v, ok
+}
+
+// ProfileID returns the authenticated user's user_profiles row ID, resolved
+// by SessionGuard via ProfileLookup after verifying the access token (see
+// WithClaims), and whether one was present.
+func ProfileID(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(profileIDKey).(string)
 	return v, ok
 }

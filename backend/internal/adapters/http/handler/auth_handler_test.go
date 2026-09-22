@@ -39,7 +39,10 @@ func newTestAuthHandler(t *testing.T) (*AuthHandler, humatest.TestAPI) {
 	kit := authkittest.NewKit(withImmediateVerification())
 	t.Cleanup(func() { _ = kit.Shutdown() })
 
-	h := NewAuthHandler(kit)
+	// nil is safe here: none of this file's tests complete a login and hit
+	// a SessionGuard-protected route successfully, so ProfileLookup is
+	// stored but never actually called.
+	h := NewAuthHandler(kit, nil)
 	_, api := humatest.New(t, httpapi.NewConfig())
 	endpoint.RegisterAll(api, h.Routes())
 
