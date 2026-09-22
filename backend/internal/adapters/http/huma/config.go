@@ -22,9 +22,14 @@ import "github.com/danielgtaylor/huma/v2"
 // "/openapi.json"/"/openapi.yaml") so Huma auto-mounts docs + spec at the
 // engine root, unauthenticated.
 //
-// BearerAuth is registered as a security scheme now, unused until an
-// authenticated route lands, so every future secured endpoint.Endpoint can
-// reference it without touching this config again.
+// CookieAuth is registered as the API's one security scheme. Ticket 01
+// scaffolded a placeholder "BearerAuth" (type: http, scheme: bearer) before
+// any real auth flow existed; ticket 02 lands go-authkit in stateful mode
+// (docs/adr/0003), which authenticates via an HttpOnly access-token cookie,
+// not an `Authorization: Bearer` header. An apiKey/cookie scheme is what
+// actually matches the session-guard middleware every Secured:true route
+// runs — leaving BearerAuth in place would make the generated OpenAPI spec
+// (and therefore orval's frontend client) describe the wrong transport.
 func NewConfig() huma.Config {
 	cfg := huma.DefaultConfig("Cardstack API", "1.0")
 
@@ -34,10 +39,10 @@ func NewConfig() huma.Config {
 	if cfg.Components.SecuritySchemes == nil {
 		cfg.Components.SecuritySchemes = map[string]*huma.SecurityScheme{}
 	}
-	cfg.Components.SecuritySchemes["BearerAuth"] = &huma.SecurityScheme{
-		Type:         "http",
-		Scheme:       "bearer",
-		BearerFormat: "JWT",
+	cfg.Components.SecuritySchemes["CookieAuth"] = &huma.SecurityScheme{
+		Type: "apiKey",
+		In:   "cookie",
+		Name: "access_token",
 	}
 
 	return cfg

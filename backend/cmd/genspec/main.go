@@ -9,12 +9,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humagin"
 	"github.com/gin-gonic/gin"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/routes"
+	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
+	authkit "github.com/itsLeonB/go-authkit"
 )
 
 const outputPath = "openapi.json"
@@ -24,7 +27,25 @@ func main() {
 	router := gin.New()
 	api := humagin.New(router, httpapi.NewConfig())
 
-	routes.RegisterRoutes(api, provider.ProvideServices())
+	// auth_handler.go reads config.Global.Auth (matching setup_sentinel.go's
+	// existing convention), but genspec never calls config.Load() — it's
+	// meant to boot without any real infra or env, DB included. A minimal
+	// stand-in config.Global plus a throwaway *authkit.AuthKit (valid JWT
+	// config, no real stores) is enough for route *registration*: handler
+	// closures reference the kit but never invoke it until a real request
+	// comes in, and none does here.
+	config.Global = &config.Config{}
+	kit, err := authkit.New(
+		authkit.Config{JWTSecret: "genspec", JWTIssuer: "genspec", JWTDuration: time.Minute},
+		authkit.Deps{},
+		authkit.Hooks{},
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error building genspec authkit:", err)
+		os.Exit(1)
+	}
+
+	routes.RegisterRoutes(api, provider.ProvideServices(kit))
 
 	spec, err := api.OpenAPI().MarshalJSON()
 	if err != nil {

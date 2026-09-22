@@ -17,12 +17,24 @@ func InitializeProviders() (*Providers, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	services := ProvideServices()
+	auth := ProvideAuthConfig()
+	userStore := ProvideUserStore(dataSources)
+	sessionStore := ProvideSessionStore(dataSources)
+	refreshTokenStore := ProvideRefreshTokenStore(dataSources)
+	transactor := ProvideTransactor(dataSources)
+	sessionCache := ProvideSessionCache()
+	authKit, cleanup2, err := ProvideAuthKit(auth, userStore, sessionStore, refreshTokenStore, transactor, sessionCache)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	services := ProvideServices(authKit)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,
 	}
 	return providers, func() {
+		cleanup2()
 		cleanup()
 	}, nil
 }
@@ -31,5 +43,7 @@ func InitializeProviders() (*Providers, func(), error) {
 
 var ProviderSet = wire.NewSet(
 	DataSourceSet,
+	RepositorySet,
+	AuthSet,
 	ServiceSet, wire.Struct(new(Providers), "*"),
 )

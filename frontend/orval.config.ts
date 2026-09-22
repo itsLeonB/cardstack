@@ -17,6 +17,12 @@ export default defineConfig({
         runtime: "import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'",
       },
       clean: true,
+      override: {
+        mutator: {
+          path: "./src/lib/http.ts",
+          name: "customFetch",
+        },
+      },
     },
   },
   cardstackZod: {

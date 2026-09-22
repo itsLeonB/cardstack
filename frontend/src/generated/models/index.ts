@@ -5,7 +5,13 @@
  * OpenAPI spec version: 1.0
  */
 
+export * from './authMessage.ts';
+export * from './envelopeAuthMessage.ts';
 export * from './envelopeHealthStatus.ts';
+export * from './envelopeMeResponse.ts';
 export * from './errorDetail.ts';
 export * from './errorModel.ts';
 export * from './healthStatus.ts';
+export * from './loginInputBody.ts';
+export * from './meResponse.ts';
+export * from './registerInputBody.ts';

@@ -6,6 +6,8 @@ import "github.com/google/wire"
 
 var ProviderSet = wire.NewSet(
 	DataSourceSet,
+	RepositorySet,
+	AuthSet,
 	ServiceSet,
 	wire.Struct(new(Providers), "*"),
 )
