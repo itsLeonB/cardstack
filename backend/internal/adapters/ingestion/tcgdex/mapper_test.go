@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 func TestMapVariants(t *testing.T) {
@@ -159,24 +159,33 @@ func TestMapCard(t *testing.T) {
 		},
 	}
 
+	// raw is passed through to every case below unchanged — mapCard doesn't
+	// derive it from resp, it just threads it into Card.Raw. What raw
+	// actually preserves (including fields resp doesn't model) is covered
+	// by TestMapCard_RawIsExactResponseBytes.
+	raw := json.RawMessage(`{"stub":true}`)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := mapCard(tt.resp, expansionSetID, tt.names)
-			require.NoError(t, err)
+			tt.want.Raw = datatypes.JSON(raw)
 
-			wantRaw, err := json.Marshal(tt.resp)
-			require.NoError(t, err)
-			tt.want.Raw = wantRaw
+			got := mapCard(tt.resp, expansionSetID, tt.names, raw)
 
 			assert.Equal(t, tt.want, got)
-
-			// Raw must round-trip: non-empty, and unmarshal back to a map
-			// containing at least one known field.
-			require.NotEmpty(t, got.Raw)
-			var raw map[string]any
-			require.NoError(t, json.Unmarshal(got.Raw, &raw))
-			assert.Equal(t, tt.resp.Rarity, raw["rarity"])
-			assert.Equal(t, tt.resp.LocalID, raw["localId"])
 		})
 	}
+}
+
+// TestMapCard_RawIsExactResponseBytes confirms Raw stores the exact bytes
+// mapCard was given, not a remarshal of the decoded cardResponse — a
+// remarshal would silently drop futureField below (cardResponse has no
+// field for it), defeating Raw's purpose of future-proofing against
+// exactly that.
+func TestMapCard_RawIsExactResponseBytes(t *testing.T) {
+	raw := json.RawMessage(`{"id":"SV1V-008","localId":"008","rarity":"Double rare","futureField":{"nested":true}}`)
+	resp := cardResponse{ID: "SV1V-008", LocalID: "008", Rarity: "Double rare"}
+
+	got := mapCard(resp, uuid.New(), map[string]string{"id": "Spidops ex"}, raw)
+
+	assert.JSONEq(t, string(raw), string(got.Raw))
 }

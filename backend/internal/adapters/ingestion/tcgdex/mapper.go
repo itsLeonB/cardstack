@@ -2,7 +2,6 @@ package tcgdex
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
@@ -12,17 +11,13 @@ import (
 // mapCard converts a card's full detail response plus a locale->name map
 // into the entity.Card row to upsert. It is pure: no I/O, no DB. ID and the
 // BaseEntity timestamps are left zero for the caller's find-or-create to
-// fill in. Raw holds the full response, marshaled as-is, so a future need
-// for another field doesn't require re-ingesting. Marshaling a plain struct
-// practically never fails, but the error is still surfaced rather than
-// swallowed, matching this package's treat-every-step-as-fallible
-// convention.
-func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]string) (entity.Card, error) {
-	raw, err := json.Marshal(resp)
-	if err != nil {
-		return entity.Card{}, fmt.Errorf("marshaling raw response: %w", err)
-	}
-
+// fill in. raw is the exact response body as received over the wire (see
+// client.getCard) and is stored verbatim into Raw — not a remarshal of the
+// already-decoded resp, which would silently drop any field cardResponse
+// doesn't model (or omit a field carrying `omitempty` even when TCGDex sent
+// it), defeating Raw's whole purpose of future-proofing against exactly
+// that.
+func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]string, raw json.RawMessage) entity.Card {
 	return entity.Card{
 		ExpansionSetID: expansionSetID,
 		LocalID:        resp.LocalID,
@@ -30,8 +25,8 @@ func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]strin
 		Rarity:         resp.Rarity,
 		ImageURL:       resp.Image,
 		Attributes:     mapAttributes(resp),
-		Raw:            raw,
-	}, nil
+		Raw:            datatypes.JSON(raw),
+	}
 }
 
 // mapNames builds the Names JSONB map from a locale->name lookup, dropping

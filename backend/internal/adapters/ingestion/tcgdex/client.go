@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -46,8 +47,12 @@ func (c *client) getSet(ctx context.Context, locale, setID string) (setResponse,
 
 // getCard fetches full card detail for one locale. A 404 means this locale
 // legitimately has no data for the card (e.g. `en` has no SV1V-008) — not
-// an error. The second return value reports whether the card was found.
-func (c *client) getCard(ctx context.Context, locale, cardID string) (cardResponse, bool, error) {
+// an error. The bool return reports whether the card was found. The
+// json.RawMessage return is the exact response body as received — read
+// separately from decoding into cardResponse, so mapCard can persist it
+// verbatim into Card.Raw rather than a remarshal of the decoded struct,
+// which would silently drop any field cardResponse doesn't model.
+func (c *client) getCard(ctx context.Context, locale, cardID string) (cardResponse, json.RawMessage, bool, error) {
 	path := fmt.Sprintf("/%s/cards/%s", locale, cardID)
 
 	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
@@ -55,12 +60,12 @@ func (c *client) getCard(ctx context.Context, locale, cardID string) (cardRespon
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
-		return cardResponse{}, false, fmt.Errorf("building request for %s: %w", path, err)
+		return cardResponse{}, nil, false, fmt.Errorf("building request for %s: %w", path, err)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return cardResponse{}, false, fmt.Errorf("requesting %s: %w", path, err)
+		return cardResponse{}, nil, false, fmt.Errorf("requesting %s: %w", path, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -69,17 +74,22 @@ func (c *client) getCard(ctx context.Context, locale, cardID string) (cardRespon
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return cardResponse{}, false, nil
+		return cardResponse{}, nil, false, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return cardResponse{}, false, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+		return cardResponse{}, nil, false, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+	}
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return cardResponse{}, nil, false, fmt.Errorf("reading body for %s: %w", path, err)
 	}
 
 	var out cardResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return cardResponse{}, false, fmt.Errorf("decoding %s: %w", path, err)
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return cardResponse{}, nil, false, fmt.Errorf("decoding %s: %w", path, err)
 	}
-	return out, true, nil
+	return out, json.RawMessage(raw), true, nil
 }
 
 func (c *client) get(ctx context.Context, path string, out any) error {

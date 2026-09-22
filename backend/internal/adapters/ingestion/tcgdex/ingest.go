@@ -158,7 +158,7 @@ func (in *Ingester) ingestSet(ctx context.Context, gameID uuid.UUID, locale stri
 // the Card row, and upserts one CardVariant row per true finish flag. It
 // returns the number of variant rows upserted.
 func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, locale string, cardRef setCardRef) (int, error) {
-	detail, found, err := in.client.getCard(ctx, locale, cardRef.ID)
+	detail, raw, found, err := in.client.getCard(ctx, locale, cardRef.ID)
 	if err != nil {
 		return 0, fmt.Errorf("fetching %s detail: %w", locale, err)
 	}
@@ -168,12 +168,7 @@ func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, lo
 
 	names := map[string]string{locale: detail.Name}
 
-	mapped, err := mapCard(detail, expansionSetID, names)
-	if err != nil {
-		return 0, fmt.Errorf("mapping card: %w", err)
-	}
-
-	card, err := in.upsertCard(ctx, mapped)
+	card, err := in.upsertCard(ctx, mapCard(detail, expansionSetID, names, raw))
 	if err != nil {
 		return 0, fmt.Errorf("upserting card: %w", err)
 	}

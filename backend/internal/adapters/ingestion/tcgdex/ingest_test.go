@@ -86,15 +86,13 @@ func TestIngester_UpsertCard_IdempotentAndUpdates(t *testing.T) {
 	require.NoError(t, err)
 
 	localID := "008"
-	card, err := mapCard(cardResponse{LocalID: localID, Rarity: "Common", Image: "img1"}, set.ID, map[string]string{"id": "First"})
-	require.NoError(t, err)
+	card := mapCard(cardResponse{LocalID: localID, Rarity: "Common", Image: "img1"}, set.ID, map[string]string{"id": "First"}, json.RawMessage(`{"stub":1}`))
 
 	first, err := in.upsertCard(ctx, card)
 	require.NoError(t, err)
 	assert.Equal(t, "Common", first.Rarity)
 
-	updated, err := mapCard(cardResponse{LocalID: localID, Rarity: "Rare", Image: "img2"}, set.ID, map[string]string{"id": "First", "ja": "Second"})
-	require.NoError(t, err)
+	updated := mapCard(cardResponse{LocalID: localID, Rarity: "Rare", Image: "img2"}, set.ID, map[string]string{"id": "First", "ja": "Second"}, json.RawMessage(`{"stub":2}`))
 	second, err := in.upsertCard(ctx, updated)
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID, "must update the existing row, not create a duplicate")

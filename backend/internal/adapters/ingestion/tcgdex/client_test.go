@@ -57,23 +57,29 @@ func TestClient_GetSet(t *testing.T) {
 }
 
 func TestClient_GetCard_Found(t *testing.T) {
+	// futureField is deliberately not modeled by cardResponse, to prove raw
+	// carries the exact response bytes rather than a remarshal of the
+	// decoded struct (which would silently drop it).
+	const body = `{
+		"id": "SV1V-008", "localId": "008", "name": "Spidops ex",
+		"category": "Pokemon", "rarity": "Double rare",
+		"variants": {"holo": true, "normal": false, "reverse": false, "firstEdition": false, "wPromo": false},
+		"hp": 260, "futureField": {"nested": true}
+	}`
+
 	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/id/cards/SV1V-008", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-			"id": "SV1V-008", "localId": "008", "name": "Spidops ex",
-			"category": "Pokemon", "rarity": "Double rare",
-			"variants": {"holo": true, "normal": false, "reverse": false, "firstEdition": false, "wPromo": false},
-			"hp": 260
-		}`))
+		_, _ = w.Write([]byte(body))
 	})
 
-	got, found, err := c.getCard(context.Background(), "id", "SV1V-008")
+	got, raw, found, err := c.getCard(context.Background(), "id", "SV1V-008")
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, "Spidops ex", got.Name)
 	assert.Equal(t, 260, got.HP)
 	assert.True(t, got.Variants.Holo)
+	assert.JSONEq(t, body, string(raw), "raw must be the exact response bytes, including fields cardResponse doesn't model")
 }
 
 func TestClient_GetCard_NotFoundIsNotAnError(t *testing.T) {
@@ -81,10 +87,11 @@ func TestClient_GetCard_NotFoundIsNotAnError(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	got, found, err := c.getCard(context.Background(), "en", "SV1V-008")
+	got, raw, found, err := c.getCard(context.Background(), "en", "SV1V-008")
 	require.NoError(t, err)
 	assert.False(t, found)
 	assert.Equal(t, cardResponse{}, got)
+	assert.Nil(t, raw)
 }
 
 func TestClient_GetCard_ServerError(t *testing.T) {
@@ -92,7 +99,8 @@ func TestClient_GetCard_ServerError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 
-	_, found, err := c.getCard(context.Background(), "id", "SV1V-008")
+	_, raw, found, err := c.getCard(context.Background(), "id", "SV1V-008")
 	assert.Error(t, err)
 	assert.False(t, found)
+	assert.Nil(t, raw)
 }
