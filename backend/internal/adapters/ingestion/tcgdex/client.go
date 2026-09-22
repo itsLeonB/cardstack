@@ -1,0 +1,121 @@
+package tcgdex
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+)
+
+// baseURL is TCGDex's public REST API. No auth/API key required.
+const baseURL = "https://api.tcgdex.net/v2"
+
+// requestTimeout bounds each outgoing request so a hung TCGDex response
+// can't block ingestion forever (the CLI passes context.Background()).
+const requestTimeout = 15 * time.Second
+
+// client fetches TCGDex catalog data over plain HTTP GET + JSON — a
+// handful of GET calls against a plain JSON REST API doesn't warrant a
+// third-party client library.
+type client struct {
+	baseURL    string
+	httpClient *http.Client
+}
+
+func newClient() *client {
+	return &client{baseURL: baseURL, httpClient: http.DefaultClient}
+}
+
+// getSeries fetches a series (e.g. "SV") and the sets released under it for
+// the given locale.
+func (c *client) getSeries(ctx context.Context, locale, seriesID string) (seriesResponse, error) {
+	var out seriesResponse
+	err := c.get(ctx, fmt.Sprintf("/%s/series/%s", locale, seriesID), &out)
+	return out, err
+}
+
+// getSet fetches one set's brief card list for the given locale.
+func (c *client) getSet(ctx context.Context, locale, setID string) (setResponse, error) {
+	var out setResponse
+	err := c.get(ctx, fmt.Sprintf("/%s/sets/%s", locale, setID), &out)
+	return out, err
+}
+
+// getCard fetches full card detail for one locale. A 404 means this locale
+// legitimately has no data for the card (e.g. `en` has no SV1V-008) — not
+// an error. The bool return reports whether the card was found. The
+// json.RawMessage return is the exact response body as received — read
+// separately from decoding into cardResponse, so mapCard can persist it
+// verbatim into Card.Raw rather than a remarshal of the decoded struct,
+// which would silently drop any field cardResponse doesn't model.
+func (c *client) getCard(ctx context.Context, locale, cardID string) (cardResponse, json.RawMessage, bool, error) {
+	path := fmt.Sprintf("/%s/cards/%s", locale, cardID)
+
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return cardResponse{}, nil, false, fmt.Errorf("building request for %s: %w", path, err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return cardResponse{}, nil, false, fmt.Errorf("requesting %s: %w", path, err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Errorf("closing response body for %s: %v", path, err)
+		}
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return cardResponse{}, nil, false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return cardResponse{}, nil, false, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+	}
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return cardResponse{}, nil, false, fmt.Errorf("reading body for %s: %w", path, err)
+	}
+
+	var out cardResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return cardResponse{}, nil, false, fmt.Errorf("decoding %s: %w", path, err)
+	}
+	return out, json.RawMessage(raw), true, nil
+}
+
+func (c *client) get(ctx context.Context, path string, out any) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("building request for %s: %w", path, err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("requesting %s: %w", path, err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Errorf("closing response body for %s: %v", path, err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("decoding %s: %w", path, err)
+	}
+	return nil
+}
