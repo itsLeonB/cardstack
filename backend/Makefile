@@ -2,6 +2,7 @@
 http \
 http-hot \
 job \
+ingest-tcgdex \
 wire \
 lint \
 vulncheck \
@@ -18,6 +19,7 @@ help:
 	@echo "  make http                    - Start the HTTP server"
 	@echo "  make http-hot                - Start the HTTP server with hot reload (requires air)"
 	@echo "  make job                     - Run migrations (production)"
+	@echo "  make ingest-tcgdex           - Ingest TCGDex catalog data (manual, no scheduler)"
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
@@ -37,6 +39,9 @@ http-hot:
 
 job:
 	go run ./cmd/job
+
+ingest-tcgdex:
+	go run ./cmd/ingest-tcgdex
 
 wire:
 	go generate ./internal/provider/...
