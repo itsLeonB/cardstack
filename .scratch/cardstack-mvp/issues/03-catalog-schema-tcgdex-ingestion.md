@@ -6,6 +6,8 @@
 
 **Status:** ready-for-agent
 
+**Plan:** `.scratch/cardstack-mvp/plans/03-catalog-schema-tcgdex-ingestion.md`
+
 - [ ] Schema exists for Game, Expansion Set, Card, and Card Variant
 - [ ] Expansion Set is unique per (game, set code); Card is unique per (expansion set, local number) — identity is never assumed shared across regions/languages
 - [ ] Card Variant models distinct print finishes (normal, reverse holo, holo, first edition, etc.) per Card
