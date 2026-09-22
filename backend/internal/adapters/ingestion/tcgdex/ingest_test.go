@@ -248,7 +248,7 @@ func TestIngester_Run_EndToEnd(t *testing.T) {
 	// The raw column must carry the full upstream card response through.
 	assert.NotEmpty(t, cards[0].Raw)
 	var raw map[string]any
-	require.NoError(t, json.Unmarshal(cards[0].Raw, &raw))
+	require.NoError(t, json.Unmarshal([]byte(cards[0].Raw), &raw))
 	assert.Equal(t, "Common", raw["rarity"])
 }
 

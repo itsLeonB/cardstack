@@ -79,7 +79,7 @@ func TestClient_GetCard_Found(t *testing.T) {
 	assert.Equal(t, "Spidops ex", got.Name)
 	assert.Equal(t, 260, got.HP)
 	assert.True(t, got.Variants.Holo)
-	assert.JSONEq(t, body, string(raw), "raw must be the exact response bytes, including fields cardResponse doesn't model")
+	assert.Equal(t, []byte(body), []byte(raw), "raw must be the exact response bytes byte-for-byte, including fields cardResponse doesn't model")
 }
 
 func TestClient_GetCard_NotFoundIsNotAnError(t *testing.T) {

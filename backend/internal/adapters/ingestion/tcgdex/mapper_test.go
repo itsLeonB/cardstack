@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/datatypes"
 )
 
 func TestMapVariants(t *testing.T) {
@@ -167,7 +166,7 @@ func TestMapCard(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.want.Raw = datatypes.JSON(raw)
+			tt.want.Raw = string(raw)
 
 			got := mapCard(tt.resp, expansionSetID, tt.names, raw)
 
@@ -187,5 +186,5 @@ func TestMapCard_RawIsExactResponseBytes(t *testing.T) {
 
 	got := mapCard(resp, uuid.New(), map[string]string{"id": "Spidops ex"}, raw)
 
-	assert.JSONEq(t, string(raw), string(got.Raw))
+	assert.Equal(t, string(raw), got.Raw, "raw must be stored byte-for-byte, not reformatted")
 }

@@ -44,7 +44,10 @@ CREATE UNIQUE INDEX idx_expansion_sets_game_id_code ON expansion_sets (game_id, 
 -- holds game-specific data (HP, types, attacks, ...) per docs/adr/0001;
 -- rarity/image_url stay first-class columns since they're cross-game
 -- concerns. raw is the full upstream response as-is, kept so a future need
--- for another field doesn't require re-ingesting historical cards.
+-- for another field doesn't require re-ingesting historical cards. It's
+-- TEXT, not JSONB: JSONB re-serializes on write (reformats whitespace,
+-- normalizes numbers, drops duplicate keys), so it can't guarantee the
+-- stored bytes match what the upstream source actually sent.
 CREATE TABLE cards (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     expansion_set_id UUID NOT NULL REFERENCES expansion_sets (id) ON DELETE CASCADE,
@@ -53,7 +56,7 @@ CREATE TABLE cards (
     rarity TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
     attributes JSONB NOT NULL DEFAULT '{}',
-    raw JSONB NOT NULL DEFAULT '{}',
+    raw TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

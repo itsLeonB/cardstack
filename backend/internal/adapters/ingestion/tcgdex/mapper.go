@@ -25,7 +25,7 @@ func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]strin
 		Rarity:         resp.Rarity,
 		ImageURL:       resp.Image,
 		Attributes:     mapAttributes(resp),
-		Raw:            datatypes.JSON(raw),
+		Raw:            string(raw),
 	}
 }
 
