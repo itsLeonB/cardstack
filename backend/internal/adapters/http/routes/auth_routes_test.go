@@ -69,6 +69,7 @@ func authTestServices(t *testing.T) *provider.Services {
 	// from a previous run either.
 
 	users := provider.ProvideUserStore(&provider.DataSources{Gorm: db, SQL: sqlDB})
+	profiles := provider.ProvideProfileLookup(&provider.DataSources{Gorm: db, SQL: sqlDB})
 	sessions := provider.ProvideSessionStore(&provider.DataSources{Gorm: db, SQL: sqlDB})
 	refresh := provider.ProvideRefreshTokenStore(&provider.DataSources{Gorm: db, SQL: sqlDB})
 	tx := provider.ProvideTransactor(&provider.DataSources{Gorm: db, SQL: sqlDB})
@@ -81,7 +82,7 @@ func authTestServices(t *testing.T) *provider.Services {
 	}
 	t.Cleanup(cleanup)
 
-	return provider.ProvideServices(kit)
+	return provider.ProvideServices(kit, profiles)
 }
 
 func migrateTestDB(t *testing.T, sqlDB *sql.DB) {

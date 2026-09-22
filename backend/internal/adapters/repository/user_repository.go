@@ -25,8 +25,11 @@ type UserRepository struct {
 	profiles crud.Repository[entity.UserProfile]
 }
 
-// NewUserRepository builds a UserRepository over db.
-func NewUserRepository(db *gorm.DB) authkit.UserStore {
+// NewUserRepository builds a UserRepository over db. Returned as the
+// concrete type (rather than authkit.UserStore) so callers can also use it
+// as an auth.ProfileLookup — see internal/provider/repository_provider.go's
+// ProvideUserStore/ProvideProfileLookup.
+func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{
 		Repository: crud.NewRepository[entity.User](db),
 		profiles:   crud.NewRepository[entity.UserProfile](db),
@@ -163,6 +166,30 @@ func (r *UserRepository) upsertProfile(ctx context.Context, userID uuid.UUID, na
 	}
 
 	return profile, nil
+}
+
+// FindProfileIDByUserID resolves a user's user_profiles row ID by user_id,
+// so SessionGuard can put it in the request context after verifying a JWT —
+// profile_id deliberately isn't embedded in the JWT itself (users is the
+// auth table, user_profiles is domain data, with no FK between them; see
+// entity/user_profile.go's doc comment).
+func (r *UserRepository) FindProfileIDByUserID(ctx context.Context, userID string) (string, error) {
+	id, err := uuid.Parse(userID)
+	if err != nil || id == uuid.Nil {
+		return "", authkit.ErrUserNotFound
+	}
+
+	profile, err := r.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
+		Model: entity.UserProfile{UserID: id},
+	})
+	if err != nil {
+		return "", err
+	}
+	if profile.IsZero() {
+		return "", authkit.ErrUserNotFound
+	}
+
+	return profile.ID.String(), nil
 }
 
 func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {

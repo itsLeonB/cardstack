@@ -28,7 +28,8 @@ func InitializeProviders() (*Providers, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	services := ProvideServices(authKit)
+	profileLookup := ProvideProfileLookup(dataSources)
+	services := ProvideServices(authKit, profileLookup)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

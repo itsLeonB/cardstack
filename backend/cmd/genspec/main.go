@@ -45,7 +45,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	routes.RegisterRoutes(api, provider.ProvideServices(kit))
+	// nil is safe here: genspec only registers routes to dump the OpenAPI
+	// spec, it never serves a request, so SessionGuard's ProfileLookup is
+	// stored in the route closures but never actually called.
+	routes.RegisterRoutes(api, provider.ProvideServices(kit, nil))
 
 	spec, err := api.OpenAPI().MarshalJSON()
 	if err != nil {

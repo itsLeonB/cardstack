@@ -1,22 +1,35 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 	authkit "github.com/itsLeonB/go-authkit"
 )
 
+// ProfileLookup resolves a user_profiles row's ID for a user_id. SessionGuard
+// calls it after verifying the access token, rather than reading profile_id
+// out of the token itself: users is the auth table, user_profiles is domain
+// data, and there's deliberately no FK between them (see
+// entity/user_profile.go's doc comment) — so profile_id is looked up fresh
+// per request instead of being baked into the JWT.
+type ProfileLookup interface {
+	FindProfileIDByUserID(ctx context.Context, userID string) (string, error)
+}
+
 // SessionGuard ports authgin.AuthMiddleware's access-token check to Huma:
 // read the access-token and fingerprint cookies, verify them against kit,
-// and stash the resulting userID/sessionID claims into the request context
-// for downstream handlers (see claims.go). A request without a valid
-// session is rejected with 401 and never reaches the handler.
+// resolve profile_id via ProfileLookup, and stash the resulting
+// userID/sessionID/email/profileID claims into the request context for
+// downstream handlers (see claims.go). A request without a valid session,
+// or a valid session with no resolvable profile, is rejected with 401 and
+// never reaches the handler.
 //
 // It reads the fingerprint cookie by transport.FingerprintCookieName()
 // rather than a fixed name, so it always matches whichever name SetCookies
 // actually wrote (plain vs. "__Secure-" prefixed, per CookieSecure).
-func SessionGuard(api huma.API, kit *authkit.AuthKit, transport *Transport) func(huma.Context, func(huma.Context)) {
+func SessionGuard(api huma.API, kit *authkit.AuthKit, transport *Transport, profiles ProfileLookup) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		token, err := readCookie(ctx, accessTokenCookie)
 		if err != nil || token == "" {
@@ -40,7 +53,13 @@ func SessionGuard(api huma.API, kit *authkit.AuthKit, transport *Transport) func
 		}
 		email, _ := claims[EmailClaim].(string)
 
-		next(WithClaims(ctx, userID, sessionID, email))
+		profileID, err := profiles.FindProfileIDByUserID(ctx.Context(), userID)
+		if err != nil {
+			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "invalid session claims")
+			return
+		}
+
+		next(WithClaims(ctx, userID, sessionID, email, profileID))
 	}
 }
 
