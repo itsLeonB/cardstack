@@ -39,7 +39,7 @@ func authTestServices(t *testing.T) *provider.Services {
 			JWTDuration:     15 * time.Minute,
 			RefreshTokenTTL: 24 * time.Hour,
 			CookieSecure:    false,
-			CookieSameSite:  "Lax",
+			CookieSamesite:  "Lax",
 		},
 	}
 

@@ -34,7 +34,7 @@ func withImmediateVerification() authkittest.Option {
 func newTestAuthHandler(t *testing.T) (*AuthHandler, humatest.TestAPI) {
 	t.Helper()
 
-	config.Global = &config.Config{Auth: config.Auth{CookieSameSite: "Lax"}}
+	config.Global = &config.Config{Auth: config.Auth{CookieSamesite: "Lax"}}
 
 	kit := authkittest.NewKit(withImmediateVerification())
 	t.Cleanup(func() { _ = kit.Shutdown() })

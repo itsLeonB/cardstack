@@ -12,8 +12,9 @@ import (
 
 // UserRepository implements authkit.UserStore on top of a generic
 // crud.Repository[entity.User], plus a second generic repository for
-// entity.UserProfile — the table authkit.User.ProfileID actually points to
-// (see entity/user_profile.go's doc comment). Method names don't line up
+// entity.UserProfile — the table authkit.User.ProfileID's value actually
+// points to, looked up by user_id (see entity/user_profile.go's doc
+// comment). Method names don't line up
 // with crud.Repository's (Create vs Insert, FindByID vs FindFirst, ...), so
 // each authkit.UserStore method is hand-written, delegating to the
 // embedded/held repositories' generic Insert/FindFirst/Update for the
@@ -63,7 +64,7 @@ func (r *UserRepository) FindByID(ctx context.Context, userID string) (authkit.U
 		return authkit.User{}, err
 	}
 
-	return toAuthUser(user), nil
+	return toAuthUser(user, ""), nil
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (authkit.User, error) {
@@ -83,7 +84,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (authkit
 		return authkit.User{}, authkit.ErrUserNotFound
 	}
 
-	return toAuthUser(user), nil
+	return toAuthUser(user, ""), nil
 }
 
 func (r *UserRepository) Create(ctx context.Context, email, passwordHash string) (authkit.User, error) {
@@ -92,7 +93,7 @@ func (r *UserRepository) Create(ctx context.Context, email, passwordHash string)
 		return authkit.User{}, err
 	}
 
-	return toAuthUser(user), nil
+	return toAuthUser(user, ""), nil
 }
 
 // CreateOAuth creates a new user from an OAuth login, with a user_profiles
@@ -107,11 +108,12 @@ func (r *UserRepository) CreateOAuth(ctx context.Context, email, name, _ string)
 		return authkit.User{}, err
 	}
 
-	if err := r.upsertProfile(ctx, &user, name); err != nil {
+	profile, err := r.upsertProfile(ctx, user.ID, name)
+	if err != nil {
 		return authkit.User{}, err
 	}
 
-	return toAuthUser(user), nil
+	return toAuthUser(user, profileIDString(profile)), nil
 }
 
 func (r *UserRepository) SetVerified(ctx context.Context, userID string, name, _ string) (authkit.User, error) {
@@ -121,48 +123,46 @@ func (r *UserRepository) SetVerified(ctx context.Context, userID string, name, _
 	}
 
 	user.Verified = true
-	if err := r.upsertProfile(ctx, &user, name); err != nil {
+	updated, err := r.Update(ctx, user)
+	if err != nil {
 		return authkit.User{}, err
 	}
 
-	return toAuthUser(user), nil
+	profile, err := r.upsertProfile(ctx, updated.ID, name)
+	if err != nil {
+		return authkit.User{}, err
+	}
+
+	return toAuthUser(updated, profileIDString(profile)), nil
 }
 
-// upsertProfile creates the user's user_profiles row (repointing
-// user.ProfileID at it) on first call, or updates the existing row's name
-// on a later one, then persists user — covering both SetVerified's and
-// CreateOAuth's "name" write. name == "" is a no-op on the profile itself,
-// but user is still persisted (e.g. SetVerified's Verified flip). user is
-// updated in place with the row as stored (fresh ProfileID/timestamps).
-func (r *UserRepository) upsertProfile(ctx context.Context, user *entity.User, name string) error {
-	if name != "" {
-		if user.ProfileID == nil {
-			profile, err := r.profiles.Insert(ctx, entity.UserProfile{UserID: user.ID, Name: name})
-			if err != nil {
-				return err
-			}
-			user.ProfileID = &profile.ID
-		} else {
-			profile, err := r.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
-				Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: *user.ProfileID}},
-			})
-			if err != nil {
-				return err
-			}
-			profile.Name = name
-			if _, err := r.profiles.Update(ctx, profile); err != nil {
-				return err
-			}
-		}
-	}
-
-	updated, err := r.Update(ctx, *user)
+// upsertProfile creates the user's user_profiles row on first call, or
+// updates the existing row's name on a later one — found by user_id, since
+// the FK runs one-directional from user_profiles to users (no column on
+// users to follow). name == "" is a no-op: it returns whatever profile
+// already exists (the zero value if none).
+func (r *UserRepository) upsertProfile(ctx context.Context, userID uuid.UUID, name string) (entity.UserProfile, error) {
+	profile, err := r.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
+		Model: entity.UserProfile{UserID: userID},
+	})
 	if err != nil {
-		return err
+		return entity.UserProfile{}, err
 	}
-	*user = updated
 
-	return nil
+	if name == "" {
+		return profile, nil
+	}
+
+	if profile.IsZero() {
+		return r.profiles.Insert(ctx, entity.UserProfile{UserID: userID, Name: name})
+	}
+
+	if name != profile.Name {
+		profile.Name = name
+		return r.profiles.Update(ctx, profile)
+	}
+
+	return profile, nil
 }
 
 func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
@@ -181,12 +181,7 @@ func (r *UserRepository) Exists(ctx context.Context, userID string) error {
 	return err
 }
 
-func toAuthUser(u entity.User) authkit.User {
-	profileID := ""
-	if u.ProfileID != nil {
-		profileID = u.ProfileID.String()
-	}
-
+func toAuthUser(u entity.User, profileID string) authkit.User {
 	return authkit.User{
 		ID:           u.ID.String(),
 		Email:        u.Email,
@@ -194,4 +189,13 @@ func toAuthUser(u entity.User) authkit.User {
 		Verified:     u.Verified,
 		ProfileID:    profileID,
 	}
+}
+
+// profileIDString returns p's ID, or "" if p is the zero value (no
+// user_profiles row exists yet).
+func profileIDString(p entity.UserProfile) string {
+	if p.IsZero() {
+		return ""
+	}
+	return p.ID.String()
 }

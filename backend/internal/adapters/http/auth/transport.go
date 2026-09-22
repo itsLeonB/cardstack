@@ -69,7 +69,7 @@ func (t *Transport) FingerprintCookieName() string {
 }
 
 func (t *Transport) sameSite() http.SameSite {
-	switch strings.ToLower(t.cfg.CookieSameSite) {
+	switch strings.ToLower(t.cfg.CookieSamesite) {
 	case "strict":
 		return http.SameSiteStrictMode
 	case "none":

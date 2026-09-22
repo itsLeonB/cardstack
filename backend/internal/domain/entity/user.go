@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"github.com/google/uuid"
 	crud "github.com/itsLeonB/go-crud"
 )
 
@@ -11,10 +10,9 @@ import (
 // two at the authkit.UserStore boundary.
 type User struct {
 	crud.BaseEntity
-	Email        string     `gorm:"uniqueIndex;not null"`
-	PasswordHash string     `gorm:"not null"`
-	Verified     bool       `gorm:"not null;default:false"`
-	ProfileID    *uuid.UUID `gorm:"type:uuid"`
+	Email        string `gorm:"uniqueIndex;not null"`
+	PasswordHash string `gorm:"not null"`
+	Verified     bool   `gorm:"not null;default:false"`
 }
 
 func (User) TableName() string { return "users" }

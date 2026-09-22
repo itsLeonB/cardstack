@@ -23,7 +23,7 @@ func TestAuthCookieSameSiteEnvVarName(t *testing.T) {
 	err := envconfig.Process(auth.Prefix(), &auth)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "Strict", auth.CookieSameSite)
+	assert.Equal(t, "Strict", auth.CookieSamesite)
 }
 
 // SameSite=None without Secure is a combination browsers reject outright
@@ -46,7 +46,7 @@ func TestValidateAuthCookiePolicy(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateAuthCookiePolicy(Auth{CookieSameSite: tc.sameSite, CookieSecure: tc.secure})
+			err := validateAuthCookiePolicy(Auth{CookieSamesite: tc.sameSite, CookieSecure: tc.secure})
 			if tc.wantErrMsg == "" {
 				assert.NoError(t, err)
 				return

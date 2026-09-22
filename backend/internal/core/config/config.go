@@ -58,7 +58,7 @@ func Load() error {
 // identical in effect to the __Secure-Fgp naming bug fixed earlier. Caught
 // at boot instead of at the first login attempt.
 func validateAuthCookiePolicy(auth Auth) error {
-	if strings.EqualFold(auth.CookieSameSite, "none") && !auth.CookieSecure {
+	if strings.EqualFold(auth.CookieSamesite, "none") && !auth.CookieSecure {
 		return errors.New("AUTH_COOKIE_SAMESITE=None requires AUTH_COOKIE_SECURE=true")
 	}
 	return nil
