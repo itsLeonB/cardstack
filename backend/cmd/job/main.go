@@ -1,5 +1,3 @@
-//go:build job
-
 package main
 
 import (

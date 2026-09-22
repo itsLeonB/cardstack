@@ -36,7 +36,7 @@ http-hot:
 	air --build.cmd "go build -o bin/api ./cmd/api" --build.bin "./bin/api"
 
 job:
-	go run -tags job ./cmd/job
+	go run ./cmd/job
 
 wire:
 	go generate ./internal/provider/...
