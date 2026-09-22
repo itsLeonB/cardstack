@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Project & CI scaffolding)
 
-**Status:** ready-for-agent
+**Status:** done — implemented and merged (PR #7). TCGDex ingestion, `card_variants`/`finishes`, and `cards.names` are being reworked in ticket 04 (see `docs/adr/0006-drop-card-variant-tracking-for-mvp.md`, `docs/adr/0007-card-category-and-tag-are-first-class.md`).
 
 **Plan:** `.scratch/cardstack-mvp/plans/03-catalog-schema-tcgdex-ingestion.md`
 

@@ -1,6 +1,6 @@
 # Plan: 03 — Card catalog schema + TCGDex (SV) ingestion
 
-**Status:** not started — planning only.
+**Status:** done — implemented and merged (PR #7). Superseded on data-source and schema points by ticket 04 (see `docs/adr/0006-drop-card-variant-tracking-for-mvp.md` and `docs/adr/0007-card-category-and-tag-are-first-class.md`): TCGDex ingestion is being removed (outdated data), `card_variants`/`finishes` are being dropped, and `cards.names` (JSONB) is being replaced by `cards.name` (TEXT).
 
 Handoff doc for `backend-agent`. Ticket: `.scratch/cardstack-mvp/issues/03-catalog-schema-tcgdex-ingestion.md`. Blocked by ticket 01 (done). Backend-only — no frontend surface in this ticket (catalog *read* API/UI is ticket 05).
 

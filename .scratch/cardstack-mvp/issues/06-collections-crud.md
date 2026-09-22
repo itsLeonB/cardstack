@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Authenticated user can create a Collection with a title, optional description, and optional maximum card-count limit (summed quantity, not distinct-variant count)
+- [ ] Authenticated user can create a Collection with a title, optional description, and optional maximum card-count limit (summed quantity, not distinct-card count)
 - [ ] Authenticated user can list their own Collections
 - [ ] Authenticated user can edit a Collection's title/description/limit
 - [ ] Authenticated user can delete a Collection
