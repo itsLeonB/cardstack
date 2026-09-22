@@ -1,0 +1,16 @@
+# Card Rarity is a first-class, per-Game lookup table, not plain text
+
+Ticket 04's replacement ingestion source (`asia.pokemon-card.com`) prints rarity as a cryptic code (`C`, `U`, `R`, `RR`, `RRR`, `PR`, `TR`, `SR`, `HR`, `UR`, `K`, `A`, `AR`, `SAR`, `S`, `SSR`, `ACE`, `BWR`, `MUR`, `MA`, `FUR`, plus a "no mark" bucket) rather than a readable name — unlike Card Category, where the source's own labels (`Pokémon`/`Trainer`/`Energi`) are already legible, storing Rarity as plain text would leave every downstream reader (UI, curator, another agent) decoding opaque 2-4 letter codes by memory. `rarities` is therefore a real lookup table (`id`, `game_id`, `code`, `name`) with `cards.rarity_id` as an FK, populated by find-or-create during ingestion (the source's own `rarity[]` filter checkbox list is a complete, authoritative 22-value enumeration at the time of writing, but the table isn't seeded from it — an unseen code later should add a row, not fail the run).
+
+Scoped `(game_id, code)`, not to Series or Expansion Set, despite Pokémon TCG's rarity roster visibly rotating print-era to print-era (older Series produced `UR`; Evolusi Mega instead produces `SAR`/`MUR`/`FUR`; `MUR` itself stops appearing after Evolusi Mega's fifth set, `FUR` only starts on its sixth) — every one of those is a tier simply not being *produced* in a given print run, not the same code meaning something different depending on where it appears. A Game-scoped table correctly allows a Set to reference only a subset of the Game's Rarity rows, the same way `Series` already allows a Game to have Expansion Sets belonging to none (ADR-0008).
+
+## Considered Options
+
+- Plain `cards.rarity TEXT`, mirroring Card Category. Rejected: Category's own vocabulary (`Pokémon`/`Trainer`/`Energi`) is already human-readable; Rarity's raw codes are not, and the actual complaint motivating this decision was that a cryptic string doesn't "curate" well without a name attached.
+- Global/shared lookup table, like the removed `finishes`. Rejected: `finishes` was global because print-finish concepts were assumed universal across every TCG; Pokémon's rarity codes (`BWR`, `MUR`, `FUR`, ...) are unmistakably Pokémon-specific — the same reasoning ADR-0007 used to keep Card Category un-shared.
+- `rarities` scoped to Series or Expansion Set, to reflect the observed rotation. Rejected: the rotation is presence/absence of a tier in a given print run, never a collision in what a code means — a Game-scoped table already tolerates unused rows without modeling a distinction (per-era meaning drift) that doesn't actually exist in the data.
+- Seed the known 22 codes directly in the migration. Rejected: nothing needs the full set enumerated ahead of ingestion; find-or-create mirrors the existing `Game`/`Series`/`Expansion Set` upsert idiom and tolerates a 23rd code appearing later without a migration.
+
+## Consequences
+
+`cards.rarity_id` is always resolved during ingestion (find-or-create guarantees a row, same as `expansion_set_id`) — no nullable-FK handling needed downstream. A future Game with its own rarity vocabulary adds its own `rarities` rows under its own `game_id`; no migration, no shared-vocabulary conflict to resolve.
