@@ -1,4 +1,4 @@
-package tcgdex
+package pokemonasia
 
 import (
 	"fmt"
@@ -26,10 +26,10 @@ type testDBConfig struct {
 
 // testDB takes the same real-Postgres testing approach as
 // internal/adapters/repository's testDB helper (see its doc comment for how
-// to start a matching local Postgres, per docs/adr/0005), but loads its DSN
-// config via envconfig instead of that sibling package's manual helper. It
-// deliberately does not truncate tables — this DB is shared with other
-// packages' tests — so tests use uniqueCode for one-of-a-kind natural keys.
+// to start a matching local Postgres, per docs/adr/0005) — same setup
+// ticket 03's tcgdex ingester used. It deliberately does not truncate
+// tables — this DB is shared with other packages' tests — so tests use
+// uniqueCode for one-of-a-kind natural keys.
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -64,9 +64,9 @@ func testDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// uniqueCode returns a set/card code unique to this test run, so tests
-// never collide with each other or leftover rows regardless of run order
-// (mirrors internal/adapters/repository's uniqueEmail).
+// uniqueCode returns a set/series/rarity code unique to this test run, so
+// tests never collide with each other or leftover rows regardless of run
+// order (mirrors internal/adapters/repository's uniqueEmail).
 func uniqueCode(t *testing.T) string {
 	t.Helper()
 	return uuid.NewString()
