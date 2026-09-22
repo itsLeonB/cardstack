@@ -3,6 +3,7 @@ package tcgdex
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/google/uuid"
@@ -25,13 +26,6 @@ const (
 	maxConcurrency = 12
 )
 
-// nameLocales are the additional locales fetched for each card's display
-// name, beyond the primary locale (whose full detail is read once). A
-// locale that 404s for a given card is skipped, not an error — some
-// locales legitimately have no data for a given card (e.g. `en` for a
-// SV/Indonesian-only print run).
-var nameLocales = []string{"ja", "zh-tw", "th"}
-
 // Summary reports row counts from a completed ingestion run. Mismatches
 // lists sets where TCGDex's own cardCount.official didn't match the number
 // of cards actually ingested — an advisory sanity signal, not a failure
@@ -51,18 +45,28 @@ type Summary struct {
 // repositories yet.
 type Ingester struct {
 	games    crud.Repository[entity.Game]
+	locales  crud.Repository[entity.Locale]
 	sets     crud.Repository[entity.ExpansionSet]
 	cards    crud.Repository[entity.Card]
+	finishes crud.Repository[entity.Finish]
 	variants crud.Repository[entity.CardVariant]
 	client   *client
+
+	// finishMu guards finishCache, a code->ID cache for resolveFinishID:
+	// the five finish codes are shared reference rows looked up
+	// concurrently by every card in a set's errgroup.
+	finishMu    sync.Mutex
+	finishCache map[string]uuid.UUID
 }
 
 // NewIngester builds an Ingester backed by the given *gorm.DB.
 func NewIngester(db *gorm.DB) *Ingester {
 	return &Ingester{
 		games:    crud.NewRepository[entity.Game](db),
+		locales:  crud.NewRepository[entity.Locale](db),
 		sets:     crud.NewRepository[entity.ExpansionSet](db),
 		cards:    crud.NewRepository[entity.Card](db),
+		finishes: crud.NewRepository[entity.Finish](db),
 		variants: crud.NewRepository[entity.CardVariant](db),
 		client:   newClient(),
 	}
@@ -150,39 +154,34 @@ func (in *Ingester) ingestSet(ctx context.Context, gameID uuid.UUID, locale stri
 	}, nil
 }
 
-// ingestCard fetches one card's full detail (primary locale) plus its
-// display name in each of nameLocales, upserts the Card row, and upserts
-// one CardVariant row per true finish flag. It returns the number of
-// variant rows upserted.
+// ingestCard fetches one card's full detail for the given locale, upserts
+// the Card row, and upserts one CardVariant row per true finish flag. It
+// returns the number of variant rows upserted.
 func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, locale string, cardRef setCardRef) (int, error) {
 	detail, found, err := in.client.getCard(ctx, locale, cardRef.ID)
 	if err != nil {
-		return 0, fmt.Errorf("fetching primary (%s) detail: %w", locale, err)
+		return 0, fmt.Errorf("fetching %s detail: %w", locale, err)
 	}
 	if !found {
-		return 0, fmt.Errorf("card missing from its own set's primary locale (%s)", locale)
+		return 0, fmt.Errorf("card missing from its own set's locale (%s)", locale)
 	}
 
 	names := map[string]string{locale: detail.Name}
-	for _, nameLocale := range nameLocales {
-		nameResp, found, err := in.client.getCard(ctx, nameLocale, cardRef.ID)
-		if err != nil {
-			return 0, fmt.Errorf("fetching %s name: %w", nameLocale, err)
-		}
-		if found {
-			names[nameLocale] = nameResp.Name
-		}
+
+	mapped, err := mapCard(detail, expansionSetID, names)
+	if err != nil {
+		return 0, fmt.Errorf("mapping card: %w", err)
 	}
 
-	card, err := in.upsertCard(ctx, mapCard(detail, expansionSetID, names))
+	card, err := in.upsertCard(ctx, mapped)
 	if err != nil {
 		return 0, fmt.Errorf("upserting card: %w", err)
 	}
 
 	variantCount := 0
-	for _, variant := range mapVariants(detail.Variants) {
-		if err := in.upsertVariant(ctx, card.ID, variant.Finish); err != nil {
-			return 0, fmt.Errorf("upserting variant %s: %w", variant.Finish, err)
+	for _, finishCode := range mapVariants(detail.Variants) {
+		if err := in.upsertVariant(ctx, card.ID, finishCode); err != nil {
+			return 0, fmt.Errorf("upserting variant %s: %w", finishCode, err)
 		}
 		variantCount++
 	}
@@ -204,6 +203,11 @@ func (in *Ingester) upsertGame(ctx context.Context) (entity.Game, error) {
 }
 
 func (in *Ingester) upsertExpansionSet(ctx context.Context, gameID uuid.UUID, locale string, setRef seriesSetRef) (entity.ExpansionSet, error) {
+	loc, err := in.upsertLocale(ctx, locale)
+	if err != nil {
+		return entity.ExpansionSet{}, err
+	}
+
 	existing, err := in.sets.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{
 		Model: entity.ExpansionSet{GameID: gameID, Code: setRef.ID},
 	})
@@ -212,18 +216,34 @@ func (in *Ingester) upsertExpansionSet(ctx context.Context, gameID uuid.UUID, lo
 	}
 	if existing.IsZero() {
 		return in.sets.Insert(ctx, entity.ExpansionSet{
-			GameID: gameID,
-			Code:   setRef.ID,
-			Name:   setRef.Name,
-			Locale: locale,
+			GameID:   gameID,
+			Code:     setRef.ID,
+			Name:     setRef.Name,
+			LocaleID: loc.ID,
 		})
 	}
-	if existing.Name != setRef.Name || existing.Locale != locale {
+	if existing.Name != setRef.Name || existing.LocaleID != loc.ID {
 		existing.Name = setRef.Name
-		existing.Locale = locale
+		existing.LocaleID = loc.ID
 		return in.sets.Update(ctx, existing)
 	}
 	return existing, nil
+}
+
+// upsertLocale find-or-creates a Locale row for the given code. Called once
+// per set, serially (not inside the per-card errgroup), so no
+// caching/locking is needed.
+func (in *Ingester) upsertLocale(ctx context.Context, code string) (entity.Locale, error) {
+	locale, err := in.locales.FindFirst(ctx, crud.Specification[entity.Locale]{
+		Model: entity.Locale{Code: code},
+	})
+	if err != nil {
+		return entity.Locale{}, err
+	}
+	if !locale.IsZero() {
+		return locale, nil
+	}
+	return in.locales.Insert(ctx, entity.Locale{Code: code})
 }
 
 func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Card, error) {
@@ -240,15 +260,22 @@ func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Ca
 	existing.Rarity = card.Rarity
 	existing.ImageURL = card.ImageURL
 	existing.Attributes = card.Attributes
+	existing.Raw = card.Raw
 	return in.cards.Update(ctx, existing)
 }
 
-// upsertVariant find-or-creates a CardVariant row. Unlike Card/ExpansionSet
-// there is nothing to update on a re-run: (CardID, Finish) is the whole
-// identity, so existence alone means the row is up to date.
-func (in *Ingester) upsertVariant(ctx context.Context, cardID uuid.UUID, finish string) error {
+// upsertVariant find-or-creates a CardVariant row for the given finish code.
+// Unlike Card/ExpansionSet there is nothing to update on a re-run: (CardID,
+// FinishID) is the whole identity, so existence alone means the row is up
+// to date.
+func (in *Ingester) upsertVariant(ctx context.Context, cardID uuid.UUID, finishCode string) error {
+	finishID, err := in.resolveFinishID(ctx, finishCode)
+	if err != nil {
+		return err
+	}
+
 	existing, err := in.variants.FindFirst(ctx, crud.Specification[entity.CardVariant]{
-		Model: entity.CardVariant{CardID: cardID, Finish: finish},
+		Model: entity.CardVariant{CardID: cardID, FinishID: finishID},
 	})
 	if err != nil {
 		return err
@@ -256,6 +283,35 @@ func (in *Ingester) upsertVariant(ctx context.Context, cardID uuid.UUID, finish 
 	if !existing.IsZero() {
 		return nil
 	}
-	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: cardID, Finish: finish})
+	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: cardID, FinishID: finishID})
 	return err
+}
+
+// resolveFinishID find-or-creates a Finish row for the given code and
+// caches the result. Guarded by finishMu since it's called concurrently by
+// every card in a set's errgroup.
+func (in *Ingester) resolveFinishID(ctx context.Context, code string) (uuid.UUID, error) {
+	in.finishMu.Lock()
+	defer in.finishMu.Unlock()
+
+	if id, ok := in.finishCache[code]; ok {
+		return id, nil
+	}
+
+	finish, err := in.finishes.FindFirst(ctx, crud.Specification[entity.Finish]{Model: entity.Finish{Code: code}})
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	if finish.IsZero() {
+		finish, err = in.finishes.Insert(ctx, entity.Finish{Code: code})
+		if err != nil {
+			return uuid.UUID{}, err
+		}
+	}
+
+	if in.finishCache == nil {
+		in.finishCache = map[string]uuid.UUID{}
+	}
+	in.finishCache[code] = finish.ID
+	return finish.ID, nil
 }

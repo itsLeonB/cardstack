@@ -6,13 +6,13 @@ import (
 )
 
 // CardVariant is a specific print finish of a Card (CONTEXT.md) — the unit
-// quantities are tracked against, not the Card itself. Finish is free text
-// with a DB CHECK constraint (see the catalog_schema migration) rather than
-// a Postgres ENUM, so adding a new finish later is a one-line migration.
+// quantities are tracked against, not the Card itself. FinishID references
+// the finishes lookup table (normalized out of a CHECK-constrained free-text
+// column), so a new finish is a row insert, not a migration.
 type CardVariant struct {
 	crud.BaseEntity
-	CardID uuid.UUID `gorm:"type:uuid;not null;index"`
-	Finish string    `gorm:"not null"`
+	CardID   uuid.UUID `gorm:"type:uuid;not null;index"`
+	FinishID uuid.UUID `gorm:"type:uuid;not null;index"`
 }
 
 func (CardVariant) TableName() string { return "card_variants" }

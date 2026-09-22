@@ -1,18 +1,20 @@
 package tcgdex
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMapVariants(t *testing.T) {
 	tests := []struct {
 		name     string
 		variants cardVariants
-		want     []string // finish values, in the order mapVariants must return them
+		want     []string // finish codes, in the order mapVariants must return them
 	}{
 		{
 			name:     "single holo variant",
@@ -40,13 +42,7 @@ func TestMapVariants(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := mapVariants(tt.variants)
-
-			var finishes []string
-			for _, v := range got {
-				finishes = append(finishes, v.Finish)
-				assert.Equal(t, uuid.Nil, v.CardID, "CardID must be left zero for the caller to fill in")
-			}
-			assert.Equal(t, tt.want, finishes)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -165,8 +161,22 @@ func TestMapCard(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := mapCard(tt.resp, expansionSetID, tt.names)
+			got, err := mapCard(tt.resp, expansionSetID, tt.names)
+			require.NoError(t, err)
+
+			wantRaw, err := json.Marshal(tt.resp)
+			require.NoError(t, err)
+			tt.want.Raw = wantRaw
+
 			assert.Equal(t, tt.want, got)
+
+			// Raw must round-trip: non-empty, and unmarshal back to a map
+			// containing at least one known field.
+			require.NotEmpty(t, got.Raw)
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(got.Raw, &raw))
+			assert.Equal(t, tt.resp.Rarity, raw["rarity"])
+			assert.Equal(t, tt.resp.LocalID, raw["localId"])
 		})
 	}
 }

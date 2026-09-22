@@ -14,7 +14,9 @@ import (
 // display-name map (e.g. {"id": "...", "ja": "..."}) since no single
 // upstream call returns every locale at once. Attributes holds
 // game-specific data (HP, types, attacks, ...) per docs/adr/0001; Rarity
-// and ImageURL stay first-class columns as cross-game concerns.
+// and ImageURL stay first-class columns as cross-game concerns. Raw is the
+// full upstream response as-is, kept so a future need for another field
+// doesn't require re-ingesting historical cards.
 type Card struct {
 	crud.BaseEntity
 	ExpansionSetID uuid.UUID         `gorm:"type:uuid;not null;index"`
@@ -23,6 +25,7 @@ type Card struct {
 	Rarity         string            `gorm:"not null;default:''"`
 	ImageURL       string            `gorm:"not null;default:''"`
 	Attributes     datatypes.JSONMap `gorm:"not null"`
+	Raw            datatypes.JSON    `gorm:"not null;default:'{}'"`
 }
 
 func (Card) TableName() string { return "cards" }

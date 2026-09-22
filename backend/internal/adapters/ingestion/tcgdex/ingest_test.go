@@ -2,11 +2,13 @@ package tcgdex
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
@@ -63,12 +65,14 @@ func TestIngester_ExpansionSet_UniqueConstraint(t *testing.T) {
 
 	game, err := in.upsertGame(ctx)
 	require.NoError(t, err)
+	locale, err := in.upsertLocale(ctx, "id")
+	require.NoError(t, err)
 	code := uniqueCode(t)
 
-	_, err = in.sets.Insert(ctx, entity.ExpansionSet{GameID: game.ID, Code: code, Name: "A", Locale: "id"})
+	_, err = in.sets.Insert(ctx, entity.ExpansionSet{GameID: game.ID, Code: code, Name: "A", LocaleID: locale.ID})
 	require.NoError(t, err)
 
-	_, err = in.sets.Insert(ctx, entity.ExpansionSet{GameID: game.ID, Code: code, Name: "B", Locale: "id"})
+	_, err = in.sets.Insert(ctx, entity.ExpansionSet{GameID: game.ID, Code: code, Name: "B", LocaleID: locale.ID})
 	assert.Error(t, err, "duplicate (game_id, code) must be rejected by the unique index")
 }
 
@@ -82,13 +86,15 @@ func TestIngester_UpsertCard_IdempotentAndUpdates(t *testing.T) {
 	require.NoError(t, err)
 
 	localID := "008"
-	card := mapCard(cardResponse{LocalID: localID, Rarity: "Common", Image: "img1"}, set.ID, map[string]string{"id": "First"})
+	card, err := mapCard(cardResponse{LocalID: localID, Rarity: "Common", Image: "img1"}, set.ID, map[string]string{"id": "First"})
+	require.NoError(t, err)
 
 	first, err := in.upsertCard(ctx, card)
 	require.NoError(t, err)
 	assert.Equal(t, "Common", first.Rarity)
 
-	updated := mapCard(cardResponse{LocalID: localID, Rarity: "Rare", Image: "img2"}, set.ID, map[string]string{"id": "First", "ja": "Second"})
+	updated, err := mapCard(cardResponse{LocalID: localID, Rarity: "Rare", Image: "img2"}, set.ID, map[string]string{"id": "First", "ja": "Second"})
+	require.NoError(t, err)
 	second, err := in.upsertCard(ctx, updated)
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID, "must update the existing row, not create a duplicate")
@@ -133,8 +139,10 @@ func TestIngester_UpsertVariant_Idempotent(t *testing.T) {
 	require.NoError(t, in.upsertVariant(ctx, card.ID, "holo"))
 	require.NoError(t, in.upsertVariant(ctx, card.ID, "holo"))
 
+	finishID, err := in.resolveFinishID(ctx, "holo")
+	require.NoError(t, err)
 	rows, err := in.variants.FindAll(ctx, crud.Specification[entity.CardVariant]{
-		Model: entity.CardVariant{CardID: card.ID, Finish: "holo"},
+		Model: entity.CardVariant{CardID: card.ID, FinishID: finishID},
 	})
 	require.NoError(t, err)
 	assert.Len(t, rows, 1)
@@ -151,14 +159,17 @@ func TestIngester_CardVariant_UniqueConstraint(t *testing.T) {
 	card, err := in.upsertCard(ctx, entity.Card{ExpansionSetID: set.ID, LocalID: "001", Names: mapNames(nil), Attributes: mapAttributes(cardResponse{})})
 	require.NoError(t, err)
 
-	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: card.ID, Finish: "holo"})
+	finishID, err := in.resolveFinishID(ctx, "holo")
 	require.NoError(t, err)
 
-	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: card.ID, Finish: "holo"})
-	assert.Error(t, err, "duplicate (card_id, finish) must be rejected by the unique index")
+	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: card.ID, FinishID: finishID})
+	require.NoError(t, err)
+
+	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: card.ID, FinishID: finishID})
+	assert.Error(t, err, "duplicate (card_id, finish_id) must be rejected by the unique index")
 }
 
-func TestIngester_CardVariant_FinishCheckConstraint(t *testing.T) {
+func TestIngester_CardVariant_FinishForeignKey(t *testing.T) {
 	in := NewIngester(testDB(t))
 	ctx := context.Background()
 
@@ -169,8 +180,8 @@ func TestIngester_CardVariant_FinishCheckConstraint(t *testing.T) {
 	card, err := in.upsertCard(ctx, entity.Card{ExpansionSetID: set.ID, LocalID: "001", Names: mapNames(nil), Attributes: mapAttributes(cardResponse{})})
 	require.NoError(t, err)
 
-	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: card.ID, Finish: "not-a-real-finish"})
-	assert.Error(t, err, "the finish CHECK constraint must reject an unknown finish")
+	_, err = in.variants.Insert(ctx, entity.CardVariant{CardID: card.ID, FinishID: uuid.New()})
+	assert.Error(t, err, "the finish_id foreign key must reject a nonexistent finish")
 }
 
 // TestIngester_Run_EndToEnd exercises the full Run() flow (series -> set ->
@@ -184,11 +195,11 @@ func TestIngester_Run_EndToEnd(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/id/series/sv":
-			fmt.Fprintf(w, `{"id":"SV","name":"Scarlet & Violet","sets":[{"id":%q,"name":"Test Set"}]}`, setCode)
+			_, _ = fmt.Fprintf(w, `{"id":"SV","name":"Scarlet & Violet","sets":[{"id":%q,"name":"Test Set"}]}`, setCode)
 		case "/id/sets/" + setCode:
-			fmt.Fprintf(w, `{"cardCount":{"total":1,"official":1},"cards":[{"id":%q,"localId":"001","name":"Test Card","image":"https://example.com/001"}]}`, cardID)
+			_, _ = fmt.Fprintf(w, `{"cardCount":{"total":1,"official":1},"cards":[{"id":%q,"localId":"001","name":"Test Card","image":"https://example.com/001"}]}`, cardID)
 		case "/id/cards/" + cardID:
-			fmt.Fprintf(w, `{"id":%q,"localId":"001","name":"Test Card","category":"Pokemon","rarity":"Common","image":"https://example.com/001","variants":{"normal":true}}`, cardID)
+			_, _ = fmt.Fprintf(w, `{"id":%q,"localId":"001","name":"Test Card","category":"Pokemon","rarity":"Common","image":"https://example.com/001","variants":{"normal":true}}`, cardID)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -230,7 +241,17 @@ func TestIngester_Run_EndToEnd(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, variants, 1)
-	assert.Equal(t, "normal", variants[0].Finish)
+	finish, err := in.finishes.FindFirst(ctx, crud.Specification[entity.Finish]{
+		Model: entity.Finish{BaseEntity: crud.BaseEntity{ID: variants[0].FinishID}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "normal", finish.Code)
+
+	// The raw column must carry the full upstream card response through.
+	assert.NotEmpty(t, cards[0].Raw)
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(cards[0].Raw, &raw))
+	assert.Equal(t, "Common", raw["rarity"])
 }
 
 // TestIngester_Run_ReportsCardCountMismatch confirms Run surfaces a set
@@ -245,13 +266,13 @@ func TestIngester_Run_ReportsCardCountMismatch(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/id/series/sv":
-			fmt.Fprintf(w, `{"id":"SV","name":"Scarlet & Violet","sets":[{"id":%q,"name":"Test Set"}]}`, setCode)
+			_, _ = fmt.Fprintf(w, `{"id":"SV","name":"Scarlet & Violet","sets":[{"id":%q,"name":"Test Set"}]}`, setCode)
 		case "/id/sets/" + setCode:
 			// official (2) deliberately disagrees with the single card
 			// actually listed, to exercise the mismatch path.
-			fmt.Fprintf(w, `{"cardCount":{"total":2,"official":2},"cards":[{"id":%q,"localId":"001","name":"Test Card","image":"https://example.com/001"}]}`, cardID)
+			_, _ = fmt.Fprintf(w, `{"cardCount":{"total":2,"official":2},"cards":[{"id":%q,"localId":"001","name":"Test Card","image":"https://example.com/001"}]}`, cardID)
 		case "/id/cards/" + cardID:
-			fmt.Fprintf(w, `{"id":%q,"localId":"001","name":"Test Card","category":"Pokemon","rarity":"Common","image":"https://example.com/001","variants":{"normal":true}}`, cardID)
+			_, _ = fmt.Fprintf(w, `{"id":%q,"localId":"001","name":"Test Card","category":"Pokemon","rarity":"Common","image":"https://example.com/001","variants":{"normal":true}}`, cardID)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

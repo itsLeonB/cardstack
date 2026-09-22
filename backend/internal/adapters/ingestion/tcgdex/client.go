@@ -5,10 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 )
 
 // baseURL is TCGDex's public REST API. No auth/API key required.
 const baseURL = "https://api.tcgdex.net/v2"
+
+// requestTimeout bounds each outgoing request so a hung TCGDex response
+// can't block ingestion forever (the CLI passes context.Background()).
+const requestTimeout = 15 * time.Second
 
 // client fetches TCGDex catalog data over plain HTTP GET + JSON — a
 // handful of GET calls against a plain JSON REST API doesn't warrant a
@@ -43,6 +50,9 @@ func (c *client) getSet(ctx context.Context, locale, setID string) (setResponse,
 func (c *client) getCard(ctx context.Context, locale, cardID string) (cardResponse, bool, error) {
 	path := fmt.Sprintf("/%s/cards/%s", locale, cardID)
 
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return cardResponse{}, false, fmt.Errorf("building request for %s: %w", path, err)
@@ -52,7 +62,11 @@ func (c *client) getCard(ctx context.Context, locale, cardID string) (cardRespon
 	if err != nil {
 		return cardResponse{}, false, fmt.Errorf("requesting %s: %w", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Errorf("closing response body for %s: %v", path, err)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return cardResponse{}, false, nil
@@ -69,6 +83,9 @@ func (c *client) getCard(ctx context.Context, locale, cardID string) (cardRespon
 }
 
 func (c *client) get(ctx context.Context, path string, out any) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("building request for %s: %w", path, err)
@@ -78,7 +95,11 @@ func (c *client) get(ctx context.Context, path string, out any) error {
 	if err != nil {
 		return fmt.Errorf("requesting %s: %w", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Errorf("closing response body for %s: %v", path, err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)

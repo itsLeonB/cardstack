@@ -1,6 +1,9 @@
 package tcgdex
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"gorm.io/datatypes"
@@ -9,8 +12,17 @@ import (
 // mapCard converts a card's full detail response plus a locale->name map
 // into the entity.Card row to upsert. It is pure: no I/O, no DB. ID and the
 // BaseEntity timestamps are left zero for the caller's find-or-create to
-// fill in.
-func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]string) entity.Card {
+// fill in. Raw holds the full response, marshaled as-is, so a future need
+// for another field doesn't require re-ingesting. Marshaling a plain struct
+// practically never fails, but the error is still surfaced rather than
+// swallowed, matching this package's treat-every-step-as-fallible
+// convention.
+func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]string) (entity.Card, error) {
+	raw, err := json.Marshal(resp)
+	if err != nil {
+		return entity.Card{}, fmt.Errorf("marshaling raw response: %w", err)
+	}
+
 	return entity.Card{
 		ExpansionSetID: expansionSetID,
 		LocalID:        resp.LocalID,
@@ -18,7 +30,8 @@ func mapCard(resp cardResponse, expansionSetID uuid.UUID, names map[string]strin
 		Rarity:         resp.Rarity,
 		ImageURL:       resp.Image,
 		Attributes:     mapAttributes(resp),
-	}
+		Raw:            raw,
+	}, nil
 }
 
 // mapNames builds the Names JSONB map from a locale->name lookup, dropping
@@ -78,9 +91,10 @@ func mapAttributes(resp cardResponse) datatypes.JSONMap {
 	return m
 }
 
-// The five finish values the catalog_schema migration's CHECK constraint
-// allows (see the migration for the source of truth). Named here so the
-// literal isn't repeated at each mapVariants call site.
+// The five finish codes TCGDex's cardVariants flag map can report. Named
+// here so the literal isn't repeated at each mapVariants call site; also
+// used as the finishes lookup table's row codes (see ingest.go's
+// resolveFinishID).
 const (
 	finishNormal       = "normal"
 	finishReverse      = "reverse"
@@ -89,25 +103,25 @@ const (
 	finishWPromo       = "w_promo"
 )
 
-// mapVariants converts TCGDex's per-card variants flag map into one
-// entity.CardVariant per true flag, in a fixed order. CardID is left zero
-// for the caller to fill in once the parent Card row's ID is known.
-func mapVariants(v cardVariants) []entity.CardVariant {
-	var variants []entity.CardVariant
+// mapVariants converts TCGDex's per-card variants flag map into the finish
+// codes present, in a fixed order, for the caller to resolve into a
+// finishes row (and CardVariant) once each finish's ID is known.
+func mapVariants(v cardVariants) []string {
+	var codes []string
 	if v.Normal {
-		variants = append(variants, entity.CardVariant{Finish: finishNormal})
+		codes = append(codes, finishNormal)
 	}
 	if v.Reverse {
-		variants = append(variants, entity.CardVariant{Finish: finishReverse})
+		codes = append(codes, finishReverse)
 	}
 	if v.Holo {
-		variants = append(variants, entity.CardVariant{Finish: finishHolo})
+		codes = append(codes, finishHolo)
 	}
 	if v.FirstEdition {
-		variants = append(variants, entity.CardVariant{Finish: finishFirstEdition})
+		codes = append(codes, finishFirstEdition)
 	}
 	if v.WPromo {
-		variants = append(variants, entity.CardVariant{Finish: finishWPromo})
+		codes = append(codes, finishWPromo)
 	}
-	return variants
+	return codes
 }

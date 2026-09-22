@@ -1,32 +1,47 @@
 package tcgdex
 
 import (
-	"cmp"
-	"os"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/pressly/goose/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
-// testDB mirrors internal/adapters/repository's testDB helper (see its doc
-// comment for how to start a matching local Postgres): repository-layer
-// tests run against a real Postgres per docs/adr/0005, not mocks. It
+// testDBConfig holds this file's Postgres DSN pieces, loaded via envconfig
+// with the same bare DB_* env var names internal/adapters/repository's
+// testDB helper reads manually.
+type testDBConfig struct {
+	Host     string `envconfig:"DB_HOST" default:"localhost"`
+	Port     string `envconfig:"DB_PORT" default:"5432"`
+	User     string `envconfig:"DB_USER" default:"cardstack"`
+	Password string `envconfig:"DB_PASSWORD" default:"cardstack"`
+	Name     string `envconfig:"DB_NAME" default:"cardstack"`
+}
+
+// testDB takes the same real-Postgres testing approach as
+// internal/adapters/repository's testDB helper (see its doc comment for how
+// to start a matching local Postgres, per docs/adr/0005), but loads its DSN
+// config via envconfig instead of that sibling package's manual helper. It
 // deliberately does not truncate tables — this DB is shared with other
 // packages' tests — so tests use uniqueCode for one-of-a-kind natural keys.
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	dsn := "host=" + envOr("DB_HOST", "localhost") +
-		" port=" + envOr("DB_PORT", "5432") +
-		" user=" + envOr("DB_USER", "cardstack") +
-		" password=" + envOr("DB_PASSWORD", "cardstack") +
-		" dbname=" + envOr("DB_NAME", "cardstack") +
-		" sslmode=disable"
+	var cfg testDBConfig
+	if err := envconfig.Process("", &cfg); err != nil {
+		t.Fatalf("loading test DB config: %v", err)
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name,
+	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	if err != nil {
@@ -47,10 +62,6 @@ func testDB(t *testing.T) *gorm.DB {
 	}
 
 	return db
-}
-
-func envOr(key, fallback string) string {
-	return cmp.Or(os.Getenv(key), fallback)
 }
 
 // uniqueCode returns a set/card code unique to this test run, so tests
