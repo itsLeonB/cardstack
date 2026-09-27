@@ -41,16 +41,6 @@ var targetSeries = map[string]bool{
 	"Matahari & Bulan": true,
 }
 
-// regulationLabels maps the site's own regulation query-partition (1, 2, 3)
-// to its own label text, captured into cards.attributes.regulation — see
-// the plan's "Enumerate cards per set as 3 regulation-partitioned passes"
-// decision.
-var regulationLabels = map[int]string{
-	1: "Standar",
-	2: "Luas",
-	3: "Lainnya",
-}
-
 // Summary reports row counts from a completed ingestion run.
 type Summary struct {
 	Series   int
@@ -256,9 +246,10 @@ func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter string
 	return out, nil
 }
 
-// ingestSet enumerates every card id under one Expansion Set across the 3
-// regulation-partitioned passes, then fetches and upserts each card's
-// detail with bounded concurrency. It returns the number of cards ingested.
+// ingestSet enumerates every card id under one Expansion Set with a single
+// regulation=all pass, resolves each card's rarity code via a sweep of the
+// results-list rarity filter, then fetches and upserts each card's detail
+// with bounded concurrency. It returns the number of cards ingested.
 //
 // A page or card that fails after client.get exhausts its own retries is
 // recorded via in.recordFailure and skipped rather than aborting the set;
@@ -266,71 +257,52 @@ func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter string
 // by the caller (e.g. Ctrl+C), since retrying or recording more failures at
 // that point would be pointless.
 func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, expansionCode string) (int, error) {
-	type job struct {
-		id         string
-		regulation string
+	ids, rarityOptions, err := in.enumerateSetCardIDs(ctx, expansionCode)
+	if err != nil {
+		return 0, err
 	}
+	logger.Infof("set %s: %d card(s) to fetch", expansionCode, len(ids))
 
-	// seen dedupes ids across regulation passes: the site's regulation query
-	// param doesn't reliably partition results (confirmed live: bucket 1 and
-	// bucket 2 can both return the same full card list for a set), so
-	// without this a card gets refetched/re-upserted once per bucket it
-	// appears in, and whichever bucket's write lands last would win
-	// attributes.regulation nondeterministically. Keeping the
-	// lowest-numbered (most specific/default) bucket a card is seen in is
-	// as good a guess as the site gives us.
-	seen := map[string]bool{}
-	var jobs []job
-	for regulation := 1; regulation <= 3; regulation++ {
-		label := regulationLabels[regulation]
-		for pageNo := 1; ; pageNo++ {
-			doc, _, err := in.client.resultsPage(ctx, expansionCode, regulation, pageNo)
-			if err != nil {
-				if ctx.Err() != nil {
-					return 0, ctx.Err()
-				}
-				in.recordFailure(IngestFailure{
-					ExpansionCode: expansionCode,
-					Stage:         fmt.Sprintf("fetching results page %d (regulation %d)", pageNo, regulation),
-					Err:           err,
-				})
-				break
-			}
-
-			ids := parseResultCardIDs(doc)
-			if len(ids) == 0 {
-				break
-			}
-			for _, id := range ids {
-				if seen[id] {
-					continue
-				}
-				seen[id] = true
-				jobs = append(jobs, job{id: id, regulation: label})
-			}
-		}
+	rarityByCard, err := in.sweepRarities(ctx, expansionCode, rarityOptions)
+	if err != nil {
+		return 0, err
 	}
-	logger.Infof("set %s: %d card(s) to fetch", expansionCode, len(jobs))
 
 	var cardCount atomic.Int64
 	var processed atomic.Int64
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(maxConcurrency)
-	for _, j := range jobs {
+	for _, id := range ids {
 		group.Go(func() error {
-			err := in.ingestCard(groupCtx, expansionSetID, j.id, j.regulation)
-			if err != nil {
-				if groupCtx.Err() != nil {
-					return fmt.Errorf("ingesting card %s: %w", j.id, err)
+			defer func() {
+				if done := processed.Add(1); done%20 == 0 || int(done) == len(ids) {
+					logger.Infof("set %s: processed %d/%d card(s)", expansionCode, done, len(ids))
 				}
-				in.recordFailure(IngestFailure{ExpansionCode: expansionCode, CardID: j.id, Stage: "ingesting card", Err: err})
-			} else {
-				cardCount.Add(1)
+			}()
+
+			rarityCode, ok := rarityByCard[id]
+			if !ok {
+				// A card enumerated via regulation=all but not returned by
+				// any known rarity[] filter id - log and skip it rather
+				// than blocking the rest of the set (see the ticket's
+				// "card whose rarity can't be resolved" criterion).
+				in.recordFailure(IngestFailure{
+					ExpansionCode: expansionCode,
+					CardID:        id,
+					Stage:         "resolving rarity",
+					Err:           fmt.Errorf("card not found under any known rarity filter id"),
+				})
+				return nil
 			}
 
-			if done := processed.Add(1); done%20 == 0 || int(done) == len(jobs) {
-				logger.Infof("set %s: processed %d/%d card(s)", expansionCode, done, len(jobs))
+			if err := in.ingestCard(groupCtx, expansionSetID, id, rarityCode); err != nil {
+				if groupCtx.Err() != nil {
+					return fmt.Errorf("ingesting card %s: %w", id, err)
+				}
+				in.recordFailure(IngestFailure{ExpansionCode: expansionCode, CardID: id, Stage: "ingesting card", Err: err})
+				return nil
 			}
+			cardCount.Add(1)
 			return nil
 		})
 	}
@@ -341,30 +313,99 @@ func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, exp
 	return int(cardCount.Load()), nil
 }
 
+// enumerateSetCardIDs paginates GET /card-search/list/?...&regulation=all
+// for one Expansion Set until a page returns no card ids, returning every
+// id found. It also returns the rarity[] filter's id->code options, parsed
+// from the first page fetched (the filter widget is present on every
+// results-list response regardless of how many cards match - see
+// mapper.go's parseRarityFilterOptions).
+func (in *Ingester) enumerateSetCardIDs(ctx context.Context, expansionCode string) ([]string, map[string]string, error) {
+	var ids []string
+	var rarityOptions map[string]string
+	for pageNo := 1; ; pageNo++ {
+		doc, _, err := in.client.resultsPage(ctx, expansionCode, pageNo)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, nil, ctx.Err()
+			}
+			in.recordFailure(IngestFailure{
+				ExpansionCode: expansionCode,
+				Stage:         fmt.Sprintf("fetching results page %d", pageNo),
+				Err:           err,
+			})
+			break
+		}
+
+		if pageNo == 1 {
+			rarityOptions = parseRarityFilterOptions(doc)
+		}
+
+		page := parseResultCardIDs(doc)
+		if len(page) == 0 {
+			break
+		}
+		ids = append(ids, page...)
+	}
+	return ids, rarityOptions, nil
+}
+
+// sweepRarities resolves every enumerated card's rarity code for one
+// Expansion Set. It queries the results-list endpoint once per known
+// rarity[] filter id (most return zero cards for a given set) and
+// paginates each, attributing that id's code to every card id it returns.
+// See ADR-0010: this replaces the mis-scraped detail-page field as the
+// authoritative source of Card Rarity.
+func (in *Ingester) sweepRarities(ctx context.Context, expansionCode string, rarityOptions map[string]string) (map[string]string, error) {
+	byCard := map[string]string{}
+	for rarityFilterID, code := range rarityOptions {
+		for pageNo := 1; ; pageNo++ {
+			doc, _, err := in.client.rarityResultsPage(ctx, expansionCode, rarityFilterID, pageNo)
+			if err != nil {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
+				in.recordFailure(IngestFailure{
+					ExpansionCode: expansionCode,
+					Stage:         fmt.Sprintf("fetching rarity %s results page %d", code, pageNo),
+					Err:           err,
+				})
+				break
+			}
+
+			page := parseResultCardIDs(doc)
+			if len(page) == 0 {
+				break
+			}
+			for _, id := range page {
+				byCard[id] = code
+			}
+		}
+	}
+	return byCard, nil
+}
+
 // ingestCard fetches, parses, and upserts one card's detail page.
-func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, id, regulation string) error {
+// rarityCode is the card's already-resolved print rarity (from
+// sweepRarities), independent of anything the detail page itself exposes.
+func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, id, rarityCode string) error {
 	doc, raw, err := in.client.cardDetail(ctx, id)
 	if err != nil {
 		return fmt.Errorf("fetching card detail: %w", err)
 	}
 
 	detail := parseCardDetail(doc)
-	detail.Regulation = regulation
 
-	// Empty RarityCode/LocalID are zero values to gorm's Where(struct), which
-	// drops zero-value fields from the WHERE clause instead of matching them
-	// literally — an empty code/ID here would broaden the lookup to any
-	// existing row for the set/game and silently corrupt or overwrite it.
-	if detail.RarityCode == "" {
-		return fmt.Errorf("card %s: missing rarity code", id)
-	}
+	// An empty LocalID is a zero value to gorm's Where(struct), which drops
+	// zero-value fields from the WHERE clause instead of matching them
+	// literally - an empty LocalID here would broaden the lookup to any
+	// existing row for the set and silently corrupt or overwrite it.
 	if detail.LocalID == "" {
 		return fmt.Errorf("card %s: missing local id", id)
 	}
 
-	rarityID, err := in.resolveRarityID(ctx, detail.RarityCode)
+	rarityID, err := in.resolveRarityID(ctx, rarityCode)
 	if err != nil {
-		return fmt.Errorf("resolving rarity %s: %w", detail.RarityCode, err)
+		return fmt.Errorf("resolving rarity %s: %w", rarityCode, err)
 	}
 
 	card := mapCard(detail, expansionSetID, rarityID, cardImageURL(id), raw)
@@ -504,4 +545,81 @@ func (in *Ingester) resolveRarityID(ctx context.Context, code string) (uuid.UUID
 	}
 	in.rarityCache[key] = rarity.ID
 	return rarity.ID, nil
+}
+
+// staleRegulationMarkCodes is the closed set of single-letter Regulation
+// Mark codes (see CONTEXT.md) the pre-fix ingester mistakenly wrote into
+// rarities.code instead of a real Kelangkaan rarity code (ticket 11 /
+// ADR-0010). Real rarity codes are a different, longer vocabulary, except
+// where they coincidentally collide with a Regulation Mark letter (e.g.
+// "C", "A" are both real rarity codes and real Regulation Mark letters) -
+// CleanupStaleRarities only deletes a colliding code's row once it has zero
+// referencing Cards, never unconditionally.
+var staleRegulationMarkCodes = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+
+// CleanupResult reports what CleanupStaleRarities did (or found) for one
+// candidate code.
+type CleanupResult struct {
+	Code    string
+	Deleted bool
+	// CardCount is >0 when the row was left in place because Cards still
+	// reference it (Deleted is always false in that case).
+	CardCount int
+}
+
+// CleanupStaleRarities is a one-time, opt-in fix for ticket 11: earlier runs
+// of this ingester (before the rarity/Regulation-Mark bug fix) populated
+// `rarities` rows with Regulation Mark letters instead of real print-rarity
+// codes. It deletes only rows whose code is in staleRegulationMarkCodes AND
+// have zero referencing Cards. A matching row that's still referenced is
+// reported, not deleted - that means a corrected re-ingestion of whatever
+// set(s) reference it hasn't fully run yet, and deleting it now would
+// dangle those Cards' rarity_id.
+func (in *Ingester) CleanupStaleRarities(ctx context.Context) ([]CleanupResult, error) {
+	return in.cleanupRaritiesByCode(ctx, staleRegulationMarkCodes)
+}
+
+// cleanupRaritiesByCode implements CleanupStaleRarities against an
+// arbitrary candidate code list. Split out so tests can exercise the
+// delete-vs-report logic against codes they control, independent of
+// whatever real rarity data already exists under staleRegulationMarkCodes
+// in this package's shared, non-truncated test DB (see testdb_test.go).
+func (in *Ingester) cleanupRaritiesByCode(ctx context.Context, codes []string) ([]CleanupResult, error) {
+	game, err := in.upsertGame(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("upserting game: %w", err)
+	}
+
+	var results []CleanupResult
+	for _, code := range codes {
+		rarity, err := in.rarities.FindFirst(ctx, crud.Specification[entity.Rarity]{
+			Model: entity.Rarity{GameID: game.ID, Code: code},
+		})
+		if err != nil {
+			return results, fmt.Errorf("looking up rarity %s: %w", code, err)
+		}
+		if rarity.IsZero() {
+			continue
+		}
+
+		referencingCards, err := in.cards.FindAll(ctx, crud.Specification[entity.Card]{
+			Model: entity.Card{RarityID: rarity.ID},
+		})
+		if err != nil {
+			return results, fmt.Errorf("checking references to rarity %s: %w", code, err)
+		}
+		if len(referencingCards) > 0 {
+			logger.Warnf("rarity %q (id %s) still referenced by %d card(s) - not deleted", code, rarity.ID, len(referencingCards))
+			results = append(results, CleanupResult{Code: code, CardCount: len(referencingCards)})
+			continue
+		}
+
+		if err := in.rarities.Delete(ctx, rarity); err != nil {
+			return results, fmt.Errorf("deleting stale rarity %s: %w", code, err)
+		}
+		logger.Infof("deleted stale rarity %q (id %s)", code, rarity.ID)
+		results = append(results, CleanupResult{Code: code, Deleted: true})
+	}
+
+	return results, nil
 }
