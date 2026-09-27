@@ -62,13 +62,29 @@ func (c *client) expansionListPage(ctx context.Context, pageNo int) (*goquery.Do
 }
 
 // resultsPage fetches one page of card-thumbnail results for one Expansion
-// Set/regulation bucket (regulation is 1, 2, or 3).
-func (c *client) resultsPage(ctx context.Context, expansionCode string, regulation, pageNo int) (*goquery.Document, []byte, error) {
+// Set's complete card list. regulation=all is the site's own "Semua" (All)
+// value — confirmed live to reliably return a set's true, complete card
+// count, unlike the regulation=1/2/3 partition it replaces (see ADR-0010).
+func (c *client) resultsPage(ctx context.Context, expansionCode string, pageNo int) (*goquery.Document, []byte, error) {
 	path := fmt.Sprintf(
-		"/card-search/list/?expansionCodes=%s&regulation=%d&cardType=all&pageNo=%d",
-		url.QueryEscape(expansionCode), regulation, pageNo,
+		"/card-search/list/?expansionCodes=%s&regulation=all&cardType=all&pageNo=%d",
+		url.QueryEscape(expansionCode), pageNo,
 	)
 	return c.get(ctx, path)
+}
+
+// rarityResultsPage fetches one page of card-thumbnail results for one
+// Expansion Set filtered to a single rarity[] filter id (see mapper.go's
+// parseRarityFilterOptions for how ids are discovered — they're undocumented
+// and not assumed stable). Querying one id at a time and paginating returns
+// exactly the card ids carrying that rarity code.
+func (c *client) rarityResultsPage(ctx context.Context, expansionCode, rarityFilterID string, pageNo int) (*goquery.Document, []byte, error) {
+	q := url.Values{}
+	q.Set("expansionCodes", expansionCode)
+	q.Set("rarity[]", rarityFilterID)
+	q.Set("cardType", "all")
+	q.Set("pageNo", strconv.Itoa(pageNo))
+	return c.get(ctx, "/card-search/list/?"+q.Encode())
 }
 
 // cardDetail fetches one card's full detail page by its numeric detail-page

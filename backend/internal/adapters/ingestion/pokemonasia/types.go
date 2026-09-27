@@ -13,16 +13,18 @@ type expansionListing struct {
 }
 
 // cardDetail is the parsed content of one GET /card-search/detail/{id}/
-// page — the only page that carries a card's actual data. Regulation is not
-// scraped from this page; the caller (ingest.go) fills it in from which of
-// the 3 regulation-partitioned list passes found the card's id.
+// page. RegulationMark is this page's own section.expansionColumn span.alpha
+// field — a format-legality control (see CONTEXT.md's Regulation Mark
+// entry / ADR-0010), not a rarity. The card's actual print rarity isn't on
+// this page at all; it's resolved separately via the results-list rarity
+// filter (see ingest.go's sweepRarities) and passed straight to
+// resolveRarityID, so it never needs a field here.
 type cardDetail struct {
-	Name        string
-	Category    string
-	Tag         string
-	RarityCode  string
-	LocalID     string
-	Illustrator string
-	Regulation  string
-	Attributes  map[string]any
+	Name           string
+	Category       string
+	Tag            string
+	LocalID        string
+	Illustrator    string
+	RegulationMark string
+	Attributes     map[string]any
 }

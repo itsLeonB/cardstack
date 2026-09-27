@@ -38,12 +38,27 @@ func TestClient_ResultsPage(t *testing.T) {
 	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/card-search/list/", r.URL.Path)
 		assert.Equal(t, "MA1", r.URL.Query().Get("expansionCodes"))
-		assert.Equal(t, "1", r.URL.Query().Get("regulation"))
+		assert.Equal(t, "all", r.URL.Query().Get("regulation"))
 		assert.Equal(t, "all", r.URL.Query().Get("cardType"))
 		_, _ = w.Write([]byte(resultsPageFixture))
 	})
 
-	doc, _, err := c.resultsPage(context.Background(), "MA1", 1, 1)
+	doc, _, err := c.resultsPage(context.Background(), "MA1", 1)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"16488", "16489"}, parseResultCardIDs(doc))
+}
+
+func TestClient_RarityResultsPage(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/card-search/list/", r.URL.Path)
+		assert.Equal(t, "MA1", r.URL.Query().Get("expansionCodes"))
+		assert.Equal(t, "15", r.URL.Query()["rarity[]"][0])
+		assert.Equal(t, "all", r.URL.Query().Get("cardType"))
+		assert.Equal(t, "2", r.URL.Query().Get("pageNo"))
+		_, _ = w.Write([]byte(resultsPageFixture))
+	})
+
+	doc, _, err := c.rarityResultsPage(context.Background(), "MA1", "15", 2)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"16488", "16489"}, parseResultCardIDs(doc))
 }
