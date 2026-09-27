@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/pokemonasia"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
@@ -52,8 +53,17 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	logger.Infof(
-		"ingestion complete: %d series, %d sets, %d rarities, %d cards",
-		summary.Series, summary.Sets, summary.Rarities, summary.Cards,
-	)
+	if len(summary.Failures) > 0 {
+		logger.Warnf(
+			"%d item(s) failed after exhausting retries - retry these independently, no need to rerun the whole ingestion:",
+			len(summary.Failures),
+		)
+		for _, f := range summary.Failures {
+			logger.Warn(f.Error())
+		}
+		// Non-zero exit lets an operator/script notice via $? that some
+		// items need a follow-up run, even though ingestion itself
+		// completed and every other row was written successfully.
+		os.Exit(1)
+	}
 }

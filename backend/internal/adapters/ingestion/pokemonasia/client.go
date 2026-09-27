@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	mrand "math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -89,15 +90,29 @@ func (c *client) get(ctx context.Context, path string) (*goquery.Document, []byt
 		}
 		lastErr = err
 
-		retryable := status == http.StatusTooManyRequests || status >= 500
+		// A caller-driven cancellation (e.g. Ctrl+C on the CLI) should stop
+		// immediately, never be treated as a retryable condition.
+		if ctx.Err() != nil {
+			return nil, nil, lastErr
+		}
+
+		// status == 0 means the request never got an HTTP response at all
+		// (timeout, connection reset, DNS hiccup, ...) - these are exactly
+		// as transient as a 429/5xx and must be retried the same way.
+		retryable := status == 0 || status == http.StatusTooManyRequests || status >= 500
 		if !retryable || attempt >= maxRetries {
 			return nil, nil, lastErr
 		}
 
 		wait := retryAfter
 		if wait <= 0 {
-			wait = retryBaseWait * time.Duration(1<<attempt)
+			wait = backoffWithJitter(attempt)
 		}
+		logger.Warnf(
+			"retrying %s after status %d (attempt %d/%d), waiting %s: %v",
+			path, status, attempt+1, maxRetries, wait, err,
+		)
+
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -106,6 +121,16 @@ func (c *client) get(ctx context.Context, path string) (*goquery.Document, []byt
 		case <-timer.C:
 		}
 	}
+}
+
+// backoffWithJitter returns an exponential backoff duration for the given
+// zero-based attempt number, using "equal jitter" (half fixed, half random)
+// so concurrent workers hitting the same failure don't all retry in
+// lockstep against the site.
+func backoffWithJitter(attempt int) time.Duration {
+	base := retryBaseWait * time.Duration(1<<attempt)
+	half := base / 2
+	return half + time.Duration(mrand.Int64N(int64(half)+1))
 }
 
 // doGet performs a single request attempt. status is the HTTP status code

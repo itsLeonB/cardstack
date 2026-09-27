@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
 	"golang.org/x/sync/errgroup"
@@ -56,6 +57,26 @@ type Summary struct {
 	Sets     int
 	Rarities int
 	Cards    int
+	Failures []IngestFailure
+}
+
+// IngestFailure records one item (a card, or a listing/results page) that
+// failed after client.get exhausted its own retries. Run collects these
+// instead of aborting so one bad card doesn't cost hours of otherwise-good
+// progress; the recorded ExpansionCode/CardID is enough to target a later,
+// independent retry of just this item instead of rerunning the whole set.
+type IngestFailure struct {
+	ExpansionCode string
+	CardID        string // empty for a listing/results-page failure
+	Stage         string
+	Err           error
+}
+
+func (f IngestFailure) Error() string {
+	if f.CardID != "" {
+		return fmt.Sprintf("set %s: %s (card %s): %v", f.ExpansionCode, f.Stage, f.CardID, f.Err)
+	}
+	return fmt.Sprintf("set %s: %s: %v", f.ExpansionCode, f.Stage, f.Err)
 }
 
 // Ingester ingests Pokémon Asia catalog data into the games/series/
@@ -84,6 +105,22 @@ type Ingester struct {
 	// collide across games if that ever changed.
 	rarityMu    sync.Mutex
 	rarityCache map[rarityCacheKey]uuid.UUID
+
+	// failuresMu guards failures, appended to concurrently from ingestSet's
+	// errgroup (one goroutine per card) as well as from Run's own sequential
+	// loop.
+	failuresMu sync.Mutex
+	failures   []IngestFailure
+}
+
+// recordFailure logs and stores a non-fatal, retries-exhausted failure so
+// Run can report it in Summary.Failures instead of aborting the whole
+// ingestion over it.
+func (in *Ingester) recordFailure(f IngestFailure) {
+	logger.Warn(f.Error())
+	in.failuresMu.Lock()
+	in.failures = append(in.failures, f)
+	in.failuresMu.Unlock()
 }
 
 type rarityCacheKey struct {
@@ -110,6 +147,8 @@ func NewIngester(db *gorm.DB) *Ingester {
 // Card rows. Re-running with the same arguments is idempotent: existing
 // rows are updated in place rather than duplicated.
 func (in *Ingester) Run(ctx context.Context, seriesFilter string) (Summary, error) {
+	logger.Infof("starting ingestion (series filter: %q)", seriesFilter)
+
 	game, err := in.upsertGame(ctx)
 	if err != nil {
 		return Summary{}, fmt.Errorf("upserting game: %w", err)
@@ -125,15 +164,21 @@ func (in *Ingester) Run(ctx context.Context, seriesFilter string) (Summary, erro
 	if err != nil {
 		return Summary{}, fmt.Errorf("enumerating expansions: %w", err)
 	}
+	logger.Infof("enumerated %d expansion set(s) to ingest", len(listings))
 
 	var summary Summary
 	seriesCache := map[string]entity.Series{}
-	for _, listing := range listings {
+	for i, listing := range listings {
+		if ctx.Err() != nil {
+			return summary, ctx.Err()
+		}
+
 		seriesRow, ok := seriesCache[listing.Series]
 		if !ok {
 			seriesRow, err = in.upsertSeries(ctx, game.ID, listing.Series)
 			if err != nil {
-				return summary, fmt.Errorf("upserting series %s: %w", listing.Series, err)
+				in.recordFailure(IngestFailure{ExpansionCode: listing.Code, Stage: "upserting series " + listing.Series, Err: err})
+				continue
 			}
 			seriesCache[listing.Series] = seriesRow
 			summary.Series++
@@ -141,20 +186,35 @@ func (in *Ingester) Run(ctx context.Context, seriesFilter string) (Summary, erro
 
 		set, err := in.upsertExpansionSet(ctx, game.ID, locale.ID, seriesRow.ID, listing)
 		if err != nil {
-			return summary, fmt.Errorf("upserting expansion set %s: %w", listing.Code, err)
+			in.recordFailure(IngestFailure{ExpansionCode: listing.Code, Stage: "upserting expansion set", Err: err})
+			continue
 		}
 		summary.Sets++
 
+		logger.Infof("[%d/%d] ingesting set %s (%s, series %s)...", i+1, len(listings), listing.Code, listing.Name, listing.Series)
 		n, err := in.ingestSet(ctx, set.ID, listing.Code)
 		if err != nil {
+			// ingestSet only returns an error for a caller-driven context
+			// cancellation (see its doc comment) - every other failure is
+			// recorded and ingestion of the set continues.
 			return summary, fmt.Errorf("ingesting set %s: %w", listing.Code, err)
 		}
 		summary.Cards += n
+		logger.Infof("[%d/%d] finished set %s: %d card(s) ingested", i+1, len(listings), listing.Code, n)
 	}
 
 	in.rarityMu.Lock()
 	summary.Rarities = len(in.rarityCache)
 	in.rarityMu.Unlock()
+
+	in.failuresMu.Lock()
+	summary.Failures = append([]IngestFailure(nil), in.failures...)
+	in.failuresMu.Unlock()
+
+	logger.Infof(
+		"ingestion finished: %d series, %d sets, %d rarities, %d cards, %d failure(s)",
+		summary.Series, summary.Sets, summary.Rarities, summary.Cards, len(summary.Failures),
+	)
 
 	return summary, nil
 }
@@ -167,7 +227,15 @@ func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter string
 	for pageNo := 1; ; pageNo++ {
 		doc, _, err := in.client.expansionListPage(ctx, pageNo)
 		if err != nil {
-			return nil, fmt.Errorf("fetching expansion list page %d: %w", pageNo, err)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			// Retries are already exhausted at this point (client.get's own
+			// job) - a page we can't reach means we can't discover what's
+			// beyond it, so stop paginating but keep whatever was already
+			// found rather than losing it.
+			in.recordFailure(IngestFailure{Stage: fmt.Sprintf("fetching expansion list page %d", pageNo), Err: err})
+			break
 		}
 
 		page := parseExpansionListings(doc)
@@ -191,6 +259,12 @@ func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter string
 // ingestSet enumerates every card id under one Expansion Set across the 3
 // regulation-partitioned passes, then fetches and upserts each card's
 // detail with bounded concurrency. It returns the number of cards ingested.
+//
+// A page or card that fails after client.get exhausts its own retries is
+// recorded via in.recordFailure and skipped rather than aborting the set;
+// ingestSet only returns a non-nil error when ctx itself has been canceled
+// by the caller (e.g. Ctrl+C), since retrying or recording more failures at
+// that point would be pointless.
 func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, expansionCode string) (int, error) {
 	type job struct {
 		id         string
@@ -212,7 +286,15 @@ func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, exp
 		for pageNo := 1; ; pageNo++ {
 			doc, _, err := in.client.resultsPage(ctx, expansionCode, regulation, pageNo)
 			if err != nil {
-				return 0, fmt.Errorf("fetching results page %d (regulation %d): %w", pageNo, regulation, err)
+				if ctx.Err() != nil {
+					return 0, ctx.Err()
+				}
+				in.recordFailure(IngestFailure{
+					ExpansionCode: expansionCode,
+					Stage:         fmt.Sprintf("fetching results page %d (regulation %d)", pageNo, regulation),
+					Err:           err,
+				})
+				break
 			}
 
 			ids := parseResultCardIDs(doc)
@@ -228,16 +310,27 @@ func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, exp
 			}
 		}
 	}
+	logger.Infof("set %s: %d card(s) to fetch", expansionCode, len(jobs))
 
 	var cardCount atomic.Int64
+	var processed atomic.Int64
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(maxConcurrency)
 	for _, j := range jobs {
 		group.Go(func() error {
-			if err := in.ingestCard(groupCtx, expansionSetID, j.id, j.regulation); err != nil {
-				return fmt.Errorf("ingesting card %s: %w", j.id, err)
+			err := in.ingestCard(groupCtx, expansionSetID, j.id, j.regulation)
+			if err != nil {
+				if groupCtx.Err() != nil {
+					return fmt.Errorf("ingesting card %s: %w", j.id, err)
+				}
+				in.recordFailure(IngestFailure{ExpansionCode: expansionCode, CardID: j.id, Stage: "ingesting card", Err: err})
+			} else {
+				cardCount.Add(1)
 			}
-			cardCount.Add(1)
+
+			if done := processed.Add(1); done%20 == 0 || int(done) == len(jobs) {
+				logger.Infof("set %s: processed %d/%d card(s)", expansionCode, done, len(jobs))
+			}
 			return nil
 		})
 	}
