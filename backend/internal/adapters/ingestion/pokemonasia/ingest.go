@@ -258,6 +258,17 @@ func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, id
 	detail := parseCardDetail(doc)
 	detail.Regulation = regulation
 
+	// Empty RarityCode/LocalID are zero values to gorm's Where(struct), which
+	// drops zero-value fields from the WHERE clause instead of matching them
+	// literally — an empty code/ID here would broaden the lookup to any
+	// existing row for the set/game and silently corrupt or overwrite it.
+	if detail.RarityCode == "" {
+		return fmt.Errorf("card %s: missing rarity code", id)
+	}
+	if detail.LocalID == "" {
+		return fmt.Errorf("card %s: missing local id", id)
+	}
+
 	rarityID, err := in.resolveRarityID(ctx, detail.RarityCode)
 	if err != nil {
 		return fmt.Errorf("resolving rarity %s: %w", detail.RarityCode, err)
