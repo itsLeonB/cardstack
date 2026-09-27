@@ -263,7 +263,7 @@ func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, exp
 	}
 	logger.Infof("set %s: %d card(s) to fetch", expansionCode, len(ids))
 
-	rarityByCard, err := in.sweepRarities(ctx, expansionCode, rarityOptions)
+	rarityByCard, sweepIncomplete, err := in.sweepRarities(ctx, expansionCode, rarityOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -286,11 +286,22 @@ func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, exp
 				// any known rarity[] filter id - log and skip it rather
 				// than blocking the rest of the set (see the ticket's
 				// "card whose rarity can't be resolved" criterion).
+				//
+				// sweepIncomplete means at least one rarity page fetch
+				// already exhausted its retries and was recorded as its own
+				// failure above - this card may simply be one this ingester
+				// never got to see, not one genuinely absent from every
+				// bucket. Say so, since the fix for that is re-running the
+				// whole set, not retrying this one card.
+				reason := "card not found under any known rarity filter id"
+				if sweepIncomplete {
+					reason = "rarity unresolved: this set's rarity sweep hit an earlier page-fetch failure (see other failures for this set) - re-run the whole set rather than retrying this card alone"
+				}
 				in.recordFailure(IngestFailure{
 					ExpansionCode: expansionCode,
 					CardID:        id,
 					Stage:         "resolving rarity",
-					Err:           fmt.Errorf("card not found under any known rarity filter id"),
+					Err:           fmt.Errorf("%s", reason),
 				})
 				return nil
 			}
@@ -355,20 +366,28 @@ func (in *Ingester) enumerateSetCardIDs(ctx context.Context, expansionCode strin
 // paginates each, attributing that id's code to every card id it returns.
 // See ADR-0010: this replaces the mis-scraped detail-page field as the
 // authoritative source of Card Rarity.
-func (in *Ingester) sweepRarities(ctx context.Context, expansionCode string, rarityOptions map[string]string) (map[string]string, error) {
+//
+// The returned bool is true if any rarity page fetch exhausted its retries
+// (already recorded via in.recordFailure) - the caller uses this to tell a
+// card genuinely absent from every rarity bucket apart from one this sweep
+// simply never reached, which need different, differently-actionable
+// failure messages (see ingestSet).
+func (in *Ingester) sweepRarities(ctx context.Context, expansionCode string, rarityOptions map[string]string) (map[string]string, bool, error) {
 	byCard := map[string]string{}
+	incomplete := false
 	for rarityFilterID, code := range rarityOptions {
 		for pageNo := 1; ; pageNo++ {
 			doc, _, err := in.client.rarityResultsPage(ctx, expansionCode, rarityFilterID, pageNo)
 			if err != nil {
 				if ctx.Err() != nil {
-					return nil, ctx.Err()
+					return nil, false, ctx.Err()
 				}
 				in.recordFailure(IngestFailure{
 					ExpansionCode: expansionCode,
 					Stage:         fmt.Sprintf("fetching rarity %s results page %d", code, pageNo),
 					Err:           err,
 				})
+				incomplete = true
 				break
 			}
 
@@ -381,7 +400,7 @@ func (in *Ingester) sweepRarities(ctx context.Context, expansionCode string, rar
 			}
 		}
 	}
-	return byCard, nil
+	return byCard, incomplete, nil
 }
 
 // ingestCard fetches, parses, and upserts one card's detail page.

@@ -431,9 +431,76 @@ func TestIngester_SweepRarities_ResolvesCodesPerCard(t *testing.T) {
 	in := testIngester(t)
 	in.client.baseURL = server.URL
 
-	byCard, err := in.sweepRarities(context.Background(), "TEST", map[string]string{"1": "C", "999": "ZZZ"})
+	byCard, incomplete, err := in.sweepRarities(context.Background(), "TEST", map[string]string{"1": "C", "999": "ZZZ"})
 	require.NoError(t, err)
+	assert.False(t, incomplete)
 	assert.Equal(t, map[string]string{"100": "C", "200": "ZZZ"}, byCard)
+}
+
+// TestIngester_IngestSet_RarityPageFailure_DoesNotFalselyReportCardsMissing
+// confirms that when a rarity page fetch exhausts its retries, the cards
+// that sweep couldn't reach are recorded with a message pointing at the
+// incomplete sweep, not the misleading "not found under any known rarity
+// filter id" (which asserts a data-shape problem that isn't what happened).
+func TestIngester_IngestSet_RarityPageFailure_DoesNotFalselyReportCardsMissing(t *testing.T) {
+	unresolvedID := "16488"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/card-search/list/":
+			if r.URL.Query().Get("regulation") == "all" && r.URL.Query().Get("pageNo") == "1" {
+				_, _ = fmt.Fprintf(w, `<html><body>
+					<div class="rarities"><div class="rarityOption"><input name="rarity[]" value="1"><label>C</label></div></div>
+					<ul class="list"><li class="card"><a href="/id/card-search/detail/%s/"></a></li></ul>
+					</body></html>`, unresolvedID)
+				return
+			}
+			if r.URL.Query().Get("rarity[]") == "1" && r.URL.Query().Get("pageNo") == "1" {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(`<html><body><ul class="list"></ul></body></html>`)) //nolint:errcheck
+
+		case "/card-search/detail/" + unresolvedID + "/":
+			w.Write([]byte(pokemonDetailFixture)) //nolint:errcheck
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	in := testIngester(t)
+	in.client.baseURL = server.URL
+	game, err := in.upsertGame(context.Background())
+	require.NoError(t, err)
+	in.gameID = game.ID
+	locale, err := in.upsertLocale(context.Background(), "id")
+	require.NoError(t, err)
+	series, err := in.upsertSeries(context.Background(), game.ID, "Test Series "+uniqueCode(t))
+	require.NoError(t, err)
+	set, err := in.upsertExpansionSet(context.Background(), game.ID, locale.ID, series.ID, expansionListing{
+		Code: uniqueCode(t), Name: "Set", ReleaseDate: mustParseDate(t, "01-01-2026"),
+	})
+	require.NoError(t, err)
+
+	count, err := in.ingestSet(context.Background(), set.ID, "RARITYFAIL"+uniqueCode(t)[:8])
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "the card must not be ingested with an unresolved rarity")
+
+	in.failuresMu.Lock()
+	defer in.failuresMu.Unlock()
+	var cardFailure *IngestFailure
+	for i := range in.failures {
+		if in.failures[i].CardID == unresolvedID {
+			cardFailure = &in.failures[i]
+		}
+	}
+	require.NotNil(t, cardFailure, "the unresolved card must still be recorded as a failure")
+	assert.Contains(
+		t, cardFailure.Err.Error(), "sweep",
+		"the message must point at the incomplete sweep, not falsely claim the card is absent from every rarity bucket",
+	)
 }
 
 // TestIngester_IngestSet_CardNotFoundUnderAnyRarity_LogsAndContinues
