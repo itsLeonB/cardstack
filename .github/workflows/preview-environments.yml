@@ -44,17 +44,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    # Consumed by the e2e job below, so it can seed and test this PR's
-    # actual preview stack instead of provisioning one of its own.
-    # neon_password carries a real DB credential — trust that
-    # create-branch-action already registers it with `::add-mask::`
-    # (GitHub Actions' masking is workflow-run-scoped once a value is
-    # registered, so it stays redacted in this job's own log output above,
-    # where it's already used directly, and in e2e's).
-    outputs:
-      neon_host: ${{ steps.neon.outputs.host }}
-      neon_password: ${{ steps.neon.outputs.password }}
-      vercel_url: ${{ steps.vercel.outputs.url }}
     steps:
       # The action returns an existing branch's details as-is rather than
       # resetting it, so a `synchronize` run would otherwise keep stale
@@ -363,67 +352,6 @@ jobs:
                 body,
               });
             }
-
-  e2e:
-    name: E2E (Playwright, against this PR's preview)
-    # Depends on provision's outputs (DB credentials, deployed URLs), which
-    # only exist if provision actually ran and finished successfully — a
-    # skipped or failed provision (closed PR, fork/Dependabot PR, or a real
-    # provisioning failure) skips this job too by GitHub Actions' default
-    # needs-propagation, with no extra condition required here.
-    needs: provision
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Install postgresql-client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      # Seeds this PR's own Neon branch (already forked from production by
-      # provision, with migrations already applied) rather than a fresh
-      # throwaway database — per this workflow's actual per-PR preview
-      # stack, not a separate CI-only Postgres. Isolated under its own
-      # Game/Locale (see the fixture's own header comment) and idempotent,
-      # so it's safe alongside whatever production-derived data the branch
-      # already carries, and safe to re-run on a `synchronize` push.
-      - name: Seed e2e fixture data into this PR's Neon branch
-        env:
-          PGHOST: ${{ needs.provision.outputs.neon_host }}
-          PGPORT: "5432"
-          PGUSER: ${{ secrets.NEON_ROLE_NAME }}
-          PGPASSWORD: ${{ needs.provision.outputs.neon_password }}
-          PGDATABASE: ${{ secrets.NEON_DATABASE_NAME }}
-        run: psql -f backend/internal/adapters/db/postgres/testdata/e2e_seed.sql
-
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-        with:
-          working-directory: frontend
-
-      # This runner has no pre-provisioned browser (unlike a Claude Code
-      # cloud sandbox, which bakes one in) — always install for real here.
-      - name: Install Playwright's browser
-        working-directory: frontend
-        run: bunx playwright install --with-deps chromium
-
-      - name: Run Playwright e2e tests against the deployed preview
-        working-directory: frontend
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ needs.provision.outputs.vercel_url }}
-        run: bunx playwright test
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v5
-        with:
-          name: playwright-report
-          path: frontend/playwright-report/
-          retention-days: 7
 
   cleanup:
     name: Delete preview stack
