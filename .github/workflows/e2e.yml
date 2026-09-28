@@ -90,7 +90,8 @@ jobs:
       - name: Start the backend API
         working-directory: backend
         run: |
-          go run ./cmd/api &
+          go build -o bin/api ./cmd/api
+          ./bin/api &
           for i in $(seq 1 30); do
             curl -fsS http://localhost:8080/catalog/series \
               >/dev/null 2>&1 && exit 0
