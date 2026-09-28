@@ -21,6 +21,7 @@ import (
 
 func main() {
 	series := flag.String("series", "", "debug: limit ingestion to one Series (site's own name, e.g. \"Evolusi Mega\"); default ingests all four")
+	set := flag.String("set", "", "debug: limit ingestion to one Expansion Set by its site code (e.g. \"MA6\"), independent of -series; default ingests every set")
 	cleanupStaleRarities := flag.Bool(
 		"cleanup-stale-rarities",
 		false,
@@ -76,7 +77,7 @@ func main() {
 		return
 	}
 
-	summary, err := ingester.Run(ctx, *series)
+	summary, err := ingester.Run(ctx, *series, *set)
 	if err != nil {
 		logger.Fatal(err)
 	}

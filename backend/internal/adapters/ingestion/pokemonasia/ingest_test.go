@@ -316,14 +316,14 @@ func TestIngester_Run_EndToEnd(t *testing.T) {
 	in.client.limiter = rate.NewLimiter(rate.Inf, 0)
 	in.client.baseURL = server.URL
 
-	summary, err := in.Run(context.Background(), "")
+	summary, err := in.Run(context.Background(), "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, summary.Sets)
 	assert.Equal(t, 1, summary.Cards)
 	assert.Equal(t, 1, summary.Rarities)
 
 	// Re-running must be idempotent: same row counts, not duplicated.
-	summary, err = in.Run(context.Background(), "")
+	summary, err = in.Run(context.Background(), "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, summary.Sets)
 	assert.Equal(t, 1, summary.Cards)
@@ -356,6 +356,54 @@ func TestIngester_Run_EndToEnd(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, cards[0].RarityID, rarity.ID, "rarity must resolve to the rarity[] filter's code, not the detail page")
+}
+
+// TestIngester_EnumerateExpansions_SetFilter confirms setFilter narrows
+// enumeration to the one Expansion Set with that site code, independent of
+// (and regardless of a mismatched) seriesFilter — see Run's doc comment on
+// the -set CLI flag this backs.
+func TestIngester_EnumerateExpansions_SetFilter(t *testing.T) {
+	wantCode := "MA" + uniqueCode(t)[:8]
+	otherCode := "SV" + uniqueCode(t)[:8]
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/card-search/" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.URL.Query().Get("pageNo") != "1" {
+			w.Write([]byte(`<html><body></body></html>`)) //nolint:errcheck
+			return
+		}
+		_, _ = fmt.Fprintf(w, `<html><body><ul class="expansionList">
+			<li class="expansion"><a class="expansionLink" href="/id/card-search/list/?expansionCodes=%s">
+				<div class="seriesBlock"><span class="series">Evolusi Mega</span></div>
+				<h3 class="expansionTitle">Wanted Set</h3>
+				<time class="relaseDate" datetime="01-15-2026"></time>
+			</a></li>
+			<li class="expansion"><a class="expansionLink" href="/id/card-search/list/?expansionCodes=%s">
+				<div class="seriesBlock"><span class="series">Scarlet & Violet</span></div>
+				<h3 class="expansionTitle">Other Set</h3>
+				<time class="relaseDate" datetime="01-15-2026"></time>
+			</a></li>
+			</ul></body></html>`, wantCode, otherCode)
+	}))
+	t.Cleanup(server.Close)
+
+	in := testIngester(t)
+	in.client.baseURL = server.URL
+
+	listings, err := in.enumerateExpansions(context.Background(), "", wantCode)
+	require.NoError(t, err)
+	require.Len(t, listings, 1)
+	assert.Equal(t, wantCode, listings[0].Code)
+
+	// A setFilter that doesn't match the given seriesFilter's Series yields
+	// nothing - the two filters AND together rather than one overriding the
+	// other.
+	listings, err = in.enumerateExpansions(context.Background(), "Scarlet & Violet", wantCode)
+	require.NoError(t, err)
+	assert.Empty(t, listings)
 }
 
 func mustParseDate(t *testing.T, s string) time.Time {

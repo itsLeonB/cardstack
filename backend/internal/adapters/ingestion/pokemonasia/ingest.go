@@ -131,13 +131,19 @@ func NewIngester(db *gorm.DB) *Ingester {
 	}
 }
 
-// Run ingests every Expansion Set under every target Series (or, if
-// seriesFilter is non-empty, just that one Series — a debug aid; the ticket
-// scope is fixed to all four), upserting Game/Series/ExpansionSet/Rarity/
-// Card rows. Re-running with the same arguments is idempotent: existing
-// rows are updated in place rather than duplicated.
-func (in *Ingester) Run(ctx context.Context, seriesFilter string) (Summary, error) {
-	logger.Infof("starting ingestion (series filter: %q)", seriesFilter)
+// Run ingests every Expansion Set under every target Series, upserting
+// Game/Series/ExpansionSet/Rarity/Card rows. Both filters are debug aids —
+// the ticket scope is fixed to all four Series and every Expansion Set
+// under them:
+//   - if seriesFilter is non-empty, only that one Series is ingested.
+//   - if setFilter is non-empty, only the Expansion Set with that site code
+//     is ingested, independent of seriesFilter (its own Series is resolved
+//     from the listing that carries it, same as any other run).
+//
+// Re-running with the same arguments is idempotent: existing rows are
+// updated in place rather than duplicated.
+func (in *Ingester) Run(ctx context.Context, seriesFilter, setFilter string) (Summary, error) {
+	logger.Infof("starting ingestion (series filter: %q, set filter: %q)", seriesFilter, setFilter)
 
 	game, err := in.upsertGame(ctx)
 	if err != nil {
@@ -150,7 +156,7 @@ func (in *Ingester) Run(ctx context.Context, seriesFilter string) (Summary, erro
 		return Summary{}, fmt.Errorf("upserting locale: %w", err)
 	}
 
-	listings, err := in.enumerateExpansions(ctx, seriesFilter)
+	listings, err := in.enumerateExpansions(ctx, seriesFilter, setFilter)
 	if err != nil {
 		return Summary{}, fmt.Errorf("enumerating expansions: %w", err)
 	}
@@ -211,8 +217,9 @@ func (in *Ingester) Run(ctx context.Context, seriesFilter string) (Summary, erro
 
 // enumerateExpansions paginates GET /card-search/?pageNo=N until a page
 // returns no listings, keeping only listings under a target Series
-// (optionally narrowed further to a single seriesFilter).
-func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter string) ([]expansionListing, error) {
+// (optionally narrowed further to a single seriesFilter and/or a single
+// setFilter — see Run's doc comment).
+func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter, setFilter string) ([]expansionListing, error) {
 	var out []expansionListing
 	for pageNo := 1; ; pageNo++ {
 		doc, _, err := in.client.expansionListPage(ctx, pageNo)
@@ -238,6 +245,9 @@ func (in *Ingester) enumerateExpansions(ctx context.Context, seriesFilter string
 				continue
 			}
 			if seriesFilter != "" && listing.Series != seriesFilter {
+				continue
+			}
+			if setFilter != "" && listing.Code != setFilter {
 				continue
 			}
 			out = append(out, listing)
