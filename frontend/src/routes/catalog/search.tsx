@@ -67,7 +67,10 @@ function CatalogSearchPage() {
   const tagsQuery = useListCatalogTags()
   const cardsQuery = useSearchCatalogCards(search)
 
-  const series = seriesQuery.data?.status === 200 ? (seriesQuery.data.data.data ?? []) : []
+  const seriesBrowseResult =
+    seriesQuery.data?.status === 200 ? seriesQuery.data.data.data : undefined
+  const series = seriesBrowseResult?.series ?? []
+  const ungroupedExpansionSets = seriesBrowseResult?.ungroupedExpansionSets ?? []
   const rarities = raritiesQuery.data?.status === 200 ? (raritiesQuery.data.data.data ?? []) : []
   const categories =
     categoriesQuery.data?.status === 200 ? (categoriesQuery.data.data.data ?? []) : []
@@ -159,6 +162,10 @@ function CatalogSearchPage() {
                       value: set.id,
                     }))
                   ),
+                  ...ungroupedExpansionSets.map((set) => ({
+                    label: `${set.name} (${set.code}) · Ungrouped`,
+                    value: set.id,
+                  })),
                 ]}
                 value={search.expansionSetId ?? null}
                 onValueChange={(value) =>
@@ -182,6 +189,16 @@ function CatalogSearchPage() {
                       ))}
                     </SelectGroup>
                   ))}
+                  {ungroupedExpansionSets.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Ungrouped</SelectLabel>
+                      {ungroupedExpansionSets.map((set) => (
+                        <SelectItem key={set.id} value={set.id}>
+                          {set.name} ({set.code})
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                 </SelectContent>
               </Select>
             </Field>

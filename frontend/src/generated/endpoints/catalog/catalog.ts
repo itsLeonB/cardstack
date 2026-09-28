@@ -22,8 +22,8 @@ import type {
 import type {
   EnvelopeCardSearchResult,
   EnvelopeListRaritySummary,
-  EnvelopeListSeriesSummary,
   EnvelopeListString,
+  EnvelopeSeriesBrowseResult,
   ErrorModel,
   SearchCatalogCardsParams
 } from '../../models';
@@ -422,7 +422,7 @@ export function useListCatalogRarities<TData = Awaited<ReturnType<typeof listCat
 
 
 export type listCatalogSeriesResponse200 = {
-  data: EnvelopeListSeriesSummary
+  data: EnvelopeSeriesBrowseResult
   status: 200
 }
 
@@ -449,7 +449,7 @@ export const getListCatalogSeriesUrl = () => {
 }
 
 /**
- * @summary List every Series, with its Expansion Sets nested
+ * @summary List every Series (with its Expansion Sets nested) plus every ungrouped Expansion Set
  */
 export const listCatalogSeries = async ( options?: Parameters<typeof customFetch>[1]): Promise<listCatalogSeriesResponse> => {
 
@@ -520,7 +520,7 @@ export function useListCatalogSeries<TData = Awaited<ReturnType<typeof listCatal
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary List every Series, with its Expansion Sets nested
+ * @summary List every Series (with its Expansion Sets nested) plus every ungrouped Expansion Set
  */
 
 export function useListCatalogSeries<TData = Awaited<ReturnType<typeof listCatalogSeries>>, TError = ErrorModel>(
