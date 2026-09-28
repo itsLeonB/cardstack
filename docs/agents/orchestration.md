@@ -32,7 +32,7 @@ If the task touches a limited part of one component, it is small enough and just
 
 1. Implement directly — no `backend-agent`/`frontend-agent` delegation, no worktree. Drive it with TDD at agreed seams (`tdd` skill) when the task comes from a spec/ticket file, otherwise implement directly. Use Serena for all code reads/edits (mandatory, see `serena.md` / `initial_instructions`), and context7 for any library docs needed. Load the stack-specific skill for the area touched (e.g. `golang-testing`, `tanstack-query`, `shadcn`) the same way the component agents would.
 2. Run that component's verification script (same commands as step 3 above).
-3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. The orchestrator does have an Agent/Task tool, so this runs as the skill's normal two-parallel-sub-agent review.
+3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. The orchestrator does have an Agent/Task tool, so this runs as the skill's normal two-parallel-sub-agent review. Re-run that component's verification script (step 2) after fixing findings, before committing.
 4. Commit using the [commit naming convention](#commit-naming-conventions) and push — confirm with the user before pushing.
 
 ## Commit naming conventions

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -192,12 +193,18 @@ const cardResultColumns = `cards.id AS id,
 	expansion_sets.name AS expansion_set_name,
 	expansion_sets.release_date AS expansion_set_release_date`
 
+// likeEscaper escapes ILIKE's own wildcard characters (%, _) and its default
+// escape character (\) in a single pass, so a literal % or _ in user input
+// can't widen a search beyond what the user typed (e.g. searching "A_B"
+// matching "AxB" too, since _ means "any one character" unless escaped).
+var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
+
 // applyCardFilters adds filter's non-zero facets as WHERE conditions to
 // query, which must already be scoped to the joined cards/rarities/
 // expansion_sets query SearchCards builds.
 func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
 	if filter.Name != "" {
-		query = query.Where("cards.name ILIKE ?", "%"+filter.Name+"%")
+		query = query.Where("cards.name ILIKE ?", "%"+likeEscaper.Replace(filter.Name)+"%")
 	}
 	if filter.ExpansionSetID != uuid.Nil {
 		query = query.Where("cards.expansion_set_id = ?", filter.ExpansionSetID)

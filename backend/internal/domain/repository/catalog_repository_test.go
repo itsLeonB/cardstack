@@ -423,6 +423,30 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 		}
 	})
 
+	t.Run("treats % and _ in name as literal characters, not ILIKE wildcards", func(t *testing.T) {
+		// Own Expansion Set, isolated from the other subtests' shared set
+		// and card count.
+		wildcardSet := fixture.newExpansionSet(t, db, &series.ID, nil)
+		literal := fixture.newCard(t, db, wildcardSet.ID, func(c *entity.Card) {
+			c.LocalID = "001"
+			c.Name = "A_B % Card"
+		})
+		// Would also match literal's name if "_" were left as ILIKE's
+		// single-character wildcard instead of being escaped.
+		fixture.newCard(t, db, wildcardSet.ID, func(c *entity.Card) {
+			c.LocalID = "002"
+			c.Name = "AxB Card"
+		})
+
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: wildcardSet.ID, Name: "A_B %", Limit: 10})
+		if err != nil {
+			t.Fatalf("SearchCards: %v", err)
+		}
+		if total != 1 || len(results) != 1 || results[0].ID != literal.ID {
+			t.Fatalf("expected only the literal A_B %% match, got total=%d results=%+v", total, results)
+		}
+	})
+
 	t.Run("filters by local id", func(t *testing.T) {
 		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, LocalID: "002", Limit: 10})
 		if err != nil {
