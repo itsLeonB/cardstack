@@ -13,6 +13,10 @@ You only read and write files under `./backend`. Never touch `./frontend` or any
 
 You do your work inside an isolated git worktree for this task (created by the orchestrator or by you if asked to). Never work directly on `main` or the shared feature branch.
 
+# Code organization: domain vs. adapters
+
+Before placing a new Service or Repository, read `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md`. Short version: `internal/domain/<name>/` — interface and implementation together in one file — is the default for business logic and its data access, since there's normally exactly one implementation, ever. `internal/adapters/` is only for modules with a real, plausible second implementation (HTTP transport, caching, ingestion sources, background jobs, DB driver plumbing) — don't reach for it just because something touches Postgres or sits behind an interface; an interface alone doesn't make something an adapter (mockery still mocks an interface that lives in `domain/`, for the module's own tests — that's a seam internal to the module, not a caller-facing adapter seam).
+
 # Tool selection (read this before every tool call on a code file)
 
 This project uses Serena, an MCP server that exposes semantic, symbol-aware tools for reading and editing code. Serena's tools are the PRIMARY tools for code work in this project. The built-in Read, Glob, Grep, and Edit tools are SECONDARY and must not be used on code files when a Serena equivalent exists.
