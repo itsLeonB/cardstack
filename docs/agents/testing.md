@@ -2,6 +2,25 @@
 
 How an agent should get a working Postgres for backend tests, and how to get real catalog data quickly for manual verification, depending on where the session is running.
 
+## Frontend: driving a headless browser (Playwright) for manual UI verification
+
+`frontend/package.json` declares `playwright` (plain library, not `@playwright/test`) as a devDependency, pinned to an exact version (no `^`) matching the Chromium build baked into this box's base image. Run `bun install` in `frontend/` and then `import { chromium } from "playwright"` resolves normally — no absolute-path import workaround needed, and no `playwright install` should ever be run (that would try to re-download a browser that's already provided).
+
+This split follows from what the environment actually provisions vs. what a project must declare itself:
+
+- **Environment-level** (baked into the base container image, not `scripts/setup-environment.sh` — grep it, it doesn't mention Playwright): the Chromium *binary* at `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`, plus a global `playwright` CLI/library under `/opt/node22`. This exists purely so re-downloading a ~300MB browser per project is unnecessary.
+- **Project-level** (this repo's job, same as any other npm dependency): the `playwright` *npm package* itself. Global npm installs are not on Node's module resolution path (no `NODE_PATH` is set on this box), so a bare `import { chromium } from "playwright"` from `frontend/` only resolves if `frontend/package.json` declares it and `bun install` has run.
+
+The pinned version must match the pre-installed browser revision, or Playwright will refuse to drive it. Check compatibility with:
+
+```sh
+cat /opt/node22/lib/node_modules/playwright/node_modules/playwright-core/browsers.json  # chromium revision this Playwright build expects
+ls /opt/pw-browsers                                                                     # chromium revision actually on disk
+/opt/node22/bin/playwright --version                                                    # the globally pre-installed Playwright version
+```
+
+Pin `frontend/package.json`'s `playwright` devDependency to that same version. `chromium.launch()` (default options) then finds and drives `/opt/pw-browsers/chromium-<revision>/chrome-linux/chrome` directly — no `executablePath` override needed once the installed version matches.
+
 ## Getting a local Postgres
 
 Repository tests run against a real Postgres per `docs/adr/0005`, using the `DB_*` env vars from `backend/.env.example` (`localhost:5432`, user/password/db all `cardstack`). Whether you provision this yourself depends on the environment:
