@@ -41,6 +41,9 @@ test.describe("Catalog search", () => {
   test("filters by category", async ({ page }) => {
     await page.goto("/catalog/search")
 
+    await page.getByLabel("Expansion Set").click()
+    await page.getByRole("option", { name: "Test Set Alpha (TSA)" }).click()
+
     await page.getByLabel("Category").click()
     await page.getByRole("option", { name: "Support", exact: true }).click()
 
@@ -52,6 +55,9 @@ test.describe("Catalog search", () => {
   test("filters by tag", async ({ page }) => {
     await page.goto("/catalog/search")
 
+    await page.getByLabel("Expansion Set").click()
+    await page.getByRole("option", { name: "Test Set Alpha (TSA)" }).click()
+
     await page.getByLabel("Tag").click()
     await page.getByRole("option", { name: "Evolved", exact: true }).click()
 
@@ -62,6 +68,9 @@ test.describe("Catalog search", () => {
 
   test("filters by rarity", async ({ page }) => {
     await page.goto("/catalog/search")
+
+    await page.getByLabel("Expansion Set").click()
+    await page.getByRole("option", { name: "Test Set Alpha (TSA)" }).click()
 
     await page.getByLabel("Rarity").click()
     await page.getByRole("option", { name: "Rare", exact: true }).click()
