@@ -21,7 +21,8 @@ type stubCatalogService struct {
 	rarities       []service.RaritySummary
 	categories     []string
 	tags           []string
-	searchResult   service.CardSearchResult
+	searchCards    []service.CardSummary
+	searchMeta     service.PaginationMeta
 	searchErr      error
 	lastFilter     service.CardFilter
 	filterCaptured bool
@@ -43,13 +44,13 @@ func (s *stubCatalogService) ListTags(context.Context) ([]string, error) {
 	return s.tags, nil
 }
 
-func (s *stubCatalogService) SearchCards(_ context.Context, filter service.CardFilter) (service.CardSearchResult, error) {
+func (s *stubCatalogService) SearchCards(_ context.Context, filter service.CardFilter) ([]service.CardSummary, service.PaginationMeta, error) {
 	s.lastFilter = filter
 	s.filterCaptured = true
 	if s.searchErr != nil {
-		return service.CardSearchResult{}, s.searchErr
+		return nil, service.PaginationMeta{}, s.searchErr
 	}
-	return s.searchResult, nil
+	return s.searchCards, s.searchMeta, nil
 }
 
 func newTestCatalogHandler(t *testing.T, stub *stubCatalogService) humatest.TestAPI {
@@ -197,18 +198,28 @@ func TestCatalogHandler_SearchCards_InvalidRarityID(t *testing.T) {
 func TestCatalogHandler_SearchCards_ReturnsResult(t *testing.T) {
 	cardID := uuid.New()
 	stub := &stubCatalogService{
-		searchResult: service.CardSearchResult{
-			Cards: []service.CardSummary{{ID: cardID, Name: "Pikachu"}},
-			Total: 1,
-			Page:  1,
-			Limit: 24,
-		},
+		searchCards: []service.CardSummary{{ID: cardID, Name: "Pikachu"}},
+		searchMeta:  service.PaginationMeta{Total: 1, Page: 1, Limit: 24},
 	}
 	api := newTestCatalogHandler(t, stub)
 
 	resp := api.Get("/catalog/cards")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var body struct {
+		Data []service.CardSummary  `json:"data"`
+		Meta service.PaginationMeta `json:"meta"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshaling response body: %v", err)
+	}
+	if len(body.Data) != 1 || body.Data[0].ID != cardID || body.Data[0].Name != "Pikachu" {
+		t.Fatalf("expected data to hold the cards directly, got %+v", body.Data)
+	}
+	if body.Meta != (service.PaginationMeta{Total: 1, Page: 1, Limit: 24}) {
+		t.Fatalf("expected meta %+v, got %+v", service.PaginationMeta{Total: 1, Page: 1, Limit: 24}, body.Meta)
 	}
 }
 
