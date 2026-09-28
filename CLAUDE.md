@@ -25,3 +25,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/do
 ### Development orchestration
 
 Multi-component or large single-component tasks route through `backend-agent`/`frontend-agent` subagents in git worktrees; small tasks proceed directly. See `docs/agents/orchestration.md` for the full workflow, commit and branch naming conventions.
+
+### Backend test environment setup
+
+Provisioning a local Postgres for backend tests is environment-conditional (cloud/remote agent vs. local developer), and manual catalog verification should use a small seed set, not a full scrape. See `docs/agents/testing.md`.
