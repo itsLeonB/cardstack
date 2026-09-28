@@ -21,6 +21,12 @@ ls /opt/pw-browsers                                                             
 
 Pin `frontend/package.json`'s `playwright` devDependency to that same version. `chromium.launch()` (default options) then finds and drives `/opt/pw-browsers/chromium-<revision>/chrome-linux/chrome` directly — no `executablePath` override needed once the installed version matches.
 
+## Service-level tests: mock the repository interface, don't reach for Postgres
+
+Repository-layer tests (`internal/adapters/repository`) and feature tests hit a real Postgres per `docs/adr/0005` — that ADR is about not mocking the DB/GORM layer itself, since a mock would have to reimplement real SQL behavior and could silently drift from it. It does not mean every test that happens to sit downstream of a repository needs a real database.
+
+A service in `internal/adapters/core/service` (e.g. `catalogService`) should depend on its repository through a single, formal, exported interface defined in the adapter package alongside its concrete implementation (see `repository.CatalogRepository` in `internal/adapters/repository/catalog_repository.go`), not a bespoke interface narrowed to that one service's call shape. Its own unit tests then mock that interface with [mockery](https://github.com/vektra/mockery) (`make mocks` regenerates every configured mock from `.mockery.yaml`; the generated `mocks/` output is committed) instead of hand-writing a fake or standing up a real database connection just to satisfy the dependency. See `internal/adapters/core/service/catalog_service_test.go` for the pattern: `mocks.NewMockCatalogRepository(t)`, `.EXPECT().Method(args).Return(...)`.
+
 ## Getting a local Postgres
 
 Repository tests run against a real Postgres per `docs/adr/0005`, using the `DB_*` env vars from `backend/.env.example` (`localhost:5432`, user/password/db all `cardstack`). Whether you provision this yourself depends on the environment:
