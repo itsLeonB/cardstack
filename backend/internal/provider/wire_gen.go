@@ -30,7 +30,8 @@ func InitializeProviders() (*Providers, func(), error) {
 	}
 	profileLookup := ProvideProfileLookup(dataSources)
 	catalogService := ProvideCatalogService(dataSources)
-	services := ProvideServices(authKit, profileLookup, catalogService)
+	collectionService := ProvideCollectionService(dataSources)
+	services := ProvideServices(authKit, profileLookup, catalogService, collectionService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

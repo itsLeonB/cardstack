@@ -83,8 +83,9 @@ func authTestServices(t *testing.T) *provider.Services {
 	t.Cleanup(cleanup)
 
 	catalog := provider.ProvideCatalogService(&provider.DataSources{Gorm: db, SQL: sqlDB})
+	collections := provider.ProvideCollectionService(&provider.DataSources{Gorm: db, SQL: sqlDB})
 
-	return provider.ProvideServices(kit, profiles, catalog)
+	return provider.ProvideServices(kit, profiles, catalog, collections)
 }
 
 func migrateTestDB(t *testing.T, sqlDB *sql.DB) {
