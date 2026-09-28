@@ -75,10 +75,11 @@ export const ListCatalogRaritiesResponse = zod.object({
 })
 
 /**
- * @summary List every Series, with its Expansion Sets nested
+ * @summary List every Series (with its Expansion Sets nested) plus every ungrouped Expansion Set
  */
 export const ListCatalogSeriesResponse = zod.object({
-  "data": zod.array(zod.object({
+  "data": zod.object({
+  "series": zod.array(zod.object({
   "code": zod.string(),
   "expansionSets": zod.array(zod.object({
   "code": zod.string(),
@@ -88,7 +89,14 @@ export const ListCatalogSeriesResponse = zod.object({
 })).nullable(),
   "id": zod.string(),
   "name": zod.string()
+})).nullable(),
+  "ungroupedExpansionSets": zod.array(zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
 })).nullable()
+})
 })
 
 /**

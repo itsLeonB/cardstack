@@ -3,6 +3,7 @@ import {
   getListCatalogSeriesQueryOptions,
   useListCatalogSeries,
 } from "@/generated/endpoints/catalog/catalog"
+import type { ExpansionSetSummary } from "@/generated/models"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
@@ -16,7 +17,9 @@ export const Route = createFileRoute("/catalog/")({
 
 function CatalogSeriesPage() {
   const { data, isPending, isError } = useListCatalogSeries()
-  const series = data?.status === 200 ? (data.data.data ?? []) : []
+  const seriesBrowseResult = data?.status === 200 ? data.data.data : undefined
+  const series = seriesBrowseResult?.series ?? []
+  const ungroupedExpansionSets = seriesBrowseResult?.ungroupedExpansionSets ?? []
   const errorMessage =
     data && data.status !== 200
       ? (data.data.detail ?? "Could not load the catalog.")
@@ -50,9 +53,13 @@ function CatalogSeriesPage() {
         </p>
       )}
 
-      {!isPending && !isError && !errorMessage && series.length === 0 && (
-        <p className="text-sm text-muted-foreground">No Series found yet.</p>
-      )}
+      {!isPending &&
+        !isError &&
+        !errorMessage &&
+        series.length === 0 &&
+        ungroupedExpansionSets.length === 0 && (
+          <p className="text-sm text-muted-foreground">No Series found yet.</p>
+        )}
 
       <div className="flex flex-col gap-8">
         {series.map((oneSeries) => (
@@ -68,33 +75,56 @@ function CatalogSeriesPage() {
               {oneSeries.name}
             </h2>
             <Separator />
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {(oneSeries.expansionSets ?? []).map((expansionSet) => {
-                const releaseDate = formatReleaseDate(expansionSet.releaseDate)
-                return (
-                  <li key={expansionSet.id}>
-                    <Link
-                      to="/catalog/sets/$expansionSetId"
-                      params={{ expansionSetId: expansionSet.id }}
-                      className="block rounded-4xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-                    >
-                      <Card className="h-full transition-colors hover:bg-muted/50">
-                        <CardHeader>
-                          <CardTitle>{expansionSet.name}</CardTitle>
-                          <CardDescription>
-                            {expansionSet.code}
-                            {releaseDate && ` · Released ${releaseDate}`}
-                          </CardDescription>
-                        </CardHeader>
-                      </Card>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+            <ExpansionSetList expansionSets={oneSeries.expansionSets ?? []} />
           </section>
         ))}
+
+        {ungroupedExpansionSets.length > 0 && (
+          <section
+            aria-labelledby="series-ungrouped"
+            className="flex flex-col gap-3"
+          >
+            <h2 id="series-ungrouped" className="font-heading text-lg font-medium">
+              Ungrouped Expansion Sets
+            </h2>
+            <Separator />
+            <ExpansionSetList expansionSets={ungroupedExpansionSets} />
+          </section>
+        )}
       </div>
     </main>
+  )
+}
+
+function ExpansionSetList({
+  expansionSets,
+}: {
+  expansionSets: ExpansionSetSummary[]
+}) {
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2">
+      {expansionSets.map((expansionSet) => {
+        const releaseDate = formatReleaseDate(expansionSet.releaseDate)
+        return (
+          <li key={expansionSet.id}>
+            <Link
+              to="/catalog/sets/$expansionSetId"
+              params={{ expansionSetId: expansionSet.id }}
+              className="block rounded-4xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+            >
+              <Card className="h-full transition-colors hover:bg-muted/50">
+                <CardHeader>
+                  <CardTitle>{expansionSet.name}</CardTitle>
+                  <CardDescription>
+                    {expansionSet.code}
+                    {releaseDate && ` · Released ${releaseDate}`}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
