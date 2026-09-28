@@ -105,6 +105,42 @@ func TestParseResultCardIDs_EmptyPage(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+// rarityFilterFixture mirrors the real results-list page's rarity[] filter
+// widget markup (fetched live from asia.pokemon-card.com during this
+// ticket's investigation), trimmed to a few real codes plus one synthetic,
+// unfamiliar id/label pair (999 -> "ZZZ") the real site has never returned -
+// proving the mapping is read from the page, not a hardcoded table.
+const rarityFilterFixture = `
+<html><body>
+<div class="conditionRow all">
+  <h5 class="specifyConditionLabel">Kelangkaan</h5>
+  <div class="conditionContainer">
+    <div class="rarities">
+      <div class="rarityOption"><input id="rarity_1" type="checkbox" name="rarity[]" value="1" ><label for="rarity_1">C</label></div>
+      <div class="rarityOption"><input id="rarity_15" type="checkbox" name="rarity[]" value="15" ><label for="rarity_15">SAR</label></div>
+      <div class="rarityOption"><input id="rarity_999" type="checkbox" name="rarity[]" value="999" ><label for="rarity_999">ZZZ</label></div>
+    </div>
+  </div>
+</div>
+</body></html>`
+
+func TestParseRarityFilterOptions(t *testing.T) {
+	doc := mustParseFixture(t, rarityFilterFixture)
+
+	got := parseRarityFilterOptions(doc)
+
+	assert.Equal(t, map[string]string{"1": "C", "15": "SAR", "999": "ZZZ"}, got,
+		"an unfamiliar/synthetic id+label must resolve the same as a known one - the mapping isn't hardcoded")
+}
+
+func TestParseRarityFilterOptions_EmptyPage(t *testing.T) {
+	doc := mustParseFixture(t, `<html><body></body></html>`)
+
+	got := parseRarityFilterOptions(doc)
+
+	assert.Empty(t, got)
+}
+
 const pokemonDetailFixture = `
 <html><body>
 <h1 class="pageHeader cardDetail"><span class="evolveMarker">Stage 2</span> Mega Venusaur ex</h1>
@@ -147,12 +183,12 @@ func TestParseCardDetail(t *testing.T) {
 			name: "pokemon card with evolve marker and ex suffix",
 			html: pokemonDetailFixture,
 			want: cardDetail{
-				Name:        "Mega Venusaur ex",
-				Category:    categoryPokemon,
-				Tag:         "",
-				RarityCode:  "I",
-				LocalID:     "001",
-				Illustrator: "HYOGONOSUKE",
+				Name:           "Mega Venusaur ex",
+				Category:       categoryPokemon,
+				Tag:            "",
+				RegulationMark: "I",
+				LocalID:        "001",
+				Illustrator:    "HYOGONOSUKE",
 				Attributes: map[string]any{
 					"stage":          "Stage 2",
 					"specialMarkers": []string{"ex"},
@@ -163,26 +199,26 @@ func TestParseCardDetail(t *testing.T) {
 			name: "trainer card",
 			html: trainerDetailFixture,
 			want: cardDetail{
-				Name:        "Ultra Ball",
-				Category:    categoryTrainer,
-				Tag:         "Item",
-				RarityCode:  "C",
-				LocalID:     "150",
-				Illustrator: "someone",
-				Attributes:  map[string]any{},
+				Name:           "Ultra Ball",
+				Category:       categoryTrainer,
+				Tag:            "Item",
+				RegulationMark: "C",
+				LocalID:        "150",
+				Illustrator:    "someone",
+				Attributes:     map[string]any{},
 			},
 		},
 		{
 			name: "energy card with non-numeric collector number",
 			html: energyDetailFixture,
 			want: cardDetail{
-				Name:        "Energi Air Dasar",
-				Category:    categoryEnergi,
-				Tag:         "Energi Dasar",
-				RarityCode:  "C",
-				LocalID:     "PROMO-A",
-				Illustrator: "",
-				Attributes:  map[string]any{},
+				Name:           "Energi Air Dasar",
+				Category:       categoryEnergi,
+				Tag:            "Energi Dasar",
+				RegulationMark: "C",
+				LocalID:        "PROMO-A",
+				Illustrator:    "",
+				Attributes:     map[string]any{},
 			},
 		},
 	}
@@ -276,16 +312,15 @@ func TestMapCard(t *testing.T) {
 		want   entity.Card
 	}{
 		{
-			name: "pokemon card with regulation and attributes",
+			name: "pokemon card with regulation mark and attributes",
 			detail: cardDetail{
-				Name:        "Mega Venusaur ex",
-				Category:    categoryPokemon,
-				Tag:         "",
-				RarityCode:  "I",
-				LocalID:     "001",
-				Illustrator: "HYOGONOSUKE",
-				Regulation:  "Standar",
-				Attributes:  map[string]any{"stage": "Stage 2"},
+				Name:           "Mega Venusaur ex",
+				Category:       categoryPokemon,
+				Tag:            "",
+				LocalID:        "001",
+				Illustrator:    "HYOGONOSUKE",
+				RegulationMark: "I",
+				Attributes:     map[string]any{"stage": "Stage 2"},
 			},
 			want: entity.Card{
 				ExpansionSetID: expansionSetID,
@@ -296,21 +331,20 @@ func TestMapCard(t *testing.T) {
 				Tags:           datatypes.JSONSlice[string]{},
 				RarityID:       rarityID,
 				ImageURL:       "https://asia.pokemon-card.com/id/card-img/id00016488.png",
-				Attributes:     datatypes.JSONMap{"stage": "Stage 2", "regulation": "Standar"},
+				Attributes:     datatypes.JSONMap{"stage": "Stage 2", "regulationMark": "I"},
 				Raw:            string(raw),
 			},
 		},
 		{
 			name: "trainer card with a tag",
 			detail: cardDetail{
-				Name:        "Ultra Ball",
-				Category:    categoryTrainer,
-				Tag:         "Item",
-				RarityCode:  "C",
-				LocalID:     "150",
-				Illustrator: "someone",
-				Regulation:  "Luas",
-				Attributes:  map[string]any{},
+				Name:           "Ultra Ball",
+				Category:       categoryTrainer,
+				Tag:            "Item",
+				LocalID:        "150",
+				Illustrator:    "someone",
+				RegulationMark: "C",
+				Attributes:     map[string]any{},
 			},
 			want: entity.Card{
 				ExpansionSetID: expansionSetID,
@@ -321,7 +355,7 @@ func TestMapCard(t *testing.T) {
 				Tags:           datatypes.JSONSlice[string]{"Item"},
 				RarityID:       rarityID,
 				ImageURL:       "https://asia.pokemon-card.com/id/card-img/id00016488.png",
-				Attributes:     datatypes.JSONMap{"regulation": "Luas"},
+				Attributes:     datatypes.JSONMap{"regulationMark": "C"},
 				Raw:            string(raw),
 			},
 		},

@@ -2,16 +2,26 @@ package pokemonasia
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pressly/goose/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
+
+// TestMain initializes the package-global logger before any test runs: it's
+// normally set up once in cmd/*/main.go, but client.go's retry path now logs
+// through it too, and logger.Global is nil (a call panics) until Init runs.
+func TestMain(m *testing.M) {
+	logger.Init("pokemonasia_test")
+	os.Exit(m.Run())
+}
 
 // testDBConfig holds this file's Postgres DSN pieces, loaded via envconfig
 // with the same bare DB_* env var names internal/adapters/repository's

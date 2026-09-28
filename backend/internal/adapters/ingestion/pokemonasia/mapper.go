@@ -162,8 +162,7 @@ func cardImageURL(id string) string {
 }
 
 // parseCardDetail parses one GET /card-search/detail/{id}/ page into a
-// cardDetail. It is pure: no I/O, no DB. Regulation is left zero for the
-// caller to fill in (see cardDetail's doc comment).
+// cardDetail. It is pure: no I/O, no DB.
 func parseCardDetail(doc *goquery.Document) cardDetail {
 	h1 := doc.Find("h1.pageHeader").First()
 
@@ -186,19 +185,45 @@ func parseCardDetail(doc *goquery.Document) cardDetail {
 		attributes["specialMarkers"] = markers
 	}
 
-	rarityCode := strings.TrimSpace(doc.Find("section.expansionColumn span.alpha").First().Text())
+	// section.expansionColumn span.alpha is the card's Regulation Mark, not
+	// its rarity (see cardDetail's doc comment / CONTEXT.md's Regulation
+	// Mark entry) — the selector is unchanged from the pre-fix ingester,
+	// only what it's called and stored as.
+	regulationMark := strings.TrimSpace(doc.Find("section.expansionColumn span.alpha").First().Text())
 	collectorNumber := strings.TrimSpace(doc.Find("section.expansionColumn span.collectorNumber").First().Text())
 	illustrator := strings.TrimSpace(doc.Find("div.illustrator a").First().Text())
 
 	return cardDetail{
-		Name:        name,
-		Category:    category,
-		Tag:         tag,
-		RarityCode:  rarityCode,
-		LocalID:     splitCollectorNumber(collectorNumber),
-		Illustrator: illustrator,
-		Attributes:  attributes,
+		Name:           name,
+		Category:       category,
+		Tag:            tag,
+		LocalID:        splitCollectorNumber(collectorNumber),
+		Illustrator:    illustrator,
+		RegulationMark: regulationMark,
+		Attributes:     attributes,
 	}
+}
+
+// parseRarityFilterOptions extracts the id->code pairs of a results-list
+// page's own rarity[] filter widget (checkbox inputs named "rarity[]" with a
+// sibling <label> giving the display code, e.g. id "15" -> code "SAR"). The
+// site exposes ~22 of these; their numeric ids are undocumented and not
+// assumed stable across a code change, so they're parsed fresh from each
+// page rather than hardcoded (see ingest.go's sweepRarities).
+func parseRarityFilterOptions(doc *goquery.Document) map[string]string {
+	options := map[string]string{}
+	doc.Find(`input[name="rarity[]"]`).Each(func(_ int, s *goquery.Selection) {
+		id, ok := s.Attr("value")
+		if !ok || id == "" {
+			return
+		}
+		code := strings.TrimSpace(s.Parent().Find("label").First().Text())
+		if code == "" {
+			return
+		}
+		options[id] = code
+	})
+	return options
 }
 
 // slugifySeries locally derives a Series code from its display name (e.g.
@@ -227,8 +252,8 @@ func mapCard(detail cardDetail, expansionSetID, rarityID uuid.UUID, imageURL str
 	if attributes == nil {
 		attributes = map[string]any{}
 	}
-	if detail.Regulation != "" {
-		attributes["regulation"] = detail.Regulation
+	if detail.RegulationMark != "" {
+		attributes["regulationMark"] = detail.RegulationMark
 	}
 
 	return entity.Card{

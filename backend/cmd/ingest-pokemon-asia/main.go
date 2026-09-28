@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/pokemonasia"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
@@ -20,6 +21,12 @@ import (
 
 func main() {
 	series := flag.String("series", "", "debug: limit ingestion to one Series (site's own name, e.g. \"Evolusi Mega\"); default ingests all four")
+	set := flag.String("set", "", "debug: limit ingestion to one Expansion Set by its site code (e.g. \"MA6\"), independent of -series; default ingests every set")
+	cleanupStaleRarities := flag.Bool(
+		"cleanup-stale-rarities",
+		false,
+		"one-time cleanup: delete rarities rows left over from the pre-fix Regulation-Mark-as-rarity bug (ticket 11) that have zero referencing cards; rows still referenced are reported, not deleted. Off by default - normal ingestion runs no deletion.",
+	)
 	flag.Parse()
 
 	logger.Init("IngestPokemonAsia")
@@ -47,13 +54,45 @@ func main() {
 
 	ingester := pokemonasia.NewIngester(providers.Gorm)
 
-	summary, err := ingester.Run(ctx, *series)
+	if *cleanupStaleRarities {
+		results, err := ingester.CleanupStaleRarities(ctx)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		blocked := 0
+		for _, r := range results {
+			if r.Deleted {
+				logger.Infof("deleted stale rarity %q", r.Code)
+				continue
+			}
+			blocked++
+			logger.Warnf("rarity %q still referenced by %d card(s) - not deleted, re-run ingestion first", r.Code, r.CardCount)
+		}
+		if blocked > 0 {
+			// Non-zero exit tells an operator this cleanup pass didn't fully
+			// complete, the same way Run's own Summary.Failures does below.
+			os.Exit(1)
+		}
+		return
+	}
+
+	summary, err := ingester.Run(ctx, *series, *set)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	logger.Infof(
-		"ingestion complete: %d series, %d sets, %d rarities, %d cards",
-		summary.Series, summary.Sets, summary.Rarities, summary.Cards,
-	)
+	if len(summary.Failures) > 0 {
+		logger.Warnf(
+			"%d item(s) failed after exhausting retries - retry these independently, no need to rerun the whole ingestion:",
+			len(summary.Failures),
+		)
+		for _, f := range summary.Failures {
+			logger.Warn(f.Error())
+		}
+		// Non-zero exit lets an operator/script notice via $? that some
+		// items need a follow-up run, even though ingestion itself
+		// completed and every other row was written successfully.
+		os.Exit(1)
+	}
 }

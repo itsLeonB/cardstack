@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	mrand "math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -61,13 +62,29 @@ func (c *client) expansionListPage(ctx context.Context, pageNo int) (*goquery.Do
 }
 
 // resultsPage fetches one page of card-thumbnail results for one Expansion
-// Set/regulation bucket (regulation is 1, 2, or 3).
-func (c *client) resultsPage(ctx context.Context, expansionCode string, regulation, pageNo int) (*goquery.Document, []byte, error) {
+// Set's complete card list. regulation=all is the site's own "Semua" (All)
+// value — confirmed live to reliably return a set's true, complete card
+// count, unlike the regulation=1/2/3 partition it replaces (see ADR-0010).
+func (c *client) resultsPage(ctx context.Context, expansionCode string, pageNo int) (*goquery.Document, []byte, error) {
 	path := fmt.Sprintf(
-		"/card-search/list/?expansionCodes=%s&regulation=%d&cardType=all&pageNo=%d",
-		url.QueryEscape(expansionCode), regulation, pageNo,
+		"/card-search/list/?expansionCodes=%s&regulation=all&cardType=all&pageNo=%d",
+		url.QueryEscape(expansionCode), pageNo,
 	)
 	return c.get(ctx, path)
+}
+
+// rarityResultsPage fetches one page of card-thumbnail results for one
+// Expansion Set filtered to a single rarity[] filter id (see mapper.go's
+// parseRarityFilterOptions for how ids are discovered — they're undocumented
+// and not assumed stable). Querying one id at a time and paginating returns
+// exactly the card ids carrying that rarity code.
+func (c *client) rarityResultsPage(ctx context.Context, expansionCode, rarityFilterID string, pageNo int) (*goquery.Document, []byte, error) {
+	q := url.Values{}
+	q.Set("expansionCodes", expansionCode)
+	q.Set("rarity[]", rarityFilterID)
+	q.Set("cardType", "all")
+	q.Set("pageNo", strconv.Itoa(pageNo))
+	return c.get(ctx, "/card-search/list/?"+q.Encode())
 }
 
 // cardDetail fetches one card's full detail page by its numeric detail-page
@@ -89,15 +106,29 @@ func (c *client) get(ctx context.Context, path string) (*goquery.Document, []byt
 		}
 		lastErr = err
 
-		retryable := status == http.StatusTooManyRequests || status >= 500
+		// A caller-driven cancellation (e.g. Ctrl+C on the CLI) should stop
+		// immediately, never be treated as a retryable condition.
+		if ctx.Err() != nil {
+			return nil, nil, lastErr
+		}
+
+		// status == 0 means the request never got an HTTP response at all
+		// (timeout, connection reset, DNS hiccup, ...) - these are exactly
+		// as transient as a 429/5xx and must be retried the same way.
+		retryable := status == 0 || status == http.StatusTooManyRequests || status >= 500
 		if !retryable || attempt >= maxRetries {
 			return nil, nil, lastErr
 		}
 
 		wait := retryAfter
 		if wait <= 0 {
-			wait = retryBaseWait * time.Duration(1<<attempt)
+			wait = backoffWithJitter(attempt)
 		}
+		logger.Warnf(
+			"retrying %s after status %d (attempt %d/%d), waiting %s: %v",
+			path, status, attempt+1, maxRetries, wait, err,
+		)
+
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -106,6 +137,16 @@ func (c *client) get(ctx context.Context, path string) (*goquery.Document, []byt
 		case <-timer.C:
 		}
 	}
+}
+
+// backoffWithJitter returns an exponential backoff duration for the given
+// zero-based attempt number, using "equal jitter" (half fixed, half random)
+// so concurrent workers hitting the same failure don't all retry in
+// lockstep against the site.
+func backoffWithJitter(attempt int) time.Duration {
+	base := retryBaseWait * time.Duration(1<<attempt)
+	half := base / 2
+	return half + time.Duration(mrand.Int64N(int64(half)+1))
 }
 
 // doGet performs a single request attempt. status is the HTTP status code
