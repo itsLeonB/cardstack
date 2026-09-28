@@ -668,11 +668,12 @@ func TestIngester_IngestCard_CorrectsRarityReferenceOnRerun(t *testing.T) {
 
 // TestStaleRegulationMarkCodes_IsRegulationMarkLetterRange pins
 // CleanupStaleRarities' real candidate set to exactly the observed
-// Regulation Mark letters (see CONTEXT.md) - a regression guard against an
-// accidental edit widening or narrowing what a live run is allowed to
-// delete.
+// Regulation Mark letters that can never be a real Kelangkaan rarity code
+// (A and C are excluded - see the var's own doc comment) - a regression
+// guard against an accidental edit widening or narrowing what a live run is
+// allowed to delete.
 func TestStaleRegulationMarkCodes_IsRegulationMarkLetterRange(t *testing.T) {
-	assert.Equal(t, []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}, staleRegulationMarkCodes)
+	assert.Equal(t, []string{"B", "D", "E", "F", "G", "H", "I", "J"}, staleRegulationMarkCodes)
 }
 
 // TestIngester_CleanupRaritiesByCode_DeletesUnreferencedRow confirms an

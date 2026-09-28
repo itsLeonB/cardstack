@@ -576,15 +576,19 @@ func (in *Ingester) resolveRarityID(ctx context.Context, code string) (uuid.UUID
 	return rarity.ID, nil
 }
 
-// staleRegulationMarkCodes is the closed set of single-letter Regulation
-// Mark codes (see CONTEXT.md) the pre-fix ingester mistakenly wrote into
+// staleRegulationMarkCodes is the set of single-letter Regulation Mark
+// codes (see CONTEXT.md) the pre-fix ingester mistakenly wrote into
 // rarities.code instead of a real Kelangkaan rarity code (ticket 11 /
-// ADR-0010). Real rarity codes are a different, longer vocabulary, except
-// where they coincidentally collide with a Regulation Mark letter (e.g.
-// "C", "A" are both real rarity codes and real Regulation Mark letters) -
-// CleanupStaleRarities only deletes a colliding code's row once it has zero
-// referencing Cards, never unconditionally.
-var staleRegulationMarkCodes = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+// ADR-0010). "A" and "C" are deliberately excluded even though the same bug
+// produced them too: both are also genuine, currently-valid Kelangkaan
+// rarity codes, so a row under either code can legitimately be in active,
+// correct use - the zero-referencing-Cards guard in cleanupRaritiesByCode
+// already prevents deleting one that's referenced today, but a code that
+// can never be a real rarity has no such ambiguity at all, which is the bar
+// for belonging on this list. A leftover, currently-unreferenced "A"/"C"
+// row is harmless (find-or-create simply recreates it under the same code
+// if a future card needs it) and is left for a human to clear by hand.
+var staleRegulationMarkCodes = []string{"B", "D", "E", "F", "G", "H", "I", "J"}
 
 // CleanupResult reports what CleanupStaleRarities did (or found) for one
 // candidate code.
