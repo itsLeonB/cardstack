@@ -205,7 +205,7 @@ func (r *CatalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 	var results []CardResult
 	err := base.Session(&gorm.Session{}).
 		Select(cardResultColumns).
-		Order("expansion_sets.release_date ASC NULLS LAST, cards.local_id ASC, cards.name ASC").
+		Order("expansion_sets.release_date ASC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Find(&results).

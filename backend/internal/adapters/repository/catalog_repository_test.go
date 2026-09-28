@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -290,6 +291,72 @@ func TestCatalogRepository_ListDistinctTags(t *testing.T) {
 
 	if !containsString(tags, uniqueTag) {
 		t.Fatalf("expected ListDistinctTags to include %q, got %v", uniqueTag, tags)
+	}
+}
+
+// TestCatalogRepository_SearchCards_StablePaginationAcrossTiedOrderKeys is a
+// regression test for SearchCards's ORDER BY: two Expansion Sets sharing the
+// same release date (or both nil) and cards across them sharing local_ids
+// used to give Postgres no unique tiebreaker, so the same LIMIT/OFFSET query
+// run twice (as pagination does) could return a card twice or skip it
+// entirely. With expansion_sets.id and cards.id added as final tiebreakers,
+// paginating through every page with a small limit must return every seeded
+// card exactly once.
+func TestCatalogRepository_SearchCards_StablePaginationAcrossTiedOrderKeys(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	series := fixture.newSeries(t, db)
+
+	// Both sets share the same (nil) release date, so the old ORDER BY had
+	// no way to break the tie between them.
+	setA := fixture.newExpansionSet(t, db, &series.ID, nil)
+	setB := fixture.newExpansionSet(t, db, &series.ID, nil)
+
+	var want []uuid.UUID
+	for i := range 5 {
+		// Both sets use the same local_id/name at each i - colliding across
+		// sets (the old ORDER BY's remaining keys couldn't break this tie
+		// either) while staying unique within each set, which
+		// idx_cards_expansion_set_id_local_id requires.
+		localID := fmt.Sprintf("%03d", i)
+		cardA := fixture.newCard(t, db, setA.ID, func(c *entity.Card) {
+			c.LocalID = localID
+			c.Name = "Tied Card " + localID
+		})
+		cardB := fixture.newCard(t, db, setB.ID, func(c *entity.Card) {
+			c.LocalID = localID
+			c.Name = "Tied Card " + localID
+		})
+		want = append(want, cardA.ID, cardB.ID)
+	}
+
+	repo := NewCatalogRepository(db)
+	ctx := context.Background()
+
+	const pageSize = 3
+	seen := make(map[uuid.UUID]int)
+	offset := 0
+	for {
+		page, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: uuid.Nil, RarityID: fixture.rarity.ID, Limit: pageSize, Offset: offset})
+		if err != nil {
+			t.Fatalf("SearchCards at offset %d: %v", offset, err)
+		}
+		if int(total) != len(want) {
+			t.Fatalf("expected total = %d seeded cards, got %d", len(want), total)
+		}
+		for _, r := range page {
+			seen[r.ID]++
+		}
+		offset += pageSize
+		if offset >= int(total) {
+			break
+		}
+	}
+
+	for _, id := range want {
+		if seen[id] != 1 {
+			t.Fatalf("expected card %s to appear exactly once across all pages, appeared %d times", id, seen[id])
+		}
 	}
 }
 
