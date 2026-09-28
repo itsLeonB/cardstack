@@ -14,3 +14,7 @@ todos.json
 
 # typescript
 *.tsbuildinfo
+
+# playwright
+playwright-report/
+test-results/
