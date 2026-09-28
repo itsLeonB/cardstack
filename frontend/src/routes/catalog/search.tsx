@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { z } from "zod"
+import type { z } from "zod"
 import { RiSearchLine } from "@remixicon/react"
 import {
   getListCatalogCategoriesQueryOptions,
@@ -14,6 +14,7 @@ import {
   useListCatalogTags,
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
+import { SearchCatalogCardsQueryParams } from "@/generated/endpoints/catalog/catalog.zod"
 import { CardResults } from "@/components/catalog/card-results"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -28,15 +29,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-const catalogSearchSchema = z.object({
-  name: z.string().min(1).optional(),
-  expansionSetId: z.string().min(1).optional(),
-  localId: z.string().min(1).optional(),
-  rarityId: z.string().min(1).optional(),
-  category: z.string().min(1).optional(),
-  tag: z.string().min(1).optional(),
-  page: z.number().int().min(1).default(1),
-})
+// Derived from orval's generated SearchCatalogCardsQueryParams rather than
+// hand-duplicated: same fields/bounds as the backend actually enforces, one
+// definition to keep in sync. `limit` is omitted since this search UI has
+// no page-size control — CardResults gets `limit` from the query response.
+// The `.min(1)` refinements the previous hand-written schema had aren't
+// reinstated: every UI control here (Select/Input handlers below) already
+// converts an empty value to `undefined` before it reaches `navigate`, so
+// an empty-string search param is not something this page's own UI can
+// produce; a hand-crafted URL with `?name=` is an edge case the generated
+// schema and the backend are both fine accepting as a no-op filter.
+const catalogSearchSchema = SearchCatalogCardsQueryParams.omit({ limit: true })
 
 type CatalogSearch = z.infer<typeof catalogSearchSchema>
 
@@ -76,7 +79,7 @@ function CatalogSearchPage() {
     categoriesQuery.data?.status === 200 ? (categoriesQuery.data.data.data ?? []) : []
   const tags = tagsQuery.data?.status === 200 ? (tagsQuery.data.data.data ?? []) : []
 
-  const result = cardsQuery.data?.status === 200 ? cardsQuery.data.data.data : undefined
+  const result = cardsQuery.data?.status === 200 ? cardsQuery.data.data : undefined
   const cardsErrorMessage =
     cardsQuery.data && cardsQuery.data.status !== 200
       ? (cardsQuery.data.data.detail ?? "Could not search the catalog.")
@@ -299,10 +302,10 @@ function CatalogSearchPage() {
       </form>
 
       <CardResults
-        cards={result?.cards ?? []}
-        total={result?.total ?? 0}
+        cards={result?.data ?? []}
+        total={result?.meta.total ?? 0}
         page={search.page}
-        limit={result?.limit ?? 24}
+        limit={result?.meta.limit ?? 24}
         isPending={cardsQuery.isPending}
         isError={cardsQuery.isError || Boolean(cardsErrorMessage)}
         errorMessage={cardsErrorMessage}

@@ -1,5 +1,5 @@
 /**
- * Formats an RFC3339 release date for display, e.g. "March 3, 2011".
+ * Formats an RFC3339 date for display, e.g. "March 3, 2011".
  * Returns null when the date is absent or unparseable so callers can omit it.
  */
 export function formatReleaseDate(releaseDate?: string): string | null {

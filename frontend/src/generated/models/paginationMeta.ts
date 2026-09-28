@@ -4,11 +4,8 @@
  * Cardstack API
  * OpenAPI spec version: 1.0
  */
-import type { CardSummary } from './cardSummary.ts';
 
-export interface CardSearchResult {
-  /** @nullable */
-  cards: CardSummary[] | null;
+export interface PaginationMeta {
   limit: number;
   page: number;
   total: number;

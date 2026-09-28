@@ -29,8 +29,7 @@ export const SearchCatalogCardsQueryParams = zod.object({
 })
 
 export const SearchCatalogCardsResponse = zod.object({
-  "data": zod.object({
-  "cards": zod.array(zod.object({
+  "data": zod.array(zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
   "code": zod.string(),
@@ -50,6 +49,7 @@ export const SearchCatalogCardsResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 })).nullable(),
+  "meta": zod.object({
   "limit": zod.int(),
   "page": zod.int(),
   "total": zod.int()
