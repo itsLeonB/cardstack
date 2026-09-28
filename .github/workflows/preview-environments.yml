@@ -54,7 +54,6 @@ jobs:
     outputs:
       neon_host: ${{ steps.neon.outputs.host }}
       neon_password: ${{ steps.neon.outputs.password }}
-      railway_api_url: ${{ steps.railway-domain.outputs.url }}
       vercel_url: ${{ steps.vercel.outputs.url }}
     steps:
       # The action returns an existing branch's details as-is rather than
