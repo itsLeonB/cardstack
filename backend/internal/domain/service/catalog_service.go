@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 )
 
@@ -17,83 +17,6 @@ const (
 	defaultCardSearchLimit = 24
 	maxCardSearchLimit     = 100
 )
-
-// ExpansionSetSummary is a browsable Expansion Set: enough to list and pick
-// from without pulling every Card it contains.
-type ExpansionSetSummary struct {
-	ID          uuid.UUID  `json:"id"`
-	Code        string     `json:"code"`
-	Name        string     `json:"name"`
-	ReleaseDate *time.Time `json:"releaseDate,omitempty"`
-}
-
-// SeriesSummary is a browsable Series with its Expansion Sets nested, so a
-// catalog browse page can render the whole Series -> Expansion Set tree
-// from one call (see ticket 05).
-type SeriesSummary struct {
-	ID            uuid.UUID             `json:"id"`
-	Code          string                `json:"code"`
-	Name          string                `json:"name"`
-	ExpansionSets []ExpansionSetSummary `json:"expansionSets"`
-}
-
-// SeriesBrowseResult is GET /catalog/series's response. Series is optional
-// on Expansion Set - "a Game with no Series data simply has Expansion Sets
-// belonging to none, not a special case to work around" (see CONTEXT.md's
-// Series entry) - so UngroupedExpansionSets surfaces every Expansion Set
-// with no Series directly, rather than nesting it under a fake Series
-// record just to fit the same shape as the rest.
-type SeriesBrowseResult struct {
-	Series                 []SeriesSummary       `json:"series"`
-	UngroupedExpansionSets []ExpansionSetSummary `json:"ungroupedExpansionSets"`
-}
-
-// RaritySummary is a Rarity lookup row, exposed so a search/filter UI can
-// list valid rarity values instead of decoding raw codes itself (see
-// docs/adr/0009).
-type RaritySummary struct {
-	ID   uuid.UUID `json:"id"`
-	Code string    `json:"code"`
-	Name string    `json:"name"`
-}
-
-// CardSummary is one catalog search/browse result. Rarity and Expansion Set
-// are resolved to readable values rather than left as bare foreign keys,
-// since the frontend renders these directly (see ticket 05).
-type CardSummary struct {
-	ID           uuid.UUID           `json:"id"`
-	ExpansionSet ExpansionSetSummary `json:"expansionSet"`
-	LocalID      string              `json:"localId"`
-	Name         string              `json:"name"`
-	Category     string              `json:"category"`
-	Tags         []string            `json:"tags"`
-	Rarity       RaritySummary       `json:"rarity"`
-	Illustrator  string              `json:"illustrator"`
-	ImageURL     string              `json:"imageUrl"`
-}
-
-// CardFilter narrows CatalogService.SearchCards. Every field is optional;
-// its zero value means "don't filter on this facet". Page is 1-indexed.
-type CardFilter struct {
-	Name           string
-	ExpansionSetID uuid.UUID
-	LocalID        string
-	RarityID       uuid.UUID
-	Category       string
-	Tag            string
-	Page           int
-	Limit          int
-}
-
-// PaginationMeta is the pagination bookkeeping alongside a page of
-// CatalogService.SearchCards results: the total number of Cards matching the
-// filter (before pagination) plus the page/limit that produced this page, so
-// a frontend can render page controls.
-type PaginationMeta struct {
-	Total int `json:"total"`
-	Page  int `json:"page"`
-	Limit int `json:"limit"`
-}
 
 // CatalogService answers the unauthenticated, read-only catalog
 // browse/search surface (ticket 05): listing Series/Expansion Sets to
@@ -108,9 +31,9 @@ type CatalogService interface {
 	// Expansion Set is a legitimate domain state, not a special case, and
 	// this is its only way to be reachable through the catalog browse
 	// surface.
-	ListSeries(ctx context.Context) (SeriesBrowseResult, error)
+	ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error)
 	// ListRarities returns every Rarity across all Games, ordered by name.
-	ListRarities(ctx context.Context) ([]RaritySummary, error)
+	ListRarities(ctx context.Context) ([]dto.RaritySummary, error)
 	// ListCategories returns the distinct Card categories actually in use,
 	// ordered alphabetically.
 	ListCategories(ctx context.Context) ([]string, error)
@@ -119,7 +42,7 @@ type CatalogService interface {
 	ListTags(ctx context.Context) ([]string, error)
 	// SearchCards returns the page of Cards matching filter, plus that
 	// page's pagination metadata.
-	SearchCards(ctx context.Context, filter CardFilter) ([]CardSummary, PaginationMeta, error)
+	SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error)
 }
 
 type catalogService struct {
@@ -131,10 +54,10 @@ func NewCatalogService(repo repository.CatalogRepository) CatalogService {
 	return &catalogService{repo: repo}
 }
 
-func (s *catalogService) ListSeries(ctx context.Context) (SeriesBrowseResult, error) {
+func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error) {
 	series, err := s.repo.ListSeries(ctx)
 	if err != nil {
-		return SeriesBrowseResult{}, err
+		return dto.SeriesBrowseResult{}, err
 	}
 
 	seriesIDs := make([]uuid.UUID, len(series))
@@ -144,25 +67,25 @@ func (s *catalogService) ListSeries(ctx context.Context) (SeriesBrowseResult, er
 
 	sets, err := s.repo.ListExpansionSets(ctx, seriesIDs)
 	if err != nil {
-		return SeriesBrowseResult{}, err
+		return dto.SeriesBrowseResult{}, err
 	}
 
 	ungrouped, err := s.repo.ListUngroupedExpansionSets(ctx)
 	if err != nil {
-		return SeriesBrowseResult{}, err
+		return dto.SeriesBrowseResult{}, err
 	}
 
-	setsBySeries := make(map[uuid.UUID][]ExpansionSetSummary, len(series))
+	setsBySeries := make(map[uuid.UUID][]dto.ExpansionSetSummary, len(series))
 	for _, set := range sets {
 		if set.SeriesID == nil {
 			continue
 		}
-		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], toExpansionSetSummary(set))
+		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], mapper.ToExpansionSetSummary(set))
 	}
 
-	summaries := make([]SeriesSummary, len(series))
+	summaries := make([]dto.SeriesSummary, len(series))
 	for i, sr := range series {
-		summaries[i] = SeriesSummary{
+		summaries[i] = dto.SeriesSummary{
 			ID:            sr.ID,
 			Code:          sr.Code,
 			Name:          sr.Name,
@@ -170,26 +93,26 @@ func (s *catalogService) ListSeries(ctx context.Context) (SeriesBrowseResult, er
 		}
 	}
 
-	ungroupedSummaries := make([]ExpansionSetSummary, len(ungrouped))
+	ungroupedSummaries := make([]dto.ExpansionSetSummary, len(ungrouped))
 	for i, set := range ungrouped {
-		ungroupedSummaries[i] = toExpansionSetSummary(set)
+		ungroupedSummaries[i] = mapper.ToExpansionSetSummary(set)
 	}
 
-	return SeriesBrowseResult{
+	return dto.SeriesBrowseResult{
 		Series:                 summaries,
 		UngroupedExpansionSets: ungroupedSummaries,
 	}, nil
 }
 
-func (s *catalogService) ListRarities(ctx context.Context) ([]RaritySummary, error) {
+func (s *catalogService) ListRarities(ctx context.Context) ([]dto.RaritySummary, error) {
 	rarities, err := s.repo.ListRarities(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	summaries := make([]RaritySummary, len(rarities))
+	summaries := make([]dto.RaritySummary, len(rarities))
 	for i, r := range rarities {
-		summaries[i] = RaritySummary{ID: r.ID, Code: r.Code, Name: r.Name}
+		summaries[i] = dto.RaritySummary{ID: r.ID, Code: r.Code, Name: r.Name}
 	}
 
 	return summaries, nil
@@ -203,7 +126,7 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 	return s.repo.ListDistinctTags(ctx)
 }
 
-func (s *catalogService) SearchCards(ctx context.Context, filter CardFilter) ([]CardSummary, PaginationMeta, error) {
+func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
 	page, limit := normalizePagination(filter.Page, filter.Limit)
 
 	results, total, err := s.repo.SearchCards(ctx, repository.CardFilter{
@@ -217,15 +140,15 @@ func (s *catalogService) SearchCards(ctx context.Context, filter CardFilter) ([]
 		Offset:         (page - 1) * limit,
 	})
 	if err != nil {
-		return nil, PaginationMeta{}, err
+		return nil, dto.PaginationMeta{}, err
 	}
 
-	cards := make([]CardSummary, len(results))
+	cards := make([]dto.CardSummary, len(results))
 	for i, r := range results {
-		cards[i] = toCardSummary(r)
+		cards[i] = mapper.ToCardSummary(r)
 	}
 
-	return cards, PaginationMeta{
+	return cards, dto.PaginationMeta{
 		Total: int(total),
 		Page:  page,
 		Limit: limit,
@@ -248,46 +171,4 @@ func normalizePagination(page, limit int) (int, int) {
 	}
 
 	return page, limit
-}
-
-// toExpansionSetSummary converts an entity.ExpansionSet into the catalog
-// service's browsable summary DTO. Moved in from the now-deleted
-// domain/mapper package: that package existed solely for catalogService's
-// use, and importing it from here (once catalogService itself lived in this
-// package) would have created an import cycle, since it in turn imported
-// this package for the DTO types.
-func toExpansionSetSummary(set entity.ExpansionSet) ExpansionSetSummary {
-	return ExpansionSetSummary{
-		ID:          set.ID,
-		Code:        set.Code,
-		Name:        set.Name,
-		ReleaseDate: set.ReleaseDate,
-	}
-}
-
-// toCardSummary converts a repository.CardResult row (a Card already joined
-// with its Rarity and Expansion Set) into the catalog service's search
-// result DTO. See toExpansionSetSummary's doc comment for why this moved
-// here rather than staying in domain/mapper.
-func toCardSummary(r repository.CardResult) CardSummary {
-	return CardSummary{
-		ID: r.ID,
-		ExpansionSet: ExpansionSetSummary{
-			ID:          r.ExpansionSetID,
-			Code:        r.ExpansionSetCode,
-			Name:        r.ExpansionSetName,
-			ReleaseDate: r.ExpansionSetReleaseDate,
-		},
-		LocalID:  r.LocalID,
-		Name:     r.Name,
-		Category: r.Category,
-		Tags:     []string(r.Tags),
-		Rarity: RaritySummary{
-			ID:   r.RarityID,
-			Code: r.RarityCode,
-			Name: r.RarityName,
-		},
-		Illustrator: r.Illustrator,
-		ImageURL:    r.ImageURL,
-	}
 }
