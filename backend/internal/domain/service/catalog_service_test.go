@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/repository"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/repository/mocks"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	domainservice "github.com/itsLeonB/cardstack/backend/internal/domain/service"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository/mocks"
 	crud "github.com/itsLeonB/go-crud"
 )
 
@@ -97,7 +96,7 @@ func TestCatalogService_ListRarities(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRarities: %v", err)
 	}
-	want := []domainservice.RaritySummary{{ID: rarityID, Code: "SR", Name: "Super Rare"}}
+	want := []RaritySummary{{ID: rarityID, Code: "SR", Name: "Super Rare"}}
 	if len(got) != 1 || got[0] != want[0] {
 		t.Fatalf("expected %+v, got %+v", want, got)
 	}
@@ -161,7 +160,7 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 
 	// Page/limit both unset (zero value) - should be normalized to page 1,
 	// the default limit.
-	cards, meta, err := svc.SearchCards(ctx, domainservice.CardFilter{Name: "pika"})
+	cards, meta, err := svc.SearchCards(ctx, CardFilter{Name: "pika"})
 	if err != nil {
 		t.Fatalf("SearchCards: %v", err)
 	}
@@ -173,9 +172,9 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 		t.Fatalf("expected 1 card, got %d", len(cards))
 	}
 
-	want := domainservice.CardSummary{
+	want := CardSummary{
 		ID: cardID,
-		ExpansionSet: domainservice.ExpansionSetSummary{
+		ExpansionSet: ExpansionSetSummary{
 			ID:   setID,
 			Code: "sv1",
 			Name: "Scarlet ex",
@@ -184,7 +183,7 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 		Name:     "Pikachu",
 		Category: "Pokémon",
 		Tags:     []string{"Basic"},
-		Rarity: domainservice.RaritySummary{
+		Rarity: RaritySummary{
 			ID:   rarityID,
 			Code: "C",
 			Name: "Common",
@@ -210,7 +209,7 @@ func TestCatalogService_SearchCards_ClampsLimitAndComputesOffset(t *testing.T) {
 		Once()
 	svc := NewCatalogService(repo)
 
-	_, _, err := svc.SearchCards(ctx, domainservice.CardFilter{Page: 3, Limit: 1000})
+	_, _, err := svc.SearchCards(ctx, CardFilter{Page: 3, Limit: 1000})
 	if err != nil {
 		t.Fatalf("SearchCards: %v", err)
 	}
@@ -226,7 +225,7 @@ func TestCatalogService_SearchCards_NegativePageDefaultsToOne(t *testing.T) {
 		Once()
 	svc := NewCatalogService(repo)
 
-	_, _, err := svc.SearchCards(ctx, domainservice.CardFilter{Page: -5})
+	_, _, err := svc.SearchCards(ctx, CardFilter{Page: -5})
 	if err != nil {
 		t.Fatalf("SearchCards: %v", err)
 	}
@@ -243,7 +242,7 @@ func TestCatalogService_SearchCards_PropagatesRepositoryError(t *testing.T) {
 		Once()
 	svc := NewCatalogService(repo)
 
-	_, _, err := svc.SearchCards(ctx, domainservice.CardFilter{})
+	_, _, err := svc.SearchCards(ctx, CardFilter{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected error %v, got %v", wantErr, err)
 	}

@@ -5,6 +5,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+)
+
+// defaultCardSearchLimit/maxCardSearchLimit bound CardFilter.Limit before it
+// ever reaches a query: a caller that omits Limit gets a reasonable page
+// size, and one that asks for an unreasonably large page is clamped rather
+// than allowed to pull the whole catalog in one response.
+const (
+	defaultCardSearchLimit = 24
+	maxCardSearchLimit     = 100
 )
 
 // ExpansionSetSummary is a browsable Expansion Set: enough to list and pick
@@ -109,4 +120,174 @@ type CatalogService interface {
 	// SearchCards returns the page of Cards matching filter, plus that
 	// page's pagination metadata.
 	SearchCards(ctx context.Context, filter CardFilter) ([]CardSummary, PaginationMeta, error)
+}
+
+type catalogService struct {
+	repo repository.CatalogRepository
+}
+
+// NewCatalogService builds a CatalogService backed by repo.
+func NewCatalogService(repo repository.CatalogRepository) CatalogService {
+	return &catalogService{repo: repo}
+}
+
+func (s *catalogService) ListSeries(ctx context.Context) (SeriesBrowseResult, error) {
+	series, err := s.repo.ListSeries(ctx)
+	if err != nil {
+		return SeriesBrowseResult{}, err
+	}
+
+	seriesIDs := make([]uuid.UUID, len(series))
+	for i, sr := range series {
+		seriesIDs[i] = sr.ID
+	}
+
+	sets, err := s.repo.ListExpansionSets(ctx, seriesIDs)
+	if err != nil {
+		return SeriesBrowseResult{}, err
+	}
+
+	ungrouped, err := s.repo.ListUngroupedExpansionSets(ctx)
+	if err != nil {
+		return SeriesBrowseResult{}, err
+	}
+
+	setsBySeries := make(map[uuid.UUID][]ExpansionSetSummary, len(series))
+	for _, set := range sets {
+		if set.SeriesID == nil {
+			continue
+		}
+		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], toExpansionSetSummary(set))
+	}
+
+	summaries := make([]SeriesSummary, len(series))
+	for i, sr := range series {
+		summaries[i] = SeriesSummary{
+			ID:            sr.ID,
+			Code:          sr.Code,
+			Name:          sr.Name,
+			ExpansionSets: setsBySeries[sr.ID],
+		}
+	}
+
+	ungroupedSummaries := make([]ExpansionSetSummary, len(ungrouped))
+	for i, set := range ungrouped {
+		ungroupedSummaries[i] = toExpansionSetSummary(set)
+	}
+
+	return SeriesBrowseResult{
+		Series:                 summaries,
+		UngroupedExpansionSets: ungroupedSummaries,
+	}, nil
+}
+
+func (s *catalogService) ListRarities(ctx context.Context) ([]RaritySummary, error) {
+	rarities, err := s.repo.ListRarities(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	summaries := make([]RaritySummary, len(rarities))
+	for i, r := range rarities {
+		summaries[i] = RaritySummary{ID: r.ID, Code: r.Code, Name: r.Name}
+	}
+
+	return summaries, nil
+}
+
+func (s *catalogService) ListCategories(ctx context.Context) ([]string, error) {
+	return s.repo.ListDistinctCategories(ctx)
+}
+
+func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
+	return s.repo.ListDistinctTags(ctx)
+}
+
+func (s *catalogService) SearchCards(ctx context.Context, filter CardFilter) ([]CardSummary, PaginationMeta, error) {
+	page, limit := normalizePagination(filter.Page, filter.Limit)
+
+	results, total, err := s.repo.SearchCards(ctx, repository.CardFilter{
+		Name:           filter.Name,
+		ExpansionSetID: filter.ExpansionSetID,
+		LocalID:        filter.LocalID,
+		RarityID:       filter.RarityID,
+		Category:       filter.Category,
+		Tag:            filter.Tag,
+		Limit:          limit,
+		Offset:         (page - 1) * limit,
+	})
+	if err != nil {
+		return nil, PaginationMeta{}, err
+	}
+
+	cards := make([]CardSummary, len(results))
+	for i, r := range results {
+		cards[i] = toCardSummary(r)
+	}
+
+	return cards, PaginationMeta{
+		Total: int(total),
+		Page:  page,
+		Limit: limit,
+	}, nil
+}
+
+// normalizePagination fills in CardFilter's page/limit defaults and clamps
+// limit to maxCardSearchLimit, so a caller that omits them (or passes an
+// out-of-range value) still gets a bounded, well-formed query rather than
+// an error or an unbounded result set.
+func normalizePagination(page, limit int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = defaultCardSearchLimit
+	}
+	if limit > maxCardSearchLimit {
+		limit = maxCardSearchLimit
+	}
+
+	return page, limit
+}
+
+// toExpansionSetSummary converts an entity.ExpansionSet into the catalog
+// service's browsable summary DTO. Moved in from the now-deleted
+// domain/mapper package: that package existed solely for catalogService's
+// use, and importing it from here (once catalogService itself lived in this
+// package) would have created an import cycle, since it in turn imported
+// this package for the DTO types.
+func toExpansionSetSummary(set entity.ExpansionSet) ExpansionSetSummary {
+	return ExpansionSetSummary{
+		ID:          set.ID,
+		Code:        set.Code,
+		Name:        set.Name,
+		ReleaseDate: set.ReleaseDate,
+	}
+}
+
+// toCardSummary converts a repository.CardResult row (a Card already joined
+// with its Rarity and Expansion Set) into the catalog service's search
+// result DTO. See toExpansionSetSummary's doc comment for why this moved
+// here rather than staying in domain/mapper.
+func toCardSummary(r repository.CardResult) CardSummary {
+	return CardSummary{
+		ID: r.ID,
+		ExpansionSet: ExpansionSetSummary{
+			ID:          r.ExpansionSetID,
+			Code:        r.ExpansionSetCode,
+			Name:        r.ExpansionSetName,
+			ReleaseDate: r.ExpansionSetReleaseDate,
+		},
+		LocalID:  r.LocalID,
+		Name:     r.Name,
+		Category: r.Category,
+		Tags:     []string(r.Tags),
+		Rarity: RaritySummary{
+			ID:   r.RarityID,
+			Code: r.RarityCode,
+			Name: r.RarityName,
+		},
+		Illustrator: r.Illustrator,
+		ImageURL:    r.ImageURL,
+	}
 }

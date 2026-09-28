@@ -16,8 +16,14 @@ import (
 // searching Cards. It covers the full read surface catalogRepository (this
 // package's GORM-backed implementation) implements, not narrowed to any one
 // caller's needs, so a service depending on it can be tested against a
-// mockery-generated mock (see internal/adapters/repository/mocks) instead of
+// mockery-generated mock (see internal/domain/repository/mocks) instead of
 // a real Postgres.
+//
+// Interface and implementation live together in this one file, under
+// internal/domain/repository rather than internal/adapters/repository: per
+// PR review, adapters is for interchangeable infrastructure (messaging,
+// email, cache, object storage), not domain logic and the database access
+// behind it, which is unlikely to change and belongs in domain.
 type CatalogRepository interface {
 	// ListSeries returns every Series, ordered by name.
 	ListSeries(ctx context.Context) ([]entity.Series, error)

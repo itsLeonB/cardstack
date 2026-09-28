@@ -4,7 +4,7 @@ import (
 	"github.com/google/wire"
 	coreservice "github.com/itsLeonB/cardstack/backend/internal/adapters/core/service"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/repository"
+	catalogrepository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	authkit "github.com/itsLeonB/go-authkit"
 )
@@ -26,7 +26,7 @@ type Services struct {
 // so cmd/genspec can call it without a DB (see ProvideServices's own doc
 // comment).
 func ProvideCatalogService(ds *DataSources) service.CatalogService {
-	return coreservice.NewCatalogService(repository.NewCatalogRepository(ds.Gorm))
+	return service.NewCatalogService(catalogrepository.NewCatalogRepository(ds.Gorm))
 }
 
 // ProvideServices takes just the already-built *authkit.AuthKit,
