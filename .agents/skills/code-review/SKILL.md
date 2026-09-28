@@ -57,12 +57,6 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
-If you have no Agent/Task subagent-spawning tool available (e.g. you are yourself a subagent spawned via the Agent tool — a common recursion guard allows only one level of sub-spawning), skip the two sub-agents and perform both passes yourself, sequentially, in your own context instead:
-
-1. Run the Standards pass to completion first, using its brief below, and set its findings aside.
-2. Only then start the Spec pass, using its brief below, so it isn't coloured by what the Standards pass just found.
-3. In the final report, state plainly that this ran as a self-review (no independent sub-agents) rather than two parallel sub-agents, so whoever reads it knows to weigh it accordingly and consider a second, independent pass if the stakes warrant it.
-
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.

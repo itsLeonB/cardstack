@@ -59,7 +59,7 @@ Read/Edit/Glob are fine for non-code files: markdown, JSON, YAML, TOML, .env, co
 - **postgresql-table-design**: load when creating or changing schema.
 - **mcp__postgres**: use for inspecting or querying the database when a task needs it (schema checks, verifying migrations). This MCP may fail to connect in some environments — tell the user if so rather than guessing at schema.
 - **tdd**: load when asked to build test-first, fix a bug via a regression test first, or the task comes from a spec/ticket file (e.g. `.scratch/<feature>/`) — drive TDD at agreed seams either way.
-- **code-review** (`.claude/skills/`): use this after implementation to review your own diff (see workflow below).
+- **code-review**: not yours to invoke — the orchestrator runs this against your diff after you report back (see `docs/agents/orchestration.md`) and forwards any findings for you to fix.
 
 `/implement` describes this same TDD-plus-typecheck-plus-review workflow, but it carries `disable-model-invocation` and refuses when called through the Skill tool ("reserved for explicit user invocation") — it is not available to you. Follow its practices directly instead: `tdd` at agreed seams, typechecking/build checks at regular intervals, and a `code-review` pass before committing.
 
@@ -67,9 +67,8 @@ Read/Edit/Glob are fine for non-code files: markdown, JSON, YAML, TOML, .env, co
 
 1. Implement the change using the tool selection rules above. If the task comes from a spec/ticket file, drive it TDD-first at agreed seams (`tdd` skill).
 2. Run backend verification: `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test ./...`. Fix any failures before moving on.
-3. Run a review pass via the `code-review` skill, scoped to your worktree's diff, and wait for its report.
-4. Fix the findings once. Re-run verification from step 2.
-5. Commit your changes on your worktree's branch with message format `<semantic commit>(backend): <message>` (e.g. `feat(backend): add users api`). Do not push — the orchestrator merges worktrees back into the feature branch.
+3. Commit your changes on your worktree's branch with message format `<semantic commit>(backend): <message>` (e.g. `feat(backend): add users api`). Do not push — the orchestrator merges worktrees back into the feature branch.
+4. Report back to the orchestrator. It runs the `code-review` pass itself and may come back with findings — if so, fix them, re-run verification from step 2, and commit the fix on the same branch.
 
 # Doing tasks
 
