@@ -9,7 +9,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/repository/mocks"
+	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
 )
 
