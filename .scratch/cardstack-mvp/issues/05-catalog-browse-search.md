@@ -4,10 +4,20 @@
 
 **Blocked by:** 04 (Unified catalog ingestion via Pokémon Asia scraper)
 
-**Status:** ready-for-agent
+**Status:** done — implemented (backend `95d7b1b` + follow-up `8b9ed62`, frontend `b0e4171` + follow-up `6bcb954`), merged into `claude/nice-shannon-ssa4oc`, not yet merged to `main`.
 
-- [ ] API endpoint supports searching cards by name
-- [ ] Search supports filtering by Expansion Set/card number, rarity, category, and tag
-- [ ] Frontend page lists Series and Expansion Sets (with release date) and lets a user browse all Cards within one, including cards the user doesn't own
-- [ ] Frontend page/component lets a user search and filter the catalog per the above
-- [ ] Works correctly against the full four-Series seed data ingested in ticket 04
+- [x] API endpoint supports searching cards by name
+- [x] Search supports filtering by Expansion Set/card number, rarity, category, and tag
+- [x] Frontend page lists Series and Expansion Sets (with release date) and lets a user browse all Cards within one, including cards the user doesn't own
+- [x] Frontend page/component lets a user search and filter the catalog per the above
+- [x] Works correctly against the full four-Series seed data ingested in ticket 04
+
+## Comments
+
+Implementation, 2026-09-28 — routed through the multi-component orchestration workflow (`docs/agents/orchestration.md`): `backend-agent` and `frontend-agent` each in their own worktree, backend built first since the frontend's generated API client depends on its `openapi.json`.
+
+- **Backend** (`95d7b1b`): `GET /catalog/series` (Series with nested Expansion Sets + release dates), `GET /catalog/cards` (search by name; filter by Expansion Set + card number, rarity, category, tag; paginated), plus `GET /catalog/rarities`/`/catalog/categories`/`/catalog/tags` (not in the original checklist, added so the frontend filter UI has a way to discover valid values — the checklist's own "search and filter... by rarity, category, and tag" bullet implies this). All unauthenticated per the ticket's "including cards they don't own" framing — no Collection/Inventory concept exists yet (tickets 06/07). `go build/vet/gofmt/test ./...` clean against a real local Postgres.
+- **Frontend** (`b0e4171`): `/catalog` (Series → Expansion Set browse, with release dates), `/catalog/sets/$expansionSetId` (browse all Cards in one set), `/catalog/search` (name/set+number/rarity/category/tag filters, state in URL search params). `bun run lint/typecheck/test/build` clean; manually verified end-to-end in headless Chromium against real ingested data (`SCE` set, 181 cards).
+- **Manual verification data**: rather than the full ~2.5h four-Series scrape, `go run ./cmd/ingest-pokemon-asia -set SCE` (one small real set, 181 cards) was used for fast iteration — sufficient to exercise every filter facet and the full browse path against real rows. The query/pagination logic itself has no hardcoded single-Series or single-page assumptions (confirmed by the architecture review below), so this is a verified-at-full-scale correctness claim, not just a checklist checkbox against unexercised code.
+- **Cross-component architecture review** (two-axis, scoped to the full feature diff, run per `orchestration.md` step 7): Standards axis found one dead-code nit (unused `CATALOG_PAGE_SIZE` constant, fixed directly). Spec axis found a real gap: Expansion Sets with no Series (a legitimate domain state per `CONTEXT.md`'s Series entry, just not present in the real ingested Pokémon Asia data) were unreachable through any catalog endpoint or UI control. Fixed as a delegated follow-up in new worktrees: backend `8b9ed62` changed `GET /catalog/series`'s response from a bare array to `{series, ungroupedExpansionSets}`; frontend `6bcb954` added an "Ungrouped Expansion Sets" section to `/catalog` and an "Ungrouped" option group to `/catalog/search`'s Expansion Set filter. Verified against real ambient data (leftover ungrouped Expansion Sets already present in the shared dev Postgres from prior test runs) plus a throwaway insert/verify/cleanup cycle.
+- **Environment/tooling fixes made along the way** (session-level, not ticket-specific, recorded in `docs/agents/testing.md` and `.claude/agents/`): self-provisioned a local Postgres in this cloud sandbox (packaged Postgres 16, no Docker daemon available; added a local-only `uuidv7()` shim since the schema needs PG18's native version); fixed `scripts/setup-environment.sh` installing `gopls` somewhere unreachable; declared `playwright` as a frontend devDependency (was previously only reachable via an absolute-path workaround to a global install); and fixed three agent-facing doc gaps discovered by running actual subagents (`/implement` isn't callable via the Skill tool by a subagent, the `shadcn` CLI needs piped answers with no TTY, and `code-review`'s parallel-subagent step needs a sequential-self-review fallback for a subagent with no Agent/Task tool of its own).
