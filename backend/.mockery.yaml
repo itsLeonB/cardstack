@@ -2,11 +2,10 @@ with-expecter: true
 disable-version-string: true
 resolve-type-alias: false
 issue-845-fix: true
+dir: "internal/mocks"
+outpkg: mocks
+filename: "{{.InterfaceName}}.go"
 packages:
   github.com/itsLeonB/cardstack/backend/internal/domain/repository:
-    config:
-      dir: "{{.InterfaceDir}}/mocks"
-      outpkg: mocks
-      filename: "{{.InterfaceName}}.go"
     interfaces:
       CatalogRepository:

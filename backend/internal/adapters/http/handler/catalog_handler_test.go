@@ -9,7 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 )
 
@@ -17,22 +17,22 @@ import (
 // records the CardFilter it's called with, so tests can assert on the query
 // string -> filter translation without a real repository/DB.
 type stubCatalogService struct {
-	seriesResult   service.SeriesBrowseResult
-	rarities       []service.RaritySummary
+	seriesResult   dto.SeriesBrowseResult
+	rarities       []dto.RaritySummary
 	categories     []string
 	tags           []string
-	searchCards    []service.CardSummary
-	searchMeta     service.PaginationMeta
+	searchCards    []dto.CardSummary
+	searchMeta     dto.PaginationMeta
 	searchErr      error
-	lastFilter     service.CardFilter
+	lastFilter     dto.CardFilter
 	filterCaptured bool
 }
 
-func (s *stubCatalogService) ListSeries(context.Context) (service.SeriesBrowseResult, error) {
+func (s *stubCatalogService) ListSeries(context.Context) (dto.SeriesBrowseResult, error) {
 	return s.seriesResult, nil
 }
 
-func (s *stubCatalogService) ListRarities(context.Context) ([]service.RaritySummary, error) {
+func (s *stubCatalogService) ListRarities(context.Context) ([]dto.RaritySummary, error) {
 	return s.rarities, nil
 }
 
@@ -44,11 +44,11 @@ func (s *stubCatalogService) ListTags(context.Context) ([]string, error) {
 	return s.tags, nil
 }
 
-func (s *stubCatalogService) SearchCards(_ context.Context, filter service.CardFilter) ([]service.CardSummary, service.PaginationMeta, error) {
+func (s *stubCatalogService) SearchCards(_ context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
 	s.lastFilter = filter
 	s.filterCaptured = true
 	if s.searchErr != nil {
-		return nil, service.PaginationMeta{}, s.searchErr
+		return nil, dto.PaginationMeta{}, s.searchErr
 	}
 	return s.searchCards, s.searchMeta, nil
 }
@@ -65,9 +65,9 @@ func newTestCatalogHandler(t *testing.T, stub *stubCatalogService) humatest.Test
 
 func TestCatalogHandler_ListSeries(t *testing.T) {
 	stub := &stubCatalogService{
-		seriesResult: service.SeriesBrowseResult{
-			Series:                 []service.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}},
-			UngroupedExpansionSets: []service.ExpansionSetSummary{{Code: "promo", Name: "Promo Set"}},
+		seriesResult: dto.SeriesBrowseResult{
+			Series:                 []dto.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}},
+			UngroupedExpansionSets: []dto.ExpansionSetSummary{{Code: "promo", Name: "Promo Set"}},
 		},
 	}
 	api := newTestCatalogHandler(t, stub)
@@ -78,7 +78,7 @@ func TestCatalogHandler_ListSeries(t *testing.T) {
 	}
 
 	var body struct {
-		Data service.SeriesBrowseResult `json:"data"`
+		Data dto.SeriesBrowseResult `json:"data"`
 	}
 	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshaling response body: %v", err)
@@ -92,7 +92,7 @@ func TestCatalogHandler_ListSeries(t *testing.T) {
 }
 
 func TestCatalogHandler_ListRarities(t *testing.T) {
-	stub := &stubCatalogService{rarities: []service.RaritySummary{{Code: "SR", Name: "Super Rare"}}}
+	stub := &stubCatalogService{rarities: []dto.RaritySummary{{Code: "SR", Name: "Super Rare"}}}
 	api := newTestCatalogHandler(t, stub)
 
 	resp := api.Get("/catalog/rarities")
@@ -154,7 +154,7 @@ func TestCatalogHandler_SearchCards_ParsesFilters(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
 
-	want := service.CardFilter{
+	want := dto.CardFilter{
 		Name:           "pika",
 		ExpansionSetID: expansionSetID,
 		LocalID:        "001",
@@ -198,8 +198,8 @@ func TestCatalogHandler_SearchCards_InvalidRarityID(t *testing.T) {
 func TestCatalogHandler_SearchCards_ReturnsResult(t *testing.T) {
 	cardID := uuid.New()
 	stub := &stubCatalogService{
-		searchCards: []service.CardSummary{{ID: cardID, Name: "Pikachu"}},
-		searchMeta:  service.PaginationMeta{Total: 1, Page: 1, Limit: 24},
+		searchCards: []dto.CardSummary{{ID: cardID, Name: "Pikachu"}},
+		searchMeta:  dto.PaginationMeta{Total: 1, Page: 1, Limit: 24},
 	}
 	api := newTestCatalogHandler(t, stub)
 
@@ -209,8 +209,8 @@ func TestCatalogHandler_SearchCards_ReturnsResult(t *testing.T) {
 	}
 
 	var body struct {
-		Data []service.CardSummary  `json:"data"`
-		Meta service.PaginationMeta `json:"meta"`
+		Data []dto.CardSummary  `json:"data"`
+		Meta dto.PaginationMeta `json:"meta"`
 	}
 	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshaling response body: %v", err)
@@ -218,8 +218,8 @@ func TestCatalogHandler_SearchCards_ReturnsResult(t *testing.T) {
 	if len(body.Data) != 1 || body.Data[0].ID != cardID || body.Data[0].Name != "Pikachu" {
 		t.Fatalf("expected data to hold the cards directly, got %+v", body.Data)
 	}
-	if body.Meta != (service.PaginationMeta{Total: 1, Page: 1, Limit: 24}) {
-		t.Fatalf("expected meta %+v, got %+v", service.PaginationMeta{Total: 1, Page: 1, Limit: 24}, body.Meta)
+	if body.Meta != (dto.PaginationMeta{Total: 1, Page: 1, Limit: 24}) {
+		t.Fatalf("expected meta %+v, got %+v", dto.PaginationMeta{Total: 1, Page: 1, Limit: 24}, body.Meta)
 	}
 }
 

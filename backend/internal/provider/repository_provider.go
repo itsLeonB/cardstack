@@ -4,7 +4,7 @@ import (
 	"github.com/google/wire"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/core/service"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/repository"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	authkit "github.com/itsLeonB/go-authkit"
 	crud "github.com/itsLeonB/go-crud"
 )

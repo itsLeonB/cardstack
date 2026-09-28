@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 )
@@ -26,13 +27,13 @@ func NewCatalogHandler(catalogSvc service.CatalogService) *CatalogHandler {
 
 type listSeriesInput struct{}
 
-func (h *CatalogHandler) listSeries(ctx context.Context, _ listSeriesInput) (service.SeriesBrowseResult, error) {
+func (h *CatalogHandler) listSeries(ctx context.Context, _ listSeriesInput) (dto.SeriesBrowseResult, error) {
 	return h.catalogSvc.ListSeries(ctx)
 }
 
 type listRaritiesInput struct{}
 
-func (h *CatalogHandler) listRarities(ctx context.Context, _ listRaritiesInput) ([]service.RaritySummary, error) {
+func (h *CatalogHandler) listRarities(ctx context.Context, _ listRaritiesInput) ([]dto.RaritySummary, error) {
 	return h.catalogSvc.ListRarities(ctx)
 }
 
@@ -50,7 +51,7 @@ func (h *CatalogHandler) listTags(ctx context.Context, _ listTagsInput) ([]strin
 
 // searchCardsInput is GET /catalog/cards's query string. Every filter field
 // is optional; an empty/zero value means "don't filter on this facet" (see
-// service.CardFilter).
+// dto.CardFilter).
 type searchCardsInput struct {
 	Name           string `query:"name" doc:"Case-insensitive substring match on the Card's name."`
 	ExpansionSetID string `query:"expansionSetId" doc:"Only Cards in this Expansion Set."`
@@ -62,12 +63,12 @@ type searchCardsInput struct {
 	Limit          int    `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
 }
 
-// buildCardFilter validates and converts in into a service.CardFilter,
+// buildCardFilter validates and converts in into a dto.CardFilter,
 // parsing its string ID fields to uuid.UUID up front so an invalid ID is
 // rejected as a 400 before any query runs, rather than surfacing as an
 // empty/mismatched result.
-func buildCardFilter(in searchCardsInput) (service.CardFilter, error) {
-	filter := service.CardFilter{
+func buildCardFilter(in searchCardsInput) (dto.CardFilter, error) {
+	filter := dto.CardFilter{
 		Name:     in.Name,
 		LocalID:  in.LocalID,
 		Category: in.Category,
@@ -79,7 +80,7 @@ func buildCardFilter(in searchCardsInput) (service.CardFilter, error) {
 	if in.ExpansionSetID != "" {
 		id, err := uuid.Parse(in.ExpansionSetID)
 		if err != nil {
-			return service.CardFilter{}, huma.Error400BadRequest("invalid expansionSetId: " + in.ExpansionSetID)
+			return dto.CardFilter{}, huma.Error400BadRequest("invalid expansionSetId: " + in.ExpansionSetID)
 		}
 		filter.ExpansionSetID = id
 	}
@@ -87,7 +88,7 @@ func buildCardFilter(in searchCardsInput) (service.CardFilter, error) {
 	if in.RarityID != "" {
 		id, err := uuid.Parse(in.RarityID)
 		if err != nil {
-			return service.CardFilter{}, huma.Error400BadRequest("invalid rarityId: " + in.RarityID)
+			return dto.CardFilter{}, huma.Error400BadRequest("invalid rarityId: " + in.RarityID)
 		}
 		filter.RarityID = id
 	}
@@ -95,10 +96,10 @@ func buildCardFilter(in searchCardsInput) (service.CardFilter, error) {
 	return filter, nil
 }
 
-func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) ([]service.CardSummary, service.PaginationMeta, error) {
+func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) ([]dto.CardSummary, dto.PaginationMeta, error) {
 	filter, err := buildCardFilter(in)
 	if err != nil {
-		return nil, service.PaginationMeta{}, err
+		return nil, dto.PaginationMeta{}, err
 	}
 
 	return h.catalogSvc.SearchCards(ctx, filter)
@@ -108,7 +109,7 @@ func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) (
 // endpoint.RegisterAll.
 func (h *CatalogHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
-		endpoint.New(endpoint.Endpoint[listSeriesInput, service.SeriesBrowseResult]{
+		endpoint.New(endpoint.Endpoint[listSeriesInput, dto.SeriesBrowseResult]{
 			OperationID: "list-catalog-series",
 			Method:      http.MethodGet,
 			Path:        "/catalog/series",
@@ -118,7 +119,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			Secured:     false,
 			HandlerFunc: h.listSeries,
 		}),
-		endpoint.NewList(endpoint.ListEndpoint[listRaritiesInput, service.RaritySummary]{
+		endpoint.NewList(endpoint.ListEndpoint[listRaritiesInput, dto.RaritySummary]{
 			OperationID: "list-catalog-rarities",
 			Method:      http.MethodGet,
 			Path:        "/catalog/rarities",
@@ -145,7 +146,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			Secured:     false,
 			HandlerFunc: h.listTags,
 		}),
-		endpoint.NewWithMeta(endpoint.EndpointWithMeta[searchCardsInput, []service.CardSummary, service.PaginationMeta]{
+		endpoint.NewWithMeta(endpoint.EndpointWithMeta[searchCardsInput, []dto.CardSummary, dto.PaginationMeta]{
 			OperationID: "search-catalog-cards",
 			Method:      http.MethodGet,
 			Path:        "/catalog/cards",

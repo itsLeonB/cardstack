@@ -16,7 +16,7 @@ import (
 // searching Cards. It covers the full read surface catalogRepository (this
 // package's GORM-backed implementation) implements, not narrowed to any one
 // caller's needs, so a service depending on it can be tested against a
-// mockery-generated mock (see internal/domain/repository/mocks) instead of
+// mockery-generated mock (see internal/mocks) instead of
 // a real Postgres.
 //
 // Interface and implementation live together in this one file, under
