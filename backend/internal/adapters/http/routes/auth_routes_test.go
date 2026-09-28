@@ -27,7 +27,7 @@ import (
 // so the test needs no AUTH_*/config.Load() env at all — it sets
 // config.Global directly, matching register_routes_test.go's existing
 // pattern of hand-building *provider.Services instead of the full wire
-// graph. See internal/adapters/repository/repository_test_helper_test.go
+// graph. See internal/domain/repository/repository_test_helper_test.go
 // for how to start a matching Postgres 18 locally.
 func authTestServices(t *testing.T) *provider.Services {
 	t.Helper()
@@ -62,7 +62,7 @@ func authTestServices(t *testing.T) *provider.Services {
 	migrateTestDB(t, sqlDB)
 
 	// Deliberately no table truncation here: this database is shared with
-	// internal/adapters/repository's tests, which `go test ./...` runs
+	// internal/domain/repository's tests, which `go test ./...` runs
 	// concurrently in a separate process — a truncate here could wipe rows
 	// that package is mid-assertion on. TestAuthFlow below uses a
 	// uuid-suffixed email instead, so it never collides with leftover data
