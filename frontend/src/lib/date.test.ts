@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatReleaseDate } from "./catalog"
+import { formatReleaseDate } from "./date"
 
 describe("formatReleaseDate", () => {
   it("formats an RFC3339 date for display", () => {

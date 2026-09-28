@@ -6,7 +6,7 @@ import {
 } from "@/generated/endpoints/catalog/catalog"
 import { CardResults } from "@/components/catalog/card-results"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatReleaseDate } from "@/lib/catalog"
+import { formatReleaseDate } from "@/lib/date"
 
 const expansionSetSearchSchema = z.object({
   page: z.number().int().min(1).default(1),

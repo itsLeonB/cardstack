@@ -7,7 +7,7 @@ import type { ExpansionSetSummary } from "@/generated/models"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { formatReleaseDate } from "@/lib/catalog"
+import { formatReleaseDate } from "@/lib/date"
 
 export const Route = createFileRoute("/catalog/")({
   loader: ({ context: { queryClient } }) =>
