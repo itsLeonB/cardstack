@@ -15,6 +15,10 @@ const config = defineConfig({
   ],
   test: {
     environment: "jsdom",
+    // Playwright e2e specs live under e2e/ and run via `playwright test`,
+    // not vitest — exclude them so vitest's default *.spec.ts glob doesn't
+    // also try (and fail) to run them as unit tests.
+    exclude: ["node_modules/**", "e2e/**"],
   },
 })
 
