@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/repository"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	domainservice "github.com/itsLeonB/cardstack/backend/internal/domain/service"
 )
 
@@ -18,25 +18,12 @@ const (
 	maxCardSearchLimit     = 100
 )
 
-// catalogRepository is the persistence access catalogService needs, narrowed
-// to exactly its own call shape so it can be faked in tests without a real
-// Postgres (see repository.CatalogRepository, which satisfies this).
-type catalogRepository interface {
-	ListSeries(ctx context.Context) ([]entity.Series, error)
-	ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error)
-	ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error)
-	ListRarities(ctx context.Context) ([]entity.Rarity, error)
-	ListDistinctCategories(ctx context.Context) ([]string, error)
-	ListDistinctTags(ctx context.Context) ([]string, error)
-	SearchCards(ctx context.Context, filter repository.CardFilter) ([]repository.CardResult, int64, error)
-}
-
 type catalogService struct {
-	repo catalogRepository
+	repo repository.CatalogRepository
 }
 
 // NewCatalogService builds a domainservice.CatalogService backed by repo.
-func NewCatalogService(repo catalogRepository) domainservice.CatalogService {
+func NewCatalogService(repo repository.CatalogRepository) domainservice.CatalogService {
 	return &catalogService{repo: repo}
 }
 
@@ -66,7 +53,7 @@ func (s *catalogService) ListSeries(ctx context.Context) (domainservice.SeriesBr
 		if set.SeriesID == nil {
 			continue
 		}
-		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], toExpansionSetSummary(set))
+		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], mapper.ToExpansionSetSummary(set))
 	}
 
 	summaries := make([]domainservice.SeriesSummary, len(series))
@@ -81,7 +68,7 @@ func (s *catalogService) ListSeries(ctx context.Context) (domainservice.SeriesBr
 
 	ungroupedSummaries := make([]domainservice.ExpansionSetSummary, len(ungrouped))
 	for i, set := range ungrouped {
-		ungroupedSummaries[i] = toExpansionSetSummary(set)
+		ungroupedSummaries[i] = mapper.ToExpansionSetSummary(set)
 	}
 
 	return domainservice.SeriesBrowseResult{
@@ -112,7 +99,7 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 	return s.repo.ListDistinctTags(ctx)
 }
 
-func (s *catalogService) SearchCards(ctx context.Context, filter domainservice.CardFilter) (domainservice.CardSearchResult, error) {
+func (s *catalogService) SearchCards(ctx context.Context, filter domainservice.CardFilter) ([]domainservice.CardSummary, domainservice.PaginationMeta, error) {
 	page, limit := normalizePagination(filter.Page, filter.Limit)
 
 	results, total, err := s.repo.SearchCards(ctx, repository.CardFilter{
@@ -126,16 +113,15 @@ func (s *catalogService) SearchCards(ctx context.Context, filter domainservice.C
 		Offset:         (page - 1) * limit,
 	})
 	if err != nil {
-		return domainservice.CardSearchResult{}, err
+		return nil, domainservice.PaginationMeta{}, err
 	}
 
 	cards := make([]domainservice.CardSummary, len(results))
 	for i, r := range results {
-		cards[i] = toCardSummary(r)
+		cards[i] = mapper.ToCardSummary(r)
 	}
 
-	return domainservice.CardSearchResult{
-		Cards: cards,
+	return cards, domainservice.PaginationMeta{
 		Total: int(total),
 		Page:  page,
 		Limit: limit,
@@ -158,36 +144,4 @@ func normalizePagination(page, limit int) (int, int) {
 	}
 
 	return page, limit
-}
-
-func toExpansionSetSummary(set entity.ExpansionSet) domainservice.ExpansionSetSummary {
-	return domainservice.ExpansionSetSummary{
-		ID:          set.ID,
-		Code:        set.Code,
-		Name:        set.Name,
-		ReleaseDate: set.ReleaseDate,
-	}
-}
-
-func toCardSummary(r repository.CardResult) domainservice.CardSummary {
-	return domainservice.CardSummary{
-		ID: r.ID,
-		ExpansionSet: domainservice.ExpansionSetSummary{
-			ID:          r.ExpansionSetID,
-			Code:        r.ExpansionSetCode,
-			Name:        r.ExpansionSetName,
-			ReleaseDate: r.ExpansionSetReleaseDate,
-		},
-		LocalID:  r.LocalID,
-		Name:     r.Name,
-		Category: r.Category,
-		Tags:     []string(r.Tags),
-		Rarity: domainservice.RaritySummary{
-			ID:   r.RarityID,
-			Code: r.RarityCode,
-			Name: r.RarityName,
-		},
-		Illustrator: r.Illustrator,
-		ImageURL:    r.ImageURL,
-	}
 }
