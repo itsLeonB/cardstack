@@ -20,10 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  EnvelopeCardSearchResult,
   EnvelopeListRaritySummary,
   EnvelopeListString,
   EnvelopeSeriesBrowseResult,
+  EnvelopeWithMetaListCardSummaryPaginationMeta,
   ErrorModel,
   SearchCatalogCardsParams
 } from '../../models';
@@ -58,7 +58,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 export type searchCatalogCardsResponse200 = {
-  data: EnvelopeCardSearchResult
+  data: EnvelopeWithMetaListCardSummaryPaginationMeta
   status: 200
 }
 

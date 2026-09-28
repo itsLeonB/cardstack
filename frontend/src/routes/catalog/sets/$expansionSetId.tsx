@@ -31,8 +31,8 @@ function ExpansionSetCardsPage() {
   const navigate = useNavigate({ from: Route.fullPath })
 
   const query = useSearchCatalogCards({ expansionSetId, page })
-  const result = query.data?.status === 200 ? query.data.data.data : undefined
-  const cards = result?.cards ?? []
+  const result = query.data?.status === 200 ? query.data.data : undefined
+  const cards = result?.data ?? []
   const firstCard = cards[0]
   const releaseDate = formatReleaseDate(firstCard?.expansionSet.releaseDate)
   const errorMessage =
@@ -74,7 +74,7 @@ function ExpansionSetCardsPage() {
         )}
       </header>
 
-      {result && result.total > 0 && (
+      {result && result.meta.total > 0 && (
         <Link
           to="/catalog/search"
           search={{ expansionSetId, page: 1 }}
@@ -86,9 +86,9 @@ function ExpansionSetCardsPage() {
 
       <CardResults
         cards={cards}
-        total={result?.total ?? 0}
+        total={result?.meta.total ?? 0}
         page={page}
-        limit={result?.limit ?? 24}
+        limit={result?.meta.limit ?? 24}
         isPending={query.isPending}
         isError={query.isError || Boolean(errorMessage)}
         errorMessage={errorMessage}

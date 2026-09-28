@@ -76,7 +76,7 @@ function CatalogSearchPage() {
     categoriesQuery.data?.status === 200 ? (categoriesQuery.data.data.data ?? []) : []
   const tags = tagsQuery.data?.status === 200 ? (tagsQuery.data.data.data ?? []) : []
 
-  const result = cardsQuery.data?.status === 200 ? cardsQuery.data.data.data : undefined
+  const result = cardsQuery.data?.status === 200 ? cardsQuery.data.data : undefined
   const cardsErrorMessage =
     cardsQuery.data && cardsQuery.data.status !== 200
       ? (cardsQuery.data.data.detail ?? "Could not search the catalog.")
@@ -299,10 +299,10 @@ function CatalogSearchPage() {
       </form>
 
       <CardResults
-        cards={result?.cards ?? []}
-        total={result?.total ?? 0}
+        cards={result?.data ?? []}
+        total={result?.meta.total ?? 0}
         page={search.page}
-        limit={result?.limit ?? 24}
+        limit={result?.meta.limit ?? 24}
         isPending={cardsQuery.isPending}
         isError={cardsQuery.isError || Boolean(cardsErrorMessage)}
         errorMessage={cardsErrorMessage}
