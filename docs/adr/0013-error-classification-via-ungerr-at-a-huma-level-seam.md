@@ -1,0 +1,12 @@
+# Backend errors are classified via `ungerr`, enforced at a single Huma-level seam
+
+Every unclassified error returned from a handler was being serialized straight into the client-facing response (Huma's default `NewError`/`NewErrorWithContext` puts `err.Error()` into `ErrorDetail.Message`), which leaked internal detail — confirmed case: a DB auth failure exposed DB credentials to the frontend. Decided to adopt `github.com/itsLeonB/ungerr` (already used by the sibling `ginkgo` project) for the `AppError`/`UnknownError` taxonomy, and to enforce it globally by overriding Huma's own error-construction hook rather than porting `ginkgo`'s gin middleware, which doesn't transplant here: Huma's `Register()` writes and finalizes the JSON response itself before gin's outer middleware chain ever runs, so a `ctx.Errors`-reading gin middleware (ginkgo's approach) never sees the error. Existing scattered per-handler error-to-status mappings (e.g. `auth_handler.go`'s manual `switch`) are migrated onto the same `ungerr` taxonomy so there's one classification path, not two. Unknown errors are always logged server-side in full; only the client-facing response is redacted.
+
+## Considered Options
+
+- Define an equivalent `AppError`/`UnknownError` taxonomy locally inside `backend` instead of depending on `ungerr`. Rejected: `ungerr` already implements exactly this shape, is framework-agnostic (no gin/huma coupling), and is already depended on by a sibling project in the same org — reimplementing it would be pure duplication.
+- Port `ginkgo`'s gin error-middleware as-is. Rejected: it relies on `ctx.Errors` after `ctx.Next()`, which never fires for Huma-registered operations — Huma writes its own response inside `Register()` before that gin middleware stage is reached. The equivalent seam here is Huma's own `NewError`/`NewErrorWithContext` override.
+
+## Consequences
+
+New/changed handler code should return `ungerr.AppError` types (or wrap unknown errors so they route through the same classification) rather than calling `huma.ErrorXXX(...)` directly with ad hoc messages. The Huma-level default for anything that isn't a recognized `AppError` redacts response detail and logs the original error in full server-side.
