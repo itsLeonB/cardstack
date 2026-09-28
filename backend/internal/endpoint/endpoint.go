@@ -8,9 +8,14 @@
 //   - NoBodyEndpoint[Req]: a route with no response body at all (e.g. 204).
 //   - ListEndpoint[Req, Res]: a route returning Envelope[[]Res] plus an
 //     X-Total-Count header set to len(result).
+//   - EndpointWithMeta[Req, Res, Meta]: a paginated route returning
+//     httpapi.EnvelopeWithMeta[Res, Meta] — {"data": ..., "meta": ...} —
+//     for a service call that returns its own pagination metadata
+//     alongside the data (e.g. GET /catalog/cards) rather than nesting it
+//     inside the data.
 //   - RedirectEndpoint[Req]: a bodyless redirect (Status + Location header).
 //
-// Every route fits one of these four shapes; each can be wrapped as a
+// Every route fits one of these five shapes; each can be wrapped as a
 // Registrable (see registrable.go) and mixed in one []Registrable slice for
 // RegisterAll.
 package endpoint
@@ -89,6 +94,53 @@ func Register[Req, Res any](api huma.API, e Endpoint[Req, Res], mw ...func(huma.
 		}
 
 		return &envelopeOutput[Res]{Body: httpapi.NewEnvelope(res)}, nil
+	})
+}
+
+// EndpointWithMeta describes one paginated route: a request type Req, a
+// response type Res, and pagination metadata Meta returned alongside it,
+// wrapped in httpapi.EnvelopeWithMeta as {"data": ..., "meta": ...}.
+type EndpointWithMeta[Req, Res, Meta any] struct {
+	OperationID string
+	Method      string
+	Path        string
+	Summary     string
+	Tags        []string
+	SuccessCode int
+	Secured     bool
+	Middlewares []func(huma.Context, func(huma.Context))
+	HandlerFunc func(context.Context, Req) (Res, Meta, error)
+}
+
+// envelopeWithMetaOutput is the Output struct every EndpointWithMeta
+// registers.
+type envelopeWithMetaOutput[Res, Meta any] struct {
+	Body httpapi.EnvelopeWithMeta[Res, Meta]
+}
+
+// RegisterWithMeta builds a huma.Operation from e and registers it on api.
+func RegisterWithMeta[Req, Res, Meta any](api huma.API, e EndpointWithMeta[Req, Res, Meta], mw ...func(huma.Context, func(huma.Context))) {
+	op := huma.Operation{
+		OperationID:   e.OperationID,
+		Method:        e.Method,
+		Path:          e.Path,
+		Summary:       e.Summary,
+		Tags:          e.Tags,
+		DefaultStatus: e.SuccessCode,
+		Middlewares:   mergeMiddlewares(mw, e.Middlewares),
+	}
+
+	if e.Secured {
+		op.Security = CookieAuthSecurity
+	}
+
+	huma.Register(api, op, func(ctx context.Context, in *Req) (*envelopeWithMetaOutput[Res, Meta], error) {
+		res, meta, err := e.HandlerFunc(ctx, *in)
+		if err != nil {
+			return nil, err
+		}
+
+		return &envelopeWithMetaOutput[Res, Meta]{Body: httpapi.NewEnvelopeWithMeta(res, meta)}, nil
 	})
 }
 

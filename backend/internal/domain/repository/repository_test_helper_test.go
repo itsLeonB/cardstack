@@ -18,6 +18,9 @@ import (
 // migrates it. It reads the same DB_* env vars backend-ci.yml's test job
 // sets; locally, run a matching Postgres 18 container, e.g.:
 //
+// In a cloud/remote agent environment without Docker, see
+// docs/agents/testing.md for how to self-provision Postgres instead.
+//
 //	docker run -d -p 5432:5432 -e POSTGRES_USER=cardstack \
 //	  -e POSTGRES_PASSWORD=cardstack -e POSTGRES_DB=cardstack postgres:18
 //

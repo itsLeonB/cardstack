@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 // testDBConfig holds this file's Postgres DSN pieces, loaded via envconfig
-// with the same bare DB_* env var names internal/adapters/repository's
+// with the same bare DB_* env var names internal/domain/repository's
 // testDB helper reads manually.
 type testDBConfig struct {
 	Host     string `envconfig:"DB_HOST" default:"localhost"`
@@ -35,7 +35,7 @@ type testDBConfig struct {
 }
 
 // testDB takes the same real-Postgres testing approach as
-// internal/adapters/repository's testDB helper (see its doc comment for how
+// internal/domain/repository's testDB helper (see its doc comment for how
 // to start a matching local Postgres, per docs/adr/0005) — same setup
 // ticket 03's tcgdex ingester used. It deliberately does not truncate
 // tables — this DB is shared with other packages' tests — so tests use
@@ -55,7 +55,7 @@ func testDB(t *testing.T) *gorm.DB {
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	if err != nil {
-		t.Fatalf("connecting to test postgres (see internal/adapters/repository's testDB doc comment for how to start one locally): %v", err)
+		t.Fatalf("connecting to test postgres (see internal/domain/repository's testDB doc comment for how to start one locally): %v", err)
 	}
 
 	sqlDB, err := db.DB()
@@ -76,7 +76,7 @@ func testDB(t *testing.T) *gorm.DB {
 
 // uniqueCode returns a set/series/rarity code unique to this test run, so
 // tests never collide with each other or leftover rows regardless of run
-// order (mirrors internal/adapters/repository's uniqueEmail).
+// order (mirrors internal/domain/repository's uniqueEmail).
 func uniqueCode(t *testing.T) string {
 	t.Helper()
 	return uuid.NewString()

@@ -10,7 +10,15 @@ if ! command -v go >/dev/null 2>&1; then
 	echo "error: 'go' is not on PATH; install the Go toolchain first" >&2
 	exit 1
 fi
-GOFLAGS=-mod=mod go install golang.org/x/tools/gopls@latest
+# Installed straight into /usr/local/bin (not GOPATH/bin) so it's resolvable
+# by every process on this box without relying on a shell rc file having
+# been sourced first — Serena's language-server manager runs its one-shot,
+# all-or-nothing startup probe for gopls immediately when the Claude Code
+# session boots, before any dev-run script (this one included) gets a
+# chance to run; once that probe fails, nothing in-session (PATH fixes,
+# Serena's own restart tools) can recover it, so gopls has to already be
+# resolvable at that point.
+GOBIN=/usr/local/bin GOFLAGS=-mod=mod go install golang.org/x/tools/gopls@latest
 
 if ! command -v npm >/dev/null 2>&1; then
 	echo "error: 'npm' is not on PATH; install Node.js first" >&2
@@ -58,10 +66,3 @@ npx skills add anthropics/skills --skill "skill-creator" -g -a claude-code -a co
 npx skills add anthropics/claude-plugins-official --skill "claude-automation-recommender" -g -a claude-code -a codex -y
 
 echo "Environment setup complete!"
-
-gobin=$(go env GOBIN)
-[ -n "$gobin" ] || gobin="$(go env GOPATH)/bin"
-case ":$PATH:" in
-*":$gobin:"*) ;;
-*) echo "note: $gobin (gopls) is not on PATH; add it to use gopls from the shell" ;;
-esac

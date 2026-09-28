@@ -15,6 +15,9 @@ import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
+import { Route as CatalogSearchRouteImport } from './routes/catalog/search'
+import { Route as CatalogSetsExpansionSetIdRouteImport } from './routes/catalog/sets/$expansionSetId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -45,6 +48,22 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const CatalogIndexRoute = CatalogIndexRouteImport.update({
+  id: '/catalog/',
+  path: '/catalog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogSearchRoute = CatalogSearchRouteImport.update({
+  id: '/catalog/search',
+  path: '/catalog/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogSetsExpansionSetIdRoute =
+  CatalogSetsExpansionSetIdRouteImport.update({
+    id: '/catalog/sets/$expansionSetId',
+    path: '/catalog/sets/$expansionSetId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -52,6 +71,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/catalog/search': typeof CatalogSearchRoute
+  '/catalog/': typeof CatalogIndexRoute
+  '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +81,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/catalog/search': typeof CatalogSearchRoute
+  '/catalog': typeof CatalogIndexRoute
+  '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +93,31 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/catalog/search': typeof CatalogSearchRoute
+  '/catalog/': typeof CatalogIndexRoute
+  '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/health' | '/login' | '/register' | '/account'
+  fullPaths:
+    | '/'
+    | '/health'
+    | '/login'
+    | '/register'
+    | '/account'
+    | '/catalog/search'
+    | '/catalog/'
+    | '/catalog/sets/$expansionSetId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/health' | '/login' | '/register' | '/account'
+  to:
+    | '/'
+    | '/health'
+    | '/login'
+    | '/register'
+    | '/account'
+    | '/catalog/search'
+    | '/catalog'
+    | '/catalog/sets/$expansionSetId'
   id:
     | '__root__'
     | '/'
@@ -82,6 +126,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/_authenticated/account'
+    | '/catalog/search'
+    | '/catalog/'
+    | '/catalog/sets/$expansionSetId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -90,6 +137,9 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  CatalogSearchRoute: typeof CatalogSearchRoute
+  CatalogIndexRoute: typeof CatalogIndexRoute
+  CatalogSetsExpansionSetIdRoute: typeof CatalogSetsExpansionSetIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -136,6 +186,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/catalog/': {
+      id: '/catalog/'
+      path: '/catalog'
+      fullPath: '/catalog/'
+      preLoaderRoute: typeof CatalogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog/search': {
+      id: '/catalog/search'
+      path: '/catalog/search'
+      fullPath: '/catalog/search'
+      preLoaderRoute: typeof CatalogSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog/sets/$expansionSetId': {
+      id: '/catalog/sets/$expansionSetId'
+      path: '/catalog/sets/$expansionSetId'
+      fullPath: '/catalog/sets/$expansionSetId'
+      preLoaderRoute: typeof CatalogSetsExpansionSetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -157,6 +228,9 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  CatalogSearchRoute: CatalogSearchRoute,
+  CatalogIndexRoute: CatalogIndexRoute,
+  CatalogSetsExpansionSetIdRoute: CatalogSetsExpansionSetIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

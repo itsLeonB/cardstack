@@ -29,7 +29,7 @@ func withImmediateVerification() authkittest.Option {
 // boundary" layer of the ticket 02 plan's testing decisions, exercising
 // this handler's request parsing, error-mapping, and cookie/CSRF wiring in
 // isolation from persistence. Repository behavior itself is covered
-// separately by internal/adapters/repository's real-Postgres tests, and the
+// separately by internal/domain/repository's real-Postgres tests, and the
 // full stack end to end by internal/adapters/http/routes's feature test.
 func newTestAuthHandler(t *testing.T) (*AuthHandler, humatest.TestAPI) {
 	t.Helper()
