@@ -157,6 +157,58 @@ func TestCatalogRepository_ListExpansionSets(t *testing.T) {
 	}
 }
 
+func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	series := fixture.newSeries(t, db)
+
+	later := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	earlier := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	ungroupedNoDate := fixture.newExpansionSet(t, db, nil, nil)
+	ungroupedLater := fixture.newExpansionSet(t, db, nil, &later)
+	ungroupedEarlier := fixture.newExpansionSet(t, db, nil, &earlier)
+	// Belongs to a Series - must not be returned.
+	grouped := fixture.newExpansionSet(t, db, &series.ID, nil)
+
+	repo := NewCatalogRepository(db)
+	all, err := repo.ListUngroupedExpansionSets(context.Background())
+	if err != nil {
+		t.Fatalf("ListUngroupedExpansionSets: %v", err)
+	}
+
+	// This table is shared with other tests and never truncated (see
+	// catalogFixture's doc comment), so filter the results down to just
+	// this test's own fixture rows before asserting on order.
+	want := []uuid.UUID{ungroupedEarlier.ID, ungroupedLater.ID, ungroupedNoDate.ID}
+	wantSet := make(map[uuid.UUID]bool, len(want))
+	for _, id := range want {
+		wantSet[id] = true
+	}
+
+	var got []uuid.UUID
+	for _, s := range all {
+		if s.SeriesID != nil {
+			if s.ID == grouped.ID {
+				t.Fatalf("expected ListUngroupedExpansionSets to exclude the grouped fixture set %s", grouped.ID)
+			}
+			continue
+		}
+		if wantSet[s.ID] {
+			got = append(got, s.ID)
+		}
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected to find all 3 fixture sets among ungrouped results, found %d: %v", len(got), got)
+	}
+	for i, id := range want {
+		if got[i] != id {
+			t.Fatalf("expected order %v, got %v", want, got)
+		}
+	}
+}
+
 func TestCatalogRepository_ListExpansionSets_EmptyIDs(t *testing.T) {
 	db := testDB(t)
 	repo := NewCatalogRepository(db)

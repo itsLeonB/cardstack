@@ -26,7 +26,7 @@ func NewCatalogHandler(catalogSvc service.CatalogService) *CatalogHandler {
 
 type listSeriesInput struct{}
 
-func (h *CatalogHandler) listSeries(ctx context.Context, _ listSeriesInput) ([]service.SeriesSummary, error) {
+func (h *CatalogHandler) listSeries(ctx context.Context, _ listSeriesInput) (service.SeriesBrowseResult, error) {
 	return h.catalogSvc.ListSeries(ctx)
 }
 
@@ -108,12 +108,13 @@ func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) (
 // endpoint.RegisterAll.
 func (h *CatalogHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
-		endpoint.NewList(endpoint.ListEndpoint[listSeriesInput, service.SeriesSummary]{
+		endpoint.New(endpoint.Endpoint[listSeriesInput, service.SeriesBrowseResult]{
 			OperationID: "list-catalog-series",
 			Method:      http.MethodGet,
 			Path:        "/catalog/series",
-			Summary:     "List every Series, with its Expansion Sets nested",
+			Summary:     "List every Series (with its Expansion Sets nested) plus every ungrouped Expansion Set",
 			Tags:        []string{"catalog"},
+			SuccessCode: http.StatusOK,
 			Secured:     false,
 			HandlerFunc: h.listSeries,
 		}),

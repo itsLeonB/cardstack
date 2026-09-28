@@ -24,6 +24,7 @@ const (
 type catalogRepository interface {
 	ListSeries(ctx context.Context) ([]entity.Series, error)
 	ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error)
+	ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error)
 	ListRarities(ctx context.Context) ([]entity.Rarity, error)
 	ListDistinctCategories(ctx context.Context) ([]string, error)
 	ListDistinctTags(ctx context.Context) ([]string, error)
@@ -39,10 +40,10 @@ func NewCatalogService(repo catalogRepository) domainservice.CatalogService {
 	return &catalogService{repo: repo}
 }
 
-func (s *catalogService) ListSeries(ctx context.Context) ([]domainservice.SeriesSummary, error) {
+func (s *catalogService) ListSeries(ctx context.Context) (domainservice.SeriesBrowseResult, error) {
 	series, err := s.repo.ListSeries(ctx)
 	if err != nil {
-		return nil, err
+		return domainservice.SeriesBrowseResult{}, err
 	}
 
 	seriesIDs := make([]uuid.UUID, len(series))
@@ -52,7 +53,12 @@ func (s *catalogService) ListSeries(ctx context.Context) ([]domainservice.Series
 
 	sets, err := s.repo.ListExpansionSets(ctx, seriesIDs)
 	if err != nil {
-		return nil, err
+		return domainservice.SeriesBrowseResult{}, err
+	}
+
+	ungrouped, err := s.repo.ListUngroupedExpansionSets(ctx)
+	if err != nil {
+		return domainservice.SeriesBrowseResult{}, err
 	}
 
 	setsBySeries := make(map[uuid.UUID][]domainservice.ExpansionSetSummary, len(series))
@@ -73,7 +79,15 @@ func (s *catalogService) ListSeries(ctx context.Context) ([]domainservice.Series
 		}
 	}
 
-	return summaries, nil
+	ungroupedSummaries := make([]domainservice.ExpansionSetSummary, len(ungrouped))
+	for i, set := range ungrouped {
+		ungroupedSummaries[i] = toExpansionSetSummary(set)
+	}
+
+	return domainservice.SeriesBrowseResult{
+		Series:                 summaries,
+		UngroupedExpansionSets: ungroupedSummaries,
+	}, nil
 }
 
 func (s *catalogService) ListRarities(ctx context.Context) ([]domainservice.RaritySummary, error) {

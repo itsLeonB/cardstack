@@ -18,6 +18,7 @@ import (
 type fakeCatalogRepository struct {
 	series            []entity.Series
 	setsBySeries      map[uuid.UUID][]entity.ExpansionSet
+	ungrouped         []entity.ExpansionSet
 	rarities          []entity.Rarity
 	categories        []string
 	tags              []string
@@ -27,6 +28,7 @@ type fakeCatalogRepository struct {
 	lastSearchFilter  repository.CardFilter
 	lastListedSeries  []uuid.UUID
 	listExpansionErr  error
+	listUngroupedErr  error
 	listSeriesErr     error
 	listRaritiesErr   error
 	listCategoriesErr error
@@ -48,6 +50,10 @@ func (f *fakeCatalogRepository) ListExpansionSets(ctx context.Context, seriesIDs
 		sets = append(sets, f.setsBySeries[id]...)
 	}
 	return sets, nil
+}
+
+func (f *fakeCatalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
+	return f.ungrouped, f.listUngroupedErr
 }
 
 func (f *fakeCatalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, error) {
@@ -74,6 +80,7 @@ func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
 	seriesID := uuid.New()
 	otherSeriesID := uuid.New()
 	setID := uuid.New()
+	ungroupedSetID := uuid.New()
 
 	repo := &fakeCatalogRepository{
 		series: []entity.Series{
@@ -85,6 +92,9 @@ func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
 				{BaseEntity: baseEntity(setID), SeriesID: &seriesID, Code: "sv1", Name: "Scarlet ex"},
 			},
 		},
+		ungrouped: []entity.ExpansionSet{
+			{BaseEntity: baseEntity(ungroupedSetID), Code: "promo", Name: "Promo Set"},
+		},
 	}
 	svc := NewCatalogService(repo)
 
@@ -92,23 +102,37 @@ func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListSeries: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("expected 2 series, got %d: %+v", len(got), got)
+	if len(got.Series) != 2 {
+		t.Fatalf("expected 2 series, got %d: %+v", len(got.Series), got.Series)
 	}
-	if got[0].ID != seriesID || len(got[0].ExpansionSets) != 1 || got[0].ExpansionSets[0].ID != setID {
-		t.Fatalf("expected series[0] to nest its expansion set, got %+v", got[0])
+	if got.Series[0].ID != seriesID || len(got.Series[0].ExpansionSets) != 1 || got.Series[0].ExpansionSets[0].ID != setID {
+		t.Fatalf("expected series[0] to nest its expansion set, got %+v", got.Series[0])
 	}
-	if got[1].ID != otherSeriesID || got[1].ExpansionSets != nil {
-		t.Fatalf("expected series[1] to have no expansion sets, got %+v", got[1])
+	if got.Series[1].ID != otherSeriesID || got.Series[1].ExpansionSets != nil {
+		t.Fatalf("expected series[1] to have no expansion sets, got %+v", got.Series[1])
 	}
 	if len(repo.lastListedSeries) != 2 {
 		t.Fatalf("expected ListExpansionSets to be called with both series IDs, got %v", repo.lastListedSeries)
+	}
+	if len(got.UngroupedExpansionSets) != 1 || got.UngroupedExpansionSets[0].ID != ungroupedSetID {
+		t.Fatalf("expected the series-less expansion set to be surfaced separately, got %+v", got.UngroupedExpansionSets)
 	}
 }
 
 func TestCatalogService_ListSeries_PropagatesRepositoryError(t *testing.T) {
 	wantErr := errors.New("boom")
 	repo := &fakeCatalogRepository{listSeriesErr: wantErr}
+	svc := NewCatalogService(repo)
+
+	_, err := svc.ListSeries(context.Background())
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected error %v, got %v", wantErr, err)
+	}
+}
+
+func TestCatalogService_ListSeries_PropagatesUngroupedExpansionSetsError(t *testing.T) {
+	wantErr := errors.New("boom")
+	repo := &fakeCatalogRepository{listUngroupedErr: wantErr}
 	svc := NewCatalogService(repo)
 
 	_, err := svc.ListSeries(context.Background())
