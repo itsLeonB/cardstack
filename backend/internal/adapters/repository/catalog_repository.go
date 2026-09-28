@@ -11,21 +11,53 @@ import (
 	"gorm.io/gorm"
 )
 
-// CatalogRepository answers read-only catalog browse/search queries (ticket
-// 05). It holds the bare *gorm.DB rather than going through
+// CatalogRepository is the persistence access the catalog domain needs
+// (ticket 05): browsing Series/Expansion Sets/Rarities/categories/tags and
+// searching Cards. It covers the full read surface catalogRepository (this
+// package's GORM-backed implementation) implements, not narrowed to any one
+// caller's needs, so a service depending on it can be tested against a
+// mockery-generated mock (see internal/adapters/repository/mocks) instead of
+// a real Postgres.
+type CatalogRepository interface {
+	// ListSeries returns every Series, ordered by name.
+	ListSeries(ctx context.Context) ([]entity.Series, error)
+	// ListExpansionSets returns every Expansion Set whose SeriesID is in
+	// seriesIDs, ordered by release date (sets with an unknown release date
+	// sort last) then name.
+	ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error)
+	// ListUngroupedExpansionSets returns every Expansion Set whose SeriesID
+	// is nil, ordered the same way ListExpansionSets orders each Series's
+	// sets.
+	ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error)
+	// ListRarities returns every Rarity across all Games, ordered by name.
+	ListRarities(ctx context.Context) ([]entity.Rarity, error)
+	// ListDistinctCategories returns the distinct Card.Category values
+	// actually in use, ordered alphabetically.
+	ListDistinctCategories(ctx context.Context) ([]string, error)
+	// ListDistinctTags returns the distinct values found across every
+	// Card's Tags array, ordered alphabetically.
+	ListDistinctTags(ctx context.Context) ([]string, error)
+	// SearchCards returns the Cards matching filter (joined with their
+	// Rarity and Expansion Set), limited/offset per filter, plus the total
+	// number of Cards matching filter before that pagination.
+	SearchCards(ctx context.Context, filter CardFilter) ([]CardResult, int64, error)
+}
+
+// catalogRepository is CatalogRepository's GORM-backed implementation. It
+// holds the bare *gorm.DB rather than going through
 // crud.Repository/GetGormInstance's transaction lookup: every method here is
 // a plain read that never needs to participate in a write transaction.
-type CatalogRepository struct {
+type catalogRepository struct {
 	db *gorm.DB
 }
 
 // NewCatalogRepository builds a CatalogRepository over db.
-func NewCatalogRepository(db *gorm.DB) *CatalogRepository {
-	return &CatalogRepository{db: db}
+func NewCatalogRepository(db *gorm.DB) CatalogRepository {
+	return &catalogRepository{db: db}
 }
 
 // ListSeries returns every Series, ordered by name.
-func (r *CatalogRepository) ListSeries(ctx context.Context) ([]entity.Series, error) {
+func (r *catalogRepository) ListSeries(ctx context.Context) ([]entity.Series, error) {
 	var series []entity.Series
 	err := r.db.WithContext(ctx).Order("name ASC").Find(&series).Error
 	return series, err
@@ -36,7 +68,7 @@ func (r *CatalogRepository) ListSeries(ctx context.Context) ([]entity.Series, er
 // sort last) then name. An empty seriesIDs returns no rows rather than
 // every Expansion Set, since the only caller (ListSeries's nesting) always
 // passes the Series it actually found.
-func (r *CatalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error) {
+func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error) {
 	if len(seriesIDs) == 0 {
 		return nil, nil
 	}
@@ -56,7 +88,7 @@ func (r *CatalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 // series-less Expansion Set is a legitimate domain state (see CONTEXT.md's
 // Series entry), not an edge case to special-case away - this is how it's
 // surfaced through GET /catalog/series alongside the grouped Series.
-func (r *CatalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
+func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
 	var sets []entity.ExpansionSet
 	err := r.db.WithContext(ctx).
 		Where("series_id IS NULL").
@@ -67,7 +99,7 @@ func (r *CatalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]e
 }
 
 // ListRarities returns every Rarity across all Games, ordered by name.
-func (r *CatalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, error) {
+func (r *catalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, error) {
 	var rarities []entity.Rarity
 	err := r.db.WithContext(ctx).Order("name ASC").Find(&rarities).Error
 	return rarities, err
@@ -75,7 +107,7 @@ func (r *CatalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, 
 
 // ListDistinctCategories returns the distinct Card.Category values actually
 // in use, ordered alphabetically.
-func (r *CatalogRepository) ListDistinctCategories(ctx context.Context) ([]string, error) {
+func (r *catalogRepository) ListDistinctCategories(ctx context.Context) ([]string, error) {
 	var categories []string
 	err := r.db.WithContext(ctx).
 		Model(&entity.Card{}).
@@ -93,7 +125,7 @@ func (r *CatalogRepository) ListDistinctCategories(ctx context.Context) ([]strin
 // express directly. The jsonb_typeof guard skips any row whose Tags isn't
 // actually a JSON array (e.g. an unset Tags column stores JSON null) -
 // jsonb_array_elements_text errors on a non-array/scalar value otherwise.
-func (r *CatalogRepository) ListDistinctTags(ctx context.Context) ([]string, error) {
+func (r *catalogRepository) ListDistinctTags(ctx context.Context) ([]string, error) {
 	var tags []string
 	err := r.db.WithContext(ctx).
 		Raw(`SELECT DISTINCT tag FROM cards, jsonb_array_elements_text(cards.tags) AS tag
@@ -189,7 +221,7 @@ func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
 // SearchCards returns the Cards matching filter (joined with their Rarity
 // and Expansion Set), limited/offset per filter, plus the total number of
 // Cards matching filter before that pagination.
-func (r *CatalogRepository) SearchCards(ctx context.Context, filter CardFilter) ([]CardResult, int64, error) {
+func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) ([]CardResult, int64, error) {
 	base := r.db.WithContext(ctx).
 		Table("cards").
 		Joins("JOIN rarities ON rarities.id = cards.rarity_id").
@@ -205,7 +237,7 @@ func (r *CatalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 	var results []CardResult
 	err := base.Session(&gorm.Session{}).
 		Select(cardResultColumns).
-		Order("expansion_sets.release_date ASC NULLS LAST, cards.local_id ASC, cards.name ASC").
+		Order("expansion_sets.release_date ASC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Find(&results).

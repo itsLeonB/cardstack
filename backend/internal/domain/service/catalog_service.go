@@ -74,14 +74,14 @@ type CardFilter struct {
 	Limit          int
 }
 
-// CardSearchResult is one page of CatalogService.SearchCards results, plus
-// the total number of Cards matching the filter (before pagination) so a
-// frontend can render page controls.
-type CardSearchResult struct {
-	Cards []CardSummary `json:"cards"`
-	Total int           `json:"total"`
-	Page  int           `json:"page"`
-	Limit int           `json:"limit"`
+// PaginationMeta is the pagination bookkeeping alongside a page of
+// CatalogService.SearchCards results: the total number of Cards matching the
+// filter (before pagination) plus the page/limit that produced this page, so
+// a frontend can render page controls.
+type PaginationMeta struct {
+	Total int `json:"total"`
+	Page  int `json:"page"`
+	Limit int `json:"limit"`
 }
 
 // CatalogService answers the unauthenticated, read-only catalog
@@ -106,6 +106,7 @@ type CatalogService interface {
 	// ListTags returns the distinct Card tags actually in use, ordered
 	// alphabetically.
 	ListTags(ctx context.Context) ([]string, error)
-	// SearchCards returns the page of Cards matching filter.
-	SearchCards(ctx context.Context, filter CardFilter) (CardSearchResult, error)
+	// SearchCards returns the page of Cards matching filter, plus that
+	// page's pagination metadata.
+	SearchCards(ctx context.Context, filter CardFilter) ([]CardSummary, PaginationMeta, error)
 }

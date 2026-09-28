@@ -51,6 +51,20 @@ func (r listRegistrable[Req, Res]) Register(api huma.API, mw ...func(huma.Contex
 	RegisterList(api, r.endpoint, mw...)
 }
 
+type withMetaRegistrable[Req, Res, Meta any] struct {
+	endpoint EndpointWithMeta[Req, Res, Meta]
+}
+
+// NewWithMeta wraps an EndpointWithMeta so it can be collected as a
+// Registrable.
+func NewWithMeta[Req, Res, Meta any](e EndpointWithMeta[Req, Res, Meta]) Registrable {
+	return withMetaRegistrable[Req, Res, Meta]{e}
+}
+
+func (r withMetaRegistrable[Req, Res, Meta]) Register(api huma.API, mw ...func(huma.Context, func(huma.Context))) {
+	RegisterWithMeta(api, r.endpoint, mw...)
+}
+
 type redirectRegistrable[Req any] struct {
 	endpoint RedirectEndpoint[Req]
 }

@@ -16,39 +16,6 @@
         ],
         "type": "object"
       },
-      "CardSearchResult": {
-        "additionalProperties": false,
-        "properties": {
-          "cards": {
-            "items": {
-              "$ref": "#/components/schemas/CardSummary"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
-          "limit": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "page": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "total": {
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "cards",
-          "total",
-          "page",
-          "limit"
-        ],
-        "type": "object"
-      },
       "CardSummary": {
         "additionalProperties": false,
         "properties": {
@@ -104,18 +71,6 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/AuthMessage"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "type": "object"
-      },
-      "EnvelopeCardSearchResult": {
-        "additionalProperties": false,
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/CardSearchResult"
           }
         },
         "required": [
@@ -192,6 +147,28 @@
         },
         "required": [
           "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeWithMetaListCardSummaryPaginationMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
         ],
         "type": "object"
       },
@@ -333,6 +310,29 @@
         "required": [
           "id",
           "email"
+        ],
+        "type": "object"
+      },
+      "PaginationMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "page": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit"
         ],
         "type": "object"
       },
@@ -756,7 +756,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnvelopeCardSearchResult"
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListCardSummaryPaginationMeta"
                 }
               }
             },

@@ -95,10 +95,10 @@ func buildCardFilter(in searchCardsInput) (service.CardFilter, error) {
 	return filter, nil
 }
 
-func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) (service.CardSearchResult, error) {
+func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) ([]service.CardSummary, service.PaginationMeta, error) {
 	filter, err := buildCardFilter(in)
 	if err != nil {
-		return service.CardSearchResult{}, err
+		return nil, service.PaginationMeta{}, err
 	}
 
 	return h.catalogSvc.SearchCards(ctx, filter)
@@ -145,7 +145,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			Secured:     false,
 			HandlerFunc: h.listTags,
 		}),
-		endpoint.New(endpoint.Endpoint[searchCardsInput, service.CardSearchResult]{
+		endpoint.NewWithMeta(endpoint.EndpointWithMeta[searchCardsInput, []service.CardSummary, service.PaginationMeta]{
 			OperationID: "search-catalog-cards",
 			Method:      http.MethodGet,
 			Path:        "/catalog/cards",

@@ -6,6 +6,7 @@ ingest-pokemon-asia \
 wire \
 lint \
 vulncheck \
+mocks \
 test \
 test-verbose \
 test-coverage \
@@ -23,6 +24,7 @@ help:
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
+	@echo "  make mocks                   - Regenerate mockery mocks for repository interfaces"
 	@echo "  make test                    - Run all tests"
 	@echo "  make test-verbose            - Run all tests with verbose output"
 	@echo "  make test-coverage           - Run all tests with coverage report"
@@ -52,6 +54,9 @@ lint:
 
 vulncheck:
 	go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
+
+mocks:
+	go run github.com/vektra/mockery/v2@v2.53.7
 
 test:
 	@echo "Running all tests..."
