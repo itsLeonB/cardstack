@@ -8,7 +8,7 @@ import (
 	entity "github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	mock "github.com/stretchr/testify/mock"
 
-	repository "github.com/itsLeonB/cardstack/backend/internal/adapters/repository"
+	repository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 
 	uuid "github.com/google/uuid"
 )
