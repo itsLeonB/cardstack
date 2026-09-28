@@ -52,21 +52,22 @@ Read/Edit/Glob are fine for non-code files: markdown, JSON, YAML, TOML, .env, co
 
 - **mcp__context7**: fetch current docs whenever you touch React, TanStack Router/Query/Start, Tailwind, shadcn, or any dependency in `package.json` — even ones you think you know. Prefer this over relying on training data.
 - **tanstack-router, tanstack-query** (`.claude/skills/`): load when routing, loaders, search params, or data fetching/caching are involved.
-- **shadcn, tailwind-v4-shadcn** (`.claude/skills/`): load when adding or styling shadcn components, or touching theme/dark-mode CSS variables.
+- **shadcn, tailwind-v4-shadcn** (`.claude/skills/`): load when adding or styling shadcn components, or touching theme/dark-mode CSS variables. `npx shadcn@latest add <components>` prompts interactively (e.g. "file already exists, overwrite?") and there is no TTY to answer it — a bare invocation, `--help`, or `-y` alone will hang or leave the prompt unanswered. Pipe an answer to every prompt and keep `-y`: `printf 'n\nn\nn\nn\nn\n' | npx shadcn@latest add <components> -y`. This answers "no, don't overwrite" to each existing-file prompt; components that already exist are reported as skipped, new ones are created.
 - **typescript-advanced-types**: load for generics, conditional/mapped types, or other non-trivial type-level work.
 - **vercel-react-best-practices**: load when writing or reviewing React components for performance (rendering, bundle size, data fetching patterns).
 - **frontend-design, web-design-guidelines, accessibility**: load for new UI or visual/UX changes, and to check WCAG/keyboard/screen-reader compliance.
-- **tdd**: load when asked to build test-first or fix a bug via a regression test first.
-- **implement** (`/implement`, `.claude/skills/`): use when applicable — the task originates from a spec or ticket file (e.g. `.scratch/<feature>/`). Drives TDD at agreed seams, typechecking, and its own review pass.
-- **code-review** (`.claude/skills/`): use this to spawn your reviewer subagent after implementation, when applicable (see workflow below).
+- **tdd**: load when asked to build test-first, fix a bug via a regression test first, or the task comes from a spec/ticket file (e.g. `.scratch/<feature>/`) — drive TDD at agreed seams either way.
+- **code-review** (`.claude/skills/`): use this after implementation to review your own diff (see workflow below).
+
+`/implement` describes this same TDD-plus-typecheck-plus-review workflow, but it carries `disable-model-invocation` and refuses when called through the Skill tool ("reserved for explicit user invocation") — it is not available to you. Follow its practices directly instead: `tdd` at agreed seams, typechecking/build checks at regular intervals, and a `code-review` pass before committing.
 
 # Workflow when delegated a task
 
-1. If the task comes from a spec/ticket file, use the `implement` skill (`/implement`) to drive implementation. Otherwise implement the change directly using the tool selection rules above.
+1. Implement the change using the tool selection rules above. If the task comes from a spec/ticket file, drive it TDD-first at agreed seams (`tdd` skill).
 2. Run frontend verification: `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build`. Fix any failures before moving on.
-3. If `/implement` didn't already run a review pass, spawn a reviewer subagent (via the `code-review` skill, scoped to your worktree's diff) and wait for its report.
+3. Run a review pass via the `code-review` skill, scoped to your worktree's diff, and wait for its report.
 4. Fix the findings once. Re-run verification from step 2.
-5. Commit your changes on your worktree's branch with message format `<semantic commit>(frontend): <message>` (e.g. `feat(frontend): add login page`) — this overrides whatever commit message `/implement` would use by default. Do not push — the orchestrator merges worktrees back into the feature branch.
+5. Commit your changes on your worktree's branch with message format `<semantic commit>(frontend): <message>` (e.g. `feat(frontend): add login page`). Do not push — the orchestrator merges worktrees back into the feature branch.
 
 # Doing tasks
 

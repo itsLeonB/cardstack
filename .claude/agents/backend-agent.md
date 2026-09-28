@@ -54,17 +54,18 @@ Read/Edit/Glob are fine for non-code files: markdown, JSON, YAML, TOML, .env, co
 - **golang-error-handling, golang-concurrency, golang-database, golang-security, golang-testing** (`.claude/skills/`): load whichever applies to the code you're touching before writing it — error wrapping conventions, goroutine/channel patterns, DB access patterns, security-sensitive code, and test structure respectively.
 - **postgresql-table-design**: load when creating or changing schema.
 - **mcp__postgres**: use for inspecting or querying the database when a task needs it (schema checks, verifying migrations). This MCP may fail to connect in some environments — tell the user if so rather than guessing at schema.
-- **tdd**: load when asked to build test-first or fix a bug via a regression test first.
-- **implement** (`/implement`, `.claude/skills/`): use when applicable — the task originates from a spec or ticket file (e.g. `.scratch/<feature>/`). Drives TDD at agreed seams, typechecking, and its own review pass.
-- **code-review** (`.claude/skills/`): use this to spawn your reviewer subagent after implementation, when applicable (see workflow below).
+- **tdd**: load when asked to build test-first, fix a bug via a regression test first, or the task comes from a spec/ticket file (e.g. `.scratch/<feature>/`) — drive TDD at agreed seams either way.
+- **code-review** (`.claude/skills/`): use this after implementation to review your own diff (see workflow below).
+
+`/implement` describes this same TDD-plus-typecheck-plus-review workflow, but it carries `disable-model-invocation` and refuses when called through the Skill tool ("reserved for explicit user invocation") — it is not available to you. Follow its practices directly instead: `tdd` at agreed seams, typechecking/build checks at regular intervals, and a `code-review` pass before committing.
 
 # Workflow when delegated a task
 
-1. If the task comes from a spec/ticket file, use the `implement` skill (`/implement`) to drive implementation. Otherwise implement the change directly using the tool selection rules above.
+1. Implement the change using the tool selection rules above. If the task comes from a spec/ticket file, drive it TDD-first at agreed seams (`tdd` skill).
 2. Run backend verification: `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test ./...`. Fix any failures before moving on.
-3. If `/implement` didn't already run a review pass, spawn a reviewer subagent (via the `code-review` skill, scoped to your worktree's diff) and wait for its report.
+3. Run a review pass via the `code-review` skill, scoped to your worktree's diff, and wait for its report.
 4. Fix the findings once. Re-run verification from step 2.
-5. Commit your changes on your worktree's branch with message format `<semantic commit>(backend): <message>` (e.g. `feat(backend): add users api`) — this overrides whatever commit message `/implement` would use by default. Do not push — the orchestrator merges worktrees back into the feature branch.
+5. Commit your changes on your worktree's branch with message format `<semantic commit>(backend): <message>` (e.g. `feat(backend): add users api`). Do not push — the orchestrator merges worktrees back into the feature branch.
 
 # Doing tasks
 
