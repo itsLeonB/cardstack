@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -16,7 +17,7 @@ import (
 // records the CardFilter it's called with, so tests can assert on the query
 // string -> filter translation without a real repository/DB.
 type stubCatalogService struct {
-	series         []service.SeriesSummary
+	seriesResult   service.SeriesBrowseResult
 	rarities       []service.RaritySummary
 	categories     []string
 	tags           []string
@@ -26,8 +27,8 @@ type stubCatalogService struct {
 	filterCaptured bool
 }
 
-func (s *stubCatalogService) ListSeries(context.Context) ([]service.SeriesSummary, error) {
-	return s.series, nil
+func (s *stubCatalogService) ListSeries(context.Context) (service.SeriesBrowseResult, error) {
+	return s.seriesResult, nil
 }
 
 func (s *stubCatalogService) ListRarities(context.Context) ([]service.RaritySummary, error) {
@@ -62,15 +63,30 @@ func newTestCatalogHandler(t *testing.T, stub *stubCatalogService) humatest.Test
 }
 
 func TestCatalogHandler_ListSeries(t *testing.T) {
-	stub := &stubCatalogService{series: []service.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}}}
+	stub := &stubCatalogService{
+		seriesResult: service.SeriesBrowseResult{
+			Series:                 []service.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}},
+			UngroupedExpansionSets: []service.ExpansionSetSummary{{Code: "promo", Name: "Promo Set"}},
+		},
+	}
 	api := newTestCatalogHandler(t, stub)
 
 	resp := api.Get("/catalog/series")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
-	if resp.Header().Get("X-Total-Count") != "1" {
-		t.Fatalf("expected X-Total-Count 1, got %q", resp.Header().Get("X-Total-Count"))
+
+	var body struct {
+		Data service.SeriesBrowseResult `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshaling response body: %v", err)
+	}
+	if len(body.Data.Series) != 1 || body.Data.Series[0].Code != "sv" {
+		t.Fatalf("expected series in response, got %+v", body.Data)
+	}
+	if len(body.Data.UngroupedExpansionSets) != 1 || body.Data.UngroupedExpansionSets[0].Code != "promo" {
+		t.Fatalf("expected ungrouped expansion sets in response, got %+v", body.Data)
 	}
 }
 

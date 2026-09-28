@@ -50,6 +50,22 @@ func (r *CatalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 	return sets, err
 }
 
+// ListUngroupedExpansionSets returns every Expansion Set whose SeriesID is
+// nil, ordered the same way ListExpansionSets orders each Series's sets: by
+// release date (sets with an unknown release date sort last) then name. A
+// series-less Expansion Set is a legitimate domain state (see CONTEXT.md's
+// Series entry), not an edge case to special-case away - this is how it's
+// surfaced through GET /catalog/series alongside the grouped Series.
+func (r *CatalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
+	var sets []entity.ExpansionSet
+	err := r.db.WithContext(ctx).
+		Where("series_id IS NULL").
+		Order("release_date ASC NULLS LAST, name ASC").
+		Find(&sets).
+		Error
+	return sets, err
+}
+
 // ListRarities returns every Rarity across all Games, ordered by name.
 func (r *CatalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, error) {
 	var rarities []entity.Rarity

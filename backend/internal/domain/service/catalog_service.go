@@ -26,6 +26,17 @@ type SeriesSummary struct {
 	ExpansionSets []ExpansionSetSummary `json:"expansionSets"`
 }
 
+// SeriesBrowseResult is GET /catalog/series's response. Series is optional
+// on Expansion Set - "a Game with no Series data simply has Expansion Sets
+// belonging to none, not a special case to work around" (see CONTEXT.md's
+// Series entry) - so UngroupedExpansionSets surfaces every Expansion Set
+// with no Series directly, rather than nesting it under a fake Series
+// record just to fit the same shape as the rest.
+type SeriesBrowseResult struct {
+	Series                 []SeriesSummary       `json:"series"`
+	UngroupedExpansionSets []ExpansionSetSummary `json:"ungroupedExpansionSets"`
+}
+
 // RaritySummary is a Rarity lookup row, exposed so a search/filter UI can
 // list valid rarity values instead of decoding raw codes itself (see
 // docs/adr/0009).
@@ -80,9 +91,13 @@ type CardSearchResult struct {
 // Collection/Inventory territory (tickets 06/07), not implemented yet, so
 // results always include Cards the caller doesn't own.
 type CatalogService interface {
-	// ListSeries returns every Series with its Expansion Sets nested,
-	// ordered by Series name then Expansion Set release date.
-	ListSeries(ctx context.Context) ([]SeriesSummary, error)
+	// ListSeries returns every Series with its Expansion Sets nested
+	// (ordered by Series name then Expansion Set release date), plus every
+	// Expansion Set that belongs to no Series at all - a series-less
+	// Expansion Set is a legitimate domain state, not a special case, and
+	// this is its only way to be reachable through the catalog browse
+	// surface.
+	ListSeries(ctx context.Context) (SeriesBrowseResult, error)
 	// ListRarities returns every Rarity across all Games, ordered by name.
 	ListRarities(ctx context.Context) ([]RaritySummary, error)
 	// ListCategories returns the distinct Card categories actually in use,

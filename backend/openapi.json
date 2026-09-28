@@ -153,24 +153,6 @@
         ],
         "type": "object"
       },
-      "EnvelopeListSeriesSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/SeriesSummary"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "type": "object"
-      },
       "EnvelopeListString": {
         "additionalProperties": false,
         "properties": {
@@ -194,6 +176,18 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MeResponse"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeSeriesBrowseResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SeriesBrowseResult"
           }
         },
         "required": [
@@ -381,6 +375,34 @@
           "email",
           "password",
           "passwordConfirmation"
+        ],
+        "type": "object"
+      },
+      "SeriesBrowseResult": {
+        "additionalProperties": false,
+        "properties": {
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "ungroupedExpansionSets": {
+            "items": {
+              "$ref": "#/components/schemas/ExpansionSetSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "series",
+          "ungroupedExpansionSets"
         ],
         "type": "object"
       },
@@ -843,19 +865,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnvelopeListSeriesSummary"
+                  "$ref": "#/components/schemas/EnvelopeSeriesBrowseResult"
                 }
               }
             },
-            "description": "OK",
-            "headers": {
-              "X-Total-Count": {
-                "schema": {
-                  "format": "int64",
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "OK"
           },
           "default": {
             "content": {
@@ -868,7 +882,7 @@
             "description": "Error"
           }
         },
-        "summary": "List every Series, with its Expansion Sets nested",
+        "summary": "List every Series (with its Expansion Sets nested) plus every ungrouped Expansion Set",
         "tags": [
           "catalog"
         ]
