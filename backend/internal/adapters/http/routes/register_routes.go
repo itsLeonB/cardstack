@@ -13,7 +13,9 @@ import (
 func RegisterRoutes(api huma.API, services *provider.Services) {
 	healthHandler := handler.NewHealthHandler(services.Health)
 	authHandler := handler.NewAuthHandler(services.Auth, services.Profiles)
+	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 
 	endpoint.RegisterAll(api, healthHandler.Routes())
 	endpoint.RegisterAll(api, authHandler.Routes())
+	endpoint.RegisterAll(api, catalogHandler.Routes())
 }
