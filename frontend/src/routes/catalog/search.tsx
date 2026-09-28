@@ -46,13 +46,21 @@ type CatalogSearch = z.infer<typeof catalogSearchSchema>
 export const Route = createFileRoute("/catalog/search")({
   validateSearch: catalogSearchSchema,
   loaderDeps: ({ search }) => search,
+  // Only the card search itself is required for this route to render —
+  // series/rarities/categories/tags just populate filter dropdowns, so a
+  // transport-level failure on one of those (customFetch only rejects on
+  // an actual fetch/parse failure, never on a non-2xx response) shouldn't
+  // fail the whole page via Promise.all. Each optional query still gets
+  // fetched and cached when it succeeds; on failure the component's own
+  // useListCatalog*() hooks fetch it themselves and degrade that one
+  // filter, rather than blocking the results the user actually asked for.
   loader: ({ context: { queryClient }, deps }) =>
     Promise.all([
       queryClient.ensureQueryData(getSearchCatalogCardsQueryOptions(deps)),
-      queryClient.ensureQueryData(getListCatalogSeriesQueryOptions()),
-      queryClient.ensureQueryData(getListCatalogRaritiesQueryOptions()),
-      queryClient.ensureQueryData(getListCatalogCategoriesQueryOptions()),
-      queryClient.ensureQueryData(getListCatalogTagsQueryOptions()),
+      queryClient.ensureQueryData(getListCatalogSeriesQueryOptions()).catch(() => undefined),
+      queryClient.ensureQueryData(getListCatalogRaritiesQueryOptions()).catch(() => undefined),
+      queryClient.ensureQueryData(getListCatalogCategoriesQueryOptions()).catch(() => undefined),
+      queryClient.ensureQueryData(getListCatalogTagsQueryOptions()).catch(() => undefined),
     ]),
   component: CatalogSearchPage,
 })
