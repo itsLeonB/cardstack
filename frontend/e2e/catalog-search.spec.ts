@@ -5,6 +5,12 @@ import { test, expect } from "playwright/test"
 // Expansion Set + card number, and category/tag/rarity filters, plus the
 // series-less ("ungrouped") Expansion Set being reachable from the
 // Expansion Set dropdown.
+//
+// These six tests (and catalog-browse.spec.ts's two) repeat the same
+// page.goto(...) + page.getByRole("listitem") results shape. Left inline
+// rather than extracted into a CatalogSearchPage-style helper/page object,
+// since two spec files isn't enough duplication to justify one yet — worth
+// revisiting once a third e2e spec file is added to this suite.
 
 test.describe("Catalog search", () => {
   test("searches by name", async ({ page }) => {
