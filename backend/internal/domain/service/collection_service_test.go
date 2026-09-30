@@ -33,7 +33,7 @@ func TestCollectionService_Create(t *testing.T) {
 		Return(entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: limit}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).Create(ctx, profileID, dto.CreateCollectionRequest{Title: "Binder", Description: "desc", MaxCardCount: limit})
+	got, err := NewCollectionService(repo).Create(ctx, profileID, dto.CollectionRequest{Title: "Binder", Description: "desc", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "Binder", got.Title)
 	assert.Equal(t, "desc", got.Description)
@@ -48,7 +48,7 @@ func TestCollectionService_Create_PropagatesRepositoryError(t *testing.T) {
 	repo := mocks.NewMockRepository[entity.Collection](t)
 	repo.EXPECT().Insert(ctx, entity.Collection{ProfileID: profileID, Title: "Binder"}).Return(entity.Collection{}, wantErr).Once()
 
-	_, err := NewCollectionService(repo).Create(ctx, profileID, dto.CreateCollectionRequest{Title: "Binder"})
+	_, err := NewCollectionService(repo).Create(ctx, profileID, dto.CollectionRequest{Title: "Binder"})
 	assert.ErrorIs(t, err, wantErr)
 }
 
@@ -98,7 +98,7 @@ func TestCollectionService_NotFound(t *testing.T) {
 	_, err := svc.Get(ctx, profileID, id)
 	assertNotFound(t, err)
 
-	_, err = svc.Update(ctx, profileID, id, dto.UpdateCollectionRequest{Title: "Hijacked"})
+	_, err = svc.Update(ctx, profileID, id, dto.CollectionRequest{Title: "Hijacked"})
 	assertNotFound(t, err)
 
 	assertNotFound(t, svc.Delete(ctx, profileID, id))
@@ -138,7 +138,7 @@ func TestCollectionService_Update(t *testing.T) {
 		Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).Update(ctx, profileID, id, dto.UpdateCollectionRequest{Title: "New", Description: "new", MaxCardCount: limit})
+	got, err := NewCollectionService(repo).Update(ctx, profileID, id, dto.CollectionRequest{Title: "New", Description: "new", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "New", got.Title)
 	assert.Equal(t, "new", got.Description)

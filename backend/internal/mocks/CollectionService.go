@@ -25,7 +25,7 @@ func (_m *MockCollectionService) EXPECT() *MockCollectionService_Expecter {
 }
 
 // Create provides a mock function with given fields: ctx, profileID, req
-func (_m *MockCollectionService) Create(ctx context.Context, profileID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error) {
+func (_m *MockCollectionService) Create(ctx context.Context, profileID uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error) {
 	ret := _m.Called(ctx, profileID, req)
 
 	if len(ret) == 0 {
@@ -34,16 +34,16 @@ func (_m *MockCollectionService) Create(ctx context.Context, profileID uuid.UUID
 
 	var r0 dto.CollectionSummary
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateCollectionRequest) (dto.CollectionSummary, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CollectionRequest) (dto.CollectionSummary, error)); ok {
 		return rf(ctx, profileID, req)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateCollectionRequest) dto.CollectionSummary); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CollectionRequest) dto.CollectionSummary); ok {
 		r0 = rf(ctx, profileID, req)
 	} else {
 		r0 = ret.Get(0).(dto.CollectionSummary)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateCollectionRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CollectionRequest) error); ok {
 		r1 = rf(ctx, profileID, req)
 	} else {
 		r1 = ret.Error(1)
@@ -60,14 +60,14 @@ type MockCollectionService_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileID uuid.UUID
-//   - req dto.CreateCollectionRequest
+//   - req dto.CollectionRequest
 func (_e *MockCollectionService_Expecter) Create(ctx interface{}, profileID interface{}, req interface{}) *MockCollectionService_Create_Call {
 	return &MockCollectionService_Create_Call{Call: _e.mock.On("Create", ctx, profileID, req)}
 }
 
-func (_c *MockCollectionService_Create_Call) Run(run func(ctx context.Context, profileID uuid.UUID, req dto.CreateCollectionRequest)) *MockCollectionService_Create_Call {
+func (_c *MockCollectionService_Create_Call) Run(run func(ctx context.Context, profileID uuid.UUID, req dto.CollectionRequest)) *MockCollectionService_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(dto.CreateCollectionRequest))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(dto.CollectionRequest))
 	})
 	return _c
 }
@@ -77,7 +77,7 @@ func (_c *MockCollectionService_Create_Call) Return(_a0 dto.CollectionSummary, _
 	return _c
 }
 
-func (_c *MockCollectionService_Create_Call) RunAndReturn(run func(context.Context, uuid.UUID, dto.CreateCollectionRequest) (dto.CollectionSummary, error)) *MockCollectionService_Create_Call {
+func (_c *MockCollectionService_Create_Call) RunAndReturn(run func(context.Context, uuid.UUID, dto.CollectionRequest) (dto.CollectionSummary, error)) *MockCollectionService_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -248,7 +248,7 @@ func (_c *MockCollectionService_List_Call) RunAndReturn(run func(context.Context
 }
 
 // Update provides a mock function with given fields: ctx, profileID, id, req
-func (_m *MockCollectionService) Update(ctx context.Context, profileID uuid.UUID, id uuid.UUID, req dto.UpdateCollectionRequest) (dto.CollectionSummary, error) {
+func (_m *MockCollectionService) Update(ctx context.Context, profileID uuid.UUID, id uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error) {
 	ret := _m.Called(ctx, profileID, id, req)
 
 	if len(ret) == 0 {
@@ -257,16 +257,16 @@ func (_m *MockCollectionService) Update(ctx context.Context, profileID uuid.UUID
 
 	var r0 dto.CollectionSummary
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) (dto.CollectionSummary, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CollectionRequest) (dto.CollectionSummary, error)); ok {
 		return rf(ctx, profileID, id, req)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) dto.CollectionSummary); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CollectionRequest) dto.CollectionSummary); ok {
 		r0 = rf(ctx, profileID, id, req)
 	} else {
 		r0 = ret.Get(0).(dto.CollectionSummary)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CollectionRequest) error); ok {
 		r1 = rf(ctx, profileID, id, req)
 	} else {
 		r1 = ret.Error(1)
@@ -284,14 +284,14 @@ type MockCollectionService_Update_Call struct {
 //   - ctx context.Context
 //   - profileID uuid.UUID
 //   - id uuid.UUID
-//   - req dto.UpdateCollectionRequest
+//   - req dto.CollectionRequest
 func (_e *MockCollectionService_Expecter) Update(ctx interface{}, profileID interface{}, id interface{}, req interface{}) *MockCollectionService_Update_Call {
 	return &MockCollectionService_Update_Call{Call: _e.mock.On("Update", ctx, profileID, id, req)}
 }
 
-func (_c *MockCollectionService_Update_Call) Run(run func(ctx context.Context, profileID uuid.UUID, id uuid.UUID, req dto.UpdateCollectionRequest)) *MockCollectionService_Update_Call {
+func (_c *MockCollectionService_Update_Call) Run(run func(ctx context.Context, profileID uuid.UUID, id uuid.UUID, req dto.CollectionRequest)) *MockCollectionService_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(dto.UpdateCollectionRequest))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(dto.CollectionRequest))
 	})
 	return _c
 }
@@ -301,7 +301,7 @@ func (_c *MockCollectionService_Update_Call) Return(_a0 dto.CollectionSummary, _
 	return _c
 }
 
-func (_c *MockCollectionService_Update_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) (dto.CollectionSummary, error)) *MockCollectionService_Update_Call {
+func (_c *MockCollectionService_Update_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID, dto.CollectionRequest) (dto.CollectionSummary, error)) *MockCollectionService_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

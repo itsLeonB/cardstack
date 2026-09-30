@@ -12,8 +12,6 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-// CollectionHandler serves the authenticated Collections CRUD surface. Its
-// routes are Secured; the router registers them behind SessionGuard.
 type CollectionHandler struct {
 	collectionSvc service.CollectionService
 }
@@ -30,18 +28,10 @@ func validateTitle(title string) error {
 	return nil
 }
 
-func parseCollectionID(raw string) (uuid.UUID, error) {
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return uuid.Nil, ungerr.BadRequestError("invalid collection id: " + raw)
-	}
-	return id, nil
-}
-
 type collectionBody struct {
 	Title        string `json:"title" required:"true" minLength:"1" doc:"The Collection's title."`
 	Description  string `json:"description,omitempty" doc:"Optional free-text description."`
-	MaxCardCount int    `json:"maxCardCount,omitempty" minimum:"0" doc:"Hard cap on the Collection's summed card quantity; 0 means no limit."`
+	MaxCardCount int    `json:"maxCardCount,omitempty" minimum:"0" maximum:"2147483647" doc:"Hard cap on the Collection's summed card quantity; 0 means no limit."`
 }
 
 type createCollectionInput struct {
@@ -51,11 +41,11 @@ type createCollectionInput struct {
 type listCollectionsInput struct{}
 
 type collectionIDInput struct {
-	ID string `path:"id" doc:"Collection ID"`
+	ID uuid.UUID `path:"id" doc:"Collection ID"`
 }
 
 type updateCollectionInput struct {
-	ID   string `path:"id" doc:"Collection ID"`
+	ID   uuid.UUID `path:"id" doc:"Collection ID"`
 	Body collectionBody
 }
 
@@ -69,16 +59,11 @@ func (h *CollectionHandler) create(ctx context.Context, in createCollectionInput
 		return dto.CollectionSummary{}, err
 	}
 
-	summary, err := h.collectionSvc.Create(ctx, profileID, dto.CreateCollectionRequest{
+	return h.collectionSvc.Create(ctx, profileID, dto.CollectionRequest{
 		Title:        in.Body.Title,
 		Description:  in.Body.Description,
 		MaxCardCount: in.Body.MaxCardCount,
 	})
-	if err != nil {
-		return dto.CollectionSummary{}, err
-	}
-
-	return summary, nil
 }
 
 func (h *CollectionHandler) list(ctx context.Context, _ listCollectionsInput) ([]dto.CollectionSummary, error) {
@@ -87,12 +72,7 @@ func (h *CollectionHandler) list(ctx context.Context, _ listCollectionsInput) ([
 		return nil, err
 	}
 
-	summaries, err := h.collectionSvc.List(ctx, profileID)
-	if err != nil {
-		return nil, err
-	}
-
-	return summaries, nil
+	return h.collectionSvc.List(ctx, profileID)
 }
 
 func (h *CollectionHandler) get(ctx context.Context, in collectionIDInput) (dto.CollectionSummary, error) {
@@ -101,17 +81,7 @@ func (h *CollectionHandler) get(ctx context.Context, in collectionIDInput) (dto.
 		return dto.CollectionSummary{}, err
 	}
 
-	id, err := parseCollectionID(in.ID)
-	if err != nil {
-		return dto.CollectionSummary{}, err
-	}
-
-	summary, err := h.collectionSvc.Get(ctx, profileID, id)
-	if err != nil {
-		return dto.CollectionSummary{}, err
-	}
-
-	return summary, nil
+	return h.collectionSvc.Get(ctx, profileID, in.ID)
 }
 
 func (h *CollectionHandler) update(ctx context.Context, in updateCollectionInput) (dto.CollectionSummary, error) {
@@ -120,25 +90,15 @@ func (h *CollectionHandler) update(ctx context.Context, in updateCollectionInput
 		return dto.CollectionSummary{}, err
 	}
 
-	id, err := parseCollectionID(in.ID)
-	if err != nil {
-		return dto.CollectionSummary{}, err
-	}
-
 	if err := validateTitle(in.Body.Title); err != nil {
 		return dto.CollectionSummary{}, err
 	}
 
-	summary, err := h.collectionSvc.Update(ctx, profileID, id, dto.UpdateCollectionRequest{
+	return h.collectionSvc.Update(ctx, profileID, in.ID, dto.CollectionRequest{
 		Title:        in.Body.Title,
 		Description:  in.Body.Description,
 		MaxCardCount: in.Body.MaxCardCount,
 	})
-	if err != nil {
-		return dto.CollectionSummary{}, err
-	}
-
-	return summary, nil
 }
 
 func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) error {
@@ -147,20 +107,11 @@ func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) er
 		return err
 	}
 
-	id, err := parseCollectionID(in.ID)
-	if err != nil {
-		return err
-	}
-
-	if err := h.collectionSvc.Delete(ctx, profileID, id); err != nil {
-		return err
-	}
-
-	return nil
+	return h.collectionSvc.Delete(ctx, profileID, in.ID)
 }
 
-// Routes returns the Collections routes. Secured:true only sets OpenAPI
-// security metadata; the router must pass SessionGuard to RegisterAll.
+// Secured:true only sets OpenAPI security metadata; the router must pass
+// SessionGuard to RegisterAll.
 func (h *CollectionHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
 		endpoint.New(endpoint.Endpoint[createCollectionInput, dto.CollectionSummary]{

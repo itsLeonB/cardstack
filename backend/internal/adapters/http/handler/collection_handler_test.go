@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"math"
 	"net/http"
 	"testing"
 
@@ -59,16 +60,23 @@ func TestCollectionHandler_BlankTitle(t *testing.T) {
 func TestCollectionHandler_InvalidCollectionID(t *testing.T) {
 	_, api, _ := newTestCollectionHandler(t, true)
 
-	assert.Equal(t, http.StatusBadRequest, api.Get("/collections/nope").Code)
-	assert.Equal(t, http.StatusBadRequest, api.Put("/collections/nope", map[string]any{"title": "T"}).Code)
-	assert.Equal(t, http.StatusBadRequest, api.Delete("/collections/nope").Code)
+	assert.Equal(t, http.StatusUnprocessableEntity, api.Get("/collections/nope").Code)
+	assert.Equal(t, http.StatusUnprocessableEntity, api.Put("/collections/nope", map[string]any{"title": "T"}).Code)
+	assert.Equal(t, http.StatusUnprocessableEntity, api.Delete("/collections/nope").Code)
+}
+
+func TestCollectionHandler_MaxCardCountOverflow(t *testing.T) {
+	_, api, _ := newTestCollectionHandler(t, true)
+
+	resp := api.Post("/collections", map[string]any{"title": "T", "maxCardCount": math.MaxInt32 + 1})
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
 }
 
 func TestCollectionHandler_Create(t *testing.T) {
 	svc, api, profileID := newTestCollectionHandler(t, true)
 	limit := 10
 	svc.EXPECT().
-		Create(mock.Anything, profileID, dto.CreateCollectionRequest{Title: "Binder", Description: "d", MaxCardCount: limit}).
+		Create(mock.Anything, profileID, dto.CollectionRequest{Title: "Binder", Description: "d", MaxCardCount: limit}).
 		Return(dto.CollectionSummary{Title: "Binder"}, nil)
 
 	resp := api.Post("/collections", map[string]any{"title": "Binder", "description": "d", "maxCardCount": limit})
@@ -89,7 +97,7 @@ func TestCollectionHandler_NotFoundPassesThrough(t *testing.T) {
 	svc, api, profileID := newTestCollectionHandler(t, true)
 	id := uuid.New()
 	svc.EXPECT().Get(mock.Anything, profileID, id).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
-	svc.EXPECT().Update(mock.Anything, profileID, id, dto.UpdateCollectionRequest{Title: "T"}).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
+	svc.EXPECT().Update(mock.Anything, profileID, id, dto.CollectionRequest{Title: "T"}).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
 	svc.EXPECT().Delete(mock.Anything, profileID, id).Return(ungerr.NotFoundError("collection not found"))
 
 	path := "/collections/" + id.String()

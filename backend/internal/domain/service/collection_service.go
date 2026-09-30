@@ -17,15 +17,12 @@ import (
 // site builds its own ungerr.NotFoundError so ungerr records that line.
 const collectionNotFoundMsg = "collection not found"
 
-// CollectionService scopes every method to the calling profileID. Get/
-// Update/Delete return a not-found AppError both when the Collection
-// doesn't exist and when it belongs to another profile, so its existence
-// isn't leaked.
+// CollectionService scopes every method to the calling profileID.
 type CollectionService interface {
-	Create(ctx context.Context, profileID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error)
+	Create(ctx context.Context, profileID uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error)
 	List(ctx context.Context, profileID uuid.UUID) ([]dto.CollectionSummary, error)
 	Get(ctx context.Context, profileID, id uuid.UUID) (dto.CollectionSummary, error)
-	Update(ctx context.Context, profileID, id uuid.UUID, req dto.UpdateCollectionRequest) (dto.CollectionSummary, error)
+	Update(ctx context.Context, profileID, id uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error)
 	Delete(ctx context.Context, profileID, id uuid.UUID) error
 }
 
@@ -37,7 +34,7 @@ func NewCollectionService(repo crud.Repository[entity.Collection]) CollectionSer
 	return &collectionService{repo: repo}
 }
 
-func (s *collectionService) Create(ctx context.Context, profileID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error) {
+func (s *collectionService) Create(ctx context.Context, profileID uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error) {
 	c, err := s.repo.Insert(ctx, entity.Collection{
 		ProfileID:    profileID,
 		Title:        req.Title,
@@ -93,7 +90,7 @@ func (s *collectionService) Get(ctx context.Context, profileID, id uuid.UUID) (d
 	return mapper.ToCollectionSummary(c), nil
 }
 
-func (s *collectionService) Update(ctx context.Context, profileID, id uuid.UUID, req dto.UpdateCollectionRequest) (dto.CollectionSummary, error) {
+func (s *collectionService) Update(ctx context.Context, profileID, id uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error) {
 	c, err := s.findOwned(ctx, profileID, id)
 	if err != nil {
 		return dto.CollectionSummary{}, err

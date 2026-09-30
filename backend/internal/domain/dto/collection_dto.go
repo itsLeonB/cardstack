@@ -12,17 +12,9 @@ type CollectionSummary struct {
 	MaxCardCount int       `json:"maxCardCount"`
 }
 
-// CreateCollectionRequest is the request to create a Collection. Title is
+// CollectionRequest is the request to create or edit a Collection. Title is
 // required; Description and MaxCardCount are optional.
-type CreateCollectionRequest struct {
-	Title        string
-	Description  string
-	MaxCardCount int
-}
-
-// UpdateCollectionRequest is the request to edit an existing Collection's
-// title/description/limit.
-type UpdateCollectionRequest struct {
+type CollectionRequest struct {
 	Title        string
 	Description  string
 	MaxCardCount int

@@ -44,12 +44,12 @@ func ProvideCollectionService(ds *DataSources) service.CollectionService {
 // this with throwaway, DB-free values of its own construction — see
 // cmd/genspec/main.go — without this function needing to know or care where
 // they came from.
-func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, coll service.CollectionService) *Services {
+func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, collection service.CollectionService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Auth:       kit,
 		Profiles:   profiles,
 		Catalog:    catalog,
-		Collection: coll,
+		Collection: collection,
 	}
 }
