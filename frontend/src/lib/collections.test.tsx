@@ -7,6 +7,7 @@ import {
   useCreateCollection,
   useUpdateCollection,
   useDeleteCollection,
+  getGetCollectionQueryKey,
   getListCollectionsQueryKey,
 } from "@/generated/endpoints/collections/collections"
 import type {
@@ -121,7 +122,7 @@ describe("useUpdateCollectionMutation", () => {
 
   it("invalidates the collections list once the update succeeds (200)", () => {
     let capturedOnSuccess:
-      | ((response: updateCollectionResponse) => void)
+      | ((response: updateCollectionResponse, variables: { id: string }) => void)
       | undefined
     mockUseUpdateCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -147,16 +148,19 @@ describe("useUpdateCollectionMutation", () => {
       status: 200,
       data: { data: { id: "1", title: "Binder", description: "" } },
       headers: new Headers(),
-    })
+    }, { id: "1" })
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: getListCollectionsQueryKey(),
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: getGetCollectionQueryKey("1"),
     })
   })
 
   it("does not invalidate on a failed update", () => {
     let capturedOnSuccess:
-      | ((response: updateCollectionResponse) => void)
+      | ((response: updateCollectionResponse, variables: { id: string }) => void)
       | undefined
     mockUseUpdateCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -182,7 +186,7 @@ describe("useUpdateCollectionMutation", () => {
       status: 404,
       data: { detail: "Not found" },
       headers: new Headers(),
-    })
+    }, { id: "1" })
 
     expect(invalidateSpy).not.toHaveBeenCalled()
   })
@@ -195,7 +199,7 @@ describe("useDeleteCollectionMutation", () => {
 
   it("invalidates the collections list once the delete succeeds (204)", () => {
     let capturedOnSuccess:
-      | ((response: deleteCollectionResponse) => void)
+      | ((response: deleteCollectionResponse, variables: { id: string }) => void)
       | undefined
     mockUseDeleteCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -206,6 +210,7 @@ describe("useDeleteCollectionMutation", () => {
 
     const queryClient = new QueryClient()
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+    const removeSpy = vi.spyOn(queryClient, "removeQueries")
 
     function Wrapper({ children }: { children: ReactNode }) {
       return (
@@ -221,16 +226,19 @@ describe("useDeleteCollectionMutation", () => {
       status: 204,
       data: undefined,
       headers: new Headers(),
-    })
+    }, { id: "1" })
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: getListCollectionsQueryKey(),
+    })
+    expect(removeSpy).toHaveBeenCalledWith({
+      queryKey: getGetCollectionQueryKey("1"),
     })
   })
 
   it("does not invalidate on a failed delete", () => {
     let capturedOnSuccess:
-      | ((response: deleteCollectionResponse) => void)
+      | ((response: deleteCollectionResponse, variables: { id: string }) => void)
       | undefined
     mockUseDeleteCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -241,6 +249,7 @@ describe("useDeleteCollectionMutation", () => {
 
     const queryClient = new QueryClient()
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+    const removeSpy = vi.spyOn(queryClient, "removeQueries")
 
     function Wrapper({ children }: { children: ReactNode }) {
       return (
@@ -256,8 +265,9 @@ describe("useDeleteCollectionMutation", () => {
       status: 404,
       data: { detail: "Not found" },
       headers: new Headers(),
-    })
+    }, { id: "1" })
 
     expect(invalidateSpy).not.toHaveBeenCalled()
+    expect(removeSpy).not.toHaveBeenCalled()
   })
 })
