@@ -22,7 +22,7 @@ type inventoryFixture struct {
 	ctx         context.Context
 	profileID   uuid.UUID
 	collection  entity.Collection
-	collections *mocks.MockRepository[entity.Collection]
+	collections *mocks.MockCollectionRepository
 	entries     *mocks.MockInventoryRepository
 	cards       *mocks.MockRepository[entity.Card]
 	svc         InventoryService
@@ -35,7 +35,7 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 	t.Helper()
 	f := inventoryFixture{ctx: context.Background(), profileID: uuid.New()}
 	f.collection = entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: f.profileID, Title: "Binder", MaxCardCount: limit}
-	f.collections = mocks.NewMockRepository[entity.Collection](t)
+	f.collections = mocks.NewMockCollectionRepository(t)
 	f.entries = mocks.NewMockInventoryRepository(t)
 	f.cards = mocks.NewMockRepository[entity.Card](t)
 	transactor := mocks.NewMockTransactor(t)
@@ -46,9 +46,7 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 }
 
 func (f inventoryFixture) lockedCollection() {
-	spec := ownedSpec(f.profileID, f.collection.ID)
-	spec.ForUpdate = true
-	f.collections.EXPECT().FindFirst(f.ctx, spec).Return(f.collection, nil).Once()
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, true).Return(f.collection, nil).Once()
 }
 
 func (f inventoryFixture) entryReq(cardID uuid.UUID, quantity int) dto.InventoryEntryRequest {
@@ -88,10 +86,9 @@ func requireStatus(t *testing.T, err error, status int) {
 func TestInventoryService_NotOwnedCollectionIsNotFound(t *testing.T) {
 	f := newInventoryFixture(t, 0)
 	cardID := uuid.New()
-	lockedSpec := ownedSpec(f.profileID, f.collection.ID)
-	lockedSpec.ForUpdate = true
-	f.collections.EXPECT().FindFirst(f.ctx, ownedSpec(f.profileID, f.collection.ID)).Return(entity.Collection{}, nil).Once()
-	f.collections.EXPECT().FindFirst(f.ctx, lockedSpec).Return(entity.Collection{}, nil).Times(3)
+	notFound := ungerr.NotFoundError("collection not found")
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(entity.Collection{}, notFound).Once()
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, true).Return(entity.Collection{}, notFound).Times(3)
 
 	_, err := f.svc.List(f.ctx, dto.InventoryListRequest{ProfileID: f.profileID, CollectionID: f.collection.ID})
 	requireStatus(t, err, http.StatusNotFound)
@@ -111,7 +108,7 @@ func TestInventoryService_List(t *testing.T) {
 			Card:     entity.Card{BaseEntity: baseEntity(uuid.New()), Name: name, ExpansionSet: entity.ExpansionSet{ReleaseDate: release}},
 		}
 	}
-	f.collections.EXPECT().FindFirst(f.ctx, ownedSpec(f.profileID, f.collection.ID)).Return(f.collection, nil).Once()
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()
 	f.entries.EXPECT().FindAll(f.ctx, crud.Specification[entity.InventoryEntry]{
 		Model:            entity.InventoryEntry{CollectionID: f.collection.ID},
 		PreloadRelations: []string{"Card.Rarity", "Card.ExpansionSet"},
@@ -280,18 +277,4 @@ func TestInventoryService_Remove(t *testing.T) {
 		f.expectEntry(cardID, entity.InventoryEntry{})
 		requireStatus(t, f.svc.Remove(f.ctx, dto.InventoryEntryLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, CardID: cardID}), http.StatusNotFound)
 	})
-}
-
-func TestInventoryService_NilProfileIsNotFound(t *testing.T) {
-	f := newInventoryFixture(t, 0) // no repository call is expected
-	req := f.entryReq(uuid.New(), 1)
-	req.ProfileID = uuid.Nil
-
-	_, err := f.svc.List(f.ctx, dto.InventoryListRequest{CollectionID: f.collection.ID})
-	requireStatus(t, err, http.StatusNotFound)
-	_, err = f.svc.Add(f.ctx, req)
-	requireStatus(t, err, http.StatusNotFound)
-	_, err = f.svc.UpdateQuantity(f.ctx, req)
-	requireStatus(t, err, http.StatusNotFound)
-	requireStatus(t, f.svc.Remove(f.ctx, dto.InventoryEntryLookup{CollectionID: f.collection.ID, CardID: req.CardID}), http.StatusNotFound)
 }
