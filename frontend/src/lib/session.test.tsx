@@ -200,3 +200,46 @@ describe("useLogoutMutation", () => {
     })
   })
 })
+
+describe("cache reset across users", () => {
+  const collectionsKey = ["/collections"]
+
+  function setup(mock: typeof mockUseLogin | typeof mockUseLogout) {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(collectionsKey, { status: 200 })
+    let onSuccess: ((response: never) => void) | undefined
+    mock.mockImplementation((options) => {
+      // SAFETY: mutation.onSuccess is a known field on the real hook options.
+      onSuccess = options?.mutation?.onSuccess as never
+      // SAFETY: partial mock; only mutation.onSuccess is exercised here.
+      return {} as any
+    })
+    return { queryClient, fire: (response: loginResponse | logoutResponse) =>
+        // SAFETY: setup() is given the mock whose onSuccess matches the response.
+        onSuccess?.(response as never) }
+  }
+
+  function wrapperFor(queryClient: QueryClient) {
+    return ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    )
+  }
+
+  it("drops cached collections when login succeeds", () => {
+    const { queryClient, fire } = setup(mockUseLogin)
+    renderHook(() => useLoginMutation(), { wrapper: wrapperFor(queryClient) })
+
+    fire({ status: 200, data: { data: { message: "ok" } }, headers: new Headers() })
+
+    expect(queryClient.getQueryData(collectionsKey)).toBeUndefined()
+  })
+
+  it("drops cached collections when logout succeeds", () => {
+    const { queryClient, fire } = setup(mockUseLogout)
+    renderHook(() => useLogoutMutation(), { wrapper: wrapperFor(queryClient) })
+
+    fire({ status: 204, data: undefined, headers: new Headers() })
+
+    expect(queryClient.getQueryData(collectionsKey)).toBeUndefined()
+  })
+})

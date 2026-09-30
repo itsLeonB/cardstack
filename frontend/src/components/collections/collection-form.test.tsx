@@ -128,6 +128,41 @@ describe("CollectionForm", () => {
     screen.getByText("Max card count must be a non-negative whole number.")
   })
 
+  it("rejects a maxCardCount above the backend's int32 cap", () => {
+    const onSubmit = vi.fn()
+    render(
+      <CollectionForm
+        submitLabel="Save"
+        pendingLabel="Saving..."
+        isPending={false}
+        onSubmit={onSubmit}
+      />
+    )
+
+    fillAndSubmit({ title: "Vintage binder", maxCardCount: "2147483648" })
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    screen.getByText("Max card count can't exceed 2,147,483,647.")
+  })
+
+  it("accepts a maxCardCount at the int32 cap", () => {
+    const onSubmit = vi.fn()
+    render(
+      <CollectionForm
+        submitLabel="Save"
+        pendingLabel="Saving..."
+        isPending={false}
+        onSubmit={onSubmit}
+      />
+    )
+
+    fillAndSubmit({ title: "Vintage binder", maxCardCount: "2147483647" })
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ maxCardCount: 2147483647 })
+    )
+  })
+
   it("pre-fills fields from initialValues (edit mode)", () => {
     render(
       <CollectionForm

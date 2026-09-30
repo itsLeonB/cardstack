@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { errorDetail } from "@/lib/collections"
 import { DeleteCollectionDialog } from "@/components/collections/delete-collection-dialog"
 
 export const Route = createFileRoute("/_authenticated/collections/")({
@@ -24,10 +25,10 @@ function CollectionsPage() {
   const query = useListCollections()
   const collections =
     query.data?.status === 200 ? (query.data.data.data ?? []) : []
-  const errorMessage =
-    query.data && query.data.status !== 200
-      ? (query.data.data.detail ?? "Could not load your Collections.")
-      : undefined
+  const errorMessage = errorDetail(
+    query.data,
+    "Could not load your Collections."
+  )
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
