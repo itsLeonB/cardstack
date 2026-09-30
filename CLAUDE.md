@@ -29,3 +29,11 @@ Multi-component or large single-component tasks route through `backend-agent`/`f
 ### Backend test environment setup
 
 Provisioning a local Postgres for backend tests is environment-conditional (cloud/remote agent vs. local developer), and manual catalog verification should use a small seed set, not a full scrape. See `docs/agents/testing.md`.
+
+### Backend code conventions
+
+These apply to every backend change, whether made by the root agent or a subagent.
+
+- Wrap errors with `ungerr.Wrap`/`ungerr.Wrapf` at the exact first location an error originates in our own code (e.g. inside the helper that calls `rand.Read`), not in its callers. Callers of our own functions return the plain `err` unchanged, and the single Huma-level seam (`backend/internal/adapters/http/huma/errors.go`, ADR-0013) classifies and unwraps it once. Known, client-safe failures are returned as `ungerr.XxxError(...)` AppErrors instead.
+- Never ignore an error with `_ =`. If it is non-blocking, log it with `logger.Error`/`logger.Errorf` (`backend/internal/core/logger`, whose `Global` is a safe no-op until `Init` runs) and carry on; otherwise return it.
+- In tests, mock dependencies with mockery (`.mockery.yaml`, `make mocks`, generated into `backend/internal/mocks`) rather than hand-writing stubs or fakes. See `docs/agents/testing.md`.

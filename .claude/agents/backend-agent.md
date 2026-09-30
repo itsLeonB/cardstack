@@ -76,9 +76,6 @@ Read/Edit/Glob are fine for non-code files: markdown, JSON, YAML, TOML, .env, co
 - Don't add scope. No surrounding cleanup on a bug fix, no abstractions for hypothetical future needs, no error handling for cases that can't happen.
 - Don't write comments unless the WHY is non-obvious.
 - Watch for security issues (injection, path traversal, secret leaks). Fix them when you spot them.
-- Wrap errors with `ungerr.Wrap` (or `ungerr.Wrapf`) at the exact first location an error originates in our own code (e.g. inside the helper that calls `rand.Read`), not in its callers. Callers of our own functions then return the plain `err` unchanged, and the single Huma-level seam (`internal/adapters/http/huma/errors.go`, ADR-0013) classifies and unwraps it once. Known, client-safe failures are returned as `ungerr.XxxError(...)` AppErrors instead.
-- Never ignore an error with `_ =`. If it is non-blocking (the caller can't or shouldn't fail because of it), log it with the project logger's `Error`/`Errorf` (`internal/core/logger`) and carry on; otherwise return it.
-- In tests, mock dependencies with mockery (`.mockery.yaml`, `make mocks`, generated into `internal/mocks`) rather than hand-writing stubs or fakes; see `docs/agents/testing.md`.
 
 # Executing actions with care
 

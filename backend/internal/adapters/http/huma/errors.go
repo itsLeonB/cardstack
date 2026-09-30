@@ -12,16 +12,9 @@ import (
 )
 
 // logRedacted records the full, unredacted error whose detail was withheld
-// from the client. Swappable so tests can observe it; nil-safe because
-// logger.Global is only initialised in the real server.
+// from the client. Swappable so tests can observe it.
 var logRedacted = func(err error) {
-	logError("unclassified error redacted from response: %v", err)
-}
-
-func logError(format string, args ...any) {
-	if logger.Global != nil {
-		logger.Global.Errorf(format, args...)
-	}
+	logger.Errorf("unclassified error redacted from response: %v", err)
 }
 
 // installErrorClassifier makes huma.NewError the single seam that decides
@@ -81,7 +74,7 @@ func UseRecovery(api huma.API) {
 			if rec := recover(); rec != nil {
 				logRedacted(fmt.Errorf("panic: %v\n%s", rec, debug.Stack()))
 				if err := huma.WriteErr(api, ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)); err != nil {
-					logError("writing panic response: %v", err)
+					logger.Errorf("writing panic response: %v", err)
 				}
 			}
 		}()

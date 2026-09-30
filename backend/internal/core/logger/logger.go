@@ -8,7 +8,7 @@ import (
 	"github.com/itsLeonB/ezutil/v2/otel"
 )
 
-var Global ezutil.Logger
+var Global ezutil.Logger = noop{}
 
 func Init(appNamespace string) {
 	Global = otel.Init(appNamespace)
