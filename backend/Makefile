@@ -24,7 +24,7 @@ help:
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
-	@echo "  make mocks                   - Regenerate mockery mocks for repository interfaces"
+	@echo "  make mocks                   - Regenerate mockery mocks (see .mockery.yaml)"
 	@echo "  make test                    - Run all tests"
 	@echo "  make test-verbose            - Run all tests with verbose output"
 	@echo "  make test-coverage           - Run all tests with coverage report"

@@ -25,7 +25,7 @@ import (
 func generateCSRFToken() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
+		return "", ungerr.Wrap(err, "error generating csrf token")
 	}
 	return hex.EncodeToString(b), nil
 }
@@ -105,7 +105,7 @@ type cookieOutput struct {
 func (h *AuthHandler) cookieResponse(tokens authkit.TokenSet) (*cookieOutput, error) {
 	csrfToken, err := generateCSRFToken()
 	if err != nil {
-		return nil, ungerr.Wrap(err, "error generating csrf token")
+		return nil, err
 	}
 
 	return &cookieOutput{

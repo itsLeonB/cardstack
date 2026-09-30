@@ -15,8 +15,12 @@ import (
 // from the client. Swappable so tests can observe it; nil-safe because
 // logger.Global is only initialised in the real server.
 var logRedacted = func(err error) {
+	logError("unclassified error redacted from response: %v", err)
+}
+
+func logError(format string, args ...any) {
 	if logger.Global != nil {
-		logger.Global.Errorf("unclassified error redacted from response: %v", err)
+		logger.Global.Errorf(format, args...)
 	}
 }
 
@@ -38,8 +42,7 @@ func installErrorClassifier() {
 				details = append(details, d.ErrorDetail())
 				continue
 			}
-			var appErr ungerr.AppError
-			if errors.As(err, &appErr) {
+			if appErr, ok := errors.AsType[ungerr.AppError](err); ok {
 				status = appErr.HttpStatus()
 				msg = appErrorMessage(appErr)
 				continue
@@ -77,7 +80,9 @@ func UseRecovery(api huma.API) {
 		defer func() {
 			if rec := recover(); rec != nil {
 				logRedacted(fmt.Errorf("panic: %v\n%s", rec, debug.Stack()))
-				_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+				if err := huma.WriteErr(api, ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)); err != nil {
+					logError("writing panic response: %v", err)
+				}
 			}
 		}()
 		next(ctx)
