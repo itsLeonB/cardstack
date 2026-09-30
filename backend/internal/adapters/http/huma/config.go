@@ -31,6 +31,8 @@ import "github.com/danielgtaylor/huma/v2"
 // runs — leaving BearerAuth in place would make the generated OpenAPI spec
 // (and therefore orval's frontend client) describe the wrong transport.
 func NewConfig() huma.Config {
+	installErrorClassifier()
+
 	cfg := huma.DefaultConfig("Cardstack API", "1.0")
 
 	cfg.CreateHooks = nil

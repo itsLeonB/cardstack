@@ -29,3 +29,7 @@ Multi-component or large single-component tasks route through `backend-agent`/`f
 ### Backend test environment setup
 
 Provisioning a local Postgres for backend tests is environment-conditional (cloud/remote agent vs. local developer), and manual catalog verification should use a small seed set, not a full scrape. See `docs/agents/testing.md`.
+
+### Code conventions
+
+Before writing or changing code, read `docs/agents/conventions/general.md`, plus `backend.md` for `backend/` or `frontend.md` for `frontend/`, in the same folder. Record every new code convention in those files, not in this file or the agent definitions.

@@ -91,8 +91,8 @@ github.com/itsLeonB/go-authkit v0.2.0-pre2 h1:QYWVISDwtPQhxFmzfTnyXIBpZ3tiZhaPTg
 github.com/itsLeonB/go-authkit v0.2.0-pre2/go.mod h1:H/It7OXBiskKXx/CZ1fxm9D/2JlaoZRzMVlYvqLgG1s=
 github.com/itsLeonB/go-crud v1.4.0 h1:A8gRbxFJ9VrrqkoBUKvhf1I3EmXz2evFM660gk5wexI=
 github.com/itsLeonB/go-crud v1.4.0/go.mod h1:cndhkAF9Z0m2cMsKfD8Z2R07lPAJqHpazCF0UlfW89U=
-github.com/itsLeonB/ungerr v0.4.0 h1:unXts8ahcD7mTnlzJgem5twGcQLMPzo3Vn35PbORito=
-github.com/itsLeonB/ungerr v0.4.0/go.mod h1:6zc0blpoIkdqkq90Q9rqCYFjyxR1uOn5n+5z7KSgWxM=
+github.com/itsLeonB/ungerr v0.5.0 h1:ZyB7w9WrFo33WnyunwIq0jczdEWsF01yHrmSunA4lKI=
+github.com/itsLeonB/ungerr v0.5.0/go.mod h1:6zc0blpoIkdqkq90Q9rqCYFjyxR1uOn5n+5z7KSgWxM=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=

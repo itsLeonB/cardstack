@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/humatest"
@@ -11,66 +13,26 @@ import (
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
+	"github.com/itsLeonB/cardstack/backend/internal/mocks"
+	"github.com/stretchr/testify/mock"
 )
 
-// stubCatalogService is a hand-written service.CatalogService stub that
-// records the CardFilter it's called with, so tests can assert on the query
-// string -> filter translation without a real repository/DB.
-type stubCatalogService struct {
-	seriesResult   dto.SeriesBrowseResult
-	rarities       []dto.RaritySummary
-	categories     []string
-	tags           []string
-	searchCards    []dto.CardSummary
-	searchMeta     dto.PaginationMeta
-	searchErr      error
-	lastFilter     dto.CardFilter
-	filterCaptured bool
-}
-
-func (s *stubCatalogService) ListSeries(context.Context) (dto.SeriesBrowseResult, error) {
-	return s.seriesResult, nil
-}
-
-func (s *stubCatalogService) ListRarities(context.Context) ([]dto.RaritySummary, error) {
-	return s.rarities, nil
-}
-
-func (s *stubCatalogService) ListCategories(context.Context) ([]string, error) {
-	return s.categories, nil
-}
-
-func (s *stubCatalogService) ListTags(context.Context) ([]string, error) {
-	return s.tags, nil
-}
-
-func (s *stubCatalogService) SearchCards(_ context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
-	s.lastFilter = filter
-	s.filterCaptured = true
-	if s.searchErr != nil {
-		return nil, dto.PaginationMeta{}, s.searchErr
-	}
-	return s.searchCards, s.searchMeta, nil
-}
-
-func newTestCatalogHandler(t *testing.T, stub *stubCatalogService) humatest.TestAPI {
+func newTestCatalogHandler(t *testing.T) (*mocks.MockCatalogService, humatest.TestAPI) {
 	t.Helper()
 
-	h := NewCatalogHandler(stub)
+	svc := mocks.NewMockCatalogService(t)
 	_, api := humatest.New(t, httpapi.NewConfig())
-	endpoint.RegisterAll(api, h.Routes())
+	endpoint.RegisterAll(api, NewCatalogHandler(svc).Routes())
 
-	return api
+	return svc, api
 }
 
 func TestCatalogHandler_ListSeries(t *testing.T) {
-	stub := &stubCatalogService{
-		seriesResult: dto.SeriesBrowseResult{
-			Series:                 []dto.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}},
-			UngroupedExpansionSets: []dto.ExpansionSetSummary{{Code: "promo", Name: "Promo Set"}},
-		},
-	}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().ListSeries(mock.Anything).Return(dto.SeriesBrowseResult{
+		Series:                 []dto.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}},
+		UngroupedExpansionSets: []dto.ExpansionSetSummary{{Code: "promo", Name: "Promo Set"}},
+	}, nil)
 
 	resp := api.Get("/catalog/series")
 	if resp.Code != http.StatusOK {
@@ -92,8 +54,8 @@ func TestCatalogHandler_ListSeries(t *testing.T) {
 }
 
 func TestCatalogHandler_ListRarities(t *testing.T) {
-	stub := &stubCatalogService{rarities: []dto.RaritySummary{{Code: "SR", Name: "Super Rare"}}}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().ListRarities(mock.Anything).Return([]dto.RaritySummary{{Code: "SR", Name: "Super Rare"}}, nil)
 
 	resp := api.Get("/catalog/rarities")
 	if resp.Code != http.StatusOK {
@@ -102,8 +64,8 @@ func TestCatalogHandler_ListRarities(t *testing.T) {
 }
 
 func TestCatalogHandler_ListCategories(t *testing.T) {
-	stub := &stubCatalogService{categories: []string{"Pokémon", "Trainer"}}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().ListCategories(mock.Anything).Return([]string{"Pokémon", "Trainer"}, nil)
 
 	resp := api.Get("/catalog/categories")
 	if resp.Code != http.StatusOK {
@@ -116,8 +78,8 @@ func TestCatalogHandler_ListCategories(t *testing.T) {
 }
 
 func TestCatalogHandler_ListTags(t *testing.T) {
-	stub := &stubCatalogService{tags: []string{"Basic"}}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().ListTags(mock.Anything).Return([]string{"Basic"}, nil)
 
 	resp := api.Get("/catalog/tags")
 	if resp.Code != http.StatusOK {
@@ -126,33 +88,26 @@ func TestCatalogHandler_ListTags(t *testing.T) {
 }
 
 func TestCatalogHandler_SearchCards_DefaultsPageAndLimit(t *testing.T) {
-	stub := &stubCatalogService{}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
+	var got dto.CardFilter
+	svc.EXPECT().SearchCards(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, filter dto.CardFilter) { got = filter }).
+		Return(nil, dto.PaginationMeta{}, nil)
 
 	resp := api.Get("/catalog/cards")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
-	if !stub.filterCaptured {
-		t.Fatal("expected SearchCards to be called")
-	}
-	if stub.lastFilter.Page != 1 || stub.lastFilter.Limit != 24 {
-		t.Fatalf("expected default Page=1 Limit=24, got %+v", stub.lastFilter)
+	if got.Page != 1 || got.Limit != 24 {
+		t.Fatalf("expected default Page=1 Limit=24, got %+v", got)
 	}
 }
 
 func TestCatalogHandler_SearchCards_ParsesFilters(t *testing.T) {
-	stub := &stubCatalogService{}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
 
 	expansionSetID := uuid.New()
 	rarityID := uuid.New()
-
-	resp := api.Get("/catalog/cards?name=pika&expansionSetId=" + expansionSetID.String() +
-		"&localId=001&rarityId=" + rarityID.String() + "&category=Pok%C3%A9mon&tag=Basic&page=2&limit=10")
-	if resp.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
-	}
 
 	want := dto.CardFilter{
 		Name:           "pika",
@@ -164,44 +119,38 @@ func TestCatalogHandler_SearchCards_ParsesFilters(t *testing.T) {
 		Page:           2,
 		Limit:          10,
 	}
-	if stub.lastFilter != want {
-		t.Fatalf("expected filter %+v, got %+v", want, stub.lastFilter)
+	svc.EXPECT().SearchCards(mock.Anything, want).Return(nil, dto.PaginationMeta{}, nil)
+
+	resp := api.Get("/catalog/cards?name=pika&expansionSetId=" + expansionSetID.String() +
+		"&localId=001&rarityId=" + rarityID.String() + "&category=Pok%C3%A9mon&tag=Basic&page=2&limit=10")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
 }
 
 func TestCatalogHandler_SearchCards_InvalidExpansionSetID(t *testing.T) {
-	stub := &stubCatalogService{}
-	api := newTestCatalogHandler(t, stub)
+	_, api := newTestCatalogHandler(t)
 
 	resp := api.Get("/catalog/cards?expansionSetId=not-a-uuid")
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", resp.Code, resp.Body.String())
 	}
-	if stub.filterCaptured {
-		t.Fatal("expected SearchCards not to be called for an invalid expansionSetId")
-	}
 }
 
 func TestCatalogHandler_SearchCards_InvalidRarityID(t *testing.T) {
-	stub := &stubCatalogService{}
-	api := newTestCatalogHandler(t, stub)
+	_, api := newTestCatalogHandler(t)
 
 	resp := api.Get("/catalog/cards?rarityId=not-a-uuid")
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", resp.Code, resp.Body.String())
 	}
-	if stub.filterCaptured {
-		t.Fatal("expected SearchCards not to be called for an invalid rarityId")
-	}
 }
 
 func TestCatalogHandler_SearchCards_ReturnsResult(t *testing.T) {
 	cardID := uuid.New()
-	stub := &stubCatalogService{
-		searchCards: []dto.CardSummary{{ID: cardID, Name: "Pikachu"}},
-		searchMeta:  dto.PaginationMeta{Total: 1, Page: 1, Limit: 24},
-	}
-	api := newTestCatalogHandler(t, stub)
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().SearchCards(mock.Anything, mock.Anything).
+		Return([]dto.CardSummary{{ID: cardID, Name: "Pikachu"}}, dto.PaginationMeta{Total: 1, Page: 1, Limit: 24}, nil)
 
 	resp := api.Get("/catalog/cards")
 	if resp.Code != http.StatusOK {
@@ -228,4 +177,21 @@ func trimTrailingNewline(s string) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func TestCatalogHandler_UnclassifiedErrorsAreRedacted(t *testing.T) {
+	leak := errors.New("failed to connect: postgres://admin:s3cr3t@dbhost:5432/cards")
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().ListSeries(mock.Anything).Return(dto.SeriesBrowseResult{}, leak)
+	svc.EXPECT().SearchCards(mock.Anything, mock.Anything).Return(nil, dto.PaginationMeta{}, leak)
+
+	for _, path := range []string{"/catalog/series", "/catalog/cards"} {
+		resp := api.Get(path)
+		if resp.Code != http.StatusInternalServerError {
+			t.Fatalf("%s: expected 500, got %d", path, resp.Code)
+		}
+		if body := resp.Body.String(); strings.Contains(body, "s3cr3t") || strings.Contains(body, "dbhost") {
+			t.Fatalf("%s leaks internal detail: %s", path, body)
+		}
+	}
 }

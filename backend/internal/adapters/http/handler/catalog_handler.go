@@ -4,11 +4,11 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
+	"github.com/itsLeonB/ungerr"
 )
 
 // CatalogHandler serves the unauthenticated, read-only catalog browse/search
@@ -80,7 +80,7 @@ func buildCardFilter(in searchCardsInput) (dto.CardFilter, error) {
 	if in.ExpansionSetID != "" {
 		id, err := uuid.Parse(in.ExpansionSetID)
 		if err != nil {
-			return dto.CardFilter{}, huma.Error400BadRequest("invalid expansionSetId: " + in.ExpansionSetID)
+			return dto.CardFilter{}, ungerr.BadRequestError("invalid expansionSetId: " + in.ExpansionSetID)
 		}
 		filter.ExpansionSetID = id
 	}
@@ -88,7 +88,7 @@ func buildCardFilter(in searchCardsInput) (dto.CardFilter, error) {
 	if in.RarityID != "" {
 		id, err := uuid.Parse(in.RarityID)
 		if err != nil {
-			return dto.CardFilter{}, huma.Error400BadRequest("invalid rarityId: " + in.RarityID)
+			return dto.CardFilter{}, ungerr.BadRequestError("invalid rarityId: " + in.RarityID)
 		}
 		filter.RarityID = id
 	}
