@@ -20,6 +20,7 @@ These apply to every backend change, whether made by the root agent or a subagen
 - Before making a value optional, ask whether `0` means something different from absent. When both behave the same (a card limit where 0 and none both mean unlimited), use a `NOT NULL DEFAULT 0` column and a plain value, which removes the `> 0` checks. Use a nullable column or pointer only when absent must stay distinguishable from `0`.
 - Scope a query in the query itself with `crud.Specification`, never by fetching rows and filtering in Go.
 - Map slices with `ezutil.MapSlice`, or `ezutil.MapSliceWithErr` when the mapper can fail.
+- When a write must check a limit against current data (capacity), serialize it by locking the owning row inside one transaction: `InventoryRepository.WithLockedCollection` (`SELECT ... FOR UPDATE`, hands a transaction-bound repository to the callback) is the pattern. `crud.Transactor` is for plain multi-step writes and cannot take the row lock.
 
 ## Testing
 

@@ -13,5 +13,7 @@ CREATE TABLE inventory_entries (
     UNIQUE (collection_id, card_id)
 );
 
+CREATE INDEX inventory_entries_card_id_idx ON inventory_entries (card_id);
+
 -- +goose Down
 DROP TABLE IF EXISTS inventory_entries;
