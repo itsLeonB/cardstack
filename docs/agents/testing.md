@@ -1,6 +1,6 @@
 # Backend test environment setup
 
-How an agent should get a working Postgres for backend tests, and how to get real catalog data quickly for manual verification, depending on where the session is running.
+How an agent should get a working Postgres for backend tests, and how to get real catalog data quickly for manual verification, depending on where the session is running. How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
 
 ## Frontend: driving a headless browser (Playwright) for manual UI verification
 
@@ -21,9 +21,6 @@ ls /opt/pw-browsers                                                             
 
 Pin `frontend/package.json`'s `playwright` devDependency to that same version. `chromium.launch()` (default options) then finds and drives `/opt/pw-browsers/chromium-<revision>/chrome-linux/chrome` directly — no `executablePath` override needed once the installed version matches.
 
-## How to write backend tests
-
-Mocking, real-Postgres and repository-interface rules live in `docs/agents/conventions/backend.md`, under "Testing".
 
 ## Getting a local Postgres
 
