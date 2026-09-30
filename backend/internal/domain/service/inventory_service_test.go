@@ -281,3 +281,17 @@ func TestInventoryService_Remove(t *testing.T) {
 		requireStatus(t, f.svc.Remove(f.ctx, dto.InventoryEntryLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, CardID: cardID}), http.StatusNotFound)
 	})
 }
+
+func TestInventoryService_NilProfileIsNotFound(t *testing.T) {
+	f := newInventoryFixture(t, 0) // no repository call is expected
+	req := f.entryReq(uuid.New(), 1)
+	req.ProfileID = uuid.Nil
+
+	_, err := f.svc.List(f.ctx, dto.InventoryListRequest{CollectionID: f.collection.ID})
+	requireStatus(t, err, http.StatusNotFound)
+	_, err = f.svc.Add(f.ctx, req)
+	requireStatus(t, err, http.StatusNotFound)
+	_, err = f.svc.UpdateQuantity(f.ctx, req)
+	requireStatus(t, err, http.StatusNotFound)
+	requireStatus(t, f.svc.Remove(f.ctx, dto.InventoryEntryLookup{CollectionID: f.collection.ID, CardID: req.CardID}), http.StatusNotFound)
+}

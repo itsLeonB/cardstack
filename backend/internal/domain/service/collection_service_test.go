@@ -164,3 +164,19 @@ func assertNotFound(t *testing.T, err error) {
 	require.ErrorAs(t, err, &appErr)
 	assert.Equal(t, http.StatusNotFound, appErr.HttpStatus())
 }
+
+// A nil ProfileID would make crud.WhereBySpec drop the owner condition.
+func TestCollectionService_NilProfile(t *testing.T) {
+	ctx := context.Background()
+	svc := NewCollectionService(mocks.NewMockRepository[entity.Collection](t)) // no repository call is expected
+
+	got, err := svc.List(ctx, dto.CollectionListRequest{})
+	require.NoError(t, err)
+	assert.Empty(t, got)
+
+	_, err = svc.Get(ctx, dto.CollectionLookup{ID: uuid.New()})
+	assertNotFound(t, err)
+	_, err = svc.Update(ctx, dto.CollectionRequest{ID: uuid.New(), Title: "T"})
+	assertNotFound(t, err)
+	assertNotFound(t, svc.Delete(ctx, dto.CollectionLookup{ID: uuid.New()}))
+}

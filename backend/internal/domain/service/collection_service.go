@@ -50,6 +50,11 @@ func (s *collectionService) Create(ctx context.Context, req dto.CollectionReques
 
 // List returns most recently created first (crud.Repository's DefaultOrder).
 func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequest) ([]dto.CollectionSummary, error) {
+	// A nil ProfileID would drop the owner condition and list everyone's.
+	if req.ProfileID == uuid.Nil {
+		return []dto.CollectionSummary{}, nil
+	}
+
 	collections, err := s.repo.FindAll(ctx, crud.Specification[entity.Collection]{
 		Model: entity.Collection{ProfileID: req.ProfileID},
 	})
@@ -61,11 +66,11 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 }
 
 // findOwnedCollection filters by owner in the query itself. A zero-value id
-// would otherwise drop the ID condition (see crud.WhereBySpec) and match any
+// or profileID would otherwise drop that condition (see crud.WhereBySpec) and match any
 // of the profile's collections. forUpdate row-locks the match; use it inside
 // crud.Transactor.WithinTransaction.
 func findOwnedCollection(ctx context.Context, repo crud.Repository[entity.Collection], profileID, id uuid.UUID, forUpdate bool) (entity.Collection, error) {
-	if id == uuid.Nil {
+	if id == uuid.Nil || profileID == uuid.Nil {
 		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
 	}
 

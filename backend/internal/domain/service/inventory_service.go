@@ -62,8 +62,9 @@ func (s *inventoryService) List(ctx context.Context, req dto.InventoryListReques
 		return nil, err
 	}
 
-	// crud.Repository always orders by created_at; this is the catalog
-	// search order (release date, unknown last).
+	// crud.Repository always orders by created_at, so sort here: release date
+	// (unknown last), then set, local id, name, id. Like catalog search, but
+	// strings compare bytewise here, not by DB collation.
 	slices.SortStableFunc(entries, compareEntries)
 
 	return ezutil.MapSlice(entries, mapper.ToInventoryItem), nil
@@ -90,13 +91,25 @@ func compareEntries(a, b entity.InventoryEntry) int {
 	)
 }
 
-// entrySpec addresses one Card's entry, row-locked. A nil card id would
-// drop that condition (see crud.WhereBySpec), so callers reject it first.
-func entrySpec(collectionID, cardID uuid.UUID) crud.Specification[entity.InventoryEntry] {
-	return crud.Specification[entity.InventoryEntry]{
+// findEntry returns the Card's row-locked entry, or the not-found 404. A nil
+// card id would drop that condition (see crud.WhereBySpec), hence the guard.
+func (s *inventoryService) findEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
+	if cardID == uuid.Nil {
+		return entity.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
+	}
+
+	entry, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
 		Model:     entity.InventoryEntry{CollectionID: collectionID, CardID: cardID},
 		ForUpdate: true,
+	})
+	if err != nil {
+		return entity.InventoryEntry{}, err
 	}
+	if entry.IsZero() {
+		return entity.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
+	}
+
+	return entry, nil
 }
 
 // checkCapacity rejects a write that raises a Card's quantity and would leave
@@ -145,7 +158,12 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 			return ungerr.NotFoundError(cardNotFoundMsg)
 		}
 
-		existing, err := s.entries.FindFirst(ctx, entrySpec(c.ID, req.CardID))
+		// The Collection's row lock (not a unique-violation mapping) guarantees
+		// no concurrent insert slips past this check.
+		existing, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
+			Model:     entity.InventoryEntry{CollectionID: c.ID, CardID: req.CardID},
+			ForUpdate: true,
+		})
 		if err != nil {
 			return err
 		}
@@ -179,15 +197,9 @@ func (s *inventoryService) UpdateQuantity(ctx context.Context, req dto.Inventory
 			return err
 		}
 
-		if req.CardID == uuid.Nil {
-			return ungerr.NotFoundError(entryNotFoundMsg)
-		}
-		entry, err := s.entries.FindFirst(ctx, entrySpec(c.ID, req.CardID))
+		entry, err := s.findEntry(ctx, c.ID, req.CardID)
 		if err != nil {
 			return err
-		}
-		if entry.IsZero() {
-			return ungerr.NotFoundError(entryNotFoundMsg)
 		}
 
 		if err := s.checkCapacity(ctx, c, entry.Quantity, req.Quantity); err != nil {
@@ -212,15 +224,9 @@ func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLoo
 			return err
 		}
 
-		if req.CardID == uuid.Nil {
-			return ungerr.NotFoundError(entryNotFoundMsg)
-		}
-		entry, err := s.entries.FindFirst(ctx, entrySpec(c.ID, req.CardID))
+		entry, err := s.findEntry(ctx, c.ID, req.CardID)
 		if err != nil {
 			return err
-		}
-		if entry.IsZero() {
-			return ungerr.NotFoundError(entryNotFoundMsg)
 		}
 
 		return s.entries.Delete(ctx, entry)
