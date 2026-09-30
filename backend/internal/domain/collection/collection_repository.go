@@ -11,17 +11,17 @@ package collection
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 	"gorm.io/gorm"
 )
 
-// ErrCollectionNotFound is returned by FindByID when no Collection with the
-// given ID exists.
-var ErrCollectionNotFound = errors.New("collection not found")
+// ErrCollectionNotFound is a 404 AppError: also returned for another user's
+// Collection so its existence isn't leaked.
+var ErrCollectionNotFound = ungerr.NotFoundError("collection not found")
 
 // CollectionRepository is the persistence access the collection domain
 // needs: creating a Collection, listing a user's own Collections, and

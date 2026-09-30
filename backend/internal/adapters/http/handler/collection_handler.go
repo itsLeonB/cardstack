@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -13,6 +12,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	authkit "github.com/itsLeonB/go-authkit"
+	"github.com/itsLeonB/ungerr"
 )
 
 // CollectionHandler serves the authenticated Collections CRUD surface
@@ -46,12 +46,12 @@ func NewCollectionHandler(collectionSvc collection.CollectionService, kit *authk
 func requireUserID(ctx context.Context) (uuid.UUID, error) {
 	raw, ok := authpkg.UserID(ctx)
 	if !ok || raw == "" {
-		return uuid.Nil, huma.Error401Unauthorized("missing session")
+		return uuid.Nil, ungerr.UnauthorizedError("missing session")
 	}
 
 	id, err := uuid.Parse(raw)
 	if err != nil {
-		return uuid.Nil, huma.Error401Unauthorized("invalid session")
+		return uuid.Nil, ungerr.UnauthorizedError("invalid session")
 	}
 
 	return id, nil
@@ -62,20 +62,9 @@ func requireUserID(ctx context.Context) (uuid.UUID, error) {
 func parseCollectionID(raw string) (uuid.UUID, error) {
 	id, err := uuid.Parse(raw)
 	if err != nil {
-		return uuid.Nil, huma.Error400BadRequest("invalid collection id: " + raw)
+		return uuid.Nil, ungerr.BadRequestError("invalid collection id: " + raw)
 	}
 	return id, nil
-}
-
-// mapCollectionError maps collection.ErrCollectionNotFound to 404. It's used
-// both for "doesn't exist" and "exists but isn't yours" - see
-// collection.CollectionService's doc comment on why those two cases are
-// deliberately indistinguishable to the caller.
-func mapCollectionError(err error) error {
-	if errors.Is(err, collection.ErrCollectionNotFound) {
-		return huma.Error404NotFound(err.Error())
-	}
-	return huma.Error500InternalServerError("internal error")
 }
 
 type collectionBody struct {
@@ -111,7 +100,7 @@ func (h *CollectionHandler) create(ctx context.Context, in createCollectionInput
 		MaxCardCount: in.Body.MaxCardCount,
 	})
 	if err != nil {
-		return dto.CollectionSummary{}, mapCollectionError(err)
+		return dto.CollectionSummary{}, err
 	}
 
 	return summary, nil
@@ -125,7 +114,7 @@ func (h *CollectionHandler) list(ctx context.Context, _ listCollectionsInput) ([
 
 	summaries, err := h.collectionSvc.List(ctx, userID)
 	if err != nil {
-		return nil, mapCollectionError(err)
+		return nil, err
 	}
 
 	return summaries, nil
@@ -144,7 +133,7 @@ func (h *CollectionHandler) get(ctx context.Context, in collectionIDInput) (dto.
 
 	summary, err := h.collectionSvc.Get(ctx, userID, id)
 	if err != nil {
-		return dto.CollectionSummary{}, mapCollectionError(err)
+		return dto.CollectionSummary{}, err
 	}
 
 	return summary, nil
@@ -167,7 +156,7 @@ func (h *CollectionHandler) update(ctx context.Context, in updateCollectionInput
 		MaxCardCount: in.Body.MaxCardCount,
 	})
 	if err != nil {
-		return dto.CollectionSummary{}, mapCollectionError(err)
+		return dto.CollectionSummary{}, err
 	}
 
 	return summary, nil
@@ -185,7 +174,7 @@ func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) er
 	}
 
 	if err := h.collectionSvc.Delete(ctx, userID, id); err != nil {
-		return mapCollectionError(err)
+		return err
 	}
 
 	return nil
