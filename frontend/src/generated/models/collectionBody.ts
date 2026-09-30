@@ -11,6 +11,7 @@ export interface CollectionBody {
   /**
      * Hard cap on the Collection's summed card quantity; 0 means no limit.
      * @minimum 0
+     * @maximum 2147483647
      */
   maxCardCount?: number;
   /**

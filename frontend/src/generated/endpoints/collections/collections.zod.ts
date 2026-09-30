@@ -23,13 +23,14 @@ export const ListCollectionsResponse = zod.object({
  * @summary Create a Collection
  */
 export const createCollectionBodyMaxCardCountMin = 0;
+export const createCollectionBodyMaxCardCountMax = 2147483647;
 
 
 
 
 export const CreateCollectionBody = zod.object({
   "description": zod.string().optional().describe('Optional free-text description.'),
-  "maxCardCount": zod.int().min(createCollectionBodyMaxCardCountMin).optional().describe('Hard cap on the Collection\'s summed card quantity; 0 means no limit.'),
+  "maxCardCount": zod.int().min(createCollectionBodyMaxCardCountMin).max(createCollectionBodyMaxCardCountMax).optional().describe('Hard cap on the Collection\'s summed card quantity; 0 means no limit.'),
   "title": zod.string().min(1).describe('The Collection\'s title.')
 })
 
@@ -75,13 +76,14 @@ export const UpdateCollectionParams = zod.object({
 })
 
 export const updateCollectionBodyMaxCardCountMin = 0;
+export const updateCollectionBodyMaxCardCountMax = 2147483647;
 
 
 
 
 export const UpdateCollectionBody = zod.object({
   "description": zod.string().optional().describe('Optional free-text description.'),
-  "maxCardCount": zod.int().min(updateCollectionBodyMaxCardCountMin).optional().describe('Hard cap on the Collection\'s summed card quantity; 0 means no limit.'),
+  "maxCardCount": zod.int().min(updateCollectionBodyMaxCardCountMin).max(updateCollectionBodyMaxCardCountMax).optional().describe('Hard cap on the Collection\'s summed card quantity; 0 means no limit.'),
   "title": zod.string().min(1).describe('The Collection\'s title.')
 })
 
