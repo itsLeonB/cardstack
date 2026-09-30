@@ -9,12 +9,9 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 )
 
-// CollectionService is the authenticated Collections CRUD surface (ticket
-// 06). Every method scopes to the calling userID; Get/Update/Delete return
-// ErrCollectionNotFound both when no such Collection exists and when one
-// exists but belongs to another user - the two cases are indistinguishable
-// to the caller by design, so a Collection's existence isn't leaked to a
-// user who doesn't own it.
+// CollectionService scopes every method to the calling userID. Get/Update/
+// Delete return ErrCollectionNotFound both when the Collection doesn't exist
+// and when it belongs to another user, so its existence isn't leaked.
 type CollectionService interface {
 	Create(ctx context.Context, userID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error)
 	List(ctx context.Context, userID uuid.UUID) ([]dto.CollectionSummary, error)
@@ -27,7 +24,6 @@ type collectionService struct {
 	repo CollectionRepository
 }
 
-// NewCollectionService builds a CollectionService backed by repo.
 func NewCollectionService(repo CollectionRepository) CollectionService {
 	return &collectionService{repo: repo}
 }
@@ -60,8 +56,6 @@ func (s *collectionService) List(ctx context.Context, userID uuid.UUID) ([]dto.C
 	return summaries, nil
 }
 
-// findOwned looks up id and returns it only if userID owns it, otherwise
-// ErrCollectionNotFound (see CollectionService's doc comment).
 func (s *collectionService) findOwned(ctx context.Context, userID, id uuid.UUID) (entity.Collection, error) {
 	c, err := s.repo.FindByID(ctx, id)
 	if err != nil {

@@ -47,11 +47,8 @@ func registerAndLogin(t *testing.T, api humatest.TestAPI, email, password string
 	return loginResp.Result().Cookies()
 }
 
-// TestCollectionsFlow exercises ticket 06's Collections CRUD end to end:
-// create/list/get/update/delete as their owner, the Secured:true guard
-// rejecting an unauthenticated request, and a second user getting 404 (not
-// 403 - see collection.CollectionService's doc comment) on every attempt to
-// view/edit/delete the first user's Collection.
+// TestCollectionsFlow covers the CRUD happy path plus the unauthenticated
+// and cross-user failures; branch-level cases live in the unit tests.
 func TestCollectionsFlow(t *testing.T) {
 	services := authTestServices(t)
 	_, api := humatest.New(t, httpapi.NewConfig())
@@ -82,11 +79,6 @@ func TestCollectionsFlow(t *testing.T) {
 		t.Fatalf("unexpected create response: %+v", created.Data)
 	}
 	id := created.Data.ID
-
-	// A blank title is rejected.
-	if resp := api.Post("/collections", cookieHeader(ownerCookies), map[string]any{"title": ""}); resp.Code != http.StatusUnprocessableEntity && resp.Code != http.StatusBadRequest {
-		t.Fatalf("blank title: expected a validation error, got %d: %s", resp.Code, resp.Body.String())
-	}
 
 	// The owner's list includes it.
 	listResp := api.Get("/collections", cookieHeader(ownerCookies))
@@ -127,16 +119,9 @@ func TestCollectionsFlow(t *testing.T) {
 		t.Fatalf("owner get: expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
 
-	// The other user cannot view, edit, or delete it - 404, not 403 (its
-	// existence isn't leaked to a non-owner).
+	// The other user gets 404, not 403: existence isn't leaked.
 	if resp := api.Get("/collections/"+id, cookieHeader(otherCookies)); resp.Code != http.StatusNotFound {
 		t.Fatalf("other user get: expected 404, got %d: %s", resp.Code, resp.Body.String())
-	}
-	if resp := api.Put("/collections/"+id, cookieHeader(otherCookies), map[string]any{"title": "Hijacked"}); resp.Code != http.StatusNotFound {
-		t.Fatalf("other user update: expected 404, got %d: %s", resp.Code, resp.Body.String())
-	}
-	if resp := api.Delete("/collections/"+id, cookieHeader(otherCookies)); resp.Code != http.StatusNotFound {
-		t.Fatalf("other user delete: expected 404, got %d: %s", resp.Code, resp.Body.String())
 	}
 
 	// The owner can edit it.

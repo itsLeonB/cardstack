@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -15,13 +16,7 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-// CollectionHandler serves the authenticated Collections CRUD surface
-// (ticket 06): a user creates, lists, views, edits, and deletes their own
-// Collections. Every route requires a session, so - unlike CatalogHandler -
-// it builds its own SessionGuard the same way AuthHandler's logout/refresh/
-// me routes do (see Routes()): Secured:true on endpoint.Endpoint only sets
-// OpenAPI security metadata, it doesn't attach SessionGuard as an enforced
-// middleware on its own.
+// CollectionHandler serves the authenticated Collections CRUD surface.
 type CollectionHandler struct {
 	collectionSvc collection.CollectionService
 	kit           *authkit.AuthKit
@@ -29,7 +24,6 @@ type CollectionHandler struct {
 	profiles      authpkg.ProfileLookup
 }
 
-// NewCollectionHandler builds a CollectionHandler.
 func NewCollectionHandler(collectionSvc collection.CollectionService, kit *authkit.AuthKit, profiles authpkg.ProfileLookup) *CollectionHandler {
 	return &CollectionHandler{
 		collectionSvc: collectionSvc,
@@ -39,26 +33,26 @@ func NewCollectionHandler(collectionSvc collection.CollectionService, kit *authk
 	}
 }
 
-// requireUserID reads the authenticated user's ID out of ctx (stashed by
-// SessionGuard) and parses it. Both failure branches shouldn't be reachable
-// in practice once SessionGuard runs first - it never calls next with an
-// unset/malformed userID - but are handled defensively rather than assumed.
+// requireUserID returns the user ID SessionGuard stashed in ctx; a failure
+// here is unreachable behind SessionGuard.
 func requireUserID(ctx context.Context) (uuid.UUID, error) {
-	raw, ok := authpkg.UserID(ctx)
-	if !ok || raw == "" {
-		return uuid.Nil, ungerr.UnauthorizedError("missing session")
-	}
-
+	raw, _ := authpkg.UserID(ctx)
 	id, err := uuid.Parse(raw)
 	if err != nil {
-		return uuid.Nil, ungerr.UnauthorizedError("invalid session")
+		return uuid.Nil, ungerr.UnauthorizedError("missing session")
 	}
 
 	return id, nil
 }
 
-// parseCollectionID validates a Collection ID path parameter, rejecting a
-// malformed one as a 400 before any query runs.
+// validateTitle rejects whitespace-only titles, which minLength:"1" lets through.
+func validateTitle(title string) error {
+	if strings.TrimSpace(title) == "" {
+		return ungerr.BadRequestError("title must not be blank")
+	}
+	return nil
+}
+
 func parseCollectionID(raw string) (uuid.UUID, error) {
 	id, err := uuid.Parse(raw)
 	if err != nil {
@@ -91,6 +85,10 @@ type updateCollectionInput struct {
 func (h *CollectionHandler) create(ctx context.Context, in createCollectionInput) (dto.CollectionSummary, error) {
 	userID, err := requireUserID(ctx)
 	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	if err := validateTitle(in.Body.Title); err != nil {
 		return dto.CollectionSummary{}, err
 	}
 
@@ -150,6 +148,10 @@ func (h *CollectionHandler) update(ctx context.Context, in updateCollectionInput
 		return dto.CollectionSummary{}, err
 	}
 
+	if err := validateTitle(in.Body.Title); err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
 	summary, err := h.collectionSvc.Update(ctx, userID, id, dto.UpdateCollectionRequest{
 		Title:        in.Body.Title,
 		Description:  in.Body.Description,
@@ -180,12 +182,8 @@ func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) er
 	return nil
 }
 
-// Routes returns every route CollectionHandler exposes, for registration
-// via endpoint.RegisterAll. Every route needs SessionGuard actually
-// enforced (not just declared via Secured:true), so each is wrapped in a
-// registrableFunc that appends it at Register-call time - mirrors
-// auth_handler.go's logout/refresh/me routes, the existing precedent for
-// this (see registrableFunc/withGuards, defined in auth_handler.go).
+// Routes builds its own SessionGuard per route: Secured:true only sets
+// OpenAPI security metadata and does not enforce anything.
 func (h *CollectionHandler) Routes() []endpoint.Registrable {
 	sessionGuard := func(api huma.API) func(huma.Context, func(huma.Context)) {
 		return authpkg.SessionGuard(api, h.kit, h.transport, h.profiles)

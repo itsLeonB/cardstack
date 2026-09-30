@@ -40,13 +40,19 @@ func TestCollectionHandler_MissingSession(t *testing.T) {
 
 	_, err := h.list(context.Background(), listCollectionsInput{})
 	requireStatus(t, err, http.StatusUnauthorized)
+
+	_, err = h.list(authpkg.WithUserID(context.Background(), "not-a-uuid"), listCollectionsInput{})
+	requireStatus(t, err, http.StatusUnauthorized)
 }
 
-func TestCollectionHandler_InvalidSession(t *testing.T) {
-	h, _, _, _ := newTestCollectionHandler(t)
+func TestCollectionHandler_BlankTitle(t *testing.T) {
+	h, _, ctx, _ := newTestCollectionHandler(t)
 
-	_, err := h.list(authpkg.WithUserID(context.Background(), "not-a-uuid"), listCollectionsInput{})
-	requireStatus(t, err, http.StatusUnauthorized)
+	_, err := h.create(ctx, createCollectionInput{Body: collectionBody{Title: " \t "}})
+	requireStatus(t, err, http.StatusBadRequest)
+
+	_, err = h.update(ctx, updateCollectionInput{ID: uuid.NewString(), Body: collectionBody{Title: " "}})
+	requireStatus(t, err, http.StatusBadRequest)
 }
 
 func TestCollectionHandler_InvalidCollectionID(t *testing.T) {
