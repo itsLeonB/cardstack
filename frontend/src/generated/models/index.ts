@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0
  */
 
+export * from './addEntryInputBody.ts';
 export * from './authMessage.ts';
 export * from './cardSummary.ts';
 export * from './collectionBody.ts';
@@ -12,7 +13,9 @@ export * from './collectionSummary.ts';
 export * from './envelopeAuthMessage.ts';
 export * from './envelopeCollectionSummary.ts';
 export * from './envelopeHealthStatus.ts';
+export * from './envelopeInventoryEntry.ts';
 export * from './envelopeListCollectionSummary.ts';
+export * from './envelopeListInventoryItem.ts';
 export * from './envelopeListRaritySummary.ts';
 export * from './envelopeListString.ts';
 export * from './envelopeMeResponse.ts';
@@ -22,6 +25,8 @@ export * from './errorDetail.ts';
 export * from './errorModel.ts';
 export * from './expansionSetSummary.ts';
 export * from './healthStatus.ts';
+export * from './inventoryEntry.ts';
+export * from './inventoryItem.ts';
 export * from './loginInputBody.ts';
 export * from './meResponse.ts';
 export * from './paginationMeta.ts';
@@ -30,3 +35,4 @@ export * from './registerInputBody.ts';
 export * from './searchCatalogCardsParams.ts';
 export * from './seriesBrowseResult.ts';
 export * from './seriesSummary.ts';
+export * from './updateEntryInputBody.ts';

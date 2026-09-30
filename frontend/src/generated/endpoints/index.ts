@@ -8,3 +8,4 @@ export * from './auth/auth.ts';
 export * from './catalog/catalog.ts';
 export * from './collections/collections.ts';
 export * from './health/health.ts';
+export * from './inventory/inventory.ts';

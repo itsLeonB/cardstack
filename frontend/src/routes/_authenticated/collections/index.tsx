@@ -72,7 +72,15 @@ function CollectionsPage() {
           <li key={collection.id}>
             <Card>
               <CardHeader>
-                <CardTitle>{collection.title}</CardTitle>
+                <CardTitle>
+                  <Link
+                    to="/collections/$collectionId"
+                    params={{ collectionId: collection.id }}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {collection.title}
+                  </Link>
+                </CardTitle>
                 {collection.description && (
                   <CardDescription>{collection.description}</CardDescription>
                 )}
