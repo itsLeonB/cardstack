@@ -17,7 +17,7 @@ These apply to every backend change, whether made by the root agent or a subagen
 ## Data and mapping
 
 - Key domain ownership by `profile_id` (`user_profiles.id`); `user_id` identifies the authentication account only.
-- Model an optional number as a `NOT NULL` column with SQL `DEFAULT 0`, where `0` means unset, rather than a nullable column or pointer.
+- Before making a value optional, ask whether `0` means something different from absent. When both behave the same (a card limit where 0 and none both mean unlimited), use a `NOT NULL DEFAULT 0` column and a plain value, which removes the `> 0` checks. Use a nullable column or pointer only when absent must stay distinguishable from `0`.
 - Scope a query in the query itself with `crud.Specification`, never by fetching rows and filtering in Go.
 - Map slices with `ezutil.MapSlice`, or `ezutil.MapSliceWithErr` when the mapper can fail.
 
