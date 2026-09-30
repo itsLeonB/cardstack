@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/humatest"
@@ -18,6 +20,7 @@ import (
 // string -> filter translation without a real repository/DB.
 type stubCatalogService struct {
 	seriesResult   dto.SeriesBrowseResult
+	seriesErr      error
 	rarities       []dto.RaritySummary
 	categories     []string
 	tags           []string
@@ -29,7 +32,7 @@ type stubCatalogService struct {
 }
 
 func (s *stubCatalogService) ListSeries(context.Context) (dto.SeriesBrowseResult, error) {
-	return s.seriesResult, nil
+	return s.seriesResult, s.seriesErr
 }
 
 func (s *stubCatalogService) ListRarities(context.Context) ([]dto.RaritySummary, error) {
@@ -228,4 +231,20 @@ func trimTrailingNewline(s string) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func TestCatalogHandler_UnclassifiedErrorsAreRedacted(t *testing.T) {
+	leak := errors.New("failed to connect: postgres://admin:s3cr3t@dbhost:5432/cards")
+	stub := &stubCatalogService{seriesErr: leak, searchErr: leak}
+	api := newTestCatalogHandler(t, stub)
+
+	for _, path := range []string{"/catalog/series", "/catalog/cards"} {
+		resp := api.Get(path)
+		if resp.Code != http.StatusInternalServerError {
+			t.Fatalf("%s: expected 500, got %d", path, resp.Code)
+		}
+		if body := resp.Body.String(); strings.Contains(body, "s3cr3t") || strings.Contains(body, "dbhost") {
+			t.Fatalf("%s leaks internal detail: %s", path, body)
+		}
+	}
 }

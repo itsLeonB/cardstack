@@ -33,6 +33,7 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	}
 
 	api := humagin.New(r, httpapi.NewConfig())
+	httpapi.UseRecovery(api)
 	routes.RegisterRoutes(api, providers.Services)
 
 	httpCfg := httpserver.ProductionConfig()

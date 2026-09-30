@@ -13,6 +13,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	authkit "github.com/itsLeonB/go-authkit"
+	"github.com/itsLeonB/ungerr"
 )
 
 // generateCSRFToken mirrors authgin.Handler's own setCSRFCookie: 16 random
@@ -69,7 +70,7 @@ type registerInput struct {
 
 func (h *AuthHandler) register(ctx context.Context, in registerInput) (authMessage, error) {
 	if in.Body.Password != in.Body.PasswordConfirmation {
-		return authMessage{}, huma.Error400BadRequest("password and passwordConfirmation do not match")
+		return authMessage{}, ungerr.BadRequestError("password and passwordConfirmation do not match")
 	}
 
 	verified, err := h.kit.Register(ctx, in.Body.Email, in.Body.Password, "")
@@ -104,7 +105,7 @@ type cookieOutput struct {
 func (h *AuthHandler) cookieResponse(tokens authkit.TokenSet) (*cookieOutput, error) {
 	csrfToken, err := generateCSRFToken()
 	if err != nil {
-		return nil, huma.Error500InternalServerError("error generating csrf token")
+		return nil, ungerr.Wrap(err, "error generating csrf token")
 	}
 
 	return &cookieOutput{
@@ -153,7 +154,7 @@ func (h *AuthHandler) registerLogout(api huma.API, mw ...func(huma.Context, func
 	}, func(ctx context.Context, _ *logoutInput) (*logoutOutput, error) {
 		sessionID, ok := authpkg.SessionID(ctx)
 		if !ok || sessionID == "" {
-			return nil, huma.Error401Unauthorized("missing session")
+			return nil, ungerr.UnauthorizedError("missing session")
 		}
 
 		if err := h.kit.Logout(ctx, sessionID); err != nil {
@@ -186,7 +187,7 @@ func (h *AuthHandler) registerRefresh(api huma.API, mw ...func(huma.Context, fun
 		Middlewares: mw,
 	}, func(ctx context.Context, in *refreshInput) (*cookieOutput, error) {
 		if in.RefreshToken == "" {
-			return nil, huma.Error401Unauthorized("missing refresh token")
+			return nil, ungerr.UnauthorizedError("missing refresh token")
 		}
 
 		tokens, err := h.kit.RefreshToken(ctx, in.RefreshToken)
@@ -213,7 +214,7 @@ type meResponse struct {
 func (h *AuthHandler) me(ctx context.Context, _ meInput) (meResponse, error) {
 	userID, ok := authpkg.UserID(ctx)
 	if !ok || userID == "" {
-		return meResponse{}, huma.Error401Unauthorized("missing session")
+		return meResponse{}, ungerr.UnauthorizedError("missing session")
 	}
 	email, _ := authpkg.Email(ctx)
 
@@ -293,22 +294,20 @@ func (h *AuthHandler) Routes() []endpoint.Registrable {
 func mapAuthError(err error) error {
 	switch {
 	case errors.Is(err, authkit.ErrUserExists):
-		return huma.Error409Conflict(err.Error())
-	case errors.Is(err, authkit.ErrInvalidCredentials):
-		return huma.Error401Unauthorized(err.Error())
-	case errors.Is(err, authkit.ErrUserNotFound):
-		return huma.Error404NotFound(err.Error())
-	case errors.Is(err, authkit.ErrSessionNotFound):
-		return huma.Error401Unauthorized(err.Error())
-	case errors.Is(err, authkit.ErrTokenInvalid),
+		return ungerr.ConflictError(err.Error())
+	case errors.Is(err, authkit.ErrInvalidCredentials),
+		errors.Is(err, authkit.ErrSessionNotFound),
+		errors.Is(err, authkit.ErrTokenInvalid),
 		errors.Is(err, authkit.ErrTokenExpired),
 		errors.Is(err, authkit.ErrTokenNotFound):
-		return huma.Error401Unauthorized(err.Error())
+		return ungerr.UnauthorizedError(err.Error())
+	case errors.Is(err, authkit.ErrUserNotFound):
+		return ungerr.NotFoundError(err.Error())
 	case errors.Is(err, authkit.ErrNotVerified):
-		return huma.Error403Forbidden(err.Error())
+		return ungerr.ForbiddenError(err.Error())
 	case errors.Is(err, authkit.ErrTooManyRequests):
-		return huma.Error429TooManyRequests(err.Error())
+		return ungerr.TooManyRequestsError(err.Error())
 	default:
-		return huma.Error500InternalServerError("internal error")
+		return err
 	}
 }

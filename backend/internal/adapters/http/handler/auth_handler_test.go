@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	authkit "github.com/itsLeonB/go-authkit"
 	"github.com/itsLeonB/go-authkit/authkittest"
+	"github.com/itsLeonB/ungerr"
 )
 
 // withImmediateVerification mirrors this project's production config (empty
@@ -125,5 +127,32 @@ func TestAuthHandler_Me_RequiresSession(t *testing.T) {
 	resp := api.Get("/auth/me")
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 for an unauthenticated request to a Secured:true route, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestMapAuthError_UnknownIsLeftForTheGlobalSeam(t *testing.T) {
+	raw := errors.New("dial postgres://admin:s3cr3t@dbhost")
+	if got := mapAuthError(raw); got != raw {
+		t.Fatalf("unclassified errors must pass through untouched, got %v", got)
+	}
+}
+
+func TestMapAuthError_KnownStatuses(t *testing.T) {
+	cases := map[error]int{
+		authkit.ErrUserExists:         http.StatusConflict,
+		authkit.ErrInvalidCredentials: http.StatusUnauthorized,
+		authkit.ErrSessionNotFound:    http.StatusUnauthorized,
+		authkit.ErrTokenInvalid:       http.StatusUnauthorized,
+		authkit.ErrTokenExpired:       http.StatusUnauthorized,
+		authkit.ErrTokenNotFound:      http.StatusUnauthorized,
+		authkit.ErrUserNotFound:       http.StatusNotFound,
+		authkit.ErrNotVerified:        http.StatusForbidden,
+		authkit.ErrTooManyRequests:    http.StatusTooManyRequests,
+	}
+	for in, want := range cases {
+		var appErr ungerr.AppError
+		if !errors.As(mapAuthError(in), &appErr) || appErr.HttpStatus() != want {
+			t.Errorf("%v: want status %d, got %v", in, want, mapAuthError(in))
+		}
 	}
 }
