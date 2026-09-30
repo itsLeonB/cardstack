@@ -110,7 +110,7 @@ func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) er
 	return h.collectionSvc.Delete(ctx, profileID, in.ID)
 }
 
-// Secured:true only sets OpenAPI security metadata; the router must pass
+// Routes sets Secured:true only sets OpenAPI security metadata; the router must pass
 // SessionGuard to RegisterAll.
 func (h *CollectionHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
