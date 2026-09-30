@@ -74,9 +74,9 @@
             "type": "string"
           },
           "maxCardCount": {
-            "description": "Optional hard cap on the Collection's summed card quantity.",
+            "description": "Hard cap on the Collection's summed card quantity; 0 means no limit.",
             "format": "int64",
-            "minimum": 1,
+            "minimum": 0,
             "type": "integer"
           },
           "title": {
@@ -110,7 +110,8 @@
         "required": [
           "id",
           "title",
-          "description"
+          "description",
+          "maxCardCount"
         ],
         "type": "object"
       },

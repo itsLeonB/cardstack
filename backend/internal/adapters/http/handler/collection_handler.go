@@ -41,7 +41,7 @@ func parseCollectionID(raw string) (uuid.UUID, error) {
 type collectionBody struct {
 	Title        string `json:"title" required:"true" minLength:"1" doc:"The Collection's title."`
 	Description  string `json:"description,omitempty" doc:"Optional free-text description."`
-	MaxCardCount *int   `json:"maxCardCount,omitempty" minimum:"1" doc:"Optional hard cap on the Collection's summed card quantity."`
+	MaxCardCount int    `json:"maxCardCount,omitempty" minimum:"0" doc:"Hard cap on the Collection's summed card quantity; 0 means no limit."`
 }
 
 type createCollectionInput struct {
