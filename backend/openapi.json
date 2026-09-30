@@ -66,6 +66,56 @@
         ],
         "type": "object"
       },
+      "CollectionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "description": "Optional free-text description.",
+            "type": "string"
+          },
+          "maxCardCount": {
+            "description": "Hard cap on the Collection's summed card quantity; 0 means no limit.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "description": "The Collection's title.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "CollectionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maxCardCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "maxCardCount"
+        ],
+        "type": "object"
+      },
       "EnvelopeAuthMessage": {
         "additionalProperties": false,
         "properties": {
@@ -78,11 +128,41 @@
         ],
         "type": "object"
       },
+      "EnvelopeCollectionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CollectionSummary"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeHealthStatus": {
         "additionalProperties": false,
         "properties": {
           "data": {
             "$ref": "#/components/schemas/HealthStatus"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeListCollectionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -924,6 +1004,237 @@
         "summary": "List the distinct Card tags in use, for use as a search filter value",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/collections": {
+      "get": {
+        "operationId": "list-collections",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListCollectionSummary"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Total-Count": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "List the current user's own Collections",
+        "tags": [
+          "collections"
+        ]
+      },
+      "post": {
+        "operationId": "create-collection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCollectionSummary"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Create a Collection",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/collections/{id}": {
+      "delete": {
+        "operationId": "delete-collection",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Delete one of the current user's own Collections (hard delete, no undo)",
+        "tags": [
+          "collections"
+        ]
+      },
+      "get": {
+        "operationId": "get-collection",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCollectionSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Get one of the current user's own Collections",
+        "tags": [
+          "collections"
+        ]
+      },
+      "put": {
+        "operationId": "update-collection",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCollectionSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Edit one of the current user's own Collections",
+        "tags": [
+          "collections"
         ]
       }
     },

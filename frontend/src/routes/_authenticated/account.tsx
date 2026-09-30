@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { useLogoutMutation, useSession } from "@/lib/session"
 
@@ -30,6 +30,9 @@ function AccountPage() {
     <div className="flex min-h-svh flex-col gap-4 p-6">
       <h1 className="font-medium">Account</h1>
       {user && <p>Logged in as {user.email}</p>}
+      <Link to="/collections" className="w-fit text-sm text-primary underline">
+        My Collections
+      </Link>
       <Button
         variant="outline"
         className="w-fit"

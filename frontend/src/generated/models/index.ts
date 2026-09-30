@@ -7,8 +7,12 @@
 
 export * from './authMessage.ts';
 export * from './cardSummary.ts';
+export * from './collectionBody.ts';
+export * from './collectionSummary.ts';
 export * from './envelopeAuthMessage.ts';
+export * from './envelopeCollectionSummary.ts';
 export * from './envelopeHealthStatus.ts';
+export * from './envelopeListCollectionSummary.ts';
 export * from './envelopeListRaritySummary.ts';
 export * from './envelopeListString.ts';
 export * from './envelopeMeResponse.ts';

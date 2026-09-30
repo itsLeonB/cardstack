@@ -6,4 +6,5 @@ export type { HTTPStatusCode5xx } from './auth/auth.ts';
 export type { HTTPStatusCodes } from './auth/auth.ts';
 export * from './auth/auth.ts';
 export * from './catalog/catalog.ts';
+export * from './collections/collections.ts';
 export * from './health/health.ts';
