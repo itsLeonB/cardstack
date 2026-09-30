@@ -35,14 +35,14 @@ type InventoryService interface {
 
 type inventoryService struct {
 	transactor  crud.Transactor
-	collections crud.Repository[entity.Collection]
+	collections repository.CollectionRepository
 	entries     repository.InventoryRepository
 	cards       crud.Repository[entity.Card]
 }
 
 func NewInventoryService(
 	transactor crud.Transactor,
-	collections crud.Repository[entity.Collection],
+	collections repository.CollectionRepository,
 	entries repository.InventoryRepository,
 	cards crud.Repository[entity.Card],
 ) InventoryService {
@@ -50,7 +50,7 @@ func NewInventoryService(
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error) {
-	if _, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, false); err != nil {
+	if _, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, false); err != nil {
 		return nil, err
 	}
 
@@ -91,9 +91,9 @@ func compareEntries(a, b entity.InventoryEntry) int {
 	)
 }
 
-// findEntry returns the Card's row-locked entry, or the not-found 404. A nil
+// getEntry returns the Card's row-locked entry, or the not-found 404. A nil
 // card id would drop that condition (see crud.WhereBySpec), hence the guard.
-func (s *inventoryService) findEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
+func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
 	if cardID == uuid.Nil {
 		return entity.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
 	}
@@ -140,7 +140,7 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 
 	var written entity.InventoryEntry
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		c, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, true)
+		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
 			return err
 		}
@@ -192,12 +192,12 @@ func (s *inventoryService) UpdateQuantity(ctx context.Context, req dto.Inventory
 
 	var written entity.InventoryEntry
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		c, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, true)
+		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
 			return err
 		}
 
-		entry, err := s.findEntry(ctx, c.ID, req.CardID)
+		entry, err := s.getEntry(ctx, c.ID, req.CardID)
 		if err != nil {
 			return err
 		}
@@ -219,12 +219,12 @@ func (s *inventoryService) UpdateQuantity(ctx context.Context, req dto.Inventory
 
 func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLookup) error {
 	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		c, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, true)
+		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
 			return err
 		}
 
-		entry, err := s.findEntry(ctx, c.ID, req.CardID)
+		entry, err := s.getEntry(ctx, c.ID, req.CardID)
 		if err != nil {
 			return err
 		}

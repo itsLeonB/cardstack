@@ -36,14 +36,14 @@ func ProvideCatalogService(ds *DataSources) service.CatalogService {
 // ProvideCollectionService builds the collection service over ds's DB, for
 // the same reason ProvideCatalogService is its own provider.
 func ProvideCollectionService(ds *DataSources) service.CollectionService {
-	return service.NewCollectionService(crud.NewRepository[entity.Collection](ds.Gorm))
+	return service.NewCollectionService(catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)))
 }
 
 // ProvideInventoryService builds the inventory service over ds's DB.
 func ProvideInventoryService(ds *DataSources) service.InventoryService {
 	return service.NewInventoryService(
 		crud.NewTransactor(ds.Gorm),
-		crud.NewRepository[entity.Collection](ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		crud.NewRepository[entity.Card](ds.Gorm),
 	)

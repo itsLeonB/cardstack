@@ -7,15 +7,10 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/ezutil/v2"
 	crud "github.com/itsLeonB/go-crud"
-	"github.com/itsLeonB/ungerr"
 )
-
-// collectionNotFoundMsg is the message of the 404 AppError, also returned for
-// another profile's Collection so its existence isn't leaked. Each return
-// site builds its own ungerr.NotFoundError so ungerr records that line.
-const collectionNotFoundMsg = "collection not found"
 
 // CollectionService scopes every method to the request's ProfileID.
 type CollectionService interface {
@@ -27,10 +22,10 @@ type CollectionService interface {
 }
 
 type collectionService struct {
-	repo crud.Repository[entity.Collection]
+	repo repository.CollectionRepository
 }
 
-func NewCollectionService(repo crud.Repository[entity.Collection]) CollectionService {
+func NewCollectionService(repo repository.CollectionRepository) CollectionService {
 	return &collectionService{repo: repo}
 }
 
@@ -65,31 +60,8 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 	return ezutil.MapSlice(collections, mapper.ToCollectionSummary), nil
 }
 
-// findOwnedCollection filters by owner in the query itself. A zero-value id
-// or profileID would otherwise drop that condition (see crud.WhereBySpec) and match any
-// of the profile's collections. forUpdate row-locks the match; use it inside
-// crud.Transactor.WithinTransaction.
-func findOwnedCollection(ctx context.Context, repo crud.Repository[entity.Collection], profileID, id uuid.UUID, forUpdate bool) (entity.Collection, error) {
-	if id == uuid.Nil || profileID == uuid.Nil {
-		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
-	}
-
-	c, err := repo.FindFirst(ctx, crud.Specification[entity.Collection]{
-		Model:     entity.Collection{BaseEntity: crud.BaseEntity{ID: id}, ProfileID: profileID},
-		ForUpdate: forUpdate,
-	})
-	if err != nil {
-		return entity.Collection{}, err
-	}
-	if c.IsZero() {
-		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
-	}
-
-	return c, nil
-}
-
 func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
-	c, err := findOwnedCollection(ctx, s.repo, req.ProfileID, req.ID, false)
+	c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, false)
 	if err != nil {
 		return dto.CollectionSummary{}, err
 	}
@@ -98,7 +70,7 @@ func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (
 }
 
 func (s *collectionService) Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
-	c, err := findOwnedCollection(ctx, s.repo, req.ProfileID, req.ID, false)
+	c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, false)
 	if err != nil {
 		return dto.CollectionSummary{}, err
 	}
@@ -116,7 +88,7 @@ func (s *collectionService) Update(ctx context.Context, req dto.CollectionReques
 }
 
 func (s *collectionService) Delete(ctx context.Context, req dto.CollectionLookup) error {
-	c, err := findOwnedCollection(ctx, s.repo, req.ProfileID, req.ID, false)
+	c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, false)
 	if err != nil {
 		return err
 	}
