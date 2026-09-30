@@ -76,7 +76,7 @@ func TestCollectionHandler_Create(t *testing.T) {
 	svc, api, profileID := newTestCollectionHandler(t, true)
 	limit := 10
 	svc.EXPECT().
-		Create(mock.Anything, profileID, dto.CollectionRequest{Title: "Binder", Description: "d", MaxCardCount: limit}).
+		Create(mock.Anything, dto.CollectionRequest{ProfileID: profileID, Title: "Binder", Description: "d", MaxCardCount: limit}).
 		Return(dto.CollectionSummary{Title: "Binder"}, nil)
 
 	resp := api.Post("/collections", map[string]any{"title": "Binder", "description": "d", "maxCardCount": limit})
@@ -86,7 +86,7 @@ func TestCollectionHandler_Create(t *testing.T) {
 
 func TestCollectionHandler_List(t *testing.T) {
 	svc, api, profileID := newTestCollectionHandler(t, true)
-	svc.EXPECT().List(mock.Anything, profileID).Return([]dto.CollectionSummary{{Title: "A"}}, nil)
+	svc.EXPECT().List(mock.Anything, dto.CollectionListRequest{ProfileID: profileID}).Return([]dto.CollectionSummary{{Title: "A"}}, nil)
 
 	resp := api.Get("/collections")
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
@@ -96,9 +96,9 @@ func TestCollectionHandler_List(t *testing.T) {
 func TestCollectionHandler_NotFoundPassesThrough(t *testing.T) {
 	svc, api, profileID := newTestCollectionHandler(t, true)
 	id := uuid.New()
-	svc.EXPECT().Get(mock.Anything, profileID, id).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
-	svc.EXPECT().Update(mock.Anything, profileID, id, dto.CollectionRequest{Title: "T"}).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
-	svc.EXPECT().Delete(mock.Anything, profileID, id).Return(ungerr.NotFoundError("collection not found"))
+	svc.EXPECT().Get(mock.Anything, dto.CollectionLookup{ProfileID: profileID, ID: id}).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
+	svc.EXPECT().Update(mock.Anything, dto.CollectionRequest{ProfileID: profileID, ID: id, Title: "T"}).Return(dto.CollectionSummary{}, ungerr.NotFoundError("collection not found"))
+	svc.EXPECT().Delete(mock.Anything, dto.CollectionLookup{ProfileID: profileID, ID: id}).Return(ungerr.NotFoundError("collection not found"))
 
 	path := "/collections/" + id.String()
 	assert.Equal(t, http.StatusNotFound, api.Get(path).Code)
@@ -109,7 +109,7 @@ func TestCollectionHandler_NotFoundPassesThrough(t *testing.T) {
 func TestCollectionHandler_DeleteSuccess(t *testing.T) {
 	svc, api, profileID := newTestCollectionHandler(t, true)
 	id := uuid.New()
-	svc.EXPECT().Delete(mock.Anything, profileID, id).Return(nil)
+	svc.EXPECT().Delete(mock.Anything, dto.CollectionLookup{ProfileID: profileID, ID: id}).Return(nil)
 
 	resp := api.Delete("/collections/" + id.String())
 	assert.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())

@@ -49,7 +49,7 @@ func (h *InventoryHandler) list(ctx context.Context, in collectionEntriesInput) 
 		return nil, err
 	}
 
-	return h.inventorySvc.List(ctx, profileID, in.CollectionID)
+	return h.inventorySvc.List(ctx, dto.InventoryListRequest{ProfileID: profileID, CollectionID: in.CollectionID})
 }
 
 func (h *InventoryHandler) add(ctx context.Context, in addEntryInput) (dto.InventoryEntry, error) {
@@ -58,7 +58,12 @@ func (h *InventoryHandler) add(ctx context.Context, in addEntryInput) (dto.Inven
 		return dto.InventoryEntry{}, err
 	}
 
-	return h.inventorySvc.Add(ctx, profileID, in.CollectionID, dto.InventoryEntryRequest{CardID: in.Body.CardID, Quantity: in.Body.Quantity})
+	return h.inventorySvc.Add(ctx, dto.InventoryEntryRequest{
+		ProfileID:    profileID,
+		CollectionID: in.CollectionID,
+		CardID:       in.Body.CardID,
+		Quantity:     in.Body.Quantity,
+	})
 }
 
 func (h *InventoryHandler) update(ctx context.Context, in updateEntryInput) (dto.InventoryEntry, error) {
@@ -67,7 +72,12 @@ func (h *InventoryHandler) update(ctx context.Context, in updateEntryInput) (dto
 		return dto.InventoryEntry{}, err
 	}
 
-	return h.inventorySvc.UpdateQuantity(ctx, profileID, in.CollectionID, in.CardID, in.Body.Quantity)
+	return h.inventorySvc.UpdateQuantity(ctx, dto.InventoryEntryRequest{
+		ProfileID:    profileID,
+		CollectionID: in.CollectionID,
+		CardID:       in.CardID,
+		Quantity:     in.Body.Quantity,
+	})
 }
 
 func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
@@ -76,7 +86,7 @@ func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
 		return err
 	}
 
-	return h.inventorySvc.Remove(ctx, profileID, in.CollectionID, in.CardID)
+	return h.inventorySvc.Remove(ctx, dto.InventoryEntryLookup{ProfileID: profileID, CollectionID: in.CollectionID, CardID: in.CardID})
 }
 
 // Routes sets Secured:true only as OpenAPI metadata; the router must pass

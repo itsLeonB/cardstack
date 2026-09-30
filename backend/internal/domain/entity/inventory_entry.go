@@ -13,6 +13,9 @@ type InventoryEntry struct {
 	CollectionID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_inventory_entries_collection_card"`
 	CardID       uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_inventory_entries_collection_card"`
 	Quantity     int       `gorm:"not null"`
+
+	// Card is loaded only via crud.Specification.PreloadRelations.
+	Card Card `gorm:"foreignKey:CardID"`
 }
 
 func (InventoryEntry) TableName() string { return "inventory_entries" }

@@ -17,13 +17,13 @@ import (
 // site builds its own ungerr.NotFoundError so ungerr records that line.
 const collectionNotFoundMsg = "collection not found"
 
-// CollectionService scopes every method to the calling profileID.
+// CollectionService scopes every method to the request's ProfileID.
 type CollectionService interface {
-	Create(ctx context.Context, profileID uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error)
-	List(ctx context.Context, profileID uuid.UUID) ([]dto.CollectionSummary, error)
-	Get(ctx context.Context, profileID, id uuid.UUID) (dto.CollectionSummary, error)
-	Update(ctx context.Context, profileID, id uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error)
-	Delete(ctx context.Context, profileID, id uuid.UUID) error
+	Create(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error)
+	List(ctx context.Context, req dto.CollectionListRequest) ([]dto.CollectionSummary, error)
+	Get(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error)
+	Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error)
+	Delete(ctx context.Context, req dto.CollectionLookup) error
 }
 
 type collectionService struct {
@@ -34,9 +34,9 @@ func NewCollectionService(repo crud.Repository[entity.Collection]) CollectionSer
 	return &collectionService{repo: repo}
 }
 
-func (s *collectionService) Create(ctx context.Context, profileID uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error) {
+func (s *collectionService) Create(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
 	c, err := s.repo.Insert(ctx, entity.Collection{
-		ProfileID:    profileID,
+		ProfileID:    req.ProfileID,
 		Title:        req.Title,
 		Description:  req.Description,
 		MaxCardCount: req.MaxCardCount,
@@ -49,9 +49,14 @@ func (s *collectionService) Create(ctx context.Context, profileID uuid.UUID, req
 }
 
 // List returns most recently created first (crud.Repository's DefaultOrder).
-func (s *collectionService) List(ctx context.Context, profileID uuid.UUID) ([]dto.CollectionSummary, error) {
+func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequest) ([]dto.CollectionSummary, error) {
+	// A nil ProfileID would drop the owner condition and list everyone's.
+	if req.ProfileID == uuid.Nil {
+		return []dto.CollectionSummary{}, nil
+	}
+
 	collections, err := s.repo.FindAll(ctx, crud.Specification[entity.Collection]{
-		Model: entity.Collection{ProfileID: profileID},
+		Model: entity.Collection{ProfileID: req.ProfileID},
 	})
 	if err != nil {
 		return nil, err
@@ -60,16 +65,18 @@ func (s *collectionService) List(ctx context.Context, profileID uuid.UUID) ([]dt
 	return ezutil.MapSlice(collections, mapper.ToCollectionSummary), nil
 }
 
-// findOwned filters by owner in the query itself. A zero-value id would
-// otherwise drop the ID condition (see crud.WhereBySpec) and match any of
-// the profile's collections.
-func (s *collectionService) findOwned(ctx context.Context, profileID, id uuid.UUID) (entity.Collection, error) {
-	if id == uuid.Nil {
+// findOwnedCollection filters by owner in the query itself. A zero-value id
+// or profileID would otherwise drop that condition (see crud.WhereBySpec) and match any
+// of the profile's collections. forUpdate row-locks the match; use it inside
+// crud.Transactor.WithinTransaction.
+func findOwnedCollection(ctx context.Context, repo crud.Repository[entity.Collection], profileID, id uuid.UUID, forUpdate bool) (entity.Collection, error) {
+	if id == uuid.Nil || profileID == uuid.Nil {
 		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
 	}
 
-	c, err := s.repo.FindFirst(ctx, crud.Specification[entity.Collection]{
-		Model: entity.Collection{BaseEntity: crud.BaseEntity{ID: id}, ProfileID: profileID},
+	c, err := repo.FindFirst(ctx, crud.Specification[entity.Collection]{
+		Model:     entity.Collection{BaseEntity: crud.BaseEntity{ID: id}, ProfileID: profileID},
+		ForUpdate: forUpdate,
 	})
 	if err != nil {
 		return entity.Collection{}, err
@@ -81,8 +88,8 @@ func (s *collectionService) findOwned(ctx context.Context, profileID, id uuid.UU
 	return c, nil
 }
 
-func (s *collectionService) Get(ctx context.Context, profileID, id uuid.UUID) (dto.CollectionSummary, error) {
-	c, err := s.findOwned(ctx, profileID, id)
+func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
+	c, err := findOwnedCollection(ctx, s.repo, req.ProfileID, req.ID, false)
 	if err != nil {
 		return dto.CollectionSummary{}, err
 	}
@@ -90,8 +97,8 @@ func (s *collectionService) Get(ctx context.Context, profileID, id uuid.UUID) (d
 	return mapper.ToCollectionSummary(c), nil
 }
 
-func (s *collectionService) Update(ctx context.Context, profileID, id uuid.UUID, req dto.CollectionRequest) (dto.CollectionSummary, error) {
-	c, err := s.findOwned(ctx, profileID, id)
+func (s *collectionService) Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
+	c, err := findOwnedCollection(ctx, s.repo, req.ProfileID, req.ID, false)
 	if err != nil {
 		return dto.CollectionSummary{}, err
 	}
@@ -108,8 +115,8 @@ func (s *collectionService) Update(ctx context.Context, profileID, id uuid.UUID,
 	return mapper.ToCollectionSummary(updated), nil
 }
 
-func (s *collectionService) Delete(ctx context.Context, profileID, id uuid.UUID) error {
-	c, err := s.findOwned(ctx, profileID, id)
+func (s *collectionService) Delete(ctx context.Context, req dto.CollectionLookup) error {
+	c, err := findOwnedCollection(ctx, s.repo, req.ProfileID, req.ID, false)
 	if err != nil {
 		return err
 	}

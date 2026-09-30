@@ -1,8 +1,9 @@
 package service
 
 import (
+	"cmp"
 	"context"
-	"errors"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
@@ -22,56 +23,93 @@ const (
 	quantityNotPositiveMsg = "quantity must be positive"
 )
 
-// InventoryService scopes every method to the calling profileID; another
+// InventoryService scopes every method to the request's ProfileID; another
 // profile's Collection is reported as "collection not found", same as a
 // missing one.
 type InventoryService interface {
-	List(ctx context.Context, profileID, collectionID uuid.UUID) ([]dto.InventoryItem, error)
-	Add(ctx context.Context, profileID, collectionID uuid.UUID, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
-	UpdateQuantity(ctx context.Context, profileID, collectionID, cardID uuid.UUID, quantity int) (dto.InventoryEntry, error)
-	Remove(ctx context.Context, profileID, collectionID, cardID uuid.UUID) error
+	List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error)
+	Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
+	UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
+	Remove(ctx context.Context, req dto.InventoryEntryLookup) error
 }
 
 type inventoryService struct {
+	transactor  crud.Transactor
 	collections crud.Repository[entity.Collection]
-	inventory   repository.InventoryRepository
+	entries     repository.InventoryRepository
+	cards       crud.Repository[entity.Card]
 }
 
-func NewInventoryService(collections crud.Repository[entity.Collection], inventory repository.InventoryRepository) InventoryService {
-	return &inventoryService{collections: collections, inventory: inventory}
+func NewInventoryService(
+	transactor crud.Transactor,
+	collections crud.Repository[entity.Collection],
+	entries repository.InventoryRepository,
+	cards crud.Repository[entity.Card],
+) InventoryService {
+	return &inventoryService{transactor: transactor, collections: collections, entries: entries, cards: cards}
 }
 
-// findOwned mirrors collectionService.findOwned (owner filter in the query;
-// a nil id would drop the ID condition).
-func (s *inventoryService) findOwned(ctx context.Context, profileID, id uuid.UUID) (entity.Collection, error) {
-	if id == uuid.Nil {
-		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
+func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error) {
+	if _, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, false); err != nil {
+		return nil, err
 	}
 
-	c, err := s.collections.FindFirst(ctx, crud.Specification[entity.Collection]{
-		Model: entity.Collection{BaseEntity: crud.BaseEntity{ID: id}, ProfileID: profileID},
+	entries, err := s.entries.FindAll(ctx, crud.Specification[entity.InventoryEntry]{
+		Model:            entity.InventoryEntry{CollectionID: req.CollectionID},
+		PreloadRelations: []string{"Card.Rarity", "Card.ExpansionSet"},
 	})
 	if err != nil {
-		return entity.Collection{}, err
-	}
-	if c.IsZero() {
-		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
+		return nil, err
 	}
 
-	return c, nil
+	// crud.Repository always orders by created_at, so sort here: release date
+	// (unknown last), then set, local id, name, id. Like catalog search, but
+	// strings compare bytewise here, not by DB collation.
+	slices.SortStableFunc(entries, compareEntries)
+
+	return ezutil.MapSlice(entries, mapper.ToInventoryItem), nil
 }
 
-func (s *inventoryService) List(ctx context.Context, profileID, collectionID uuid.UUID) ([]dto.InventoryItem, error) {
-	if _, err := s.findOwned(ctx, profileID, collectionID); err != nil {
-		return nil, err
+func compareEntries(a, b entity.InventoryEntry) int {
+	ar, br := a.Card.ExpansionSet.ReleaseDate, b.Card.ExpansionSet.ReleaseDate
+	if (ar == nil) != (br == nil) {
+		if ar == nil {
+			return 1
+		}
+		return -1
+	}
+	if ar != nil {
+		if c := ar.Compare(*br); c != 0 {
+			return c
+		}
+	}
+	return cmp.Or(
+		cmp.Compare(a.Card.ExpansionSet.ID.String(), b.Card.ExpansionSet.ID.String()),
+		cmp.Compare(a.Card.LocalID, b.Card.LocalID),
+		cmp.Compare(a.Card.Name, b.Card.Name),
+		cmp.Compare(a.Card.ID.String(), b.Card.ID.String()),
+	)
+}
+
+// findEntry returns the Card's row-locked entry, or the not-found 404. A nil
+// card id would drop that condition (see crud.WhereBySpec), hence the guard.
+func (s *inventoryService) findEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
+	if cardID == uuid.Nil {
+		return entity.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
 	}
 
-	items, err := s.inventory.ListItems(ctx, collectionID)
+	entry, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
+		Model:     entity.InventoryEntry{CollectionID: collectionID, CardID: cardID},
+		ForUpdate: true,
+	})
 	if err != nil {
-		return nil, err
+		return entity.InventoryEntry{}, err
+	}
+	if entry.IsZero() {
+		return entity.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
 	}
 
-	return ezutil.MapSlice(items, mapper.ToInventoryItem), nil
+	return entry, nil
 }
 
 // checkCapacity rejects a write that raises a Card's quantity and would leave
@@ -79,12 +117,12 @@ func (s *inventoryService) List(ctx context.Context, profileID, collectionID uui
 // the quantity the Card already holds, which the write replaces. A decrease is
 // always allowed, even when the Collection is already over a lowered limit.
 // The caller holds the Collection's row lock, so the sum can't change under it.
-func checkCapacity(ctx context.Context, tx repository.InventoryRepository, c entity.Collection, current, quantity int) error {
+func (s *inventoryService) checkCapacity(ctx context.Context, c entity.Collection, current, quantity int) error {
 	if c.MaxCardCount == 0 || quantity <= current {
 		return nil
 	}
 
-	sum, err := tx.SumQuantity(ctx, c.ID)
+	sum, err := s.entries.SumQuantity(ctx, c.ID)
 	if err != nil {
 		return err
 	}
@@ -95,97 +133,102 @@ func checkCapacity(ctx context.Context, tx repository.InventoryRepository, c ent
 	return nil
 }
 
-// withLockedCollection maps the repository's not-found sentinel to the same
-// 404 findOwned returns.
-func (s *inventoryService) withLockedCollection(ctx context.Context, profileID, collectionID uuid.UUID, fn func(tx repository.InventoryRepository, c entity.Collection) error) error {
-	if collectionID == uuid.Nil {
-		return ungerr.NotFoundError(collectionNotFoundMsg)
-	}
-
-	err := s.inventory.WithLockedCollection(ctx, profileID, collectionID, fn)
-	if errors.Is(err, repository.ErrCollectionNotFound) {
-		return ungerr.NotFoundError(collectionNotFoundMsg)
-	}
-
-	return err
-}
-
-func (s *inventoryService) Add(ctx context.Context, profileID, collectionID uuid.UUID, req dto.InventoryEntryRequest) (dto.InventoryEntry, error) {
+func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error) {
 	if req.Quantity <= 0 {
 		return dto.InventoryEntry{}, ungerr.BadRequestError(quantityNotPositiveMsg)
 	}
 
-	err := s.withLockedCollection(ctx, profileID, collectionID, func(tx repository.InventoryRepository, c entity.Collection) error {
-		exists, err := tx.CardExists(ctx, req.CardID)
+	var written entity.InventoryEntry
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, true)
 		if err != nil {
 			return err
 		}
-		if !exists {
+
+		if req.CardID == uuid.Nil {
+			return ungerr.NotFoundError(cardNotFoundMsg)
+		}
+		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+			Model: entity.Card{BaseEntity: crud.BaseEntity{ID: req.CardID}},
+		})
+		if err != nil {
+			return err
+		}
+		if card.IsZero() {
 			return ungerr.NotFoundError(cardNotFoundMsg)
 		}
 
-		if err := checkCapacity(ctx, tx, c, 0, req.Quantity); err != nil {
-			return err
-		}
-
-		err = tx.InsertEntry(ctx, entity.InventoryEntry{CollectionID: collectionID, CardID: req.CardID, Quantity: req.Quantity})
-		if errors.Is(err, repository.ErrEntryExists) {
-			return ungerr.ConflictError(entryExistsMsg)
-		}
-
-		return err
-	})
-	if err != nil {
-		return dto.InventoryEntry{}, err
-	}
-
-	return dto.InventoryEntry{CardID: req.CardID, Quantity: req.Quantity}, nil
-}
-
-func (s *inventoryService) UpdateQuantity(ctx context.Context, profileID, collectionID, cardID uuid.UUID, quantity int) (dto.InventoryEntry, error) {
-	if quantity <= 0 {
-		return dto.InventoryEntry{}, ungerr.BadRequestError(quantityNotPositiveMsg)
-	}
-
-	err := s.withLockedCollection(ctx, profileID, collectionID, func(tx repository.InventoryRepository, c entity.Collection) error {
-		existing, err := tx.FindEntry(ctx, collectionID, cardID)
+		// The Collection's row lock (not a unique-violation mapping) guarantees
+		// no concurrent insert slips past this check.
+		existing, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
+			Model:     entity.InventoryEntry{CollectionID: c.ID, CardID: req.CardID},
+			ForUpdate: true,
+		})
 		if err != nil {
 			return err
 		}
-		if existing.IsZero() {
-			return ungerr.NotFoundError(entryNotFoundMsg)
+		if !existing.IsZero() {
+			return ungerr.ConflictError(entryExistsMsg)
 		}
 
-		if err := checkCapacity(ctx, tx, c, existing.Quantity, quantity); err != nil {
+		if err := s.checkCapacity(ctx, c, 0, req.Quantity); err != nil {
 			return err
 		}
 
-		err = tx.UpdateQuantity(ctx, collectionID, cardID, quantity)
-		if errors.Is(err, repository.ErrEntryNotFound) {
-			return ungerr.NotFoundError(entryNotFoundMsg)
-		}
-
+		written, err = s.entries.Insert(ctx, entity.InventoryEntry{CollectionID: c.ID, CardID: req.CardID, Quantity: req.Quantity})
 		return err
 	})
 	if err != nil {
 		return dto.InventoryEntry{}, err
 	}
 
-	return dto.InventoryEntry{CardID: cardID, Quantity: quantity}, nil
+	return mapper.ToInventoryEntry(written), nil
 }
 
-func (s *inventoryService) Remove(ctx context.Context, profileID, collectionID, cardID uuid.UUID) error {
-	if _, err := s.findOwned(ctx, profileID, collectionID); err != nil {
-		return err
+func (s *inventoryService) UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error) {
+	if req.Quantity <= 0 {
+		return dto.InventoryEntry{}, ungerr.BadRequestError(quantityNotPositiveMsg)
 	}
 
-	existing, err := s.inventory.FindEntry(ctx, collectionID, cardID)
+	var written entity.InventoryEntry
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, true)
+		if err != nil {
+			return err
+		}
+
+		entry, err := s.findEntry(ctx, c.ID, req.CardID)
+		if err != nil {
+			return err
+		}
+
+		if err := s.checkCapacity(ctx, c, entry.Quantity, req.Quantity); err != nil {
+			return err
+		}
+
+		entry.Quantity = req.Quantity
+		written, err = s.entries.Update(ctx, entry)
+		return err
+	})
 	if err != nil {
-		return err
-	}
-	if existing.IsZero() {
-		return ungerr.NotFoundError(entryNotFoundMsg)
+		return dto.InventoryEntry{}, err
 	}
 
-	return s.inventory.DeleteEntry(ctx, collectionID, cardID)
+	return mapper.ToInventoryEntry(written), nil
+}
+
+func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLookup) error {
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := findOwnedCollection(ctx, s.collections, req.ProfileID, req.CollectionID, true)
+		if err != nil {
+			return err
+		}
+
+		entry, err := s.findEntry(ctx, c.ID, req.CardID)
+		if err != nil {
+			return err
+		}
+
+		return s.entries.Delete(ctx, entry)
+	})
 }

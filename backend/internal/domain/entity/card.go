@@ -36,6 +36,10 @@ type Card struct {
 	ImageURL       string                      `gorm:"not null;default:''"`
 	Attributes     datatypes.JSONMap           `gorm:"not null"`
 	Raw            string                      `gorm:"not null;default:''"`
+
+	// Relations, loaded only via crud.Specification.PreloadRelations.
+	Rarity       Rarity       `gorm:"foreignKey:RarityID"`
+	ExpansionSet ExpansionSet `gorm:"foreignKey:ExpansionSetID"`
 }
 
 func (Card) TableName() string { return "cards" }
