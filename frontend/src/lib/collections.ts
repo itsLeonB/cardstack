@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  getGetCollectionQueryKey,
   getListCollectionsQueryKey,
   useCreateCollection,
   useDeleteCollection,
   useUpdateCollection,
 } from "@/generated/endpoints/collections/collections"
 
-/** Create mutation that refreshes the Collections list once the Collection exists. */
 export function useCreateCollectionMutation() {
   const queryClient = useQueryClient()
 
@@ -23,16 +23,20 @@ export function useCreateCollectionMutation() {
   })
 }
 
-/** Update mutation that refreshes the Collections list once the edit is saved. */
 export function useUpdateCollectionMutation() {
   const queryClient = useQueryClient()
 
   return useUpdateCollection({
     mutation: {
-      onSuccess: (response) => {
+      onSuccess: (response, { id }) => {
         if (response.status === 200) {
           queryClient.invalidateQueries({
             queryKey: getListCollectionsQueryKey(),
+          })
+          // The edit loader reads this entry via ensureQueryData, and PUT is a
+          // full replace, so a stale entry would overwrite the saved edit.
+          queryClient.invalidateQueries({
+            queryKey: getGetCollectionQueryKey(id),
           })
         }
       },
@@ -40,17 +44,17 @@ export function useUpdateCollectionMutation() {
   })
 }
 
-/** Delete mutation that refreshes the Collections list once the delete is confirmed by the backend. */
 export function useDeleteCollectionMutation() {
   const queryClient = useQueryClient()
 
   return useDeleteCollection({
     mutation: {
-      onSuccess: (response) => {
+      onSuccess: (response, { id }) => {
         if (response.status === 204) {
           queryClient.invalidateQueries({
             queryKey: getListCollectionsQueryKey(),
           })
+          queryClient.removeQueries({ queryKey: getGetCollectionQueryKey(id) })
         }
       },
     },

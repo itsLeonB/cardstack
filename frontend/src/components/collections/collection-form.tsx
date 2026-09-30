@@ -31,10 +31,6 @@ interface CollectionFormProps {
   onSubmit: (body: CollectionBody) => void
 }
 
-/**
- * Shared create/edit form: same fields and validation either way, only the
- * submit label and initial values differ between `new.tsx` and `edit.tsx`.
- */
 export function CollectionForm({
   initialValues,
   submitLabel,

@@ -18,11 +18,6 @@ interface DeleteCollectionDialogProps {
   collectionTitle: string
 }
 
-/**
- * Explicit confirmation gate in front of the hard-delete (no undo) DELETE
- * request: the trigger only opens this dialog, the DELETE mutation fires
- * from the in-dialog "Delete" action, never from the trigger click itself.
- */
 export function DeleteCollectionDialog({
   collectionId,
   collectionTitle,
@@ -68,8 +63,7 @@ export function DeleteCollectionDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete &ldquo;{collectionTitle}&rdquo;?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently deletes the Collection and everything in it.
-            This cannot be undone.
+            This permanently deletes the Collection. This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {errorMessage && (
