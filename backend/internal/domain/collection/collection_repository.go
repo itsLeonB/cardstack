@@ -56,13 +56,23 @@ func NewCollectionRepository(db *gorm.DB) CollectionRepository {
 }
 
 func (r *collectionRepository) Create(ctx context.Context, c entity.Collection) (entity.Collection, error) {
-	return r.repo.Insert(ctx, c)
+	created, err := r.repo.Insert(ctx, c)
+	if err != nil {
+		return entity.Collection{}, ungerr.Wrap(err, "error inserting collection")
+	}
+
+	return created, nil
 }
 
 func (r *collectionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]entity.Collection, error) {
-	return r.repo.FindAll(ctx, crud.Specification[entity.Collection]{
+	collections, err := r.repo.FindAll(ctx, crud.Specification[entity.Collection]{
 		Model: entity.Collection{UserID: userID},
 	})
+	if err != nil {
+		return nil, ungerr.Wrap(err, "error listing collections")
+	}
+
+	return collections, nil
 }
 
 func (r *collectionRepository) FindByID(ctx context.Context, id uuid.UUID) (entity.Collection, error) {
@@ -77,7 +87,7 @@ func (r *collectionRepository) FindByID(ctx context.Context, id uuid.UUID) (enti
 		Model: entity.Collection{BaseEntity: crud.BaseEntity{ID: id}},
 	})
 	if err != nil {
-		return entity.Collection{}, err
+		return entity.Collection{}, ungerr.Wrap(err, "error finding collection")
 	}
 	if c.IsZero() {
 		return entity.Collection{}, ErrCollectionNotFound
@@ -87,9 +97,18 @@ func (r *collectionRepository) FindByID(ctx context.Context, id uuid.UUID) (enti
 }
 
 func (r *collectionRepository) Update(ctx context.Context, c entity.Collection) (entity.Collection, error) {
-	return r.repo.Update(ctx, c)
+	updated, err := r.repo.Update(ctx, c)
+	if err != nil {
+		return entity.Collection{}, ungerr.Wrap(err, "error updating collection")
+	}
+
+	return updated, nil
 }
 
 func (r *collectionRepository) Delete(ctx context.Context, c entity.Collection) error {
-	return r.repo.Delete(ctx, c)
+	if err := r.repo.Delete(ctx, c); err != nil {
+		return ungerr.Wrap(err, "error deleting collection")
+	}
+
+	return nil
 }
