@@ -2,12 +2,20 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/ungerr"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+)
+
+var (
+	ErrCollectionNotFound = errors.New("collection not found")
+	ErrEntryExists        = errors.New("inventory entry already exists")
+	ErrEntryNotFound      = errors.New("inventory entry not found")
 )
 
 // InventoryItemResult is a Card (joined with its Rarity and Expansion Set)
@@ -29,9 +37,17 @@ type InventoryRepository interface {
 	SumQuantity(ctx context.Context, collectionID uuid.UUID) (int, error)
 	// CardExists reports whether a Card with that ID exists.
 	CardExists(ctx context.Context, cardID uuid.UUID) (bool, error)
-	// SaveEntry inserts the entry, or sets the quantity of the existing entry
-	// for the same (collection, card).
-	SaveEntry(ctx context.Context, entry entity.InventoryEntry) (entity.InventoryEntry, error)
+	// InsertEntry inserts a new entry; ErrEntryExists if the Card is already
+	// in the Collection.
+	InsertEntry(ctx context.Context, entry entity.InventoryEntry) error
+	// UpdateQuantity sets an existing entry's quantity; ErrEntryNotFound if
+	// there is no such entry.
+	UpdateQuantity(ctx context.Context, collectionID, cardID uuid.UUID, quantity int) error
+	// WithLockedCollection runs fn in a transaction holding a row lock on the
+	// profile's Collection, so concurrent writes to it serialize. fn gets a
+	// repository bound to that transaction and the locked Collection.
+	// ErrCollectionNotFound if the profile has no such Collection.
+	WithLockedCollection(ctx context.Context, profileID, collectionID uuid.UUID, fn func(tx InventoryRepository, c entity.Collection) error) error
 	// DeleteEntry removes the Card's entry from the Collection.
 	DeleteEntry(ctx context.Context, collectionID, cardID uuid.UUID) error
 }
@@ -102,19 +118,51 @@ func (r *inventoryRepository) CardExists(ctx context.Context, cardID uuid.UUID) 
 	return count > 0, nil
 }
 
-func (r *inventoryRepository) SaveEntry(ctx context.Context, entry entity.InventoryEntry) (entity.InventoryEntry, error) {
-	err := r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "collection_id"}, {Name: "card_id"}},
-			DoUpdates: clause.Assignments(map[string]any{"quantity": entry.Quantity, "updated_at": gorm.Expr("now()")}),
-		}).
-		Create(&entry).
-		Error
+func (r *inventoryRepository) InsertEntry(ctx context.Context, entry entity.InventoryEntry) error {
+	err := r.db.WithContext(ctx).Create(&entry).Error
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" { // 23505 = unique_violation
+		return ErrEntryExists
+	}
 	if err != nil {
-		return entity.InventoryEntry{}, ungerr.Wrap(err, "saving inventory entry")
+		return ungerr.Wrap(err, "inserting inventory entry")
 	}
 
-	return entry, nil
+	return nil
+}
+
+func (r *inventoryRepository) UpdateQuantity(ctx context.Context, collectionID, cardID uuid.UUID, quantity int) error {
+	res := r.db.WithContext(ctx).
+		Model(&entity.InventoryEntry{}).
+		Where("collection_id = ? AND card_id = ?", collectionID, cardID).
+		Update("quantity", quantity)
+	if res.Error != nil {
+		return ungerr.Wrap(res.Error, "updating inventory entry")
+	}
+	if res.RowsAffected == 0 {
+		return ErrEntryNotFound
+	}
+
+	return nil
+}
+
+func (r *inventoryRepository) WithLockedCollection(ctx context.Context, profileID, collectionID uuid.UUID, fn func(tx InventoryRepository, c entity.Collection) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var c entity.Collection
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND profile_id = ?", collectionID, profileID).
+			Limit(1).
+			Find(&c).
+			Error
+		if err != nil {
+			return ungerr.Wrap(err, "locking collection")
+		}
+		if c.IsZero() {
+			return ErrCollectionNotFound
+		}
+
+		return fn(&inventoryRepository{db: tx}, c)
+	})
 }
 
 func (r *inventoryRepository) DeleteEntry(ctx context.Context, collectionID, cardID uuid.UUID) error {

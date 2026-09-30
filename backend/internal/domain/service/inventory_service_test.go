@@ -34,6 +34,11 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 	f.inventory = mocks.NewMockInventoryRepository(t)
 	f.svc = NewInventoryService(f.collections, f.inventory)
 	f.collections.EXPECT().FindFirst(f.ctx, ownedSpec(f.profileID, f.collection.ID)).Return(f.collection, nil).Maybe()
+	// The mock stands in for the transaction: fn runs against it directly.
+	f.inventory.EXPECT().WithLockedCollection(f.ctx, f.profileID, f.collection.ID, mock.Anything).
+		RunAndReturn(func(_ context.Context, _, _ uuid.UUID, fn func(repository.InventoryRepository, entity.Collection) error) error {
+			return fn(f.inventory, f.collection)
+		}).Maybe()
 	return f
 }
 
@@ -49,7 +54,9 @@ func TestInventoryService_NotOwnedCollectionIsNotFound(t *testing.T) {
 	profileID, id, cardID := uuid.New(), uuid.New(), uuid.New()
 	collections := mocks.NewMockRepository[entity.Collection](t)
 	collections.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(entity.Collection{}, nil)
-	svc := NewInventoryService(collections, mocks.NewMockInventoryRepository(t))
+	inventory := mocks.NewMockInventoryRepository(t)
+	inventory.EXPECT().WithLockedCollection(ctx, profileID, id, mock.Anything).Return(repository.ErrCollectionNotFound)
+	svc := NewInventoryService(collections, inventory)
 
 	_, err := svc.List(ctx, profileID, id)
 	requireStatus(t, err, http.StatusNotFound)
@@ -77,10 +84,8 @@ func TestInventoryService_List(t *testing.T) {
 func TestInventoryService_Add(t *testing.T) {
 	f := newInventoryFixture(t, 0)
 	cardID := uuid.New()
-	want := entity.InventoryEntry{CollectionID: f.collection.ID, CardID: cardID, Quantity: 2}
 	f.inventory.EXPECT().CardExists(f.ctx, cardID).Return(true, nil).Once()
-	f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(entity.InventoryEntry{}, nil).Once()
-	f.inventory.EXPECT().SaveEntry(f.ctx, want).Return(want, nil).Once()
+	f.inventory.EXPECT().InsertEntry(f.ctx, entity.InventoryEntry{CollectionID: f.collection.ID, CardID: cardID, Quantity: 2}).Return(nil).Once()
 
 	got, err := f.svc.Add(f.ctx, f.profileID, f.collection.ID, dto.InventoryEntryRequest{CardID: cardID, Quantity: 2})
 	require.NoError(t, err)
@@ -89,7 +94,6 @@ func TestInventoryService_Add(t *testing.T) {
 
 func TestInventoryService_Add_Rejections(t *testing.T) {
 	cardID := uuid.New()
-	existing := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), Quantity: 1}
 
 	t.Run("non-positive quantity", func(t *testing.T) {
 		f := newInventoryFixture(t, 0)
@@ -105,14 +109,13 @@ func TestInventoryService_Add_Rejections(t *testing.T) {
 	t.Run("card already present", func(t *testing.T) {
 		f := newInventoryFixture(t, 0)
 		f.inventory.EXPECT().CardExists(f.ctx, cardID).Return(true, nil).Once()
-		f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(existing, nil).Once()
+		f.inventory.EXPECT().InsertEntry(f.ctx, entity.InventoryEntry{CollectionID: f.collection.ID, CardID: cardID, Quantity: 1}).Return(repository.ErrEntryExists).Once()
 		_, err := f.svc.Add(f.ctx, f.profileID, f.collection.ID, dto.InventoryEntryRequest{CardID: cardID, Quantity: 1})
 		requireStatus(t, err, http.StatusConflict)
 	})
 	t.Run("over capacity", func(t *testing.T) {
 		f := newInventoryFixture(t, 10)
 		f.inventory.EXPECT().CardExists(f.ctx, cardID).Return(true, nil).Once()
-		f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(entity.InventoryEntry{}, nil).Once()
 		f.inventory.EXPECT().SumQuantity(f.ctx, f.collection.ID).Return(8, nil).Once()
 		_, err := f.svc.Add(f.ctx, f.profileID, f.collection.ID, dto.InventoryEntryRequest{CardID: cardID, Quantity: 3})
 		requireStatus(t, err, http.StatusUnprocessableEntity)
@@ -122,11 +125,9 @@ func TestInventoryService_Add_Rejections(t *testing.T) {
 func TestInventoryService_Add_AllowsExactlyReachingCapacity(t *testing.T) {
 	f := newInventoryFixture(t, 10)
 	cardID := uuid.New()
-	want := entity.InventoryEntry{CollectionID: f.collection.ID, CardID: cardID, Quantity: 2}
 	f.inventory.EXPECT().CardExists(f.ctx, cardID).Return(true, nil).Once()
-	f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(entity.InventoryEntry{}, nil).Once()
 	f.inventory.EXPECT().SumQuantity(f.ctx, f.collection.ID).Return(8, nil).Once()
-	f.inventory.EXPECT().SaveEntry(f.ctx, want).Return(want, nil).Once()
+	f.inventory.EXPECT().InsertEntry(f.ctx, entity.InventoryEntry{CollectionID: f.collection.ID, CardID: cardID, Quantity: 2}).Return(nil).Once()
 
 	_, err := f.svc.Add(f.ctx, f.profileID, f.collection.ID, dto.InventoryEntryRequest{CardID: cardID, Quantity: 2})
 	require.NoError(t, err)
@@ -147,13 +148,9 @@ func TestInventoryService_UpdateQuantity(t *testing.T) {
 
 	t.Run("replaces current quantity in the capacity sum", func(t *testing.T) {
 		f := newInventoryFixture(t, 10)
-		existing := existing
-		existing.CollectionID = f.collection.ID
-		updated := existing
-		updated.Quantity = 6
 		f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(existing, nil).Once()
 		f.inventory.EXPECT().SumQuantity(f.ctx, f.collection.ID).Return(8, nil).Once() // 8 - 4 + 6 == limit
-		f.inventory.EXPECT().SaveEntry(f.ctx, updated).Return(updated, nil).Once()
+		f.inventory.EXPECT().UpdateQuantity(f.ctx, f.collection.ID, cardID, 6).Return(nil).Once()
 
 		got, err := f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 6)
 		require.NoError(t, err)
@@ -166,9 +163,30 @@ func TestInventoryService_UpdateQuantity(t *testing.T) {
 		_, err := f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 7)
 		requireStatus(t, err, http.StatusUnprocessableEntity)
 	})
+	t.Run("already over a lowered limit: decrease and no-op allowed, increase rejected", func(t *testing.T) {
+		f := newInventoryFixture(t, 5) // holds 12 > 5
+		f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(existing, nil).Times(3)
+		f.inventory.EXPECT().UpdateQuantity(f.ctx, f.collection.ID, cardID, 2).Return(nil).Once()
+		f.inventory.EXPECT().UpdateQuantity(f.ctx, f.collection.ID, cardID, 4).Return(nil).Once()
+		f.inventory.EXPECT().SumQuantity(f.ctx, f.collection.ID).Return(12, nil).Once()
+
+		_, err := f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 2)
+		require.NoError(t, err)
+		_, err = f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 4)
+		require.NoError(t, err)
+		_, err = f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 5)
+		requireStatus(t, err, http.StatusUnprocessableEntity)
+	})
 	t.Run("missing entry", func(t *testing.T) {
 		f := newInventoryFixture(t, 0)
 		f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(entity.InventoryEntry{}, nil).Once()
+		_, err := f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 1)
+		requireStatus(t, err, http.StatusNotFound)
+	})
+	t.Run("entry vanished before the update", func(t *testing.T) {
+		f := newInventoryFixture(t, 0)
+		f.inventory.EXPECT().FindEntry(f.ctx, f.collection.ID, cardID).Return(existing, nil).Once()
+		f.inventory.EXPECT().UpdateQuantity(f.ctx, f.collection.ID, cardID, 1).Return(repository.ErrEntryNotFound).Once()
 		_, err := f.svc.UpdateQuantity(f.ctx, f.profileID, f.collection.ID, cardID, 1)
 		requireStatus(t, err, http.StatusNotFound)
 	})

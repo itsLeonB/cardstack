@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
@@ -73,17 +74,17 @@ func (s *inventoryService) List(ctx context.Context, profileID, collectionID uui
 	return ezutil.MapSlice(items, mapper.ToInventoryItem), nil
 }
 
-// checkCapacity rejects a write that would leave the Collection's summed
-// quantity above its limit (0 = no limit). current is the quantity the Card
-// already holds, which the write replaces. The sum-then-write isn't atomic,
-// so two concurrent writes can overshoot the limit by one write's worth.
-// ponytail: row-lock the collection in a transaction if that ever matters.
-func (s *inventoryService) checkCapacity(ctx context.Context, c entity.Collection, current, quantity int) error {
-	if c.MaxCardCount == 0 {
+// checkCapacity rejects a write that raises a Card's quantity and would leave
+// the Collection's summed quantity above its limit (0 = no limit). current is
+// the quantity the Card already holds, which the write replaces. A decrease is
+// always allowed, even when the Collection is already over a lowered limit.
+// The caller holds the Collection's row lock, so the sum can't change under it.
+func checkCapacity(ctx context.Context, tx repository.InventoryRepository, c entity.Collection, current, quantity int) error {
+	if c.MaxCardCount == 0 || quantity <= current {
 		return nil
 	}
 
-	sum, err := s.inventory.SumQuantity(ctx, c.ID)
+	sum, err := tx.SumQuantity(ctx, c.ID)
 	if err != nil {
 		return err
 	}
@@ -94,71 +95,83 @@ func (s *inventoryService) checkCapacity(ctx context.Context, c entity.Collectio
 	return nil
 }
 
-func (s *inventoryService) Add(ctx context.Context, profileID, collectionID uuid.UUID, req dto.InventoryEntryRequest) (dto.InventoryEntry, error) {
-	c, err := s.findOwned(ctx, profileID, collectionID)
-	if err != nil {
-		return dto.InventoryEntry{}, err
+// withLockedCollection maps the repository's not-found sentinel to the same
+// 404 findOwned returns.
+func (s *inventoryService) withLockedCollection(ctx context.Context, profileID, collectionID uuid.UUID, fn func(tx repository.InventoryRepository, c entity.Collection) error) error {
+	if collectionID == uuid.Nil {
+		return ungerr.NotFoundError(collectionNotFoundMsg)
 	}
+
+	err := s.inventory.WithLockedCollection(ctx, profileID, collectionID, fn)
+	if errors.Is(err, repository.ErrCollectionNotFound) {
+		return ungerr.NotFoundError(collectionNotFoundMsg)
+	}
+
+	return err
+}
+
+func (s *inventoryService) Add(ctx context.Context, profileID, collectionID uuid.UUID, req dto.InventoryEntryRequest) (dto.InventoryEntry, error) {
 	if req.Quantity <= 0 {
 		return dto.InventoryEntry{}, ungerr.BadRequestError(quantityNotPositiveMsg)
 	}
 
-	exists, err := s.inventory.CardExists(ctx, req.CardID)
+	err := s.withLockedCollection(ctx, profileID, collectionID, func(tx repository.InventoryRepository, c entity.Collection) error {
+		exists, err := tx.CardExists(ctx, req.CardID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return ungerr.NotFoundError(cardNotFoundMsg)
+		}
+
+		if err := checkCapacity(ctx, tx, c, 0, req.Quantity); err != nil {
+			return err
+		}
+
+		err = tx.InsertEntry(ctx, entity.InventoryEntry{CollectionID: collectionID, CardID: req.CardID, Quantity: req.Quantity})
+		if errors.Is(err, repository.ErrEntryExists) {
+			return ungerr.ConflictError(entryExistsMsg)
+		}
+
+		return err
+	})
 	if err != nil {
 		return dto.InventoryEntry{}, err
 	}
-	if !exists {
-		return dto.InventoryEntry{}, ungerr.NotFoundError(cardNotFoundMsg)
-	}
 
-	existing, err := s.inventory.FindEntry(ctx, collectionID, req.CardID)
-	if err != nil {
-		return dto.InventoryEntry{}, err
-	}
-	if !existing.IsZero() {
-		return dto.InventoryEntry{}, ungerr.ConflictError(entryExistsMsg)
-	}
-
-	if err := s.checkCapacity(ctx, c, 0, req.Quantity); err != nil {
-		return dto.InventoryEntry{}, err
-	}
-
-	saved, err := s.inventory.SaveEntry(ctx, entity.InventoryEntry{CollectionID: collectionID, CardID: req.CardID, Quantity: req.Quantity})
-	if err != nil {
-		return dto.InventoryEntry{}, err
-	}
-
-	return mapper.ToInventoryEntry(saved), nil
+	return dto.InventoryEntry{CardID: req.CardID, Quantity: req.Quantity}, nil
 }
 
 func (s *inventoryService) UpdateQuantity(ctx context.Context, profileID, collectionID, cardID uuid.UUID, quantity int) (dto.InventoryEntry, error) {
-	c, err := s.findOwned(ctx, profileID, collectionID)
-	if err != nil {
-		return dto.InventoryEntry{}, err
-	}
 	if quantity <= 0 {
 		return dto.InventoryEntry{}, ungerr.BadRequestError(quantityNotPositiveMsg)
 	}
 
-	existing, err := s.inventory.FindEntry(ctx, collectionID, cardID)
+	err := s.withLockedCollection(ctx, profileID, collectionID, func(tx repository.InventoryRepository, c entity.Collection) error {
+		existing, err := tx.FindEntry(ctx, collectionID, cardID)
+		if err != nil {
+			return err
+		}
+		if existing.IsZero() {
+			return ungerr.NotFoundError(entryNotFoundMsg)
+		}
+
+		if err := checkCapacity(ctx, tx, c, existing.Quantity, quantity); err != nil {
+			return err
+		}
+
+		err = tx.UpdateQuantity(ctx, collectionID, cardID, quantity)
+		if errors.Is(err, repository.ErrEntryNotFound) {
+			return ungerr.NotFoundError(entryNotFoundMsg)
+		}
+
+		return err
+	})
 	if err != nil {
 		return dto.InventoryEntry{}, err
 	}
-	if existing.IsZero() {
-		return dto.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
-	}
 
-	if err := s.checkCapacity(ctx, c, existing.Quantity, quantity); err != nil {
-		return dto.InventoryEntry{}, err
-	}
-
-	existing.Quantity = quantity
-	saved, err := s.inventory.SaveEntry(ctx, existing)
-	if err != nil {
-		return dto.InventoryEntry{}, err
-	}
-
-	return mapper.ToInventoryEntry(saved), nil
+	return dto.InventoryEntry{CardID: cardID, Quantity: quantity}, nil
 }
 
 func (s *inventoryService) Remove(ctx context.Context, profileID, collectionID, cardID uuid.UUID) error {

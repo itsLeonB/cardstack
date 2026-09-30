@@ -189,6 +189,53 @@ func (_c *MockInventoryRepository_FindEntry_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// InsertEntry provides a mock function with given fields: ctx, entry
+func (_m *MockInventoryRepository) InsertEntry(ctx context.Context, entry entity.InventoryEntry) error {
+	ret := _m.Called(ctx, entry)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertEntry")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, entity.InventoryEntry) error); ok {
+		r0 = rf(ctx, entry)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockInventoryRepository_InsertEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertEntry'
+type MockInventoryRepository_InsertEntry_Call struct {
+	*mock.Call
+}
+
+// InsertEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entry entity.InventoryEntry
+func (_e *MockInventoryRepository_Expecter) InsertEntry(ctx interface{}, entry interface{}) *MockInventoryRepository_InsertEntry_Call {
+	return &MockInventoryRepository_InsertEntry_Call{Call: _e.mock.On("InsertEntry", ctx, entry)}
+}
+
+func (_c *MockInventoryRepository_InsertEntry_Call) Run(run func(ctx context.Context, entry entity.InventoryEntry)) *MockInventoryRepository_InsertEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(entity.InventoryEntry))
+	})
+	return _c
+}
+
+func (_c *MockInventoryRepository_InsertEntry_Call) Return(_a0 error) *MockInventoryRepository_InsertEntry_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockInventoryRepository_InsertEntry_Call) RunAndReturn(run func(context.Context, entity.InventoryEntry) error) *MockInventoryRepository_InsertEntry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListItems provides a mock function with given fields: ctx, collectionID
 func (_m *MockInventoryRepository) ListItems(ctx context.Context, collectionID uuid.UUID) ([]repository.InventoryItemResult, error) {
 	ret := _m.Called(ctx, collectionID)
@@ -248,63 +295,6 @@ func (_c *MockInventoryRepository_ListItems_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// SaveEntry provides a mock function with given fields: ctx, entry
-func (_m *MockInventoryRepository) SaveEntry(ctx context.Context, entry entity.InventoryEntry) (entity.InventoryEntry, error) {
-	ret := _m.Called(ctx, entry)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SaveEntry")
-	}
-
-	var r0 entity.InventoryEntry
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, entity.InventoryEntry) (entity.InventoryEntry, error)); ok {
-		return rf(ctx, entry)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, entity.InventoryEntry) entity.InventoryEntry); ok {
-		r0 = rf(ctx, entry)
-	} else {
-		r0 = ret.Get(0).(entity.InventoryEntry)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, entity.InventoryEntry) error); ok {
-		r1 = rf(ctx, entry)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockInventoryRepository_SaveEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveEntry'
-type MockInventoryRepository_SaveEntry_Call struct {
-	*mock.Call
-}
-
-// SaveEntry is a helper method to define mock.On call
-//   - ctx context.Context
-//   - entry entity.InventoryEntry
-func (_e *MockInventoryRepository_Expecter) SaveEntry(ctx interface{}, entry interface{}) *MockInventoryRepository_SaveEntry_Call {
-	return &MockInventoryRepository_SaveEntry_Call{Call: _e.mock.On("SaveEntry", ctx, entry)}
-}
-
-func (_c *MockInventoryRepository_SaveEntry_Call) Run(run func(ctx context.Context, entry entity.InventoryEntry)) *MockInventoryRepository_SaveEntry_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(entity.InventoryEntry))
-	})
-	return _c
-}
-
-func (_c *MockInventoryRepository_SaveEntry_Call) Return(_a0 entity.InventoryEntry, _a1 error) *MockInventoryRepository_SaveEntry_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockInventoryRepository_SaveEntry_Call) RunAndReturn(run func(context.Context, entity.InventoryEntry) (entity.InventoryEntry, error)) *MockInventoryRepository_SaveEntry_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SumQuantity provides a mock function with given fields: ctx, collectionID
 func (_m *MockInventoryRepository) SumQuantity(ctx context.Context, collectionID uuid.UUID) (int, error) {
 	ret := _m.Called(ctx, collectionID)
@@ -358,6 +348,104 @@ func (_c *MockInventoryRepository_SumQuantity_Call) Return(_a0 int, _a1 error) *
 }
 
 func (_c *MockInventoryRepository_SumQuantity_Call) RunAndReturn(run func(context.Context, uuid.UUID) (int, error)) *MockInventoryRepository_SumQuantity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateQuantity provides a mock function with given fields: ctx, collectionID, cardID, quantity
+func (_m *MockInventoryRepository) UpdateQuantity(ctx context.Context, collectionID uuid.UUID, cardID uuid.UUID, quantity int) error {
+	ret := _m.Called(ctx, collectionID, cardID, quantity)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateQuantity")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r0 = rf(ctx, collectionID, cardID, quantity)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockInventoryRepository_UpdateQuantity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateQuantity'
+type MockInventoryRepository_UpdateQuantity_Call struct {
+	*mock.Call
+}
+
+// UpdateQuantity is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionID uuid.UUID
+//   - cardID uuid.UUID
+//   - quantity int
+func (_e *MockInventoryRepository_Expecter) UpdateQuantity(ctx interface{}, collectionID interface{}, cardID interface{}, quantity interface{}) *MockInventoryRepository_UpdateQuantity_Call {
+	return &MockInventoryRepository_UpdateQuantity_Call{Call: _e.mock.On("UpdateQuantity", ctx, collectionID, cardID, quantity)}
+}
+
+func (_c *MockInventoryRepository_UpdateQuantity_Call) Run(run func(ctx context.Context, collectionID uuid.UUID, cardID uuid.UUID, quantity int)) *MockInventoryRepository_UpdateQuantity_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockInventoryRepository_UpdateQuantity_Call) Return(_a0 error) *MockInventoryRepository_UpdateQuantity_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockInventoryRepository_UpdateQuantity_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID, int) error) *MockInventoryRepository_UpdateQuantity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WithLockedCollection provides a mock function with given fields: ctx, profileID, collectionID, fn
+func (_m *MockInventoryRepository) WithLockedCollection(ctx context.Context, profileID uuid.UUID, collectionID uuid.UUID, fn func(repository.InventoryRepository, entity.Collection) error) error {
+	ret := _m.Called(ctx, profileID, collectionID, fn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WithLockedCollection")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, func(repository.InventoryRepository, entity.Collection) error) error); ok {
+		r0 = rf(ctx, profileID, collectionID, fn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockInventoryRepository_WithLockedCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WithLockedCollection'
+type MockInventoryRepository_WithLockedCollection_Call struct {
+	*mock.Call
+}
+
+// WithLockedCollection is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileID uuid.UUID
+//   - collectionID uuid.UUID
+//   - fn func(repository.InventoryRepository , entity.Collection) error
+func (_e *MockInventoryRepository_Expecter) WithLockedCollection(ctx interface{}, profileID interface{}, collectionID interface{}, fn interface{}) *MockInventoryRepository_WithLockedCollection_Call {
+	return &MockInventoryRepository_WithLockedCollection_Call{Call: _e.mock.On("WithLockedCollection", ctx, profileID, collectionID, fn)}
+}
+
+func (_c *MockInventoryRepository_WithLockedCollection_Call) Run(run func(ctx context.Context, profileID uuid.UUID, collectionID uuid.UUID, fn func(repository.InventoryRepository, entity.Collection) error)) *MockInventoryRepository_WithLockedCollection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(func(repository.InventoryRepository, entity.Collection) error))
+	})
+	return _c
+}
+
+func (_c *MockInventoryRepository_WithLockedCollection_Call) Return(_a0 error) *MockInventoryRepository_WithLockedCollection_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockInventoryRepository_WithLockedCollection_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID, func(repository.InventoryRepository, entity.Collection) error) error) *MockInventoryRepository_WithLockedCollection_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -49,16 +50,15 @@ func TestInventoryRepository_EntryLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, missing.IsZero())
 
-	saved, err := repo.SaveEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card1.ID, Quantity: 2})
-	require.NoError(t, err)
-	assert.False(t, saved.IsZero())
-	_, err = repo.SaveEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card2.ID, Quantity: 3})
-	require.NoError(t, err)
+	require.NoError(t, repo.InsertEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card1.ID, Quantity: 2}))
+	require.NoError(t, repo.InsertEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card2.ID, Quantity: 3}))
 
-	// Saving again for the same (collection, card) sets the quantity in place.
-	updated, err := repo.SaveEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card1.ID, Quantity: 5})
-	require.NoError(t, err)
-	assert.Equal(t, saved.ID, updated.ID)
+	// A second insert for the same (collection, card) is refused, not merged.
+	err = repo.InsertEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card1.ID, Quantity: 9})
+	assert.ErrorIs(t, err, ErrEntryExists)
+
+	require.NoError(t, repo.UpdateQuantity(ctx, col.ID, card1.ID, 5))
+	assert.ErrorIs(t, repo.UpdateQuantity(ctx, col.ID, uuid.New(), 1), ErrEntryNotFound)
 
 	found, err := repo.FindEntry(ctx, col.ID, card1.ID)
 	require.NoError(t, err)
@@ -81,10 +81,48 @@ func TestInventoryRepository_EntryLifecycle(t *testing.T) {
 	found, err = repo.FindEntry(ctx, col.ID, card1.ID)
 	require.NoError(t, err)
 	assert.True(t, found.IsZero())
+	// Update never resurrects a deleted entry.
+	assert.ErrorIs(t, repo.UpdateQuantity(ctx, col.ID, card1.ID, 1), ErrEntryNotFound)
 
 	// Deleting the Collection cascades to its entries.
 	require.NoError(t, db.Delete(&col).Error)
 	sum, err = repo.SumQuantity(ctx, col.ID)
+	require.NoError(t, err)
+	assert.Zero(t, sum)
+}
+
+func TestInventoryRepository_WithLockedCollection(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewInventoryRepository(db)
+	col := newTestCollection(t, db)
+
+	var got entity.Collection
+	require.NoError(t, repo.WithLockedCollection(ctx, col.ProfileID, col.ID, func(_ InventoryRepository, c entity.Collection) error {
+		got = c
+		return nil
+	}))
+	assert.Equal(t, col.ID, got.ID)
+
+	// Another profile's collection is indistinguishable from a missing one.
+	called := false
+	err := repo.WithLockedCollection(ctx, uuid.New(), col.ID, func(InventoryRepository, entity.Collection) error {
+		called = true
+		return nil
+	})
+	assert.ErrorIs(t, err, ErrCollectionNotFound)
+	assert.False(t, called)
+
+	// An error from fn rolls the transaction back.
+	fixture := newCatalogFixture(t, db)
+	card := fixture.newCard(t, db, fixture.newExpansionSet(t, db, nil, nil).ID, nil)
+	boom := errors.New("boom")
+	err = repo.WithLockedCollection(ctx, col.ProfileID, col.ID, func(tx InventoryRepository, _ entity.Collection) error {
+		require.NoError(t, tx.InsertEntry(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card.ID, Quantity: 1}))
+		return boom
+	})
+	assert.ErrorIs(t, err, boom)
+	sum, err := repo.SumQuantity(ctx, col.ID)
 	require.NoError(t, err)
 	assert.Zero(t, sum)
 }
