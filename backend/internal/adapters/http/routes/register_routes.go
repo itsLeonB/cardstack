@@ -18,6 +18,10 @@ func RegisterRoutes(api huma.API, services *provider.Services) {
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 
+	// Global so every current and future mutating route enforces the CSRF
+	// double-submit check; login/register create the cookie, so they're exempt.
+	api.UseMiddleware(authpkg.CSRFGuard(api, "/auth/login", "/auth/register"))
+
 	endpoint.RegisterAll(api, healthHandler.Routes())
 	endpoint.RegisterAll(api, authHandler.Routes())
 	endpoint.RegisterAll(api, catalogHandler.Routes())

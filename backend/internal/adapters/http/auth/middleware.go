@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
+	"slices"
 
 	"github.com/danielgtaylor/huma/v2"
 	authkit "github.com/itsLeonB/go-authkit"
@@ -65,14 +66,19 @@ func SessionGuard(api huma.API, kit *authkit.AuthKit, transport *Transport, prof
 
 // CSRFGuard ports authgin.CSRFMiddleware's double-submit check to Huma: on
 // any request past GET/HEAD/OPTIONS, the csrf_token cookie must match the
-// X-CSRF-Token header. Applied only to logout/refresh — register/login are
-// what create the CSRF cookie in the first place, so there's nothing to
-// double-submit against yet on that first call (see the plan's "CSRF"
+// X-CSRF-Token header. Registered globally; exemptPaths (operation paths,
+// e.g. register/login) skip the check because they're what create the CSRF
+// cookie in the first place, so there's nothing to double-submit against yet
+// on that first call (see the plan's "CSRF"
 // decision).
-func CSRFGuard(api huma.API) func(huma.Context, func(huma.Context)) {
+func CSRFGuard(api huma.API, exemptPaths ...string) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		switch ctx.Method() {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next(ctx)
+			return
+		}
+		if op := ctx.Operation(); op != nil && slices.Contains(exemptPaths, op.Path) {
 			next(ctx)
 			return
 		}

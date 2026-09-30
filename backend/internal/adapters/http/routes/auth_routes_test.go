@@ -16,6 +16,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 	"github.com/pressly/goose/v3"
+	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -127,6 +128,10 @@ func cookieHeader(cookies []*http.Cookie) string {
 		header += c.Name + "=" + c.Value
 	}
 	return "Cookie: " + header
+}
+
+func csrfHeader(cookies []*http.Cookie) string {
+	return "X-CSRF-Token: " + csrfFrom(cookies)
 }
 
 func csrfFrom(cookies []*http.Cookie) string {
@@ -259,4 +264,25 @@ func TestAuthFlow(t *testing.T) {
 	if refreshAfterLogout.Code != http.StatusUnauthorized {
 		t.Fatalf("refresh after logout: expected 401, got %d: %s", refreshAfterLogout.Code, refreshAfterLogout.Body.String())
 	}
+}
+
+// TestAuthCSRFExemptions proves register and login work without a CSRF token,
+// since they're what issue the csrf_token cookie.
+func TestAuthCSRFExemptions(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+
+	email := uuid.NewString() + "@example.com"
+	password := "correct-horse-battery-staple"
+
+	regResp := api.Post("/auth/register", map[string]string{
+		"email":                email,
+		"password":             password,
+		"passwordConfirmation": password,
+	})
+	assert.Equal(t, http.StatusCreated, regResp.Code, regResp.Body.String())
+
+	loginResp := api.Post("/auth/login", map[string]string{"email": email, "password": password})
+	assert.Equal(t, http.StatusOK, loginResp.Code, loginResp.Body.String())
 }

@@ -60,7 +60,7 @@ func TestCollectionsFlow(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
 
 	limit := 100
-	createResp := api.Post("/collections", cookieHeader(ownerCookies), map[string]any{
+	createResp := api.Post("/collections", cookieHeader(ownerCookies), csrfHeader(ownerCookies), map[string]any{
 		"title":        "Base Set Binder",
 		"description":  "My original cards",
 		"maxCardCount": limit,
@@ -99,13 +99,13 @@ func TestCollectionsFlow(t *testing.T) {
 	// The other user gets 404, not 403, on every verb: existence isn't leaked.
 	resp = api.Get("/collections/"+id, cookieHeader(otherCookies))
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
-	resp = api.Put("/collections/"+id, cookieHeader(otherCookies), map[string]any{"title": "Hijacked"})
+	resp = api.Put("/collections/"+id, cookieHeader(otherCookies), csrfHeader(otherCookies), map[string]any{"title": "Hijacked"})
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
-	resp = api.Delete("/collections/"+id, cookieHeader(otherCookies))
+	resp = api.Delete("/collections/"+id, cookieHeader(otherCookies), csrfHeader(otherCookies))
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 
 	// The owner can edit it.
-	updateResp := api.Put("/collections/"+id, cookieHeader(ownerCookies), map[string]any{
+	updateResp := api.Put("/collections/"+id, cookieHeader(ownerCookies), csrfHeader(ownerCookies), map[string]any{
 		"title":        "Renamed Binder",
 		"description":  "updated description",
 		"maxCardCount": 0,
@@ -118,10 +118,37 @@ func TestCollectionsFlow(t *testing.T) {
 	assert.Zero(t, updated.Data.MaxCardCount, "sending 0 should clear the limit")
 
 	// The owner can delete it (hard delete, no undo).
-	resp = api.Delete("/collections/"+id, cookieHeader(ownerCookies))
+	resp = api.Delete("/collections/"+id, cookieHeader(ownerCookies), csrfHeader(ownerCookies))
 	assert.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
 
 	// It's gone for good.
 	resp = api.Get("/collections/"+id, cookieHeader(ownerCookies))
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+}
+
+// TestCollectionsCSRF proves the global CSRF guard covers mutating collection
+// routes: a valid session alone is not enough.
+func TestCollectionsCSRF(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+
+	cookies := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	body := map[string]any{"title": "Binder"}
+
+	resp := api.Post("/collections", cookieHeader(cookies), body)
+	assert.Equal(t, http.StatusForbidden, resp.Code, "missing header: %s", resp.Body.String())
+
+	resp = api.Post("/collections", cookieHeader(cookies), "X-CSRF-Token: wrong", body)
+	assert.Equal(t, http.StatusForbidden, resp.Code, "mismatched header: %s", resp.Body.String())
+
+	resp = api.Post("/collections", cookieHeader(cookies), csrfHeader(cookies), body)
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &created))
+
+	resp = api.Put("/collections/"+created.Data.ID, cookieHeader(cookies), body)
+	assert.Equal(t, http.StatusForbidden, resp.Code, "PUT without header: %s", resp.Body.String())
+	resp = api.Delete("/collections/"+created.Data.ID, cookieHeader(cookies))
+	assert.Equal(t, http.StatusForbidden, resp.Code, "DELETE without header: %s", resp.Body.String())
 }

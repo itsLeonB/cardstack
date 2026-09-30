@@ -182,8 +182,8 @@ func (h *AuthHandler) registerRefresh(api huma.API, mw ...func(huma.Context, fun
 		// No Security: the access token guard doesn't apply here — the whole
 		// point of this route is that the access token may be expired. The
 		// refresh cookie itself is authkit's real check (kit.RefreshToken
-		// returns ErrTokenInvalid/ErrTokenExpired otherwise). CSRFGuard still
-		// runs, via mw.
+		// returns ErrTokenInvalid/ErrTokenExpired otherwise). The global
+		// CSRFGuard still runs.
 		Middlewares: mw,
 	}, func(ctx context.Context, in *refreshInput) (*cookieOutput, error) {
 		if in.RefreshToken == "" {
@@ -265,11 +265,9 @@ func (h *AuthHandler) Routes() []endpoint.Registrable {
 		}),
 		registrableFunc(h.registerLogin),
 		registrableFunc(func(api huma.API, mw ...func(huma.Context, func(huma.Context))) {
-			h.registerLogout(api, withGuards(mw, sessionGuard(api), authpkg.CSRFGuard(api))...)
+			h.registerLogout(api, withGuards(mw, sessionGuard(api))...)
 		}),
-		registrableFunc(func(api huma.API, mw ...func(huma.Context, func(huma.Context))) {
-			h.registerRefresh(api, withGuards(mw, authpkg.CSRFGuard(api))...)
-		}),
+		registrableFunc(h.registerRefresh),
 		// /auth/me goes through a registrableFunc rather than endpoint.New
 		// directly, for the same reason logout/refresh do: Secured:true only
 		// sets the OpenAPI security metadata (see endpoint.Register), it
