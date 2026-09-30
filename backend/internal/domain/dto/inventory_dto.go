@@ -2,10 +2,26 @@ package dto
 
 import "github.com/google/uuid"
 
-// InventoryEntryRequest adds a Card to a Collection.
+// InventoryListRequest lists the contents of one of a profile's Collections.
+type InventoryListRequest struct {
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+}
+
+// InventoryEntryRequest sets a Card's quantity in a Collection: adds the Card
+// (Add) or replaces its quantity (UpdateQuantity).
 type InventoryEntryRequest struct {
-	CardID   uuid.UUID
-	Quantity int
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+	CardID       uuid.UUID
+	Quantity     int
+}
+
+// InventoryEntryLookup addresses one Card's entry in a Collection.
+type InventoryEntryLookup struct {
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+	CardID       uuid.UUID
 }
 
 // InventoryEntry is a written Inventory Entry: a Card ID and its quantity.

@@ -41,7 +41,12 @@ func ProvideCollectionService(ds *DataSources) service.CollectionService {
 
 // ProvideInventoryService builds the inventory service over ds's DB.
 func ProvideInventoryService(ds *DataSources) service.InventoryService {
-	return service.NewInventoryService(crud.NewRepository[entity.Collection](ds.Gorm), catalogrepository.NewInventoryRepository(ds.Gorm))
+	return service.NewInventoryService(
+		crud.NewTransactor(ds.Gorm),
+		crud.NewRepository[entity.Collection](ds.Gorm),
+		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
+		crud.NewRepository[entity.Card](ds.Gorm),
+	)
 }
 
 // ProvideServices takes just the already-built *authkit.AuthKit,

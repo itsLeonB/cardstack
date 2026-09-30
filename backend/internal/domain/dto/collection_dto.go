@@ -12,10 +12,24 @@ type CollectionSummary struct {
 	MaxCardCount int       `json:"maxCardCount"`
 }
 
-// CollectionRequest is the request to create or edit a Collection. Title is
-// required; Description and MaxCardCount are optional.
+// CollectionRequest is the request to create or edit a Collection. ID is set
+// only for an edit. Title is required; Description and MaxCardCount are
+// optional.
 type CollectionRequest struct {
+	ProfileID    uuid.UUID
+	ID           uuid.UUID
 	Title        string
 	Description  string
 	MaxCardCount int
+}
+
+// CollectionListRequest lists a profile's Collections.
+type CollectionListRequest struct {
+	ProfileID uuid.UUID
+}
+
+// CollectionLookup addresses one of a profile's Collections.
+type CollectionLookup struct {
+	ProfileID uuid.UUID
+	ID        uuid.UUID
 }
