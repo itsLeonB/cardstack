@@ -4,10 +4,10 @@
 
 **Blocked by:** 01 (needs the backend Dockerfile/build and frontend build the workflow deploys)
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] `.github/workflows/preview-environments.yml` ported from cashus, adjusted to cardstack's single Railway service and repo/service names
-- [ ] `scripts/setup-preview-environments.sh` (one-time wizard) ported and adjusted the same way
-- [ ] `docs/deployment/preview-environments.md` documents what gets provisioned and the one-time setup steps
-- [ ] One-time setup actually run (Neon project, Railway project with PR Deploys enabled, Vercel project, secrets set) — human step, not agent-automatable
-- [ ] A test PR confirms the full provision → comment → cleanup cycle works end to end
+- [x] `.github/workflows/preview-environments.yml` ported from cashus, adjusted to cardstack's single Railway service and repo/service names
+- [x] `scripts/setup-preview-environments.sh` (one-time wizard) ported and adjusted the same way
+- [x] `docs/deployment/preview-environments.md` documents what gets provisioned and the one-time setup steps
+- [x] One-time setup actually run (Neon project, Railway project with PR Deploys enabled, Vercel project, secrets set) — human step, not agent-automatable
+- [x] A test PR confirms the full provision → comment → cleanup cycle works end to end
