@@ -8,6 +8,6 @@
 export interface CollectionSummary {
   description: string;
   id: string;
-  maxCardCount?: number;
+  maxCardCount: number;
   title: string;
 }

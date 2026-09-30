@@ -9,8 +9,8 @@ export interface CollectionBody {
   /** Optional free-text description. */
   description?: string;
   /**
-     * Optional hard cap on the Collection's summed card quantity.
-     * @minimum 1
+     * Hard cap on the Collection's summed card quantity; 0 means no limit.
+     * @minimum 0
      */
   maxCardCount?: number;
   /**

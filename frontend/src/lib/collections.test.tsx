@@ -72,7 +72,7 @@ describe("useCreateCollectionMutation", () => {
 
     capturedOnSuccess?.({
       status: 201,
-      data: { data: { id: "1", title: "Binder", description: "" } },
+      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0 } },
       headers: new Headers(),
     })
 
@@ -146,7 +146,7 @@ describe("useUpdateCollectionMutation", () => {
 
     capturedOnSuccess?.({
       status: 200,
-      data: { data: { id: "1", title: "Binder", description: "" } },
+      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0 } },
       headers: new Headers(),
     }, { id: "1" })
 

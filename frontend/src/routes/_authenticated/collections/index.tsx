@@ -75,7 +75,7 @@ function CollectionsPage() {
                 {collection.description && (
                   <CardDescription>{collection.description}</CardDescription>
                 )}
-                {collection.maxCardCount !== undefined && (
+                {collection.maxCardCount > 0 && (
                   <CardDescription>
                     Limit: {collection.maxCardCount} cards
                   </CardDescription>

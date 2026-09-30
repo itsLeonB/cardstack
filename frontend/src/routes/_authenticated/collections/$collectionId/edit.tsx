@@ -81,7 +81,7 @@ function EditCollectionPage() {
               initialValues={{
                 title: collection.title,
                 description: collection.description,
-                maxCardCount: collection.maxCardCount?.toString() ?? "",
+                maxCardCount: collection.maxCardCount > 0 ? collection.maxCardCount.toString() : "",
               }}
               submitLabel="Save changes"
               pendingLabel="Saving..."

@@ -56,7 +56,7 @@ describe("CollectionForm", () => {
     })
   })
 
-  it("omits maxCardCount and description when left blank", () => {
+  it("sends maxCardCount 0 and omits description when left blank", () => {
     const onSubmit = vi.fn()
     render(
       <CollectionForm
@@ -72,7 +72,7 @@ describe("CollectionForm", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       title: "Vintage binder",
       description: undefined,
-      maxCardCount: undefined,
+      maxCardCount: 0,
     })
   })
 
@@ -93,7 +93,7 @@ describe("CollectionForm", () => {
     screen.getByText("Title is required.")
   })
 
-  it("rejects a non-positive-integer maxCardCount without calling onSubmit", () => {
+  it("accepts an explicit 0 as no limit", () => {
     const onSubmit = vi.fn()
     render(
       <CollectionForm
@@ -106,8 +106,26 @@ describe("CollectionForm", () => {
 
     fillAndSubmit({ title: "Vintage binder", maxCardCount: "0" })
 
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ maxCardCount: 0 })
+    )
+  })
+
+  it("rejects a negative or non-integer maxCardCount without calling onSubmit", () => {
+    const onSubmit = vi.fn()
+    render(
+      <CollectionForm
+        submitLabel="Save"
+        pendingLabel="Saving..."
+        isPending={false}
+        onSubmit={onSubmit}
+      />
+    )
+
+    fillAndSubmit({ title: "Vintage binder", maxCardCount: "-1" })
+
     expect(onSubmit).not.toHaveBeenCalled()
-    screen.getByText("Max card count must be a positive whole number.")
+    screen.getByText("Max card count must be a non-negative whole number.")
   })
 
   it("pre-fills fields from initialValues (edit mode)", () => {

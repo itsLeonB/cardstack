@@ -14,7 +14,7 @@ export const ListCollectionsResponse = zod.object({
   "data": zod.array(zod.object({
   "description": zod.string(),
   "id": zod.string(),
-  "maxCardCount": zod.int().optional(),
+  "maxCardCount": zod.int(),
   "title": zod.string()
 })).nullable()
 })
@@ -22,13 +22,14 @@ export const ListCollectionsResponse = zod.object({
 /**
  * @summary Create a Collection
  */
+export const createCollectionBodyMaxCardCountMin = 0;
 
 
 
 
 export const CreateCollectionBody = zod.object({
   "description": zod.string().optional().describe('Optional free-text description.'),
-  "maxCardCount": zod.int().min(1).optional().describe('Optional hard cap on the Collection\'s summed card quantity.'),
+  "maxCardCount": zod.int().min(createCollectionBodyMaxCardCountMin).optional().describe('Hard cap on the Collection\'s summed card quantity; 0 means no limit.'),
   "title": zod.string().min(1).describe('The Collection\'s title.')
 })
 
@@ -36,7 +37,7 @@ export const CreateCollectionResponse = zod.object({
   "data": zod.object({
   "description": zod.string(),
   "id": zod.string(),
-  "maxCardCount": zod.int().optional(),
+  "maxCardCount": zod.int(),
   "title": zod.string()
 })
 })
@@ -61,7 +62,7 @@ export const GetCollectionResponse = zod.object({
   "data": zod.object({
   "description": zod.string(),
   "id": zod.string(),
-  "maxCardCount": zod.int().optional(),
+  "maxCardCount": zod.int(),
   "title": zod.string()
 })
 })
@@ -73,13 +74,14 @@ export const UpdateCollectionParams = zod.object({
   "id": zod.string().describe('Collection ID')
 })
 
+export const updateCollectionBodyMaxCardCountMin = 0;
 
 
 
 
 export const UpdateCollectionBody = zod.object({
   "description": zod.string().optional().describe('Optional free-text description.'),
-  "maxCardCount": zod.int().min(1).optional().describe('Optional hard cap on the Collection\'s summed card quantity.'),
+  "maxCardCount": zod.int().min(updateCollectionBodyMaxCardCountMin).optional().describe('Hard cap on the Collection\'s summed card quantity; 0 means no limit.'),
   "title": zod.string().min(1).describe('The Collection\'s title.')
 })
 
@@ -87,7 +89,7 @@ export const UpdateCollectionResponse = zod.object({
   "data": zod.object({
   "description": zod.string(),
   "id": zod.string(),
-  "maxCardCount": zod.int().optional(),
+  "maxCardCount": zod.int(),
   "title": zod.string()
 })
 })

@@ -54,12 +54,13 @@ export function CollectionForm({
       return
     }
 
-    let maxCardCount: number | undefined
+    // 0 means no limit; sending it on update clears an existing limit.
+    let maxCardCount = 0
     const rawMaxCardCount = values.maxCardCount.trim()
     if (rawMaxCardCount) {
       const parsed = Number(rawMaxCardCount)
-      if (!Number.isInteger(parsed) || parsed < 1) {
-        setValidationError("Max card count must be a positive whole number.")
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        setValidationError("Max card count must be a non-negative whole number.")
         return
       }
       maxCardCount = parsed
@@ -104,7 +105,7 @@ export function CollectionForm({
           <Input
             id="maxCardCount"
             type="number"
-            min={1}
+            min={0}
             step={1}
             inputMode="numeric"
             value={values.maxCardCount}
