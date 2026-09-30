@@ -1,5 +1,4 @@
-// Package collection holds the Collections CRUD domain (docs/adr/0011).
-package collection
+package repository
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package collection
+package service
 
 import (
 	"context"
@@ -8,13 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
-	crud "github.com/itsLeonB/go-crud"
 )
-
-func baseEntity(id uuid.UUID) crud.BaseEntity {
-	return crud.BaseEntity{ID: id}
-}
 
 func TestCollectionService_Create(t *testing.T) {
 	ctx := context.Background()
@@ -96,12 +92,12 @@ func TestCollectionService_Get_NotFound(t *testing.T) {
 	id := uuid.New()
 
 	repo := mocks.NewMockCollectionRepository(t)
-	repo.EXPECT().FindByID(ctx, id).Return(entity.Collection{}, ErrCollectionNotFound).Once()
+	repo.EXPECT().FindByID(ctx, id).Return(entity.Collection{}, repository.ErrCollectionNotFound).Once()
 	svc := NewCollectionService(repo)
 
 	_, err := svc.Get(ctx, userID, id)
-	if !errors.Is(err, ErrCollectionNotFound) {
-		t.Fatalf("expected ErrCollectionNotFound, got %v", err)
+	if !errors.Is(err, repository.ErrCollectionNotFound) {
+		t.Fatalf("expected repository.ErrCollectionNotFound, got %v", err)
 	}
 }
 
@@ -120,8 +116,8 @@ func TestCollectionService_Get_AnotherUsersCollection(t *testing.T) {
 	svc := NewCollectionService(repo)
 
 	_, err := svc.Get(ctx, otherUser, id)
-	if !errors.Is(err, ErrCollectionNotFound) {
-		t.Fatalf("expected ErrCollectionNotFound for another user's collection, got %v", err)
+	if !errors.Is(err, repository.ErrCollectionNotFound) {
+		t.Fatalf("expected repository.ErrCollectionNotFound for another user's collection, got %v", err)
 	}
 }
 
@@ -159,8 +155,8 @@ func TestCollectionService_Update_AnotherUsersCollection(t *testing.T) {
 	svc := NewCollectionService(repo)
 
 	_, err := svc.Update(ctx, otherUser, id, dto.UpdateCollectionRequest{Title: "Hijacked"})
-	if !errors.Is(err, ErrCollectionNotFound) {
-		t.Fatalf("expected ErrCollectionNotFound, got %v", err)
+	if !errors.Is(err, repository.ErrCollectionNotFound) {
+		t.Fatalf("expected repository.ErrCollectionNotFound, got %v", err)
 	}
 }
 
@@ -190,7 +186,7 @@ func TestCollectionService_Delete_AnotherUsersCollection(t *testing.T) {
 	svc := NewCollectionService(repo)
 
 	err := svc.Delete(ctx, otherUser, id)
-	if !errors.Is(err, ErrCollectionNotFound) {
-		t.Fatalf("expected ErrCollectionNotFound, got %v", err)
+	if !errors.Is(err, repository.ErrCollectionNotFound) {
+		t.Fatalf("expected repository.ErrCollectionNotFound, got %v", err)
 	}
 }

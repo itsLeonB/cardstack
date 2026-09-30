@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/collection"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	"github.com/itsLeonB/ungerr"
 )
@@ -94,9 +94,9 @@ func TestCollectionHandler_List(t *testing.T) {
 func TestCollectionHandler_NotFoundPassesThrough(t *testing.T) {
 	h, svc, ctx, userID := newTestCollectionHandler(t)
 	id := uuid.New()
-	svc.EXPECT().Get(ctx, userID, id).Return(dto.CollectionSummary{}, collection.ErrCollectionNotFound)
-	svc.EXPECT().Update(ctx, userID, id, dto.UpdateCollectionRequest{Title: "T"}).Return(dto.CollectionSummary{}, collection.ErrCollectionNotFound)
-	svc.EXPECT().Delete(ctx, userID, id).Return(collection.ErrCollectionNotFound)
+	svc.EXPECT().Get(ctx, userID, id).Return(dto.CollectionSummary{}, repository.ErrCollectionNotFound)
+	svc.EXPECT().Update(ctx, userID, id, dto.UpdateCollectionRequest{Title: "T"}).Return(dto.CollectionSummary{}, repository.ErrCollectionNotFound)
+	svc.EXPECT().Delete(ctx, userID, id).Return(repository.ErrCollectionNotFound)
 
 	_, err := h.get(ctx, collectionIDInput{ID: id.String()})
 	requireStatus(t, err, http.StatusNotFound)

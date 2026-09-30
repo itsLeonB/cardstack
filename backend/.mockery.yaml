@@ -9,10 +9,8 @@ packages:
   github.com/itsLeonB/cardstack/backend/internal/domain/repository:
     interfaces:
       CatalogRepository:
+      CollectionRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       CatalogService:
-  github.com/itsLeonB/cardstack/backend/internal/domain/collection:
-    interfaces:
-      CollectionRepository:
       CollectionService:

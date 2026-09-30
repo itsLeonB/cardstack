@@ -4,7 +4,6 @@ import (
 	"github.com/google/wire"
 	coreservice "github.com/itsLeonB/cardstack/backend/internal/adapters/core/service"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/collection"
 	catalogrepository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	authkit "github.com/itsLeonB/go-authkit"
@@ -18,7 +17,7 @@ type Services struct {
 	Auth       *authkit.AuthKit
 	Profiles   authpkg.ProfileLookup
 	Catalog    service.CatalogService
-	Collection collection.CollectionService
+	Collection service.CollectionService
 }
 
 // ProvideCatalogService builds the catalog service over ds's DB. It's a
@@ -33,17 +32,17 @@ func ProvideCatalogService(ds *DataSources) service.CatalogService {
 
 // ProvideCollectionService builds the collection service over ds's DB, for
 // the same reason ProvideCatalogService is its own provider.
-func ProvideCollectionService(ds *DataSources) collection.CollectionService {
-	return collection.NewCollectionService(collection.NewCollectionRepository(ds.Gorm))
+func ProvideCollectionService(ds *DataSources) service.CollectionService {
+	return service.NewCollectionService(catalogrepository.NewCollectionRepository(ds.Gorm))
 }
 
 // ProvideServices takes just the already-built *authkit.AuthKit,
-// auth.ProfileLookup, service.CatalogService and collection.CollectionService
+// auth.ProfileLookup, service.CatalogService and service.CollectionService
 // (not the DB they're ultimately backed by) so cmd/genspec can keep calling
 // this with throwaway, DB-free values of its own construction — see
 // cmd/genspec/main.go — without this function needing to know or care where
 // they came from.
-func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, coll collection.CollectionService) *Services {
+func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, coll service.CollectionService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Auth:       kit,

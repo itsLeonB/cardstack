@@ -1,4 +1,4 @@
-package collection
+package service
 
 import (
 	"context"
@@ -7,10 +7,11 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 )
 
 // CollectionService scopes every method to the calling userID. Get/Update/
-// Delete return ErrCollectionNotFound both when the Collection doesn't exist
+// Delete return repository.ErrCollectionNotFound both when the Collection doesn't exist
 // and when it belongs to another user, so its existence isn't leaked.
 type CollectionService interface {
 	Create(ctx context.Context, userID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error)
@@ -21,10 +22,10 @@ type CollectionService interface {
 }
 
 type collectionService struct {
-	repo CollectionRepository
+	repo repository.CollectionRepository
 }
 
-func NewCollectionService(repo CollectionRepository) CollectionService {
+func NewCollectionService(repo repository.CollectionRepository) CollectionService {
 	return &collectionService{repo: repo}
 }
 
@@ -62,7 +63,7 @@ func (s *collectionService) findOwned(ctx context.Context, userID, id uuid.UUID)
 		return entity.Collection{}, err
 	}
 	if c.UserID != userID {
-		return entity.Collection{}, ErrCollectionNotFound
+		return entity.Collection{}, repository.ErrCollectionNotFound
 	}
 
 	return c, nil

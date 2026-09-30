@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/collection"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	authkit "github.com/itsLeonB/go-authkit"
 	"github.com/itsLeonB/ungerr"
@@ -18,13 +18,13 @@ import (
 
 // CollectionHandler serves the authenticated Collections CRUD surface.
 type CollectionHandler struct {
-	collectionSvc collection.CollectionService
+	collectionSvc service.CollectionService
 	kit           *authkit.AuthKit
 	transport     *authpkg.Transport
 	profiles      authpkg.ProfileLookup
 }
 
-func NewCollectionHandler(collectionSvc collection.CollectionService, kit *authkit.AuthKit, profiles authpkg.ProfileLookup) *CollectionHandler {
+func NewCollectionHandler(collectionSvc service.CollectionService, kit *authkit.AuthKit, profiles authpkg.ProfileLookup) *CollectionHandler {
 	return &CollectionHandler{
 		collectionSvc: collectionSvc,
 		kit:           kit,
