@@ -17,7 +17,7 @@ type collectionEnvelope struct {
 		ID           string `json:"id"`
 		Title        string `json:"title"`
 		Description  string `json:"description"`
-		MaxCardCount *int   `json:"maxCardCount"`
+		MaxCardCount int    `json:"maxCardCount"`
 	} `json:"data"`
 }
 
@@ -69,8 +69,7 @@ func TestCollectionsFlow(t *testing.T) {
 	var created collectionEnvelope
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
 	assert.Equal(t, "Base Set Binder", created.Data.Title)
-	require.NotNil(t, created.Data.MaxCardCount)
-	assert.Equal(t, limit, *created.Data.MaxCardCount)
+	assert.Equal(t, limit, created.Data.MaxCardCount)
 	id := created.Data.ID
 
 	// The owner's list includes it.
@@ -107,15 +106,16 @@ func TestCollectionsFlow(t *testing.T) {
 
 	// The owner can edit it.
 	updateResp := api.Put("/collections/"+id, cookieHeader(ownerCookies), map[string]any{
-		"title":       "Renamed Binder",
-		"description": "updated description",
+		"title":        "Renamed Binder",
+		"description":  "updated description",
+		"maxCardCount": 0,
 	})
 	require.Equal(t, http.StatusOK, updateResp.Code, updateResp.Body.String())
 	var updated collectionEnvelope
 	require.NoError(t, json.Unmarshal(updateResp.Body.Bytes(), &updated))
 	assert.Equal(t, "Renamed Binder", updated.Data.Title)
 	assert.Equal(t, "updated description", updated.Data.Description)
-	assert.Nil(t, updated.Data.MaxCardCount, "the update should clear the limit")
+	assert.Zero(t, updated.Data.MaxCardCount, "sending 0 should clear the limit")
 
 	// The owner can delete it (hard delete, no undo).
 	resp = api.Delete("/collections/"+id, cookieHeader(ownerCookies))

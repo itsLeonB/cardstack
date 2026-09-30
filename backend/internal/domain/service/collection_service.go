@@ -12,12 +12,13 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-// ErrCollectionNotFound is a 404 AppError: also returned for another
-// profile's Collection so its existence isn't leaked.
-var ErrCollectionNotFound = ungerr.NotFoundError("collection not found")
+// collectionNotFoundMsg is the message of the 404 AppError, also returned for
+// another profile's Collection so its existence isn't leaked. Each return
+// site builds its own ungerr.NotFoundError so ungerr records that line.
+const collectionNotFoundMsg = "collection not found"
 
 // CollectionService scopes every method to the calling profileID. Get/
-// Update/Delete return ErrCollectionNotFound both when the Collection
+// Update/Delete return a not-found AppError both when the Collection
 // doesn't exist and when it belongs to another profile, so its existence
 // isn't leaked.
 type CollectionService interface {
@@ -67,7 +68,7 @@ func (s *collectionService) List(ctx context.Context, profileID uuid.UUID) ([]dt
 // the profile's collections.
 func (s *collectionService) findOwned(ctx context.Context, profileID, id uuid.UUID) (entity.Collection, error) {
 	if id == uuid.Nil {
-		return entity.Collection{}, ErrCollectionNotFound
+		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
 	}
 
 	c, err := s.repo.FindFirst(ctx, crud.Specification[entity.Collection]{
@@ -77,7 +78,7 @@ func (s *collectionService) findOwned(ctx context.Context, profileID, id uuid.UU
 		return entity.Collection{}, err
 	}
 	if c.IsZero() {
-		return entity.Collection{}, ErrCollectionNotFound
+		return entity.Collection{}, ungerr.NotFoundError(collectionNotFoundMsg)
 	}
 
 	return c, nil

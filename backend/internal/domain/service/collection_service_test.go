@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,15 +29,15 @@ func TestCollectionService_Create(t *testing.T) {
 
 	repo := mocks.NewMockRepository[entity.Collection](t)
 	repo.EXPECT().
-		Insert(ctx, entity.Collection{ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: &limit}).
-		Return(entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: &limit}, nil).
+		Insert(ctx, entity.Collection{ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: limit}).
+		Return(entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: limit}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).Create(ctx, profileID, dto.CreateCollectionRequest{Title: "Binder", Description: "desc", MaxCardCount: &limit})
+	got, err := NewCollectionService(repo).Create(ctx, profileID, dto.CreateCollectionRequest{Title: "Binder", Description: "desc", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "Binder", got.Title)
 	assert.Equal(t, "desc", got.Description)
-	assert.Equal(t, &limit, got.MaxCardCount)
+	assert.Equal(t, limit, got.MaxCardCount)
 }
 
 func TestCollectionService_Create_PropagatesRepositoryError(t *testing.T) {
@@ -94,12 +96,12 @@ func TestCollectionService_NotFound(t *testing.T) {
 	svc := NewCollectionService(repo)
 
 	_, err := svc.Get(ctx, profileID, id)
-	assert.ErrorIs(t, err, ErrCollectionNotFound)
+	assertNotFound(t, err)
 
 	_, err = svc.Update(ctx, profileID, id, dto.UpdateCollectionRequest{Title: "Hijacked"})
-	assert.ErrorIs(t, err, ErrCollectionNotFound)
+	assertNotFound(t, err)
 
-	assert.ErrorIs(t, svc.Delete(ctx, profileID, id), ErrCollectionNotFound)
+	assertNotFound(t, svc.Delete(ctx, profileID, id))
 }
 
 func TestCollectionService_NilIDIsNotFound(t *testing.T) {
@@ -107,7 +109,7 @@ func TestCollectionService_NilIDIsNotFound(t *testing.T) {
 	svc := NewCollectionService(mocks.NewMockRepository[entity.Collection](t))
 
 	_, err := svc.Get(context.Background(), uuid.New(), uuid.Nil)
-	assert.ErrorIs(t, err, ErrCollectionNotFound)
+	assertNotFound(t, err)
 }
 
 func TestCollectionService_Get_PropagatesRepositoryError(t *testing.T) {
@@ -132,15 +134,15 @@ func TestCollectionService_Update(t *testing.T) {
 	repo := mocks.NewMockRepository[entity.Collection](t)
 	repo.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Old", Description: "old"}, nil).Once()
 	repo.EXPECT().
-		Update(ctx, entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: &limit}).
-		Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: &limit}, nil).
+		Update(ctx, entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}).
+		Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).Update(ctx, profileID, id, dto.UpdateCollectionRequest{Title: "New", Description: "new", MaxCardCount: &limit})
+	got, err := NewCollectionService(repo).Update(ctx, profileID, id, dto.UpdateCollectionRequest{Title: "New", Description: "new", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "New", got.Title)
 	assert.Equal(t, "new", got.Description)
-	assert.Equal(t, &limit, got.MaxCardCount)
+	assert.Equal(t, limit, got.MaxCardCount)
 }
 
 func TestCollectionService_Delete(t *testing.T) {
@@ -154,4 +156,11 @@ func TestCollectionService_Delete(t *testing.T) {
 	repo.EXPECT().Delete(ctx, found).Return(nil).Once()
 
 	assert.NoError(t, NewCollectionService(repo).Delete(ctx, profileID, id))
+}
+
+func assertNotFound(t *testing.T, err error) {
+	t.Helper()
+	var appErr ungerr.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, http.StatusNotFound, appErr.HttpStatus())
 }
