@@ -17,6 +17,7 @@ func RegisterRoutes(api huma.API, services *provider.Services) {
 	authHandler := handler.NewAuthHandler(services.Auth, services.Profiles)
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
+	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
 
 	// Global so every current and future mutating route enforces the CSRF
 	// double-submit check; login/register create the cookie, so they're exempt.
@@ -28,4 +29,5 @@ func RegisterRoutes(api huma.API, services *provider.Services) {
 	// Secured:true only sets OpenAPI metadata, so enforce the session here.
 	sessionGuard := authpkg.SessionGuard(api, services.Auth, authpkg.NewTransport(config.Global.Auth), services.Profiles)
 	endpoint.RegisterAll(api, collectionHandler.Routes(), sessionGuard)
+	endpoint.RegisterAll(api, inventoryHandler.Routes(), sessionGuard)
 }

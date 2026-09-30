@@ -12,7 +12,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideCatalogService, ProvideCollectionService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -20,6 +20,7 @@ type Services struct {
 	Profiles   authpkg.ProfileLookup
 	Catalog    service.CatalogService
 	Collection service.CollectionService
+	Inventory  service.InventoryService
 }
 
 // ProvideCatalogService builds the catalog service over ds's DB. It's a
@@ -38,18 +39,24 @@ func ProvideCollectionService(ds *DataSources) service.CollectionService {
 	return service.NewCollectionService(crud.NewRepository[entity.Collection](ds.Gorm))
 }
 
+// ProvideInventoryService builds the inventory service over ds's DB.
+func ProvideInventoryService(ds *DataSources) service.InventoryService {
+	return service.NewInventoryService(crud.NewRepository[entity.Collection](ds.Gorm), catalogrepository.NewInventoryRepository(ds.Gorm))
+}
+
 // ProvideServices takes just the already-built *authkit.AuthKit,
 // auth.ProfileLookup, service.CatalogService and service.CollectionService
 // (not the DB they're ultimately backed by) so cmd/genspec can keep calling
 // this with throwaway, DB-free values of its own construction — see
 // cmd/genspec/main.go — without this function needing to know or care where
 // they came from.
-func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, collection service.CollectionService) *Services {
+func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Auth:       kit,
 		Profiles:   profiles,
 		Catalog:    catalog,
 		Collection: collection,
+		Inventory:  inventory,
 	}
 }

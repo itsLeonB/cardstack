@@ -49,7 +49,7 @@ func main() {
 	// spec, it never serves a request, so SessionGuard's ProfileLookup and
 	// CatalogHandler/CollectionHandler's services are stored in the route
 	// closures but never actually called.
-	routes.RegisterRoutes(api, provider.ProvideServices(kit, nil, nil, nil))
+	routes.RegisterRoutes(api, provider.ProvideServices(kit, nil, nil, nil, nil))
 
 	spec, err := api.OpenAPI().MarshalJSON()
 	if err != nil {
