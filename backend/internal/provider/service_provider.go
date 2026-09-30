@@ -4,9 +4,11 @@ import (
 	"github.com/google/wire"
 	coreservice "github.com/itsLeonB/cardstack/backend/internal/adapters/core/service"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	catalogrepository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	authkit "github.com/itsLeonB/go-authkit"
+	crud "github.com/itsLeonB/go-crud"
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
@@ -33,7 +35,7 @@ func ProvideCatalogService(ds *DataSources) service.CatalogService {
 // ProvideCollectionService builds the collection service over ds's DB, for
 // the same reason ProvideCatalogService is its own provider.
 func ProvideCollectionService(ds *DataSources) service.CollectionService {
-	return service.NewCollectionService(catalogrepository.NewCollectionRepository(ds.Gorm))
+	return service.NewCollectionService(crud.NewRepository[entity.Collection](ds.Gorm))
 }
 
 // ProvideServices takes just the already-built *authkit.AuthKit,

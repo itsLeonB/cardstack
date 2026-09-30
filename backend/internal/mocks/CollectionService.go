@@ -24,9 +24,9 @@ func (_m *MockCollectionService) EXPECT() *MockCollectionService_Expecter {
 	return &MockCollectionService_Expecter{mock: &_m.Mock}
 }
 
-// Create provides a mock function with given fields: ctx, userID, req
-func (_m *MockCollectionService) Create(ctx context.Context, userID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error) {
-	ret := _m.Called(ctx, userID, req)
+// Create provides a mock function with given fields: ctx, profileID, req
+func (_m *MockCollectionService) Create(ctx context.Context, profileID uuid.UUID, req dto.CreateCollectionRequest) (dto.CollectionSummary, error) {
+	ret := _m.Called(ctx, profileID, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
@@ -35,16 +35,16 @@ func (_m *MockCollectionService) Create(ctx context.Context, userID uuid.UUID, r
 	var r0 dto.CollectionSummary
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateCollectionRequest) (dto.CollectionSummary, error)); ok {
-		return rf(ctx, userID, req)
+		return rf(ctx, profileID, req)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateCollectionRequest) dto.CollectionSummary); ok {
-		r0 = rf(ctx, userID, req)
+		r0 = rf(ctx, profileID, req)
 	} else {
 		r0 = ret.Get(0).(dto.CollectionSummary)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateCollectionRequest) error); ok {
-		r1 = rf(ctx, userID, req)
+		r1 = rf(ctx, profileID, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -59,13 +59,13 @@ type MockCollectionService_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
+//   - profileID uuid.UUID
 //   - req dto.CreateCollectionRequest
-func (_e *MockCollectionService_Expecter) Create(ctx interface{}, userID interface{}, req interface{}) *MockCollectionService_Create_Call {
-	return &MockCollectionService_Create_Call{Call: _e.mock.On("Create", ctx, userID, req)}
+func (_e *MockCollectionService_Expecter) Create(ctx interface{}, profileID interface{}, req interface{}) *MockCollectionService_Create_Call {
+	return &MockCollectionService_Create_Call{Call: _e.mock.On("Create", ctx, profileID, req)}
 }
 
-func (_c *MockCollectionService_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreateCollectionRequest)) *MockCollectionService_Create_Call {
+func (_c *MockCollectionService_Create_Call) Run(run func(ctx context.Context, profileID uuid.UUID, req dto.CreateCollectionRequest)) *MockCollectionService_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(dto.CreateCollectionRequest))
 	})
@@ -82,9 +82,9 @@ func (_c *MockCollectionService_Create_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// Delete provides a mock function with given fields: ctx, userID, id
-func (_m *MockCollectionService) Delete(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
-	ret := _m.Called(ctx, userID, id)
+// Delete provides a mock function with given fields: ctx, profileID, id
+func (_m *MockCollectionService) Delete(ctx context.Context, profileID uuid.UUID, id uuid.UUID) error {
+	ret := _m.Called(ctx, profileID, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -92,7 +92,7 @@ func (_m *MockCollectionService) Delete(ctx context.Context, userID uuid.UUID, i
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = rf(ctx, userID, id)
+		r0 = rf(ctx, profileID, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -107,13 +107,13 @@ type MockCollectionService_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
+//   - profileID uuid.UUID
 //   - id uuid.UUID
-func (_e *MockCollectionService_Expecter) Delete(ctx interface{}, userID interface{}, id interface{}) *MockCollectionService_Delete_Call {
-	return &MockCollectionService_Delete_Call{Call: _e.mock.On("Delete", ctx, userID, id)}
+func (_e *MockCollectionService_Expecter) Delete(ctx interface{}, profileID interface{}, id interface{}) *MockCollectionService_Delete_Call {
+	return &MockCollectionService_Delete_Call{Call: _e.mock.On("Delete", ctx, profileID, id)}
 }
 
-func (_c *MockCollectionService_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID)) *MockCollectionService_Delete_Call {
+func (_c *MockCollectionService_Delete_Call) Run(run func(ctx context.Context, profileID uuid.UUID, id uuid.UUID)) *MockCollectionService_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
 	})
@@ -130,9 +130,9 @@ func (_c *MockCollectionService_Delete_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// Get provides a mock function with given fields: ctx, userID, id
-func (_m *MockCollectionService) Get(ctx context.Context, userID uuid.UUID, id uuid.UUID) (dto.CollectionSummary, error) {
-	ret := _m.Called(ctx, userID, id)
+// Get provides a mock function with given fields: ctx, profileID, id
+func (_m *MockCollectionService) Get(ctx context.Context, profileID uuid.UUID, id uuid.UUID) (dto.CollectionSummary, error) {
+	ret := _m.Called(ctx, profileID, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -141,16 +141,16 @@ func (_m *MockCollectionService) Get(ctx context.Context, userID uuid.UUID, id u
 	var r0 dto.CollectionSummary
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (dto.CollectionSummary, error)); ok {
-		return rf(ctx, userID, id)
+		return rf(ctx, profileID, id)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) dto.CollectionSummary); ok {
-		r0 = rf(ctx, userID, id)
+		r0 = rf(ctx, profileID, id)
 	} else {
 		r0 = ret.Get(0).(dto.CollectionSummary)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = rf(ctx, userID, id)
+		r1 = rf(ctx, profileID, id)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -165,13 +165,13 @@ type MockCollectionService_Get_Call struct {
 
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
+//   - profileID uuid.UUID
 //   - id uuid.UUID
-func (_e *MockCollectionService_Expecter) Get(ctx interface{}, userID interface{}, id interface{}) *MockCollectionService_Get_Call {
-	return &MockCollectionService_Get_Call{Call: _e.mock.On("Get", ctx, userID, id)}
+func (_e *MockCollectionService_Expecter) Get(ctx interface{}, profileID interface{}, id interface{}) *MockCollectionService_Get_Call {
+	return &MockCollectionService_Get_Call{Call: _e.mock.On("Get", ctx, profileID, id)}
 }
 
-func (_c *MockCollectionService_Get_Call) Run(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID)) *MockCollectionService_Get_Call {
+func (_c *MockCollectionService_Get_Call) Run(run func(ctx context.Context, profileID uuid.UUID, id uuid.UUID)) *MockCollectionService_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
 	})
@@ -188,9 +188,9 @@ func (_c *MockCollectionService_Get_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// List provides a mock function with given fields: ctx, userID
-func (_m *MockCollectionService) List(ctx context.Context, userID uuid.UUID) ([]dto.CollectionSummary, error) {
-	ret := _m.Called(ctx, userID)
+// List provides a mock function with given fields: ctx, profileID
+func (_m *MockCollectionService) List(ctx context.Context, profileID uuid.UUID) ([]dto.CollectionSummary, error) {
+	ret := _m.Called(ctx, profileID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -199,10 +199,10 @@ func (_m *MockCollectionService) List(ctx context.Context, userID uuid.UUID) ([]
 	var r0 []dto.CollectionSummary
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]dto.CollectionSummary, error)); ok {
-		return rf(ctx, userID)
+		return rf(ctx, profileID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []dto.CollectionSummary); ok {
-		r0 = rf(ctx, userID)
+		r0 = rf(ctx, profileID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.CollectionSummary)
@@ -210,7 +210,7 @@ func (_m *MockCollectionService) List(ctx context.Context, userID uuid.UUID) ([]
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, userID)
+		r1 = rf(ctx, profileID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -225,12 +225,12 @@ type MockCollectionService_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-func (_e *MockCollectionService_Expecter) List(ctx interface{}, userID interface{}) *MockCollectionService_List_Call {
-	return &MockCollectionService_List_Call{Call: _e.mock.On("List", ctx, userID)}
+//   - profileID uuid.UUID
+func (_e *MockCollectionService_Expecter) List(ctx interface{}, profileID interface{}) *MockCollectionService_List_Call {
+	return &MockCollectionService_List_Call{Call: _e.mock.On("List", ctx, profileID)}
 }
 
-func (_c *MockCollectionService_List_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockCollectionService_List_Call {
+func (_c *MockCollectionService_List_Call) Run(run func(ctx context.Context, profileID uuid.UUID)) *MockCollectionService_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID))
 	})
@@ -247,9 +247,9 @@ func (_c *MockCollectionService_List_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// Update provides a mock function with given fields: ctx, userID, id, req
-func (_m *MockCollectionService) Update(ctx context.Context, userID uuid.UUID, id uuid.UUID, req dto.UpdateCollectionRequest) (dto.CollectionSummary, error) {
-	ret := _m.Called(ctx, userID, id, req)
+// Update provides a mock function with given fields: ctx, profileID, id, req
+func (_m *MockCollectionService) Update(ctx context.Context, profileID uuid.UUID, id uuid.UUID, req dto.UpdateCollectionRequest) (dto.CollectionSummary, error) {
+	ret := _m.Called(ctx, profileID, id, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
@@ -258,16 +258,16 @@ func (_m *MockCollectionService) Update(ctx context.Context, userID uuid.UUID, i
 	var r0 dto.CollectionSummary
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) (dto.CollectionSummary, error)); ok {
-		return rf(ctx, userID, id, req)
+		return rf(ctx, profileID, id, req)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) dto.CollectionSummary); ok {
-		r0 = rf(ctx, userID, id, req)
+		r0 = rf(ctx, profileID, id, req)
 	} else {
 		r0 = ret.Get(0).(dto.CollectionSummary)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateCollectionRequest) error); ok {
-		r1 = rf(ctx, userID, id, req)
+		r1 = rf(ctx, profileID, id, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -282,14 +282,14 @@ type MockCollectionService_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
+//   - profileID uuid.UUID
 //   - id uuid.UUID
 //   - req dto.UpdateCollectionRequest
-func (_e *MockCollectionService_Expecter) Update(ctx interface{}, userID interface{}, id interface{}, req interface{}) *MockCollectionService_Update_Call {
-	return &MockCollectionService_Update_Call{Call: _e.mock.On("Update", ctx, userID, id, req)}
+func (_e *MockCollectionService_Expecter) Update(ctx interface{}, profileID interface{}, id interface{}, req interface{}) *MockCollectionService_Update_Call {
+	return &MockCollectionService_Update_Call{Call: _e.mock.On("Update", ctx, profileID, id, req)}
 }
 
-func (_c *MockCollectionService_Update_Call) Run(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID, req dto.UpdateCollectionRequest)) *MockCollectionService_Update_Call {
+func (_c *MockCollectionService_Update_Call) Run(run func(ctx context.Context, profileID uuid.UUID, id uuid.UUID, req dto.UpdateCollectionRequest)) *MockCollectionService_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(dto.UpdateCollectionRequest))
 	})

@@ -36,12 +36,6 @@ func WithClaims(ctx huma.Context, userID, sessionID, email, profileID string) hu
 	return ctx
 }
 
-// WithUserID stashes userID into a plain context.Context, for tests that
-// call a handler method directly without SessionGuard in front of it.
-func WithUserID(ctx context.Context, userID string) context.Context {
-	return context.WithValue(ctx, userIDKey, userID)
-}
-
 // UserID returns the authenticated user's ID stashed by SessionGuard, and
 // whether one was present.
 func UserID(ctx context.Context) (string, bool) {

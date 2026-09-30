@@ -8,6 +8,8 @@ import (
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type collectionEnvelope struct {
@@ -35,14 +37,10 @@ func registerAndLogin(t *testing.T, api humatest.TestAPI, email, password string
 		"password":             password,
 		"passwordConfirmation": password,
 	})
-	if regResp.Code != http.StatusCreated {
-		t.Fatalf("register: expected 201, got %d: %s", regResp.Code, regResp.Body.String())
-	}
+	require.Equal(t, http.StatusCreated, regResp.Code, regResp.Body.String())
 
 	loginResp := api.Post("/auth/login", map[string]string{"email": email, "password": password})
-	if loginResp.Code != http.StatusOK {
-		t.Fatalf("login: expected 200, got %d: %s", loginResp.Code, loginResp.Body.String())
-	}
+	require.Equal(t, http.StatusOK, loginResp.Code, loginResp.Body.String())
 
 	return loginResp.Result().Cookies()
 }
@@ -58,9 +56,8 @@ func TestCollectionsFlow(t *testing.T) {
 	otherCookies := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
 
 	// Unauthenticated requests are rejected.
-	if resp := api.Get("/collections"); resp.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthenticated list: expected 401, got %d: %s", resp.Code, resp.Body.String())
-	}
+	resp := api.Get("/collections")
+	assert.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
 
 	limit := 100
 	createResp := api.Post("/collections", cookieHeader(ownerCookies), map[string]any{
@@ -68,85 +65,63 @@ func TestCollectionsFlow(t *testing.T) {
 		"description":  "My original cards",
 		"maxCardCount": limit,
 	})
-	if createResp.Code != http.StatusCreated {
-		t.Fatalf("create: expected 201, got %d: %s", createResp.Code, createResp.Body.String())
-	}
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
 	var created collectionEnvelope
-	if err := json.Unmarshal(createResp.Body.Bytes(), &created); err != nil {
-		t.Fatalf("decoding create response: %v", err)
-	}
-	if created.Data.Title != "Base Set Binder" || created.Data.MaxCardCount == nil || *created.Data.MaxCardCount != limit {
-		t.Fatalf("unexpected create response: %+v", created.Data)
-	}
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	assert.Equal(t, "Base Set Binder", created.Data.Title)
+	require.NotNil(t, created.Data.MaxCardCount)
+	assert.Equal(t, limit, *created.Data.MaxCardCount)
 	id := created.Data.ID
 
 	// The owner's list includes it.
 	listResp := api.Get("/collections", cookieHeader(ownerCookies))
-	if listResp.Code != http.StatusOK {
-		t.Fatalf("owner list: expected 200, got %d: %s", listResp.Code, listResp.Body.String())
-	}
+	require.Equal(t, http.StatusOK, listResp.Code, listResp.Body.String())
 	var ownerList collectionListEnvelope
-	if err := json.Unmarshal(listResp.Body.Bytes(), &ownerList); err != nil {
-		t.Fatalf("decoding owner list: %v", err)
-	}
-	found := false
+	require.NoError(t, json.Unmarshal(listResp.Body.Bytes(), &ownerList))
+	var ownerIDs []string
 	for _, c := range ownerList.Data {
-		if c.ID == id {
-			found = true
-		}
+		ownerIDs = append(ownerIDs, c.ID)
 	}
-	if !found {
-		t.Fatalf("expected owner's list to include %s, got %+v", id, ownerList.Data)
-	}
+	assert.Contains(t, ownerIDs, id)
 
 	// The other user's list does not include it.
 	otherListResp := api.Get("/collections", cookieHeader(otherCookies))
-	if otherListResp.Code != http.StatusOK {
-		t.Fatalf("other user list: expected 200, got %d: %s", otherListResp.Code, otherListResp.Body.String())
-	}
+	require.Equal(t, http.StatusOK, otherListResp.Code, otherListResp.Body.String())
 	var otherList collectionListEnvelope
-	if err := json.Unmarshal(otherListResp.Body.Bytes(), &otherList); err != nil {
-		t.Fatalf("decoding other user list: %v", err)
-	}
+	require.NoError(t, json.Unmarshal(otherListResp.Body.Bytes(), &otherList))
 	for _, c := range otherList.Data {
-		if c.ID == id {
-			t.Fatalf("expected other user's list to exclude %s, got %+v", id, otherList.Data)
-		}
+		assert.NotEqual(t, id, c.ID)
 	}
 
 	// The owner can view it.
-	if resp := api.Get("/collections/"+id, cookieHeader(ownerCookies)); resp.Code != http.StatusOK {
-		t.Fatalf("owner get: expected 200, got %d: %s", resp.Code, resp.Body.String())
-	}
+	resp = api.Get("/collections/"+id, cookieHeader(ownerCookies))
+	assert.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 
-	// The other user gets 404, not 403: existence isn't leaked.
-	if resp := api.Get("/collections/"+id, cookieHeader(otherCookies)); resp.Code != http.StatusNotFound {
-		t.Fatalf("other user get: expected 404, got %d: %s", resp.Code, resp.Body.String())
-	}
+	// The other user gets 404, not 403, on every verb: existence isn't leaked.
+	resp = api.Get("/collections/"+id, cookieHeader(otherCookies))
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+	resp = api.Put("/collections/"+id, cookieHeader(otherCookies), map[string]any{"title": "Hijacked"})
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+	resp = api.Delete("/collections/"+id, cookieHeader(otherCookies))
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 
 	// The owner can edit it.
 	updateResp := api.Put("/collections/"+id, cookieHeader(ownerCookies), map[string]any{
 		"title":       "Renamed Binder",
 		"description": "updated description",
 	})
-	if updateResp.Code != http.StatusOK {
-		t.Fatalf("owner update: expected 200, got %d: %s", updateResp.Code, updateResp.Body.String())
-	}
+	require.Equal(t, http.StatusOK, updateResp.Code, updateResp.Body.String())
 	var updated collectionEnvelope
-	if err := json.Unmarshal(updateResp.Body.Bytes(), &updated); err != nil {
-		t.Fatalf("decoding update response: %v", err)
-	}
-	if updated.Data.Title != "Renamed Binder" || updated.Data.Description != "updated description" || updated.Data.MaxCardCount != nil {
-		t.Fatalf("expected the limit to be cleared by the update, got %+v", updated.Data)
-	}
+	require.NoError(t, json.Unmarshal(updateResp.Body.Bytes(), &updated))
+	assert.Equal(t, "Renamed Binder", updated.Data.Title)
+	assert.Equal(t, "updated description", updated.Data.Description)
+	assert.Nil(t, updated.Data.MaxCardCount, "the update should clear the limit")
 
 	// The owner can delete it (hard delete, no undo).
-	if resp := api.Delete("/collections/"+id, cookieHeader(ownerCookies)); resp.Code != http.StatusNoContent {
-		t.Fatalf("owner delete: expected 204, got %d: %s", resp.Code, resp.Body.String())
-	}
+	resp = api.Delete("/collections/"+id, cookieHeader(ownerCookies))
+	assert.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
 
 	// It's gone for good.
-	if resp := api.Get("/collections/"+id, cookieHeader(ownerCookies)); resp.Code != http.StatusNotFound {
-		t.Fatalf("get after delete: expected 404, got %d: %s", resp.Code, resp.Body.String())
-	}
+	resp = api.Get("/collections/"+id, cookieHeader(ownerCookies))
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 }
