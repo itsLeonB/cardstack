@@ -148,4 +148,67 @@ describe("CollectionEntries", () => {
     )
     expect(screen.getByRole("alert").textContent).toBe("Card already in collection")
   })
+
+  function saveWith(status: number, detail = "boom") {
+    update.mockImplementation((_vars, options) => options.onSuccess({ status, data: { detail } }))
+    fireEvent.change(screen.getByLabelText("Quantity of Pikachu V"), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: "Save quantity of Pikachu V" }))
+  }
+
+  it("refetches the list when update or remove hits a 404", () => {
+    setList([{ card, quantity: 3 }])
+    const client = new QueryClient()
+    const spy = vi.spyOn(client, "invalidateQueries")
+    render(
+      <QueryClientProvider client={client}>
+        <CollectionEntries collectionId="col-1" />
+      </QueryClientProvider>
+    )
+
+    saveWith(404, "Card not in collection")
+    expect(screen.getByRole("alert").textContent).toBe("Card not in collection")
+    expect(spy).toHaveBeenCalledTimes(1)
+
+    remove.mockImplementation((_vars, options) =>
+      options.onSuccess({ status: 404, data: { detail: "gone" } })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Remove Pikachu V" }))
+    expect(screen.getByRole("alert").textContent).toBe("gone")
+    expect(spy).toHaveBeenCalledTimes(2)
+  })
+
+  it("shows the generic message on a network error", () => {
+    setList([{ card, quantity: 3 }])
+    update.mockImplementation((_vars, options) => options.onError(new Error("x")))
+    renderEntries()
+    fireEvent.change(screen.getByLabelText("Quantity of Pikachu V"), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: "Save quantity of Pikachu V" }))
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Could not reach the server. Please try again."
+    )
+  })
+
+  it("shows the message when adding is rejected for capacity (422)", () => {
+    setList([])
+    add.mockImplementation((_vars, options) =>
+      options.onSuccess({ status: 422, data: { detail: "Capacity exceeded" } })
+    )
+    renderEntries()
+    fireEvent.change(screen.getByLabelText("Search Cards to add"), { target: { value: "pika" } })
+    fireEvent.click(screen.getByRole("button", { name: "Search" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add Pikachu V" }))
+    expect(screen.getByRole("alert").textContent).toBe("Capacity exceeded")
+  })
+
+  it("clears the search results after a successful add", () => {
+    setList([])
+    add.mockImplementation((_vars, options) =>
+      options.onSuccess({ status: 201, data: { data: { cardId: "card-1", quantity: 1 } } })
+    )
+    renderEntries()
+    fireEvent.change(screen.getByLabelText("Search Cards to add"), { target: { value: "pika" } })
+    fireEvent.click(screen.getByRole("button", { name: "Search" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add Pikachu V" }))
+    expect(screen.queryByRole("button", { name: "Add Pikachu V" })).toBeNull()
+  })
 })

@@ -8,6 +8,7 @@ import {
 import type { CardSummary } from "@/generated/models"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { CardLine, QuantityInput } from "@/components/collections/entry-parts"
 import { NETWORK_ERROR, parseQuantity } from "@/lib/collections"
 
 function ResultRow({
@@ -24,21 +25,11 @@ function ResultRow({
 
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-2xl border p-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{card.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {card.expansionSet.code} · No. {card.localId} · {card.rarity.name}
-        </p>
-      </div>
-      <Input
-        type="number"
-        min={1}
-        step={1}
-        inputMode="numeric"
-        className="w-20"
-        aria-label={`Quantity to add of ${card.name}`}
+      <CardLine card={card} />
+      <QuantityInput
+        label={`Quantity to add of ${card.name}`}
         value={draft}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={setDraft}
       />
       <Button
         type="button"
@@ -83,6 +74,9 @@ export function AddEntry({
             void queryClient.invalidateQueries({
               queryKey: getListCollectionEntriesQueryKey(collectionId),
             })
+            // Hide results so the same Card can't be re-added (409).
+            setName("")
+            setInput("")
             return
           }
           onError(response.data.detail ?? "Could not add this Card.")

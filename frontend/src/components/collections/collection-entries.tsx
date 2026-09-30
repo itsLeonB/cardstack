@@ -8,8 +8,8 @@ import {
 } from "@/generated/endpoints/inventory/inventory"
 import type { InventoryItem } from "@/generated/models"
 import { AddEntry } from "@/components/collections/add-entry"
+import { CardLine, QuantityInput } from "@/components/collections/entry-parts"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { errorDetail, NETWORK_ERROR, parseQuantity } from "@/lib/collections"
 
@@ -29,7 +29,7 @@ function EntryRow({
   const quantity = parseQuantity(draft)
   const busy = updateMutation.isPending || removeMutation.isPending
 
-  function refresh() {
+  function invalidateEntries() {
     void queryClient.invalidateQueries({
       queryKey: getListCollectionEntriesQueryKey(collectionId),
     })
@@ -42,9 +42,13 @@ function EntryRow({
       { id: collectionId, cardId: item.card.id, data: { quantity } },
       {
         onSuccess: (response) => {
-          if (response.status === 200) return refresh()
+          if (response.status === 200) {
+            setDraft(quantity.toString())
+            return invalidateEntries()
+          }
           // Rejected (e.g. capacity): show the stored quantity again.
           setDraft(item.quantity.toString())
+          if (response.status === 404) invalidateEntries()
           onError(response.data.detail ?? "Could not update this quantity.")
         },
         onError: () => {
@@ -61,7 +65,8 @@ function EntryRow({
       { id: collectionId, cardId: item.card.id },
       {
         onSuccess: (response) => {
-          if (response.status === 204) return refresh()
+          if (response.status === 204) return invalidateEntries()
+          if (response.status === 404) invalidateEntries()
           onError(response.data.detail ?? "Could not remove this Card.")
         },
         onError: () => onError(NETWORK_ERROR),
@@ -71,22 +76,11 @@ function EntryRow({
 
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-2xl border p-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.card.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {item.card.expansionSet.code} · No. {item.card.localId} ·{" "}
-          {item.card.rarity.name}
-        </p>
-      </div>
-      <Input
-        type="number"
-        min={1}
-        step={1}
-        inputMode="numeric"
-        className="w-20"
-        aria-label={`Quantity of ${item.card.name}`}
+      <CardLine card={item.card} />
+      <QuantityInput
+        label={`Quantity of ${item.card.name}`}
         value={draft}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={setDraft}
       />
       <Button
         type="button"
@@ -137,7 +131,7 @@ export function CollectionEntries({ collectionId }: { collectionId: string }) {
 
       {(query.isError || loadError) && (
         <p role="alert" className="text-sm text-destructive">
-          {loadError ?? "Could not reach the backend. Please try again."}
+          {loadError ?? NETWORK_ERROR}
         </p>
       )}
 
@@ -150,7 +144,7 @@ export function CollectionEntries({ collectionId }: { collectionId: string }) {
       <ul className="flex flex-col gap-3">
         {items.map((item) => (
           <EntryRow
-            key={`${item.card.id}:${item.quantity}`}
+            key={item.card.id}
             collectionId={collectionId}
             item={item}
             onError={setErrorMessage}

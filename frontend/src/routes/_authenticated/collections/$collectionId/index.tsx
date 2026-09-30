@@ -5,7 +5,7 @@ import {
 } from "@/generated/endpoints/collections/collections"
 import { getListCollectionEntriesQueryOptions } from "@/generated/endpoints/inventory/inventory"
 import { CollectionEntries } from "@/components/collections/collection-entries"
-import { errorDetail } from "@/lib/collections"
+import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 
 export const Route = createFileRoute("/_authenticated/collections/$collectionId/")({
   loader: ({ context: { queryClient }, params }) =>
@@ -32,7 +32,7 @@ function CollectionPage() {
       </Link>
       {(query.isError || loadError) && (
         <p role="alert" className="text-sm text-destructive">
-          {loadError ?? "Could not reach the backend. Please try again."}
+          {loadError ?? NETWORK_ERROR}
         </p>
       )}
       {collection && (
