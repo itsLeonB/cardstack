@@ -45,10 +45,6 @@ func registerAndLogin(t *testing.T, api humatest.TestAPI, email, password string
 	return loginResp.Result().Cookies()
 }
 
-func csrfHeader(cookies []*http.Cookie) string {
-	return "X-CSRF-Token: " + csrfFrom(cookies)
-}
-
 // TestCollectionsFlow covers the CRUD happy path plus the unauthenticated
 // and cross-user failures; branch-level cases live in the unit tests.
 func TestCollectionsFlow(t *testing.T) {
@@ -147,5 +143,12 @@ func TestCollectionsCSRF(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, resp.Code, "mismatched header: %s", resp.Body.String())
 
 	resp = api.Post("/collections", cookieHeader(cookies), csrfHeader(cookies), body)
-	assert.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &created))
+
+	resp = api.Put("/collections/"+created.Data.ID, cookieHeader(cookies), body)
+	assert.Equal(t, http.StatusForbidden, resp.Code, "PUT without header: %s", resp.Body.String())
+	resp = api.Delete("/collections/"+created.Data.ID, cookieHeader(cookies))
+	assert.Equal(t, http.StatusForbidden, resp.Code, "DELETE without header: %s", resp.Body.String())
 }
