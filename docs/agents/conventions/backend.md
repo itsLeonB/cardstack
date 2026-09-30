@@ -6,6 +6,7 @@ These apply to every backend change, whether made by the root agent or a subagen
 
 - Wrap with `ungerr.Wrap`/`ungerr.Wrapf` at the exact first location an error originates in our own code (e.g. inside the helper that calls `rand.Read`). Callers of our own functions, and of `crud.Repository` (it already wraps with ungerr), return the plain `err` unchanged. The single Huma-level seam (`backend/internal/adapters/http/huma/errors.go`, ADR-0013) classifies and unwraps it once.
 - Return known, client-safe failures as `ungerr.XxxError(...)` AppErrors. Handlers return AppError types rather than calling `huma.ErrorXXX(...)` with ad hoc messages (ADR-0013).
+- Construct each `ungerr.XxxError(...)` at its return site, because ungerr records the line that built it. Share only the message as a constant.
 - Handle every error. Log a non-blocking one with `logger.Error`/`logger.Errorf` (`backend/internal/core/logger`, whose `Global` is a safe no-op until `Init` runs) and carry on; return the rest. Never discard with `_ =`.
 
 ## Layout
@@ -16,6 +17,7 @@ These apply to every backend change, whether made by the root agent or a subagen
 ## Data and mapping
 
 - Key domain ownership by `profile_id` (`user_profiles.id`); `user_id` identifies the authentication account only.
+- Model an optional number as a `NOT NULL` column with SQL `DEFAULT 0`, where `0` means unset, rather than a nullable column or pointer.
 - Scope a query in the query itself with `crud.Specification`, never by fetching rows and filtering in Go.
 - Map slices with `ezutil.MapSlice`, or `ezutil.MapSliceWithErr` when the mapper can fail.
 
