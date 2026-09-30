@@ -10,7 +10,7 @@ These apply to every backend change, whether made by the root agent or a subagen
 
 ## Layout
 
-- Put business logic and its data access in `internal/domain/<name>/`, interface and implementation together. Reserve `internal/adapters/` for modules with a real second implementation. Read `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` before placing a new Service or Repository.
+- Put business logic and its data access in `internal/domain/<name>/`, interface and implementation together. Reserve `internal/adapters/` for modules with a real second implementation. A self-contained feature may own one package holding its service, repository and their tests (`internal/domain/collection/`); `internal/domain/service` and `internal/domain/repository` hold the older catalog and auth code. Read `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` before placing a new Service or Repository.
 - Put DTOs in `internal/domain/dto` and entity-to-DTO conversions in `internal/domain/mapper` (ADR-0012).
 
 ## Testing
