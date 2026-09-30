@@ -126,6 +126,32 @@ func TestCollectionRepository_Update(t *testing.T) {
 	}
 }
 
+func TestCollectionRepository_Update_ClearsMaxCardCount(t *testing.T) {
+	db := testDB(t)
+	user := newUserFixture(t, db)
+	repo := NewCollectionRepository(db)
+	ctx := context.Background()
+
+	limit := 50
+	created, err := repo.Create(ctx, entity.Collection{UserID: user.ID, Title: "Limited", MaxCardCount: &limit})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	created.MaxCardCount = nil
+	if _, err := repo.Update(ctx, created); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	found, err := repo.FindByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if found.MaxCardCount != nil {
+		t.Fatalf("expected MaxCardCount cleared, got %d", *found.MaxCardCount)
+	}
+}
+
 func TestCollectionRepository_Delete(t *testing.T) {
 	db := testDB(t)
 	user := newUserFixture(t, db)
