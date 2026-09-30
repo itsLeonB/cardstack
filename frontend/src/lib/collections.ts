@@ -60,3 +60,43 @@ export function useDeleteCollectionMutation() {
     },
   })
 }
+
+// Success bodies are `{ data }` envelopes and error bodies carry `detail`; both
+// fields are listed so every generated response variant is assignable.
+type StatusResponse = {
+  status: number
+  data: { detail?: string; data?: unknown }
+}
+
+export function errorDetail(
+  response: StatusResponse | undefined,
+  fallback: string
+) {
+  if (!response || response.status === 200) return undefined
+  return response.data.detail ?? fallback
+}
+
+export function collectionSubmitCallbacks({
+  successStatus,
+  failureMessage,
+  onDone,
+  setErrorMessage,
+}: {
+  successStatus: number
+  failureMessage: string
+  onDone: () => void
+  setErrorMessage: (message: string) => void
+}) {
+  return {
+    onSuccess: (response: StatusResponse) => {
+      if (response.status === successStatus) {
+        onDone()
+        return
+      }
+      setErrorMessage(response.data.detail ?? failureMessage)
+    },
+    onError: () => {
+      setErrorMessage("Could not reach the server. Please try again.")
+    },
+  }
+}

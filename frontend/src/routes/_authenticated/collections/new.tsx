@@ -8,7 +8,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { CollectionForm } from "@/components/collections/collection-form"
-import { useCreateCollectionMutation } from "@/lib/collections"
+import {
+  collectionSubmitCallbacks,
+  useCreateCollectionMutation,
+} from "@/lib/collections"
 
 export const Route = createFileRoute("/_authenticated/collections/new")({
   component: NewCollectionPage,
@@ -46,22 +49,12 @@ function NewCollectionPage() {
               setErrorMessage(null)
               createMutation.mutate(
                 { data: body },
-                {
-                  onSuccess: (response) => {
-                    if (response.status === 201) {
-                      void navigate({ to: "/collections" })
-                      return
-                    }
-                    setErrorMessage(
-                      response.data.detail ?? "Could not create this Collection."
-                    )
-                  },
-                  onError: () => {
-                    setErrorMessage(
-                      "Could not reach the server. Please try again."
-                    )
-                  },
-                }
+                collectionSubmitCallbacks({
+                  successStatus: 201,
+                  failureMessage: "Could not create this Collection.",
+                  onDone: () => void navigate({ to: "/collections" }),
+                  setErrorMessage,
+                })
               )
             }}
           />

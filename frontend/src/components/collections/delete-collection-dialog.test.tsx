@@ -34,8 +34,6 @@ describe("DeleteCollectionDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Vintage binder" }))
 
-    // getByRole throws if the dialog didn't open; a successful call is
-    // itself the assertion that the trigger opened the confirmation.
     screen.getByRole("alertdialog")
     expect(mutate).not.toHaveBeenCalled()
   })

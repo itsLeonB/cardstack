@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CollectionForm } from "@/components/collections/collection-form"
-import { useUpdateCollectionMutation } from "@/lib/collections"
+import {
+  collectionSubmitCallbacks,
+  errorDetail,
+  useUpdateCollectionMutation,
+} from "@/lib/collections"
 
 export const Route = createFileRoute(
   "/_authenticated/collections/$collectionId/edit"
@@ -32,10 +36,10 @@ function EditCollectionPage() {
 
   const query = useGetCollection(collectionId)
   const collection = query.data?.status === 200 ? query.data.data.data : undefined
-  const loadErrorMessage =
-    query.data && query.data.status !== 200
-      ? (query.data.data.detail ?? "Could not load this Collection.")
-      : undefined
+  const loadErrorMessage = errorDetail(
+    query.data,
+    "Could not load this Collection."
+  )
 
   const updateMutation = useUpdateCollectionMutation()
 
@@ -91,22 +95,12 @@ function EditCollectionPage() {
                 setErrorMessage(null)
                 updateMutation.mutate(
                   { id: collectionId, data: body },
-                  {
-                    onSuccess: (response) => {
-                      if (response.status === 200) {
-                        void navigate({ to: "/collections" })
-                        return
-                      }
-                      setErrorMessage(
-                        response.data.detail ?? "Could not save this Collection."
-                      )
-                    },
-                    onError: () => {
-                      setErrorMessage(
-                        "Could not reach the server. Please try again."
-                      )
-                    },
-                  }
+                  collectionSubmitCallbacks({
+                    successStatus: 200,
+                    failureMessage: "Could not save this Collection.",
+                    onDone: () => void navigate({ to: "/collections" }),
+                    setErrorMessage,
+                  })
                 )
               }}
             />

@@ -10,6 +10,9 @@ import {
 import { Input } from "@/components/ui/input"
 import type { CollectionBody } from "@/generated/models"
 
+// Backend caps maxCardCount at the int32 maximum.
+const MAX_CARD_COUNT = 2147483647
+
 export interface CollectionFormValues {
   title: string
   description: string
@@ -61,6 +64,12 @@ export function CollectionForm({
       const parsed = Number(rawMaxCardCount)
       if (!Number.isInteger(parsed) || parsed < 0) {
         setValidationError("Max card count must be a non-negative whole number.")
+        return
+      }
+      if (parsed > MAX_CARD_COUNT) {
+        setValidationError(
+          `Max card count can't exceed ${MAX_CARD_COUNT.toLocaleString("en-US")}.`
+        )
         return
       }
       maxCardCount = parsed
