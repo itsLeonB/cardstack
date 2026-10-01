@@ -188,7 +188,11 @@ type CardFilter struct {
 	// CollectionID, when set, restricts the base set to that Collection's
 	// Cards (SearchCards also returns their quantity). The caller must have
 	// checked ownership; uuid.Nil means the whole catalog.
-	CollectionID    uuid.UUID
+	CollectionID uuid.UUID
+	// ProfileID, when set (and CollectionID is not), restricts the base set to
+	// the Cards the profile owns across all its Collections, with Quantity the
+	// sum over them (Master Inventory). Only owned Cards appear (entry quantity is CHECK > 0).
+	ProfileID       uuid.UUID
 	Name            string
 	ExpansionSetIDs []uuid.UUID
 	LocalID         string
@@ -244,7 +248,7 @@ type CardResult struct {
 	ExpansionSetCode        string
 	ExpansionSetName        string
 	ExpansionSetReleaseDate *time.Time
-	// Quantity is set only when searching within a Collection.
+	// Quantity is set only when searching within a Collection or a profile's Master Inventory.
 	Quantity int
 }
 
@@ -275,6 +279,11 @@ func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
 	q := db.Table("cards")
 	if filter.CollectionID != uuid.Nil {
 		q = q.Joins("JOIN inventory_entries ON inventory_entries.card_id = cards.id AND inventory_entries.collection_id = ?", filter.CollectionID)
+	} else if filter.ProfileID != uuid.Nil {
+		q = q.Joins(`JOIN (SELECT ie.card_id, SUM(ie.quantity) AS quantity
+			FROM inventory_entries ie JOIN collections c ON c.id = ie.collection_id
+			WHERE c.profile_id = ? GROUP BY ie.card_id) AS master_inventory
+			ON master_inventory.card_id = cards.id`, filter.ProfileID)
 	}
 	return q
 }
@@ -338,6 +347,8 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 	columns := cardResultColumns
 	if filter.CollectionID != uuid.Nil {
 		columns += ", inventory_entries.quantity AS quantity"
+	} else if filter.ProfileID != uuid.Nil {
+		columns += ", master_inventory.quantity AS quantity"
 	}
 
 	var results []CardResult

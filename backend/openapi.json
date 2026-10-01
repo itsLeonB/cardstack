@@ -2333,6 +2333,71 @@
         ]
       }
     },
+    "/inventory/cards": {
+      "get": {
+        "operationId": "list-master-inventory",
+        "parameters": [
+          {
+            "description": "1-indexed page number.",
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "description": "1-indexed page number.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 24,
+              "description": "Page size.",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListInventoryItemPaginationMeta"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
     "/inventory/cards/{cardId}/holdings": {
       "get": {
         "operationId": "list-card-holdings",

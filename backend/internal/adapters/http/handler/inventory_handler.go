@@ -71,6 +71,20 @@ type listEntryFacetsInput struct {
 	CardFilterParams
 }
 
+type masterInventoryInput struct {
+	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
+	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+}
+
+func (h *InventoryHandler) listMaster(ctx context.Context, in masterInventoryInput) ([]dto.InventoryItem, dto.PaginationMeta, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+
+	return h.inventorySvc.ListMasterInventory(ctx, dto.MasterInventoryRequest{ProfileID: profileID, Page: in.Page, Limit: in.Limit})
+}
+
 type cardHoldingsInput struct {
 	CardID uuid.UUID `path:"cardId" doc:"Card ID"`
 }
@@ -177,6 +191,16 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.list,
+		}),
+		endpoint.NewWithMeta(endpoint.EndpointWithMeta[masterInventoryInput, []dto.InventoryItem, dto.PaginationMeta]{
+			OperationID: "list-master-inventory",
+			Method:      http.MethodGet,
+			Path:        "/inventory/cards",
+			Summary:     "Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.listMaster,
 		}),
 		endpoint.New(endpoint.Endpoint[cardHoldingsInput, []dto.CardHolding]{
 			OperationID: "list-card-holdings",
