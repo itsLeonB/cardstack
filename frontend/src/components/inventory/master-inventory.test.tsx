@@ -35,7 +35,13 @@ const card: CardSummary = {
   rarity: { id: "r-1", code: "RR", name: "Double Rare" },
 }
 
-function setup(state: Record<string, unknown>, page = 1) {
+interface InventoryState {
+  isPending: boolean
+  isError: boolean
+  data?: { status: number; data: { data?: unknown[]; meta?: unknown; detail?: string } }
+}
+
+function setup(state: InventoryState, page = 1) {
   // SAFETY: tests supply only the fields MasterInventory reads from this hook.
   vi.mocked(useListMasterInventory).mockReturnValue(state as any)
   const onPageChange = vi.fn()
