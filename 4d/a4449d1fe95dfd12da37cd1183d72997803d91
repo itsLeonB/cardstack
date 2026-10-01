@@ -1,0 +1,79 @@
+frontend/bun.lock
+  s_fc7b4cf67c9df8::t_42a12e02fbac51 30,57-58,627-628
+frontend/e2e/app-shell.spec.ts
+  s_fc7b4cf67c9df8::t_2b6268682aaf0d 1-188
+frontend/package.json
+  s_fc7b4cf67c9df8::t_2b606dea49dc4e 41
+frontend/public/favicon.svg
+  s_fc7b4cf67c9df8::t_61574e9bbe437e 1
+frontend/public/manifest.json
+  s_fc7b4cf67c9df8::t_a3ee25aa66b617 2-4,6,13,15
+frontend/src/components/health-check.tsx
+  s_fc7b4cf67c9df8::t_b3093a4401dfa3 7
+frontend/src/components/layout/app-shell.tsx
+  s_fc7b4cf67c9df8::t_0ebb9920ac2ba1 1-20
+frontend/src/components/layout/nav-links.ts
+  s_fc7b4cf67c9df8::t_10130f947c6fd3 1-31
+frontend/src/components/layout/site-footer.tsx
+  s_fc7b4cf67c9df8::t_e360badbcbb288 1-24
+frontend/src/components/layout/site-header.test.tsx
+  s_fc7b4cf67c9df8::t_b68424dc2b4ffa 1-132
+frontend/src/components/layout/site-header.tsx
+  s_fc7b4cf67c9df8::t_fad85d48720bcc 1-95
+frontend/src/components/layout/theme-toggle.tsx
+  s_fc7b4cf67c9df8::t_1aa51bd2fd746e 1-43
+frontend/src/components/layout/user-menu.tsx
+  s_fc7b4cf67c9df8::t_853c1b81ef6670 1-49
+frontend/src/components/layout/wordmark.tsx
+  s_fc7b4cf67c9df8::t_6b086090a59905 1-17
+frontend/src/components/theme-provider.tsx
+  s_fc7b4cf67c9df8::t_116f328ad818eb 1-94
+frontend/src/components/ui/dropdown-menu.tsx
+  s_fc7b4cf67c9df8::t_5674988f0086df 1-265
+frontend/src/routes/__root.tsx
+  s_fc7b4cf67c9df8::t_684c2072439b16 3,11-12,28-37,41-49,57,60-65,72,77
+frontend/src/routes/_authenticated/account.tsx
+  s_fc7b4cf67c9df8::t_8a1178c82caec6 30
+frontend/src/routes/_authenticated/collections/$collectionId/edit.tsx
+  s_fc7b4cf67c9df8::t_bd774f560804d8 47,110
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_fc7b4cf67c9df8::t_eae3f32cce3101 29,64
+frontend/src/routes/_authenticated/collections/index.tsx
+  s_fc7b4cf67c9df8::t_3238a39fe95c75 34,115
+frontend/src/routes/_authenticated/collections/new.tsx
+  s_fc7b4cf67c9df8::t_ba0d3a23ccf473 26,63
+frontend/src/routes/_authenticated/inventory.tsx
+  s_fc7b4cf67c9df8::t_5fc8c1053bbe41 15,24
+frontend/src/routes/catalog/cards.$expansionSetId.$localId.tsx
+  s_fc7b4cf67c9df8::t_b6d7b4e9d03935 32,55
+frontend/src/routes/catalog/index.tsx
+  s_fc7b4cf67c9df8::t_33db68c614915e 29,95
+frontend/src/routes/catalog/search.tsx
+  s_fc7b4cf67c9df8::t_3af254f6a29242 89,120
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_fc7b4cf67c9df8::t_b83400fbc79fb4 51,101
+frontend/src/routes/index.tsx
+  s_fc7b4cf67c9df8::t_319173ea4257c2 8
+frontend/src/routes/login.tsx
+  s_fc7b4cf67c9df8::t_130b3b41087e5f 74
+frontend/src/routes/register.tsx
+  s_fc7b4cf67c9df8::t_394365f8db6b80 59
+frontend/src/styles.css
+  s_fc7b4cf67c9df8::t_bc4d8c7b3bf840 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "4da4449d1fe95dfd12da37cd1183d72997803d91",
+  "prompts": {},
+  "sessions": {
+    "s_fc7b4cf67c9df8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fc7b4cf67c9df8",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
