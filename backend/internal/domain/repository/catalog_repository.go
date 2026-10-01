@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/ezutil/v2"
 	"github.com/itsLeonB/ungerr"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -275,12 +276,8 @@ func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
 		// cards.tags is JSONB (see entity.Card's doc comment); @> is
 		// Postgres's jsonb containment operator. One containment test per
 		// tag, OR-ed.
-		conds := make([]string, len(filter.Tags))
-		args := make([]any, len(filter.Tags))
-		for i, tag := range filter.Tags {
-			conds[i] = "cards.tags @> jsonb_build_array(?::text)"
-			args[i] = tag
-		}
+		conds := ezutil.MapSlice(filter.Tags, func(string) string { return "cards.tags @> jsonb_build_array(?::text)" })
+		args := ezutil.MapSlice(filter.Tags, func(tag string) any { return tag })
 		query = query.Where("("+strings.Join(conds, " OR ")+")", args...)
 	}
 
@@ -399,9 +396,7 @@ func unionIDs(available, selected []uuid.UUID) []uuid.UUID {
 // absent from available), sorted alphabetically.
 func stringOptions(available, selected []string) []StringFacetOption {
 	all := slices.Compact(slices.Sorted(slices.Values(slices.Concat(available, selected))))
-	options := make([]StringFacetOption, len(all))
-	for i, v := range all {
-		options[i] = StringFacetOption{Value: v, Available: slices.Contains(available, v)}
-	}
-	return options
+	return ezutil.MapSlice(all, func(v string) StringFacetOption {
+		return StringFacetOption{Value: v, Available: slices.Contains(available, v)}
+	})
 }

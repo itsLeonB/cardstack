@@ -132,60 +132,35 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 }
 
 func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
-	results, meta, err := searchCards(ctx, s.repo, filter, uuid.Nil)
+	repoFilter, page, limit := pagedRepoFilter(filter)
+
+	results, total, err := s.repo.SearchCards(ctx, repoFilter)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, mapper.ToCardSummary), meta, nil
+	return ezutil.MapSlice(results, mapper.ToCardSummary), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
-// searchCards runs the paginated search, over the whole catalog or (non-nil
-// collectionID) one Collection's Cards.
-func searchCards(ctx context.Context, repo repository.CatalogRepository, filter dto.CardFilter, collectionID uuid.UUID) ([]repository.CardResult, dto.PaginationMeta, error) {
+// pagedRepoFilter maps filter to the repository filter with its page's
+// limit/offset applied, and returns the normalized page and limit.
+func pagedRepoFilter(filter dto.CardFilter) (repository.CardFilter, int, int) {
 	page, limit := normalizePagination(filter.Page, filter.Limit)
 
-	repoFilter := toRepoFilter(filter)
-	repoFilter.CollectionID = collectionID
+	repoFilter := mapper.ToRepoCardFilter(filter)
 	repoFilter.Limit = limit
 	repoFilter.Offset = (page - 1) * limit
 
-	results, total, err := repo.SearchCards(ctx, repoFilter)
-	if err != nil {
-		return nil, dto.PaginationMeta{}, err
-	}
-
-	return results, dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
-}
-
-func toRepoFilter(filter dto.CardFilter) repository.CardFilter {
-	return repository.CardFilter{
-		Name:            filter.Name,
-		ExpansionSetIDs: filter.ExpansionSetIDs,
-		LocalID:         filter.LocalID,
-		RarityIDs:       filter.RarityIDs,
-		Categories:      filter.Categories,
-		Tags:            filter.Tags,
-		CardIDs:         filter.CardIDs,
-	}
+	return repoFilter, page, limit
 }
 
 func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error) {
-	return listFacets(ctx, s.repo, toRepoFilter(filter))
-}
-
-func listFacets(ctx context.Context, repo repository.CatalogRepository, filter repository.CardFilter) (dto.CatalogFacets, error) {
-	facets, err := repo.ListCardFacets(ctx, filter)
+	facets, err := s.repo.ListCardFacets(ctx, mapper.ToRepoCardFilter(filter))
 	if err != nil {
 		return dto.CatalogFacets{}, err
 	}
 
-	return dto.CatalogFacets{
-		ExpansionSets: ezutil.MapSlice(facets.ExpansionSets, mapper.ToExpansionSetFacetOption),
-		Rarities:      ezutil.MapSlice(facets.Rarities, mapper.ToRarityFacetOption),
-		Categories:    ezutil.MapSlice(facets.Categories, mapper.ToStringFacetOption),
-		Tags:          ezutil.MapSlice(facets.Tags, mapper.ToStringFacetOption),
-	}, nil
+	return mapper.ToCatalogFacets(facets), nil
 }
 
 // normalizePagination fills in CardFilter's page/limit defaults and clamps

@@ -4,6 +4,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+	"github.com/itsLeonB/ezutil/v2"
 )
 
 // ToExpansionSetSummary converts an entity.ExpansionSet into the catalog
@@ -57,4 +58,27 @@ func ToRarityFacetOption(o repository.RarityFacetOption) dto.RarityFacetOption {
 
 func ToStringFacetOption(o repository.StringFacetOption) dto.StringFacetOption {
 	return dto.StringFacetOption{Value: o.Value, Available: o.Available}
+}
+
+// ToRepoCardFilter copies the search criteria of a dto.CardFilter. Paging and
+// collection scope are the caller's to set.
+func ToRepoCardFilter(filter dto.CardFilter) repository.CardFilter {
+	return repository.CardFilter{
+		Name:            filter.Name,
+		ExpansionSetIDs: filter.ExpansionSetIDs,
+		LocalID:         filter.LocalID,
+		RarityIDs:       filter.RarityIDs,
+		Categories:      filter.Categories,
+		Tags:            filter.Tags,
+		CardIDs:         filter.CardIDs,
+	}
+}
+
+func ToCatalogFacets(facets repository.CardFacets) dto.CatalogFacets {
+	return dto.CatalogFacets{
+		ExpansionSets: ezutil.MapSlice(facets.ExpansionSets, ToExpansionSetFacetOption),
+		Rarities:      ezutil.MapSlice(facets.Rarities, ToRarityFacetOption),
+		Categories:    ezutil.MapSlice(facets.Categories, ToStringFacetOption),
+		Tags:          ezutil.MapSlice(facets.Tags, ToStringFacetOption),
+	}
 }

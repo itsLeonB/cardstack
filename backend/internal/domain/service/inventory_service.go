@@ -61,12 +61,15 @@ func (s *inventoryService) List(ctx context.Context, req dto.InventoryListReques
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	results, meta, err := searchCards(ctx, s.catalog, req.Filter, req.CollectionID)
+	repoFilter, page, limit := pagedRepoFilter(req.Filter)
+	repoFilter.CollectionID = req.CollectionID
+
+	results, total, err := s.catalog.SearchCards(ctx, repoFilter)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, mapper.ToInventoryItem), meta, nil
+	return ezutil.MapSlice(results, mapper.ToInventoryItem), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
@@ -74,9 +77,15 @@ func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryList
 		return dto.CatalogFacets{}, err
 	}
 
-	f := toRepoFilter(req.Filter)
+	f := mapper.ToRepoCardFilter(req.Filter)
 	f.CollectionID = req.CollectionID
-	return listFacets(ctx, s.catalog, f)
+
+	facets, err := s.catalog.ListCardFacets(ctx, f)
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+
+	return mapper.ToCatalogFacets(facets), nil
 }
 
 // findEntry returns the Card's row-locked entry, or the zero value when absent.
