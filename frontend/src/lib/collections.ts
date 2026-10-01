@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
+import { getListMasterInventoryQueryKey } from "@/generated/endpoints/inventory/inventory"
 import {
   getGetCollectionQueryKey,
   getListCollectionsQueryKey,
@@ -55,6 +56,8 @@ export function useDeleteCollectionMutation() {
             queryKey: getListCollectionsQueryKey(),
           })
           queryClient.removeQueries({ queryKey: getGetCollectionQueryKey(id) })
+          // Deleting a Collection drops its entries from the Master Inventory totals.
+          queryClient.invalidateQueries({ queryKey: getListMasterInventoryQueryKey() })
         }
       },
     },

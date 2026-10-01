@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react"
-import { keepPreviousData } from "@tanstack/react-query"
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import {
+  getListMasterInventoryQueryKey,
   useListCollectionEntries,
   useListCollectionFacets,
 } from "@/generated/endpoints/inventory/inventory"
@@ -20,7 +21,10 @@ interface CollectionEntriesProps {
 }
 
 export function CollectionEntries({ collectionId, search, onSearchChange }: CollectionEntriesProps) {
-  const batch = useQuantityBatch(collectionId)
+  const queryClient = useQueryClient()
+  const batch = useQuantityBatch(collectionId, () => {
+    void queryClient.invalidateQueries({ queryKey: getListMasterInventoryQueryKey() })
+  })
 
   // Always refetch and never keep the entry list around after leaving: a card
   // taken to 0 stays on screen only until the user comes back. Refocusing the
