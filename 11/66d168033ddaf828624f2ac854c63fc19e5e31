@@ -1,0 +1,29 @@
+backend/internal/adapters/http/handler/catalog_handler.go
+  s_fecaabc425222e::t_c3581c94b5af37 81-83
+backend/internal/adapters/http/handler/catalog_handler_test.go
+  s_fecaabc425222e::t_6460f29db98529 248-257
+backend/internal/domain/mapper/catalog_mapper.go
+  s_fecaabc425222e::t_befc8531628db2 45-60
+backend/internal/domain/repository/catalog_repository.go
+  s_fecaabc425222e::t_398ef49bb253cc 12,257,261-262,304,306,320,334,364-367
+backend/internal/domain/service/catalog_service.go
+  s_fecaabc425222e::t_b10c6223650c20 176-179
+backend/internal/domain/service/catalog_service_test.go
+  s_fecaabc425222e::t_e63559f6efb6ab 325-337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1166d168033ddaf828624f2ac854c63fc19e5e31",
+  "prompts": {},
+  "sessions": {
+    "s_fecaabc425222e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fecaabc425222e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
