@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-router"
 import type * as AuthModule from "@/generated/endpoints/auth/auth"
 import { useGetCurrentUser } from "@/generated/endpoints/auth/auth"
+import { ThemeProvider } from "@/components/theme-provider"
 import { SiteFooter } from "./site-footer"
 import { SiteHeader } from "./site-header"
 
@@ -26,6 +27,13 @@ vi.mock("@/generated/endpoints/auth/auth", async () => {
 const mockUseGetCurrentUser = vi.mocked(useGetCurrentUser)
 
 afterEach(cleanup)
+
+// jsdom has no matchMedia, which ThemeProvider reads.
+vi.stubGlobal("matchMedia", () => ({
+  matches: false,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+}))
 
 function mockSession(session: "guest" | "signed-in" | "loading") {
   // SAFETY: partial mock covering only the fields useSession reads.
@@ -44,11 +52,11 @@ function mockSession(session: "guest" | "signed-in" | "loading") {
 async function renderShell(path = "/") {
   const root = createRootRoute({
     component: () => (
-      <>
+      <ThemeProvider>
         <SiteHeader />
         <Outlet />
         <SiteFooter />
-      </>
+      </ThemeProvider>
     ),
   })
   const routeTree = root.addChildren(

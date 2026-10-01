@@ -1,49 +1,26 @@
-import { useEffect, useState } from "react"
-import { Link } from "@tanstack/react-router"
+import { useEffect, useRef, useState } from "react"
 import { RiCloseLine, RiMenuLine } from "@remixicon/react"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { useSession } from "@/lib/session"
 import { useNavLinks } from "./nav-links"
-import type { NavLink } from "./nav-links"
+import { NavLinkItem } from "./nav-link-item"
 import { ThemeToggle } from "./theme-toggle"
 import { UserMenu } from "./user-menu"
 import { Wordmark } from "./wordmark"
-
-export function NavLinkItem({
-  link,
-  onNavigate,
-  className,
-}: {
-  link: NavLink
-  onNavigate?: () => void
-  className?: string
-}) {
-  return (
-    <Link
-      to={link.to}
-      onClick={onNavigate}
-      className={cn(
-        link.primary
-          ? buttonVariants({ size: "sm" })
-          : "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&[aria-current=page]]:bg-muted [&[aria-current=page]]:text-foreground",
-        className
-      )}
-    >
-      {link.label}
-    </Link>
-  )
-}
 
 export function SiteHeader() {
   const links = useNavLinks()
   const { isAuthenticated } = useSession()
   const [open, setOpen] = useState(false)
+  const toggleRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false)
+      if (event.key === "Escape") {
+        setOpen(false)
+        toggleRef.current?.focus()
+      }
     }
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
@@ -62,6 +39,7 @@ export function SiteHeader() {
           <ThemeToggle />
           {isAuthenticated && <UserMenu />}
           <Button
+            ref={toggleRef}
             variant="ghost"
             size="icon"
             className="md:hidden"

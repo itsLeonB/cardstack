@@ -1,16 +1,9 @@
-// Adapted from the shadcn dark-mode guide for TanStack Start
-// (https://ui.shadcn.com/docs/dark-mode/tanstack-start): ScriptOnce resolves
-// the theme before first paint so there is no flash.
+// ScriptOnce resolves the stored theme before first paint so a dark-mode
+// user never sees a light flash.
 import { createContext, useContext, useEffect, useState } from "react"
 import { ScriptOnce } from "@tanstack/react-router"
 
 export type Theme = "dark" | "light" | "system"
-
-type ThemeProviderProps = {
-  children: React.ReactNode
-  defaultTheme?: Theme
-  storageKey?: string
-}
 
 type ThemeProviderState = {
   theme: Theme
@@ -24,10 +17,9 @@ function getThemeScript(storageKey: string, defaultTheme: Theme) {
   return `(function(){try{var t=localStorage.getItem(${key});if(t!=='light'&&t!=='dark'&&t!=='system'){t=${fallback}}var d=matchMedia('(prefers-color-scheme: dark)').matches;var r=t==='system'?(d?'dark':'light'):t;var e=document.documentElement;e.classList.add(r);e.style.colorScheme=r}catch(e){}})();`
 }
 
-const ThemeProviderContext = createContext<ThemeProviderState>({
-  theme: "system",
-  setTheme: () => {},
-})
+const ThemeProviderContext = createContext<ThemeProviderState | null>(null)
+const defaultTheme: Theme = "system"
+const storageKey = "theme"
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement
@@ -44,11 +36,7 @@ function applyTheme(theme: Theme) {
   root.style.colorScheme = resolved
 }
 
-export function ThemeProvider({
-  children,
-  defaultTheme = "system",
-  storageKey = "theme",
-}: ThemeProviderProps) {
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(defaultTheme)
   const [mounted, setMounted] = useState(false)
 
@@ -60,7 +48,7 @@ export function ThemeProvider({
         : defaultTheme
     )
     setMounted(true)
-  }, [defaultTheme, storageKey])
+  }, [])
 
   useEffect(() => {
     if (!mounted) return
@@ -90,5 +78,7 @@ export function ThemeProvider({
 }
 
 export function useTheme() {
-  return useContext(ThemeProviderContext)
+  const context = useContext(ThemeProviderContext)
+  if (!context) throw new Error("useTheme must be used within a ThemeProvider")
+  return context
 }

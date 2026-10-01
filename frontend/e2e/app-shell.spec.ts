@@ -111,6 +111,24 @@ test.describe("App shell: signed in", () => {
     await expect(page.getByRole("menu")).toContainText("ada@example.com")
   })
 
+  test("passes axe on the signed-in shell", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/")
+    await expect(page.getByRole("link", { name: "Collections" }).first()).toBeVisible()
+    const results = await new AxeBuilder({ page })
+      .disableRules(["page-has-heading-one"])
+      .analyze()
+    expect(results.violations).toEqual([])
+  })
+
+  test("keeps Catalog current on a nested catalog route", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/catalog/search")
+    await expect(
+      page.getByRole("banner").getByRole("link", { name: "Catalog" })
+    ).toHaveAttribute("aria-current", "page")
+  })
+
   test("navigates between main areas", async ({ page }) => {
     await signIn(page)
     await page.goto("/")
@@ -172,6 +190,7 @@ test.describe("App shell: mobile", () => {
 
     await page.keyboard.press("Escape")
     await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    await expect(toggle).toBeFocused()
     await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
   })
 

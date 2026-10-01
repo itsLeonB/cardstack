@@ -1,5 +1,5 @@
 import { useNavLinks } from "./nav-links"
-import { NavLinkItem } from "./site-header"
+import { NavLinkItem } from "./nav-link-item"
 import { Wordmark } from "./wordmark"
 
 export function SiteFooter() {
