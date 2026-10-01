@@ -13,3 +13,7 @@ These apply to every frontend change, whether made by the root agent or a subage
 - The `cardId` entries filter treats an empty list as "no restriction": disable the query when there are no ids rather than sending an empty list.
 - Debounce with TanStack Pacer's `useDebouncer` (`@tanstack/react-pacer`), not hand-rolled `setTimeout`/`clearTimeout` timers; pass `onUnmount: (d) => d.flush()` when pending work must survive unmount, and call the latest handler through a ref to avoid stale closures.
 - Multi-value filter dropdowns use `MultiSelect` (`components/ui/multi-select.tsx`, a base-ui Popover of native checkboxes); the popover only mounts when open, so tests and e2e must click the trigger first. Render active-selection chips as buttons, not `li`, because e2e specs count results by `listitem`.
+- Read and set the theme through `ThemeProvider` / `useTheme` (`components/theme-provider.tsx`); don't touch the `dark` class or `localStorage` directly.
+- Header and footer nav links come from `useNavLinks` (`components/layout/nav-links.ts`); add new top-level destinations there. Keep nav as plain links in a `nav`, with no list markup, because e2e specs count `listitem`.
+- Pages must not render their own `<main>`: `AppShell` provides the single `main` landmark, so use a `<div>`.
+- Use `text-muted-foreground` only where contrast is verified; axe flags low-contrast shell text.
