@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { keepPreviousData } from "@tanstack/react-query"
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import {
   useListCollectionEntries,
@@ -10,6 +10,7 @@ import { CardResults } from "@/components/catalog/card-results"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import type { CatalogSearch } from "@/lib/catalog-search"
 import { hasActiveFilters, toFacetParams } from "@/lib/catalog-search"
+import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
 interface CollectionEntriesProps {
@@ -20,7 +21,10 @@ interface CollectionEntriesProps {
 }
 
 export function CollectionEntries({ collectionId, search, onSearchChange }: CollectionEntriesProps) {
-  const batch = useQuantityBatch(collectionId)
+  const queryClient = useQueryClient()
+  const batch = useQuantityBatch(collectionId, () => {
+    invalidateMasterInventory(queryClient)
+  })
 
   // Always refetch and never keep the entry list around after leaving: a card
   // taken to 0 stays on screen only until the user comes back. Refocusing the

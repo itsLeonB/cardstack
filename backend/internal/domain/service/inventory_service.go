@@ -32,6 +32,11 @@ type InventoryService interface {
 	ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error)
 	// ListCardHoldings returns the profile's own Collections holding the Card
 	// (empty when none, or when the Card is unknown).
+	// ListMasterInventory returns the profile's Cards with the quantity owned
+	// summed across all its Collections, computed on read.
+	ListMasterInventory(ctx context.Context, req dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)
+	// ListMasterFacets returns filter options computed only from the profile's owned Cards.
+	ListMasterFacets(ctx context.Context, req dto.MasterInventoryRequest) (dto.CatalogFacets, error)
 	ListCardHoldings(ctx context.Context, req dto.CardHoldingsRequest) ([]dto.CardHolding, error)
 	Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
@@ -82,6 +87,40 @@ func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryList
 
 	f := mapper.ToRepoCardFilter(req.Filter)
 	f.CollectionID = req.CollectionID
+
+	facets, err := s.catalog.ListCardFacets(ctx, f)
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+
+	return mapper.ToCatalogFacets(facets), nil
+}
+
+func (s *inventoryService) ListMasterInventory(ctx context.Context, req dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
+	// A nil ProfileID would drop the scoping and list the whole catalog.
+	if req.ProfileID == uuid.Nil {
+		return nil, dto.PaginationMeta{}, ungerr.UnauthorizedError("missing profile")
+	}
+
+	repoFilter, page, limit := pagedRepoFilter(req.Filter)
+	repoFilter.ProfileID = req.ProfileID
+
+	results, total, err := s.catalog.SearchCards(ctx, repoFilter)
+	if err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+
+	return ezutil.MapSlice(results, mapper.ToInventoryItem), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+}
+
+func (s *inventoryService) ListMasterFacets(ctx context.Context, req dto.MasterInventoryRequest) (dto.CatalogFacets, error) {
+	// A nil ProfileID would drop the scoping and facet the whole catalog.
+	if req.ProfileID == uuid.Nil {
+		return dto.CatalogFacets{}, ungerr.UnauthorizedError("missing profile")
+	}
+
+	f := mapper.ToRepoCardFilter(req.Filter)
+	f.ProfileID = req.ProfileID
 
 	facets, err := s.catalog.ListCardFacets(ctx, f)
 	if err != nil {

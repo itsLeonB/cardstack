@@ -14,6 +14,8 @@ import type { CardSummary } from "@/generated/models"
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   getListCollectionEntriesQueryKey: (id: string) => ["entries", id],
+  getListMasterInventoryQueryKey: () => ["inventory"],
+  getListMasterInventoryFacetsQueryKey: () => ["inventory-facets"],
   getListCollectionFacetsQueryKey: (id: string) => ["facets", id],
   useListCollectionEntries: vi.fn(),
   bulkUpdateCollectionEntries: vi.fn(),

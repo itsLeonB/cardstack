@@ -2333,6 +2333,294 @@
         ]
       }
     },
+    "/inventory/cards": {
+      "get": {
+        "operationId": "list-master-inventory",
+        "parameters": [
+          {
+            "description": "Case-insensitive substring match on the Card's name.",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "1-indexed page number.",
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "description": "1-indexed page number.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 24,
+              "description": "Page size.",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListInventoryItemPaginationMeta"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/inventory/cards/facets": {
+      "get": {
+        "operationId": "list-master-inventory-facets",
+        "parameters": [
+          {
+            "description": "Case-insensitive substring match on the Card's name.",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCatalogFacets"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
     "/inventory/cards/{cardId}/holdings": {
       "get": {
         "operationId": "list-card-holdings",

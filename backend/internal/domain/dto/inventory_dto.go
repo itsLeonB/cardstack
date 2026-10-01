@@ -90,3 +90,10 @@ type CardHolding struct {
 	Collection HoldingCollection `json:"collection"`
 	Quantity   int               `json:"quantity"`
 }
+
+// MasterInventoryRequest lists or facets a profile's Master Inventory,
+// filtered like a catalog search (Page/Limit are ignored by facets).
+type MasterInventoryRequest struct {
+	ProfileID uuid.UUID
+	Filter    CardFilter
+}

@@ -471,3 +471,55 @@ func TestInventoryService_ListCardHoldings_PropagatesRepositoryError(t *testing.
 	_, err := f.svc.ListCardHoldings(f.ctx, dto.CardHoldingsRequest{ProfileID: f.profileID, CardID: uuid.New()})
 	assert.ErrorIs(t, err, boom)
 }
+
+func TestInventoryService_ListMasterInventory(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	card := repository.CardResult{ID: uuid.New(), Name: "A", Quantity: 5}
+	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{ProfileID: f.profileID, Limit: 10, Offset: 10}).
+		Return([]repository.CardResult{card}, int64(11), nil).Once()
+
+	got, meta, err := f.svc.ListMasterInventory(f.ctx, dto.MasterInventoryRequest{ProfileID: f.profileID, Filter: dto.CardFilter{Page: 2, Limit: 10}})
+	require.NoError(t, err)
+	assert.Equal(t, dto.PaginationMeta{Total: 11, Page: 2, Limit: 10}, meta)
+	require.Len(t, got, 1)
+	assert.Equal(t, 5, got[0].Quantity)
+}
+
+func TestInventoryService_ListMasterInventory_NilProfile(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+
+	_, _, err := f.svc.ListMasterInventory(f.ctx, dto.MasterInventoryRequest{})
+	assert.Error(t, err)
+}
+
+func TestInventoryService_ListMasterInventory_Filter(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	setID, ids := uuid.New(), []uuid.UUID{uuid.New()}
+	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{
+		ProfileID: f.profileID, Name: "a", ExpansionSetIDs: []uuid.UUID{setID}, CardIDs: ids, Limit: 24,
+	}).Return([]repository.CardResult{}, int64(0), nil).Once()
+
+	_, _, err := f.svc.ListMasterInventory(f.ctx, dto.MasterInventoryRequest{
+		ProfileID: f.profileID, Filter: dto.CardFilter{Name: "a", ExpansionSetIDs: []uuid.UUID{setID}, CardIDs: ids},
+	})
+	require.NoError(t, err)
+}
+
+func TestInventoryService_ListMasterFacets(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	f.catalog.EXPECT().ListCardFacets(f.ctx, repository.CardFilter{ProfileID: f.profileID, Categories: []string{"Trainer"}}).
+		Return(repository.CardFacets{Categories: []repository.StringFacetOption{{Value: "Trainer", Available: true}}}, nil).Once()
+
+	got, err := f.svc.ListMasterFacets(f.ctx, dto.MasterInventoryRequest{
+		ProfileID: f.profileID, Filter: dto.CardFilter{Categories: []string{"Trainer"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []dto.StringFacetOption{{Value: "Trainer", Available: true}}, got.Categories)
+}
+
+func TestInventoryService_ListMasterFacets_NilProfile(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+
+	_, err := f.svc.ListMasterFacets(f.ctx, dto.MasterInventoryRequest{})
+	requireStatus(t, err, http.StatusUnauthorized)
+}

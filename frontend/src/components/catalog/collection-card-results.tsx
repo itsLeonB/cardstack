@@ -8,6 +8,7 @@ import {
 import { CardResults } from "@/components/catalog/card-results"
 import type { CardResultsProps } from "@/components/catalog/card-results"
 import { QuantityControl } from "@/components/collections/quantity-control"
+import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
 /**
@@ -23,6 +24,7 @@ export function CollectionCardResults({
     // Collection detail refetches entries on mount; facets are cached, so refresh them.
     void queryClient.invalidateQueries({ queryKey: getListCollectionEntriesQueryKey(collectionId) })
     void queryClient.invalidateQueries({ queryKey: getListCollectionFacetsQueryKey(collectionId) })
+    invalidateMasterInventory(queryClient)
   })
 
   // An empty cardId list means "no restriction" to the API, so never ask with one.

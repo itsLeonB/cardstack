@@ -33,6 +33,9 @@ function AccountPage() {
       <Link to="/collections" className="w-fit text-sm text-primary underline">
         My Collections
       </Link>
+      <Link to="/inventory" className="w-fit text-sm text-primary underline">
+        Master Inventory
+      </Link>
       <Button
         variant="outline"
         className="w-fit"

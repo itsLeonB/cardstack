@@ -197,6 +197,100 @@ export const ListCollectionFacetsResponse = zod.object({
 })
 
 /**
+ * @summary Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)
+ */
+export const listMasterInventoryQueryCardIdMax = 100;
+
+export const listMasterInventoryQueryPageDefault = 1;
+
+export const listMasterInventoryQueryLimitDefault = 24;
+export const listMasterInventoryQueryLimitMax = 100;
+
+
+
+export const ListMasterInventoryQueryParams = zod.object({
+  "name": zod.string().optional().describe('Case-insensitive substring match on the Card\'s name.'),
+  "expansionSetId": zod.array(zod.string()).optional().describe('Only Cards in any of these Expansion Sets (repeatable).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
+  "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).'),
+  "cardId": zod.array(zod.string()).max(listMasterInventoryQueryCardIdMax).optional().describe('Only these Cards (repeatable, at most 100), combined with the other filters.'),
+  "page": zod.int().min(1).default(listMasterInventoryQueryPageDefault).describe('1-indexed page number.'),
+  "limit": zod.int().min(1).max(listMasterInventoryQueryLimitMax).default(listMasterInventoryQueryLimitDefault).describe('Page size.')
+})
+
+export const ListMasterInventoryResponse = zod.object({
+  "data": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}),
+  "quantity": zod.int()
+})).nullable(),
+  "meta": zod.object({
+  "limit": zod.int(),
+  "page": zod.int(),
+  "total": zod.int()
+})
+})
+
+/**
+ * @summary List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)
+ */
+export const ListMasterInventoryFacetsQueryParams = zod.object({
+  "name": zod.string().optional().describe('Case-insensitive substring match on the Card\'s name.'),
+  "expansionSetId": zod.array(zod.string()).optional().describe('Only Cards in any of these Expansion Sets (repeatable).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
+  "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).')
+})
+
+export const ListMasterInventoryFacetsResponse = zod.object({
+  "data": zod.object({
+  "categories": zod.array(zod.object({
+  "available": zod.boolean(),
+  "value": zod.string()
+})).nullable(),
+  "expansionSets": zod.array(zod.object({
+  "available": zod.boolean(),
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional(),
+  "seriesId": zod.string().optional()
+})).nullable(),
+  "rarities": zod.array(zod.object({
+  "available": zod.boolean(),
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+})).nullable(),
+  "tags": zod.array(zod.object({
+  "available": zod.boolean(),
+  "value": zod.string()
+})).nullable()
+})
+})
+
+/**
  * @summary List the current user's own Collections that hold a Card, with the quantity in each (empty when none)
  */
 export const ListCardHoldingsParams = zod.object({
