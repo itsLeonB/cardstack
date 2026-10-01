@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/27-quantity-input-hide-native-spinner.md
+  s_1bbc72b84a9051::t_0ec3b76b7f5640 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1f68aa99f79ff7ea4cb01f9e0e0dc6b6f2abb098",
+  "prompts": {},
+  "sessions": {
+    "s_1bbc72b84a9051": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1bbc72b84a9051",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
