@@ -278,3 +278,145 @@ func TestInventoryService_Remove(t *testing.T) {
 		requireStatus(t, f.svc.Remove(f.ctx, dto.InventoryEntryLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, CardID: cardID}), http.StatusNotFound)
 	})
 }
+
+func (f inventoryFixture) bulkReq(items ...dto.InventoryQuantityChange) dto.InventoryBulkUpdateRequest {
+	return dto.InventoryBulkUpdateRequest{ProfileID: f.profileID, CollectionID: f.collection.ID, Items: items}
+}
+
+func change(cardID uuid.UUID, q int) dto.InventoryQuantityChange {
+	return dto.InventoryQuantityChange{CardID: cardID, Quantity: q}
+}
+
+func TestInventoryService_BulkUpdate_MixedBatch(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	add, inc, dec, rm, gone := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	incE := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: inc, Quantity: 1}
+	decE := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: dec, Quantity: 5}
+	rmE := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: rm, Quantity: 2}
+	f.lockedCollection()
+
+	f.expectEntry(add, entity.InventoryEntry{})
+	f.expectCard(add, true)
+	created := entity.InventoryEntry{CollectionID: f.collection.ID, CardID: add, Quantity: 2}
+	f.entries.EXPECT().Insert(f.ctx, created).Return(created, nil).Once()
+
+	f.expectEntry(inc, incE)
+	incE.Quantity = 4
+	f.entries.EXPECT().Update(f.ctx, incE).Return(incE, nil).Once()
+
+	f.expectEntry(dec, decE)
+	decE.Quantity = 1
+	f.entries.EXPECT().Update(f.ctx, decE).Return(decE, nil).Once()
+
+	f.expectEntry(rm, rmE)
+	f.entries.EXPECT().Delete(f.ctx, rmE).Return(nil).Once()
+
+	f.expectEntry(gone, entity.InventoryEntry{})
+	f.expectCard(gone, true)
+
+	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(add, 2), change(inc, 4), change(dec, 1), change(rm, 0), change(gone, 0)))
+	require.NoError(t, err)
+	assert.Equal(t, []dto.InventoryChangeResult{
+		{CardID: add, Quantity: 2, Status: dto.InventoryStatusApplied},
+		{CardID: inc, Quantity: 4, Status: dto.InventoryStatusApplied},
+		{CardID: dec, Quantity: 1, Status: dto.InventoryStatusApplied},
+		{CardID: rm, Quantity: 0, Status: dto.InventoryStatusRemoved},
+		{CardID: gone, Quantity: 0, Status: dto.InventoryStatusRemoved},
+	}, got)
+}
+
+func TestInventoryService_BulkUpdate_CapacityDeclinesLaterItems(t *testing.T) {
+	f := newInventoryFixture(t, 10)
+	a, b, c := uuid.New(), uuid.New(), uuid.New()
+	bE := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: b, Quantity: 2}
+	f.lockedCollection()
+	f.expectSum(6)
+
+	// a: 6 -> 9 fits; b: 9 -> 9-2+5=12 declined, stays 2; c: 9 -> 10 fits again.
+	f.expectEntry(a, entity.InventoryEntry{})
+	f.expectCard(a, true)
+	aNew := entity.InventoryEntry{CollectionID: f.collection.ID, CardID: a, Quantity: 3}
+	f.entries.EXPECT().Insert(f.ctx, aNew).Return(aNew, nil).Once()
+	f.expectEntry(b, bE)
+	f.expectEntry(c, entity.InventoryEntry{})
+	f.expectCard(c, true)
+	cNew := entity.InventoryEntry{CollectionID: f.collection.ID, CardID: c, Quantity: 1}
+	f.entries.EXPECT().Insert(f.ctx, cNew).Return(cNew, nil).Once()
+
+	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(a, 3), change(b, 5), change(c, 1)))
+	require.NoError(t, err)
+	assert.Equal(t, dto.InventoryChangeResult{CardID: a, Quantity: 3, Status: dto.InventoryStatusApplied}, got[0])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: b, Quantity: 2, Status: dto.InventoryStatusDeclined, Reason: dto.InventoryReasonCapacityExceeded, Message: capacityExceededMsg}, got[1])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: c, Quantity: 1, Status: dto.InventoryStatusApplied}, got[2])
+}
+
+func TestInventoryService_BulkUpdate_DecreaseOverLimitIsApplied(t *testing.T) {
+	f := newInventoryFixture(t, 5)
+	a, b := uuid.New(), uuid.New()
+	aE := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: a, Quantity: 6}
+	bE := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: b, Quantity: 4}
+	f.lockedCollection()
+	f.expectSum(10) // over the limit of 5
+	f.expectEntry(a, aE)
+	aE.Quantity = 3
+	f.entries.EXPECT().Update(f.ctx, aE).Return(aE, nil).Once()
+	f.expectEntry(b, bE) // keeping the quantity is never declined, and writes nothing
+
+	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(a, 3), change(b, 4)))
+	require.NoError(t, err)
+	assert.Equal(t, []dto.InventoryChangeResult{
+		{CardID: a, Quantity: 3, Status: dto.InventoryStatusApplied},
+		{CardID: b, Quantity: 4, Status: dto.InventoryStatusApplied},
+	}, got)
+}
+
+func TestInventoryService_BulkUpdate_UnknownCardDeclinedRestApplied(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	unknown, ok := uuid.New(), uuid.New()
+	f.lockedCollection()
+	f.expectEntry(unknown, entity.InventoryEntry{})
+	f.expectCard(unknown, false)
+	f.expectEntry(ok, entity.InventoryEntry{})
+	f.expectCard(ok, true)
+	created := entity.InventoryEntry{CollectionID: f.collection.ID, CardID: ok, Quantity: 1}
+	f.entries.EXPECT().Insert(f.ctx, created).Return(created, nil).Once()
+
+	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(unknown, 2), change(ok, 1)))
+	require.NoError(t, err)
+	assert.Equal(t, dto.InventoryChangeResult{CardID: unknown, Status: dto.InventoryStatusDeclined, Reason: dto.InventoryReasonCardNotFound, Message: cardNotFoundMsg}, got[0])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: ok, Quantity: 1, Status: dto.InventoryStatusApplied}, got[1])
+}
+
+func TestInventoryService_BulkUpdate_NilCardIsNotFound(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	f.lockedCollection()
+
+	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(uuid.Nil, 1)))
+	require.NoError(t, err)
+	assert.Equal(t, dto.InventoryReasonCardNotFound, got[0].Reason)
+}
+
+func TestInventoryService_BulkUpdate_Rejections(t *testing.T) {
+	cardID := uuid.New()
+
+	t.Run("duplicate card", func(t *testing.T) {
+		f := newInventoryFixture(t, 0)
+		_, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(cardID, 1), change(cardID, 2)))
+		requireStatus(t, err, http.StatusBadRequest)
+	})
+	t.Run("not owned collection", func(t *testing.T) {
+		f := newInventoryFixture(t, 0)
+		f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, true).
+			Return(entity.Collection{}, ungerr.NotFoundError("collection not found")).Once()
+		_, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(cardID, 1)))
+		requireStatus(t, err, http.StatusNotFound)
+	})
+	t.Run("repository error aborts the batch", func(t *testing.T) {
+		f := newInventoryFixture(t, 0)
+		wantErr := errors.New("boom")
+		f.lockedCollection()
+		f.entries.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.InventoryEntry{}, wantErr).Once()
+		_, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(cardID, 1)))
+		assert.ErrorIs(t, err, wantErr)
+	})
+}

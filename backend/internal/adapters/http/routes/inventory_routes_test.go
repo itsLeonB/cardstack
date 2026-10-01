@@ -3,12 +3,14 @@ package routes
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -164,4 +166,107 @@ func TestInventoryListOrder(t *testing.T) {
 	require.Len(t, list.Data, 2)
 	assert.Equal(t, known.String(), list.Data[0].Card.ID)
 	assert.Equal(t, unknown.String(), list.Data[1].Card.ID)
+}
+
+// TestInventoryBulkUpdateFlow covers the bulk endpoint end to end: apply,
+// idempotent retry, auth/CSRF/ownership, and concurrent batches on one
+// Collection serializing on its row lock. Branch cases (capacity, unknown
+// card, duplicates) live in the service unit tests.
+func TestInventoryBulkUpdateFlow(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+	cards := newTestCards(t, 4)
+
+	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+
+	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder", "maxCardCount": 5})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	base := "/collections/" + created.Data.ID + "/entries"
+
+	items := func(pairs ...any) map[string]any {
+		var list []map[string]any
+		for i := 0; i < len(pairs); i += 2 {
+			list = append(list, map[string]any{"cardId": pairs[i], "quantity": pairs[i+1]})
+		}
+		return map[string]any{"items": list}
+	}
+	patch := func(user []*http.Cookie, path string, body any) (int, []dto.InventoryChangeResult) {
+		resp := api.Patch(path, cookieHeader(user), csrfHeader(user), body)
+		var out struct {
+			Data []dto.InventoryChangeResult `json:"data"`
+		}
+		if resp.Code == http.StatusOK {
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out), resp.Body.String())
+		}
+		return resp.Code, out.Data
+	}
+	quantities := func() map[string]int {
+		resp := api.Get(base, cookieHeader(owner))
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+		var list struct {
+			Data []struct {
+				Card     struct{ ID string } `json:"card"`
+				Quantity int                 `json:"quantity"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &list))
+		got := map[string]int{}
+		for _, it := range list.Data {
+			got[it.Card.ID] = it.Quantity
+		}
+		return got
+	}
+
+	code, res := patch(owner, base, items(cards[0], 3, cards[1], 2, cards[3], 0))
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, []dto.InventoryChangeResult{
+		{CardID: cards[0], Quantity: 3, Status: dto.InventoryStatusApplied},
+		{CardID: cards[1], Quantity: 2, Status: dto.InventoryStatusApplied},
+		{CardID: cards[3], Status: dto.InventoryStatusRemoved},
+	}, res)
+	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[1].String(): 2}, quantities())
+
+	// Idempotent retry of the same absolute targets, plus a remove.
+	code, res = patch(owner, base, items(cards[0], 3, cards[1], 0))
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, dto.InventoryStatusApplied, res[0].Status)
+	assert.Equal(t, dto.InventoryStatusRemoved, res[1].Status)
+	assert.Equal(t, map[string]int{cards[0].String(): 3}, quantities())
+
+	// Auth, CSRF, ownership.
+	// CSRF is checked first, so an anonymous caller needs a matching token pair to reach the 401.
+	assert.Equal(t, http.StatusUnauthorized, api.Patch(base, "Cookie: csrf_token=x", "X-CSRF-Token: x", items(cards[0], 1)).Code)
+	assert.Equal(t, http.StatusForbidden, api.Patch(base, cookieHeader(owner), items(cards[0], 1)).Code)
+	code, _ = patch(other, base, items(cards[0], 1))
+	assert.Equal(t, http.StatusNotFound, code)
+	code, _ = patch(owner, "/collections/"+uuid.NewString()+"/entries", items(cards[0], 1))
+	assert.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, map[string]int{cards[0].String(): 3}, quantities())
+
+	// Concurrent batches serialize: 3 of 5 are used and each batch wants 2
+	// more of its own Card, so only one fits. Exactly one is applied, and the
+	// limit holds.
+	var wg sync.WaitGroup
+	statuses := make([]string, 2)
+	for i, id := range []uuid.UUID{cards[1], cards[2]} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c, r := patch(owner, base, items(id, 2))
+			if assert.Equal(t, http.StatusOK, c) {
+				statuses[i] = r[0].Status
+			}
+		}()
+	}
+	wg.Wait()
+	assert.ElementsMatch(t, []string{dto.InventoryStatusApplied, dto.InventoryStatusDeclined}, statuses)
+	total := 0
+	for _, q := range quantities() {
+		total += q
+	}
+	assert.Equal(t, 5, total)
 }

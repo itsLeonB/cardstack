@@ -79,6 +79,65 @@ func (_c *MockInventoryService_Add_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// BulkUpdate provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) BulkUpdate(ctx context.Context, req dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BulkUpdate")
+	}
+
+	var r0 []dto.InventoryChangeResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryBulkUpdateRequest) []dto.InventoryChangeResult); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.InventoryChangeResult)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.InventoryBulkUpdateRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryService_BulkUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BulkUpdate'
+type MockInventoryService_BulkUpdate_Call struct {
+	*mock.Call
+}
+
+// BulkUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.InventoryBulkUpdateRequest
+func (_e *MockInventoryService_Expecter) BulkUpdate(ctx interface{}, req interface{}) *MockInventoryService_BulkUpdate_Call {
+	return &MockInventoryService_BulkUpdate_Call{Call: _e.mock.On("BulkUpdate", ctx, req)}
+}
+
+func (_c *MockInventoryService_BulkUpdate_Call) Run(run func(ctx context.Context, req dto.InventoryBulkUpdateRequest)) *MockInventoryService_BulkUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.InventoryBulkUpdateRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_BulkUpdate_Call) Return(_a0 []dto.InventoryChangeResult, _a1 error) *MockInventoryService_BulkUpdate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInventoryService_BulkUpdate_Call) RunAndReturn(run func(context.Context, dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error)) *MockInventoryService_BulkUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error) {
 	ret := _m.Called(ctx, req)
