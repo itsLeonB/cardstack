@@ -22,6 +22,13 @@ interface CatalogFilterPanelProps {
 export function CatalogFilterPanel({ search, facets, series, onChange, onClear }: CatalogFilterPanelProps) {
   const [nameInput, setNameInput] = useState(search.name ?? "")
   const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
+  // Browser back/forward changes the URL from outside; resync so Search can't write stale text back.
+  const [synced, setSynced] = useState({ name: search.name, localId: search.localId })
+  if (synced.name !== search.name || synced.localId !== search.localId) {
+    setSynced({ name: search.name, localId: search.localId })
+    setNameInput(search.name ?? "")
+    setLocalIdInput(search.localId ?? "")
+  }
 
   return (
     <form
