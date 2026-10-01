@@ -3,7 +3,7 @@
 # 20: Inventory bulk update endpoint
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done — implemented (backend `6fb8865` + review fixes `3a7bd76`), merged into `feat/inventory-entries`, not yet merged to `main`.
 
 **Blocked by:** None (can start immediately)
 
@@ -36,16 +36,16 @@ Request validation: another profile's or a missing Collection is 404 (same as ev
 - Regenerate `openapi.json`.
 
 **Acceptance criteria:**
-- [ ] A batch mixing add, increase, decrease and remove is applied and each result reports the resulting quantity and status
-- [ ] Quantity 0 removes an existing entry, and is a no-op result for an absent one
-- [ ] An item that would exceed capacity is declined with `capacity_exceeded`, earlier items in the batch stay applied, and later items still get evaluated against the remaining capacity
-- [ ] A decrease on a Collection already over its limit is applied
-- [ ] Unknown `cardId` is declined with `card_not_found` while the rest is applied
-- [ ] Duplicate `cardId`s, negative quantities, empty and oversized batches are rejected with the documented client errors
-- [ ] Foreign or missing Collection returns 404 and changes nothing
-- [ ] Missing CSRF header returns 403, unauthenticated returns 401
-- [ ] Unit tests against mocked repositories cover the capacity and status logic, and a real-Postgres route test covers the flow end to end and concurrent batches on one Collection serialize
-- [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass and `openapi.json` is regenerated
+- [x] A batch mixing add, increase, decrease and remove is applied and each result reports the resulting quantity and status
+- [x] Quantity 0 removes an existing entry, and is a no-op result for an absent one
+- [x] An item that would exceed capacity is declined with `capacity_exceeded`, earlier items in the batch stay applied, and later items still get evaluated against the remaining capacity
+- [x] A decrease on a Collection already over its limit is applied
+- [x] Unknown `cardId` is declined with `card_not_found` while the rest is applied
+- [x] Duplicate `cardId`s, negative quantities, empty and oversized batches are rejected with the documented client errors
+- [x] Foreign or missing Collection returns 404 and changes nothing
+- [x] Missing CSRF header returns 403, unauthenticated returns 401
+- [x] Unit tests against mocked repositories cover the capacity and status logic, and a real-Postgres route test covers the flow end to end and concurrent batches on one Collection serialize
+- [x] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass and `openapi.json` is regenerated
 
 **Out of scope:**
 - Any frontend change (ticket 22 consumes this)
