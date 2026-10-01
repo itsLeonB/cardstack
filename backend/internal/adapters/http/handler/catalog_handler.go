@@ -78,6 +78,9 @@ type listFacetsInput struct {
 func parseUUIDs(param string, raw []string) ([]uuid.UUID, error) {
 	var ids []uuid.UUID
 	for _, r := range raw {
+		if r == "" {
+			continue
+		}
 		id, err := uuid.Parse(r)
 		if err != nil {
 			return nil, ungerr.BadRequestError("invalid " + param + ": " + r)

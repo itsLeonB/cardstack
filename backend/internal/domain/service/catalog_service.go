@@ -173,23 +173,11 @@ func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) 
 	}
 
 	return dto.CatalogFacets{
-		ExpansionSets: ezutil.MapSlice(facets.ExpansionSets, func(o repository.ExpansionSetFacetOption) dto.ExpansionSetFacetOption {
-			return dto.ExpansionSetFacetOption{
-				ExpansionSetSummary: mapper.ToExpansionSetSummary(o.ExpansionSet),
-				SeriesID:            o.SeriesID,
-				Available:           o.Available,
-			}
-		}),
-		Rarities: ezutil.MapSlice(facets.Rarities, func(o repository.RarityFacetOption) dto.RarityFacetOption {
-			return dto.RarityFacetOption{RaritySummary: dto.RaritySummary{ID: o.ID, Code: o.Code, Name: o.Name}, Available: o.Available}
-		}),
-		Categories: ezutil.MapSlice(facets.Categories, toStringFacetOption),
-		Tags:       ezutil.MapSlice(facets.Tags, toStringFacetOption),
+		ExpansionSets: ezutil.MapSlice(facets.ExpansionSets, mapper.ToExpansionSetFacetOption),
+		Rarities:      ezutil.MapSlice(facets.Rarities, mapper.ToRarityFacetOption),
+		Categories:    ezutil.MapSlice(facets.Categories, mapper.ToStringFacetOption),
+		Tags:          ezutil.MapSlice(facets.Tags, mapper.ToStringFacetOption),
 	}, nil
-}
-
-func toStringFacetOption(o repository.StringFacetOption) dto.StringFacetOption {
-	return dto.StringFacetOption{Value: o.Value, Available: o.Available}
 }
 
 // normalizePagination fills in CardFilter's page/limit defaults and clamps

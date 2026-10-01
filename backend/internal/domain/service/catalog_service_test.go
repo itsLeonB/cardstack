@@ -322,3 +322,16 @@ func TestCatalogService_ListFacets_PropagatesRepositoryError(t *testing.T) {
 	_, err := NewCatalogService(repo).ListFacets(ctx, dto.CardFilter{})
 	assert.EqualError(t, err, "boom")
 }
+
+func TestCatalogService_ListFacets_ZeroMatchesYieldsEmptySlices(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewMockCatalogRepository(t)
+	repo.EXPECT().ListCardFacets(ctx, repository.CardFilter{}).Return(repository.CardFacets{}, nil).Once()
+
+	got, err := NewCatalogService(repo).ListFacets(ctx, dto.CardFilter{})
+	require.NoError(t, err)
+	assert.NotNil(t, got.ExpansionSets)
+	assert.NotNil(t, got.Rarities)
+	assert.NotNil(t, got.Categories)
+	assert.NotNil(t, got.Tags)
+}

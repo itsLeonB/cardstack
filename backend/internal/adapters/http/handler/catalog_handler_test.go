@@ -245,3 +245,13 @@ func TestCatalogHandler_ListFacets_InvalidID(t *testing.T) {
 		t.Fatalf("expected 400, got %d: %s", resp.Code, resp.Body.String())
 	}
 }
+
+func TestCatalogHandler_SearchCards_EmptyIDParamsAreIgnored(t *testing.T) {
+	svc, api := newTestCatalogHandler(t)
+	svc.EXPECT().SearchCards(mock.Anything, dto.CardFilter{Page: 1, Limit: 24}).Return(nil, dto.PaginationMeta{}, nil)
+
+	resp := api.Get("/catalog/cards?rarityId=&expansionSetId=")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+}

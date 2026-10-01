@@ -42,3 +42,19 @@ func ToCardSummary(r repository.CardResult) dto.CardSummary {
 		ImageURL:    r.ImageURL,
 	}
 }
+
+func ToExpansionSetFacetOption(o repository.ExpansionSetFacetOption) dto.ExpansionSetFacetOption {
+	return dto.ExpansionSetFacetOption{
+		ExpansionSetSummary: ToExpansionSetSummary(o.ExpansionSet),
+		SeriesID:            o.SeriesID,
+		Available:           o.Available,
+	}
+}
+
+func ToRarityFacetOption(o repository.RarityFacetOption) dto.RarityFacetOption {
+	return dto.RarityFacetOption{RaritySummary: dto.RaritySummary{ID: o.ID, Code: o.Code, Name: o.Name}, Available: o.Available}
+}
+
+func ToStringFacetOption(o repository.StringFacetOption) dto.StringFacetOption {
+	return dto.StringFacetOption{Value: o.Value, Available: o.Available}
+}

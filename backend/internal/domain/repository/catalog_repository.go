@@ -3,13 +3,13 @@ package repository
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/ungerr"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -254,14 +254,12 @@ func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
 	if len(filter.Tags) > 0 {
 		// cards.tags is JSONB (see entity.Card's doc comment); @> is
 		// Postgres's jsonb containment operator. One containment test per
-		// tag, OR-ed. json.Marshal of a []string literal can't fail, so its
-		// error is ignored rather than threaded through every caller.
+		// tag, OR-ed.
 		conds := make([]string, len(filter.Tags))
 		args := make([]any, len(filter.Tags))
 		for i, tag := range filter.Tags {
-			tagJSON, _ := json.Marshal([]string{tag})
-			conds[i] = "cards.tags @> ?::jsonb"
-			args[i] = string(tagJSON)
+			conds[i] = "cards.tags @> jsonb_build_array(?::text)"
+			args[i] = tag
 		}
 		query = query.Where("("+strings.Join(conds, " OR ")+")", args...)
 	}
@@ -303,9 +301,9 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilter) (CardFacets, error) {
 	// without is where a narrower base set (ticket 22's Collection) would
 	// plug in: swap the starting query for one limited to those Cards.
-	without := func(clear func(*CardFilter)) *gorm.DB {
+	without := func(mutate func(*CardFilter)) *gorm.DB {
 		f := filter
-		clear(&f)
+		mutate(&f)
 		return applyCardFilters(r.db.WithContext(ctx).Table("cards"), f)
 	}
 
@@ -319,7 +317,7 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 	if ids := unionIDs(setIDs, filter.ExpansionSetIDs); len(ids) > 0 {
 		if err := r.db.WithContext(ctx).Where("id IN ?", ids).
 			Order("release_date ASC NULLS LAST, name ASC").Find(&sets).Error; err != nil {
-			return CardFacets{}, err
+			return CardFacets{}, ungerr.Wrap(err, "listing expansion set facet options")
 		}
 	}
 	for _, s := range sets {
@@ -333,7 +331,7 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 	var rarities []entity.Rarity
 	if ids := unionIDs(rarityIDs, filter.RarityIDs); len(ids) > 0 {
 		if err := r.db.WithContext(ctx).Where("id IN ?", ids).Order("name ASC").Find(&rarities).Error; err != nil {
-			return CardFacets{}, err
+			return CardFacets{}, ungerr.Wrap(err, "listing rarity facet options")
 		}
 	}
 	for _, ra := range rarities {
@@ -363,8 +361,10 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 
 func pluckDistinct[T any](query *gorm.DB, column string) ([]T, error) {
 	var values []T
-	err := query.Distinct().Pluck(column, &values).Error
-	return values, err
+	if err := query.Distinct().Pluck(column, &values).Error; err != nil {
+		return nil, ungerr.Wrap(err, "plucking distinct facet values")
+	}
+	return values, nil
 }
 
 func unionIDs(available, selected []uuid.UUID) []uuid.UUID {
