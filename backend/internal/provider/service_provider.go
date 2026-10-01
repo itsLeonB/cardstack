@@ -12,7 +12,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideCatalogService, ProvideCollectionService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -20,6 +20,7 @@ type Services struct {
 	Profiles   authpkg.ProfileLookup
 	Catalog    service.CatalogService
 	Collection service.CollectionService
+	Inventory  service.InventoryService
 }
 
 // ProvideCatalogService builds the catalog service over ds's DB. It's a
@@ -29,13 +30,24 @@ type Services struct {
 // so cmd/genspec can call it without a DB (see ProvideServices's own doc
 // comment).
 func ProvideCatalogService(ds *DataSources) service.CatalogService {
-	return service.NewCatalogService(catalogrepository.NewCatalogRepository(ds.Gorm))
+	return service.NewCatalogService(catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)))
 }
 
 // ProvideCollectionService builds the collection service over ds's DB, for
 // the same reason ProvideCatalogService is its own provider.
 func ProvideCollectionService(ds *DataSources) service.CollectionService {
-	return service.NewCollectionService(crud.NewRepository[entity.Collection](ds.Gorm))
+	return service.NewCollectionService(catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)))
+}
+
+// ProvideInventoryService builds the inventory service over ds's DB.
+func ProvideInventoryService(ds *DataSources) service.InventoryService {
+	return service.NewInventoryService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
+		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
+		crud.NewRepository[entity.Card](ds.Gorm),
+	)
 }
 
 // ProvideServices takes just the already-built *authkit.AuthKit,
@@ -44,12 +56,13 @@ func ProvideCollectionService(ds *DataSources) service.CollectionService {
 // this with throwaway, DB-free values of its own construction — see
 // cmd/genspec/main.go — without this function needing to know or care where
 // they came from.
-func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, collection service.CollectionService) *Services {
+func ProvideServices(kit *authkit.AuthKit, profiles authpkg.ProfileLookup, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Auth:       kit,
 		Profiles:   profiles,
 		Catalog:    catalog,
 		Collection: collection,
+		Inventory:  inventory,
 	}
 }

@@ -5,8 +5,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+	"github.com/itsLeonB/ezutil/v2"
 )
 
 // defaultCardSearchLimit/maxCardSearchLimit bound CardFilter.Limit before it
@@ -43,6 +45,10 @@ type CatalogService interface {
 	// SearchCards returns the page of Cards matching filter, plus that
 	// page's pagination metadata.
 	SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error)
+	// ListFacets returns each filter's available options given filter: the
+	// values on Cards matching every other filter, plus the filter's own
+	// selected values (flagged unavailable when unreachable).
+	ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error)
 }
 
 type catalogService struct {
@@ -60,12 +66,7 @@ func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult
 		return dto.SeriesBrowseResult{}, err
 	}
 
-	seriesIDs := make([]uuid.UUID, len(series))
-	for i, sr := range series {
-		seriesIDs[i] = sr.ID
-	}
-
-	sets, err := s.repo.ListExpansionSets(ctx, seriesIDs)
+	sets, err := s.repo.ListExpansionSets(ctx, ezutil.MapSlice(series, func(sr entity.Series) uuid.UUID { return sr.ID }))
 	if err != nil {
 		return dto.SeriesBrowseResult{}, err
 	}
@@ -83,24 +84,11 @@ func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult
 		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], mapper.ToExpansionSetSummary(set))
 	}
 
-	summaries := make([]dto.SeriesSummary, len(series))
-	for i, sr := range series {
-		summaries[i] = dto.SeriesSummary{
-			ID:            sr.ID,
-			Code:          sr.Code,
-			Name:          sr.Name,
-			ExpansionSets: setsBySeries[sr.ID],
-		}
-	}
-
-	ungroupedSummaries := make([]dto.ExpansionSetSummary, len(ungrouped))
-	for i, set := range ungrouped {
-		ungroupedSummaries[i] = mapper.ToExpansionSetSummary(set)
-	}
-
 	return dto.SeriesBrowseResult{
-		Series:                 summaries,
-		UngroupedExpansionSets: ungroupedSummaries,
+		Series: ezutil.MapSlice(series, func(sr entity.Series) dto.SeriesSummary {
+			return mapper.ToSeriesSummary(sr, setsBySeries[sr.ID])
+		}),
+		UngroupedExpansionSets: ezutil.MapSlice(ungrouped, mapper.ToExpansionSetSummary),
 	}, nil
 }
 
@@ -110,12 +98,7 @@ func (s *catalogService) ListRarities(ctx context.Context) ([]dto.RaritySummary,
 		return nil, err
 	}
 
-	summaries := make([]dto.RaritySummary, len(rarities))
-	for i, r := range rarities {
-		summaries[i] = dto.RaritySummary{ID: r.ID, Code: r.Code, Name: r.Name}
-	}
-
-	return summaries, nil
+	return ezutil.MapSlice(rarities, mapper.ToRaritySummary), nil
 }
 
 func (s *catalogService) ListCategories(ctx context.Context) ([]string, error) {
@@ -127,32 +110,35 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 }
 
 func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
-	page, limit := normalizePagination(filter.Page, filter.Limit)
+	repoFilter, page, limit := pagedRepoFilter(filter)
 
-	results, total, err := s.repo.SearchCards(ctx, repository.CardFilter{
-		Name:           filter.Name,
-		ExpansionSetID: filter.ExpansionSetID,
-		LocalID:        filter.LocalID,
-		RarityID:       filter.RarityID,
-		Category:       filter.Category,
-		Tag:            filter.Tag,
-		Limit:          limit,
-		Offset:         (page - 1) * limit,
-	})
+	results, total, err := s.repo.SearchCards(ctx, repoFilter)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	cards := make([]dto.CardSummary, len(results))
-	for i, r := range results {
-		cards[i] = mapper.ToCardSummary(r)
+	return ezutil.MapSlice(results, mapper.ToCardSummary), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+}
+
+// pagedRepoFilter maps filter to the repository filter with its page's
+// limit/offset applied, and returns the normalized page and limit.
+func pagedRepoFilter(filter dto.CardFilter) (repository.CardFilter, int, int) {
+	page, limit := normalizePagination(filter.Page, filter.Limit)
+
+	repoFilter := mapper.ToRepoCardFilter(filter)
+	repoFilter.Limit = limit
+	repoFilter.Offset = (page - 1) * limit
+
+	return repoFilter, page, limit
+}
+
+func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error) {
+	facets, err := s.repo.ListCardFacets(ctx, mapper.ToRepoCardFilter(filter))
+	if err != nil {
+		return dto.CatalogFacets{}, err
 	}
 
-	return cards, dto.PaginationMeta{
-		Total: int(total),
-		Page:  page,
-		Limit: limit,
-	}, nil
+	return mapper.ToCatalogFacets(facets), nil
 }
 
 // normalizePagination fills in CardFilter's page/limit defaults and clamps

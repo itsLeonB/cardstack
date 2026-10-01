@@ -59,7 +59,8 @@ func (h *CollectionHandler) create(ctx context.Context, in createCollectionInput
 		return dto.CollectionSummary{}, err
 	}
 
-	return h.collectionSvc.Create(ctx, profileID, dto.CollectionRequest{
+	return h.collectionSvc.Create(ctx, dto.CollectionRequest{
+		ProfileID:    profileID,
 		Title:        in.Body.Title,
 		Description:  in.Body.Description,
 		MaxCardCount: in.Body.MaxCardCount,
@@ -72,7 +73,7 @@ func (h *CollectionHandler) list(ctx context.Context, _ listCollectionsInput) ([
 		return nil, err
 	}
 
-	return h.collectionSvc.List(ctx, profileID)
+	return h.collectionSvc.List(ctx, dto.CollectionListRequest{ProfileID: profileID})
 }
 
 func (h *CollectionHandler) get(ctx context.Context, in collectionIDInput) (dto.CollectionSummary, error) {
@@ -81,7 +82,7 @@ func (h *CollectionHandler) get(ctx context.Context, in collectionIDInput) (dto.
 		return dto.CollectionSummary{}, err
 	}
 
-	return h.collectionSvc.Get(ctx, profileID, in.ID)
+	return h.collectionSvc.Get(ctx, dto.CollectionLookup{ProfileID: profileID, ID: in.ID})
 }
 
 func (h *CollectionHandler) update(ctx context.Context, in updateCollectionInput) (dto.CollectionSummary, error) {
@@ -94,7 +95,9 @@ func (h *CollectionHandler) update(ctx context.Context, in updateCollectionInput
 		return dto.CollectionSummary{}, err
 	}
 
-	return h.collectionSvc.Update(ctx, profileID, in.ID, dto.CollectionRequest{
+	return h.collectionSvc.Update(ctx, dto.CollectionRequest{
+		ProfileID:    profileID,
+		ID:           in.ID,
 		Title:        in.Body.Title,
 		Description:  in.Body.Description,
 		MaxCardCount: in.Body.MaxCardCount,
@@ -107,7 +110,7 @@ func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) er
 		return err
 	}
 
-	return h.collectionSvc.Delete(ctx, profileID, in.ID)
+	return h.collectionSvc.Delete(ctx, dto.CollectionLookup{ProfileID: profileID, ID: in.ID})
 }
 
 // Routes sets Secured:true only sets OpenAPI security metadata; the router must pass

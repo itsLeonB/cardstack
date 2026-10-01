@@ -60,15 +60,50 @@ type CardSummary struct {
 	ImageURL     string              `json:"imageUrl"`
 }
 
-// CardFilter narrows CatalogService.SearchCards. Every field is optional;
-// its zero value means "don't filter on this facet". Page is 1-indexed.
+// CardFilter narrows CatalogService.SearchCards and ListFacets. Every field
+// is optional; its empty value means "don't filter on this facet". Values
+// within one multi-value field combine with OR, fields combine with AND.
+// Page is 1-indexed (ignored by ListFacets).
 type CardFilter struct {
-	Name           string
-	ExpansionSetID uuid.UUID
-	LocalID        string
-	RarityID       uuid.UUID
-	Category       string
-	Tag            string
-	Page           int
-	Limit          int
+	Name            string
+	ExpansionSetIDs []uuid.UUID
+	LocalID         string
+	RarityIDs       []uuid.UUID
+	Categories      []string
+	Tags            []string
+	// CardIDs restricts to these Cards; only the Collection entries list sets it.
+	CardIDs []uuid.UUID
+	Page    int
+	Limit   int
+}
+
+// ExpansionSetFacetOption is one Expansion Set choice in GET
+// /catalog/facets. Available is false when the set is selected but no Card
+// matching the other filters belongs to it.
+type ExpansionSetFacetOption struct {
+	ExpansionSetSummary
+	SeriesID  *uuid.UUID `json:"seriesId,omitempty"`
+	Available bool       `json:"available"`
+}
+
+// RarityFacetOption is one Rarity choice in GET /catalog/facets.
+type RarityFacetOption struct {
+	RaritySummary
+	Available bool `json:"available"`
+}
+
+// StringFacetOption is one Category or Tag choice in GET /catalog/facets.
+type StringFacetOption struct {
+	Value     string `json:"value"`
+	Available bool   `json:"available"`
+}
+
+// CatalogFacets is GET /catalog/facets's response: per filter, the options
+// present on Cards matching every other active filter, plus the filter's
+// own selected values (Available=false when no longer reachable).
+type CatalogFacets struct {
+	ExpansionSets []ExpansionSetFacetOption `json:"expansionSets"`
+	Rarities      []RarityFacetOption       `json:"rarities"`
+	Categories    []StringFacetOption       `json:"categories"`
+	Tags          []StringFacetOption       `json:"tags"`
 }

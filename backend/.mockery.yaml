@@ -9,10 +9,14 @@ packages:
   github.com/itsLeonB/cardstack/backend/internal/domain/repository:
     interfaces:
       CatalogRepository:
+      CollectionRepository:
+      InventoryRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       CatalogService:
       CollectionService:
+      InventoryService:
   github.com/itsLeonB/go-crud:
     interfaces:
       Repository:
+      Transactor:

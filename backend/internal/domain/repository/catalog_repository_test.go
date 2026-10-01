@@ -8,6 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	crud "github.com/itsLeonB/go-crud"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -103,7 +106,7 @@ func TestCatalogRepository_ListSeries(t *testing.T) {
 	fixture := newCatalogFixture(t, db)
 	series := fixture.newSeries(t, db)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	all, err := repo.ListSeries(context.Background())
 	if err != nil {
 		t.Fatalf("ListSeries: %v", err)
@@ -139,7 +142,7 @@ func TestCatalogRepository_ListExpansionSets(t *testing.T) {
 	// series.ID only.
 	fixture.newExpansionSet(t, db, &otherSeries.ID, nil)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	sets, err := repo.ListExpansionSets(context.Background(), []uuid.UUID{series.ID})
 	if err != nil {
 		t.Fatalf("ListExpansionSets: %v", err)
@@ -172,7 +175,7 @@ func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
 	// Belongs to a Series - must not be returned.
 	grouped := fixture.newExpansionSet(t, db, &series.ID, nil)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	all, err := repo.ListUngroupedExpansionSets(context.Background())
 	if err != nil {
 		t.Fatalf("ListUngroupedExpansionSets: %v", err)
@@ -212,7 +215,7 @@ func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
 
 func TestCatalogRepository_ListExpansionSets_EmptyIDs(t *testing.T) {
 	db := testDB(t)
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 
 	sets, err := repo.ListExpansionSets(context.Background(), nil)
 	if err != nil {
@@ -235,7 +238,7 @@ func TestCatalogRepository_ListRarities(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	rarities, err := repo.ListRarities(context.Background())
 	if err != nil {
 		t.Fatalf("ListRarities: %v", err)
@@ -261,7 +264,7 @@ func TestCatalogRepository_ListDistinctCategories(t *testing.T) {
 	uniqueCategory := "CatalogTestCategory-" + uuid.NewString()
 	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.Category = uniqueCategory })
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	categories, err := repo.ListDistinctCategories(context.Background())
 	if err != nil {
 		t.Fatalf("ListDistinctCategories: %v", err)
@@ -283,7 +286,7 @@ func TestCatalogRepository_ListDistinctTags(t *testing.T) {
 		c.Tags = datatypes.JSONSlice[string]{uniqueTag, "Basic"}
 	})
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	tags, err := repo.ListDistinctTags(context.Background())
 	if err != nil {
 		t.Fatalf("ListDistinctTags: %v", err)
@@ -330,14 +333,14 @@ func TestCatalogRepository_SearchCards_StablePaginationAcrossTiedOrderKeys(t *te
 		want = append(want, cardA.ID, cardB.ID)
 	}
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	ctx := context.Background()
 
 	const pageSize = 3
 	seen := make(map[uuid.UUID]int)
 	offset := 0
 	for {
-		page, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: uuid.Nil, RarityID: fixture.rarity.ID, Limit: pageSize, Offset: offset})
+		page, total, err := repo.SearchCards(ctx, CardFilter{RarityIDs: []uuid.UUID{fixture.rarity.ID}, Limit: pageSize, Offset: offset})
 		if err != nil {
 			t.Fatalf("SearchCards at offset %d: %v", offset, err)
 		}
@@ -394,11 +397,11 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 		c.Name = "Pikachu"
 	})
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	ctx := context.Background()
 
 	t.Run("filters by expansion set and orders by local_id", func(t *testing.T) {
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -414,7 +417,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 	})
 
 	t.Run("filters by name, case-insensitive substring", func(t *testing.T) {
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, Name: "pika", Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, Name: "pika", Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -438,7 +441,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 			c.Name = "AxB Card"
 		})
 
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: wildcardSet.ID, Name: "A_B %", Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{wildcardSet.ID}, Name: "A_B %", Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -448,7 +451,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 	})
 
 	t.Run("filters by local id", func(t *testing.T) {
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, LocalID: "002", Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, LocalID: "002", Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -458,7 +461,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 	})
 
 	t.Run("filters by rarity id", func(t *testing.T) {
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, RarityID: fixture.rarity.ID, Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, RarityIDs: []uuid.UUID{fixture.rarity.ID}, Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -468,7 +471,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 	})
 
 	t.Run("filters by tag", func(t *testing.T) {
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, Tag: "Stage 1", Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, Tags: []string{"Stage 1"}, Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -478,7 +481,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 	})
 
 	t.Run("paginates with limit and offset", func(t *testing.T) {
-		page1, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, Limit: 1, Offset: 0})
+		page1, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, Limit: 1, Offset: 0})
 		if err != nil {
 			t.Fatalf("SearchCards page1: %v", err)
 		}
@@ -486,7 +489,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 			t.Fatalf("expected page1 = [pikachu], total=2, got total=%d page1=%+v", total, page1)
 		}
 
-		page2, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: set.ID, Limit: 1, Offset: 1})
+		page2, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, Limit: 1, Offset: 1})
 		if err != nil {
 			t.Fatalf("SearchCards page2: %v", err)
 		}
@@ -496,7 +499,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 	})
 
 	t.Run("no filters other than expansion set still scopes results", func(t *testing.T) {
-		results, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetID: uuid.Nil, LocalID: "001", Name: pikachu.Name, Limit: 10})
+		results, total, err := repo.SearchCards(ctx, CardFilter{LocalID: "001", Name: pikachu.Name, Limit: 10})
 		if err != nil {
 			t.Fatalf("SearchCards: %v", err)
 		}
@@ -504,4 +507,216 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 			t.Fatalf("expected at least one match across all expansion sets, got total=%d results=%+v", total, results)
 		}
 	})
+}
+
+func TestCatalogRepository_MultiValueSearch(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+
+	setA := fixture.newExpansionSet(t, db, nil, nil)
+	setB := fixture.newExpansionSet(t, db, nil, nil)
+	setC := fixture.newExpansionSet(t, db, nil, nil)
+	cardA := fixture.newCard(t, db, setA.ID, func(c *entity.Card) { c.Category = "Pokémon"; c.Tags = datatypes.JSONSlice[string]{"Basic"} })
+	cardB := fixture.newCard(t, db, setB.ID, func(c *entity.Card) { c.Category = "Trainer"; c.Tags = datatypes.JSONSlice[string]{"ex", "Basic"} })
+	fixture.newCard(t, db, setC.ID, func(c *entity.Card) { c.Category = "Energi" })
+
+	ids := func(rs []CardResult) []uuid.UUID {
+		out := make([]uuid.UUID, len(rs))
+		for i, r := range rs {
+			out[i] = r.ID
+		}
+		return out
+	}
+	base := []uuid.UUID{setA.ID, setB.ID, setC.ID}
+
+	t.Run("OR within expansion sets", func(t *testing.T) {
+		rs, total, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{setA.ID, setB.ID}, Limit: 10})
+		require.NoError(t, err)
+		assert.EqualValues(t, 2, total)
+		assert.ElementsMatch(t, []uuid.UUID{cardA.ID, cardB.ID}, ids(rs))
+	})
+	t.Run("OR within categories, AND across filters", func(t *testing.T) {
+		rs, _, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: base, Categories: []string{"Pokémon", "Trainer"}, Limit: 10})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []uuid.UUID{cardA.ID, cardB.ID}, ids(rs))
+
+		rs, _, err = repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{setA.ID}, Categories: []string{"Trainer"}, Limit: 10})
+		require.NoError(t, err)
+		assert.Empty(t, rs)
+	})
+	t.Run("OR within tags", func(t *testing.T) {
+		rs, _, err := repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: base, Tags: []string{"ex", "Nope"}, Limit: 10})
+		require.NoError(t, err)
+		assert.Equal(t, []uuid.UUID{cardB.ID}, ids(rs))
+
+		rs, _, err = repo.SearchCards(ctx, CardFilter{ExpansionSetIDs: base, Tags: []string{"ex", "Basic"}, Limit: 10})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []uuid.UUID{cardA.ID, cardB.ID}, ids(rs))
+	})
+}
+
+// Deck Taktik-like set has only Common cards; the 30th CELEBRATIONS-like set
+// also has SR/SAR: selecting a set must shrink the Rarity options, while the
+// set options ignore the set selection itself.
+func TestCatalogRepository_ListCardFacets(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+	suffix := uuid.NewString()
+
+	newRarity := func(code string) entity.Rarity {
+		r := entity.Rarity{GameID: fixture.game.ID, Code: code + "-" + suffix, Name: code + " " + suffix}
+		require.NoError(t, db.Create(&r).Error)
+		return r
+	}
+	common, sr, sar := newRarity("C"), newRarity("SR"), newRarity("SAR")
+
+	deck := fixture.newExpansionSet(t, db, nil, nil)
+	celeb := fixture.newExpansionSet(t, db, nil, nil)
+	withRarity := func(setID uuid.UUID, r entity.Rarity, category string, tags ...string) {
+		fixture.newCard(t, db, setID, func(c *entity.Card) {
+			c.LocalID = uuid.NewString()
+			c.RarityID = r.ID
+			c.Category = category
+			c.Tags = datatypes.JSONSlice[string](tags)
+		})
+	}
+	withRarity(deck.ID, common, "Pokémon", "Basic")
+	withRarity(celeb.ID, common, "Pokémon", "Basic")
+	withRarity(celeb.ID, sr, "Trainer", "Supporter")
+	withRarity(celeb.ID, sar, "Pokémon", "ex")
+
+	// Scope assertions to this test's fixture rows: the DB is shared and
+	// never truncated, so other rows may exist.
+	mine := []uuid.UUID{deck.ID, celeb.ID}
+	rarityOptions := func(f CardFacets) map[uuid.UUID]bool {
+		m := map[uuid.UUID]bool{}
+		for _, o := range f.Rarities {
+			m[o.ID] = o.Available
+		}
+		return m
+	}
+
+	t.Run("Deck Taktik selected: no SR or SAR rarity", func(t *testing.T) {
+		f, err := repo.ListCardFacets(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{deck.ID}})
+		require.NoError(t, err)
+		assert.Equal(t, map[uuid.UUID]bool{common.ID: true}, rarityOptions(f))
+		assert.Equal(t, []StringFacetOption{{Value: "Pokémon", Available: true}}, f.Categories)
+		assert.Equal(t, []StringFacetOption{{Value: "Basic", Available: true}}, f.Tags)
+	})
+
+	t.Run("30th CELEBRATIONS selected: has SR and SAR", func(t *testing.T) {
+		f, err := repo.ListCardFacets(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{celeb.ID}})
+		require.NoError(t, err)
+		assert.Equal(t, map[uuid.UUID]bool{common.ID: true, sr.ID: true, sar.ID: true}, rarityOptions(f))
+	})
+
+	t.Run("set options ignore the set selection itself", func(t *testing.T) {
+		f, err := repo.ListCardFacets(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{deck.ID}, RarityIDs: []uuid.UUID{sr.ID}})
+		require.NoError(t, err)
+		avail := map[uuid.UUID]bool{}
+		for _, o := range f.ExpansionSets {
+			avail[o.ID] = o.Available
+		}
+		// Rarity SR narrows the set options to celeb, yet deck stays listed
+		// (selected) but unavailable.
+		assert.Equal(t, map[uuid.UUID]bool{celeb.ID: true, deck.ID: false}, pick(avail, mine))
+		// Rarity options come from the Deck Taktik cards only; selected SR is
+		// kept but unavailable.
+		assert.Equal(t, map[uuid.UUID]bool{common.ID: true, sr.ID: false}, rarityOptions(f))
+	})
+
+	t.Run("selected unavailable string values are kept", func(t *testing.T) {
+		f, err := repo.ListCardFacets(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{deck.ID}, Categories: []string{"Trainer"}, Tags: []string{"Supporter"}})
+		require.NoError(t, err)
+		// Categories ignore their own selection but honour set + tag filters:
+		// deck has no Supporter card, so Pokémon is not available either.
+		assert.Equal(t, []StringFacetOption{{Value: "Trainer", Available: false}}, f.Categories)
+		assert.Equal(t, []StringFacetOption{{Value: "Supporter", Available: false}}, f.Tags)
+	})
+}
+
+func pick(m map[uuid.UUID]bool, keys []uuid.UUID) map[uuid.UUID]bool {
+	out := map[uuid.UUID]bool{}
+	for _, k := range keys {
+		if v, ok := m[k]; ok {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// TestCatalogRepository_CollectionScope: with CollectionID set, search and
+// facets see only that Collection's Cards (search also returns quantities),
+// while the same filter without it sees the whole catalog.
+func TestCatalogRepository_CollectionScope(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	otherSet := fixture.newExpansionSet(t, db, nil, nil)
+	owned := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1"; c.Category = "Trainer" })
+	ownedToo := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2"; c.Category = "Pokémon" })
+	fixture.newCard(t, db, otherSet.ID, func(c *entity.Card) { c.LocalID = "3"; c.Category = "Energi" })
+
+	user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
+	require.NoError(t, err)
+	userID, err := uuid.Parse(user.ID)
+	require.NoError(t, err)
+	profile := entity.UserProfile{UserID: userID, Name: "Scope Test"}
+	require.NoError(t, db.Create(&profile).Error)
+	col := entity.Collection{ProfileID: profile.ID, Title: "Binder"}
+	require.NoError(t, db.Create(&col).Error)
+	require.NoError(t, db.Create(&entity.InventoryEntry{CollectionID: col.ID, CardID: owned.ID, Quantity: 4}).Error)
+	require.NoError(t, db.Create(&entity.InventoryEntry{CollectionID: col.ID, CardID: ownedToo.ID, Quantity: 1}).Error)
+
+	scoped := CardFilter{CollectionID: col.ID, Limit: 1}
+	results, total, err := repo.SearchCards(ctx, scoped)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, owned.ID, results[0].ID)
+	assert.Equal(t, 4, results[0].Quantity)
+
+	scoped.Offset = 1
+	results, _, err = repo.SearchCards(ctx, scoped)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, ownedToo.ID, results[0].ID)
+
+	// CardIDs narrows within the Collection: a Card outside it never appears.
+	results, total, err = repo.SearchCards(ctx, CardFilter{CollectionID: col.ID, CardIDs: []uuid.UUID{ownedToo.ID, uuid.New()}, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, ownedToo.ID, results[0].ID)
+	assert.Equal(t, 1, results[0].Quantity)
+
+	results, total, err = repo.SearchCards(ctx, CardFilter{CollectionID: col.ID, Categories: []string{"Trainer"}, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	assert.Equal(t, owned.ID, results[0].ID)
+
+	facets, err := repo.ListCardFacets(ctx, CardFilter{CollectionID: col.ID})
+	require.NoError(t, err)
+	var setIDs []uuid.UUID
+	for _, o := range facets.ExpansionSets {
+		setIDs = append(setIDs, o.ID)
+	}
+	assert.Equal(t, []uuid.UUID{set.ID}, setIDs)
+	var cats []string
+	for _, o := range facets.Categories {
+		cats = append(cats, o.Value)
+	}
+	assert.ElementsMatch(t, []string{"Trainer", "Pokémon"}, cats)
+
+	// Unscoped, the unowned set and category show up too.
+	all, err := repo.ListCardFacets(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{otherSet.ID}})
+	require.NoError(t, err)
+	assert.Contains(t, all.Categories, StringFacetOption{Value: "Energi", Available: true})
 }

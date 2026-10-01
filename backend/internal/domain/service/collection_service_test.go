@@ -16,24 +16,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ownedSpec(profileID, id uuid.UUID) crud.Specification[entity.Collection] {
-	return crud.Specification[entity.Collection]{
-		Model: entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID},
-	}
-}
-
 func TestCollectionService_Create(t *testing.T) {
 	ctx := context.Background()
 	profileID := uuid.New()
 	limit := 100
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
+	repo := mocks.NewMockCollectionRepository(t)
 	repo.EXPECT().
 		Insert(ctx, entity.Collection{ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: limit}).
 		Return(entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: limit}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).Create(ctx, profileID, dto.CollectionRequest{Title: "Binder", Description: "desc", MaxCardCount: limit})
+	got, err := NewCollectionService(repo).Create(ctx, dto.CollectionRequest{ProfileID: profileID, Title: "Binder", Description: "desc", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "Binder", got.Title)
 	assert.Equal(t, "desc", got.Description)
@@ -45,10 +39,10 @@ func TestCollectionService_Create_PropagatesRepositoryError(t *testing.T) {
 	profileID := uuid.New()
 	wantErr := errors.New("boom")
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
+	repo := mocks.NewMockCollectionRepository(t)
 	repo.EXPECT().Insert(ctx, entity.Collection{ProfileID: profileID, Title: "Binder"}).Return(entity.Collection{}, wantErr).Once()
 
-	_, err := NewCollectionService(repo).Create(ctx, profileID, dto.CollectionRequest{Title: "Binder"})
+	_, err := NewCollectionService(repo).Create(ctx, dto.CollectionRequest{ProfileID: profileID, Title: "Binder"})
 	assert.ErrorIs(t, err, wantErr)
 }
 
@@ -57,13 +51,13 @@ func TestCollectionService_List(t *testing.T) {
 	profileID := uuid.New()
 	id := uuid.New()
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
+	repo := mocks.NewMockCollectionRepository(t)
 	repo.EXPECT().
 		FindAll(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: profileID}}).
 		Return([]entity.Collection{{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).List(ctx, profileID)
+	got, err := NewCollectionService(repo).List(ctx, dto.CollectionListRequest{ProfileID: profileID})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, id, got[0].ID)
@@ -75,41 +69,33 @@ func TestCollectionService_Get_ReturnsOwnedCollection(t *testing.T) {
 	profileID := uuid.New()
 	id := uuid.New()
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
-	repo.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}, nil).Once()
+	repo := mocks.NewMockCollectionRepository(t)
+	repo.EXPECT().GetOwnedCollection(ctx, profileID, id, false).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}, nil).Once()
 
-	got, err := NewCollectionService(repo).Get(ctx, profileID, id)
+	got, err := NewCollectionService(repo).Get(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
 }
 
-// TestCollectionService_NotFound covers both a missing Collection and
-// another profile's: the owner-scoped query matches nothing either way, so
-// FindFirst returns a zero value and existence isn't leaked.
+// TestCollectionService_NotFound: the repository's not-found AppError (missing
+// or another profile's Collection, nil ids) is returned unchanged, and no
+// write follows it.
 func TestCollectionService_NotFound(t *testing.T) {
 	ctx := context.Background()
 	profileID := uuid.New()
 	id := uuid.New()
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
-	repo.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(entity.Collection{}, nil).Times(3)
+	repo := mocks.NewMockCollectionRepository(t)
+	repo.EXPECT().GetOwnedCollection(ctx, profileID, id, false).Return(entity.Collection{}, ungerr.NotFoundError("collection not found")).Times(3)
 	svc := NewCollectionService(repo)
 
-	_, err := svc.Get(ctx, profileID, id)
+	_, err := svc.Get(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
 	assertNotFound(t, err)
 
-	_, err = svc.Update(ctx, profileID, id, dto.CollectionRequest{Title: "Hijacked"})
+	_, err = svc.Update(ctx, dto.CollectionRequest{ProfileID: profileID, ID: id, Title: "Hijacked"})
 	assertNotFound(t, err)
 
-	assertNotFound(t, svc.Delete(ctx, profileID, id))
-}
-
-func TestCollectionService_NilIDIsNotFound(t *testing.T) {
-	// No repository call is expected: a zero id would drop the ID condition.
-	svc := NewCollectionService(mocks.NewMockRepository[entity.Collection](t))
-
-	_, err := svc.Get(context.Background(), uuid.New(), uuid.Nil)
-	assertNotFound(t, err)
+	assertNotFound(t, svc.Delete(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id}))
 }
 
 func TestCollectionService_Get_PropagatesRepositoryError(t *testing.T) {
@@ -118,10 +104,10 @@ func TestCollectionService_Get_PropagatesRepositoryError(t *testing.T) {
 	id := uuid.New()
 	wantErr := errors.New("boom")
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
-	repo.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(entity.Collection{}, wantErr).Once()
+	repo := mocks.NewMockCollectionRepository(t)
+	repo.EXPECT().GetOwnedCollection(ctx, profileID, id, false).Return(entity.Collection{}, wantErr).Once()
 
-	_, err := NewCollectionService(repo).Get(ctx, profileID, id)
+	_, err := NewCollectionService(repo).Get(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
 	assert.ErrorIs(t, err, wantErr)
 }
 
@@ -131,14 +117,14 @@ func TestCollectionService_Update(t *testing.T) {
 	id := uuid.New()
 	limit := 50
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
-	repo.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Old", Description: "old"}, nil).Once()
+	repo := mocks.NewMockCollectionRepository(t)
+	repo.EXPECT().GetOwnedCollection(ctx, profileID, id, false).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Old", Description: "old"}, nil).Once()
 	repo.EXPECT().
 		Update(ctx, entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}).
 		Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}, nil).
 		Once()
 
-	got, err := NewCollectionService(repo).Update(ctx, profileID, id, dto.CollectionRequest{Title: "New", Description: "new", MaxCardCount: limit})
+	got, err := NewCollectionService(repo).Update(ctx, dto.CollectionRequest{ProfileID: profileID, ID: id, Title: "New", Description: "new", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "New", got.Title)
 	assert.Equal(t, "new", got.Description)
@@ -151,11 +137,11 @@ func TestCollectionService_Delete(t *testing.T) {
 	id := uuid.New()
 	found := entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}
 
-	repo := mocks.NewMockRepository[entity.Collection](t)
-	repo.EXPECT().FindFirst(ctx, ownedSpec(profileID, id)).Return(found, nil).Once()
+	repo := mocks.NewMockCollectionRepository(t)
+	repo.EXPECT().GetOwnedCollection(ctx, profileID, id, false).Return(found, nil).Once()
 	repo.EXPECT().Delete(ctx, found).Return(nil).Once()
 
-	assert.NoError(t, NewCollectionService(repo).Delete(ctx, profileID, id))
+	assert.NoError(t, NewCollectionService(repo).Delete(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id}))
 }
 
 func assertNotFound(t *testing.T, err error) {
@@ -163,4 +149,14 @@ func assertNotFound(t *testing.T, err error) {
 	var appErr ungerr.AppError
 	require.ErrorAs(t, err, &appErr)
 	assert.Equal(t, http.StatusNotFound, appErr.HttpStatus())
+}
+
+// A nil ProfileID must not list everyone's collections; the lookups' nil
+// guard lives in CollectionRepository.GetOwnedCollection.
+func TestCollectionService_List_NilProfile(t *testing.T) {
+	svc := NewCollectionService(mocks.NewMockCollectionRepository(t)) // no repository call is expected
+
+	got, err := svc.List(context.Background(), dto.CollectionListRequest{})
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }

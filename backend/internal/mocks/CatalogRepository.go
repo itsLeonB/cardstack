@@ -26,6 +26,63 @@ func (_m *MockCatalogRepository) EXPECT() *MockCatalogRepository_Expecter {
 	return &MockCatalogRepository_Expecter{mock: &_m.Mock}
 }
 
+// ListCardFacets provides a mock function with given fields: ctx, filter
+func (_m *MockCatalogRepository) ListCardFacets(ctx context.Context, filter repository.CardFilter) (repository.CardFacets, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListCardFacets")
+	}
+
+	var r0 repository.CardFacets
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, repository.CardFilter) (repository.CardFacets, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, repository.CardFilter) repository.CardFacets); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		r0 = ret.Get(0).(repository.CardFacets)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, repository.CardFilter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCatalogRepository_ListCardFacets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListCardFacets'
+type MockCatalogRepository_ListCardFacets_Call struct {
+	*mock.Call
+}
+
+// ListCardFacets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter repository.CardFilter
+func (_e *MockCatalogRepository_Expecter) ListCardFacets(ctx interface{}, filter interface{}) *MockCatalogRepository_ListCardFacets_Call {
+	return &MockCatalogRepository_ListCardFacets_Call{Call: _e.mock.On("ListCardFacets", ctx, filter)}
+}
+
+func (_c *MockCatalogRepository_ListCardFacets_Call) Run(run func(ctx context.Context, filter repository.CardFilter)) *MockCatalogRepository_ListCardFacets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(repository.CardFilter))
+	})
+	return _c
+}
+
+func (_c *MockCatalogRepository_ListCardFacets_Call) Return(_a0 repository.CardFacets, _a1 error) *MockCatalogRepository_ListCardFacets_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCatalogRepository_ListCardFacets_Call) RunAndReturn(run func(context.Context, repository.CardFilter) (repository.CardFacets, error)) *MockCatalogRepository_ListCardFacets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListDistinctCategories provides a mock function with given fields: ctx
 func (_m *MockCatalogRepository) ListDistinctCategories(ctx context.Context) ([]string, error) {
 	ret := _m.Called(ctx)

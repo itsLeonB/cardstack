@@ -100,3 +100,5 @@ export function collectionSubmitCallbacks({
     },
   }
 }
+
+export const NETWORK_ERROR = "Could not reach the server. Please try again."

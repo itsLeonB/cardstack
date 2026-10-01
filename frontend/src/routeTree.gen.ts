@@ -20,6 +20,7 @@ import { Route as CatalogSearchRouteImport } from './routes/catalog/search'
 import { Route as AuthenticatedCollectionsIndexRouteImport } from './routes/_authenticated/collections/index'
 import { Route as AuthenticatedCollectionsNewRouteImport } from './routes/_authenticated/collections/new'
 import { Route as CatalogSetsExpansionSetIdRouteImport } from './routes/catalog/sets/$expansionSetId'
+import { Route as AuthenticatedCollectionsCollectionIdIndexRouteImport } from './routes/_authenticated/collections/$collectionId/index'
 import { Route as AuthenticatedCollectionsCollectionIdEditRouteImport } from './routes/_authenticated/collections/$collectionId/edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -79,6 +80,12 @@ const CatalogSetsExpansionSetIdRoute =
     path: '/catalog/sets/$expansionSetId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCollectionsCollectionIdIndexRoute =
+  AuthenticatedCollectionsCollectionIdIndexRouteImport.update({
+    id: '/collections/$collectionId/',
+    path: '/collections/$collectionId/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedCollectionsCollectionIdEditRoute =
   AuthenticatedCollectionsCollectionIdEditRouteImport.update({
     id: '/collections/$collectionId/edit',
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/collections/': typeof AuthenticatedCollectionsIndexRoute
   '/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
+  '/collections/$collectionId/': typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -111,6 +119,7 @@ export interface FileRoutesByTo {
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/collections': typeof AuthenticatedCollectionsIndexRoute
   '/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
+  '/collections/$collectionId': typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,6 +135,7 @@ export interface FileRoutesById {
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/_authenticated/collections/': typeof AuthenticatedCollectionsIndexRoute
   '/_authenticated/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
+  '/_authenticated/collections/$collectionId/': typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/catalog/sets/$expansionSetId'
     | '/collections/'
     | '/collections/$collectionId/edit'
+    | '/collections/$collectionId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/catalog/sets/$expansionSetId'
     | '/collections'
     | '/collections/$collectionId/edit'
+    | '/collections/$collectionId'
   id:
     | '__root__'
     | '/'
@@ -168,6 +180,7 @@ export interface FileRouteTypes {
     | '/catalog/sets/$expansionSetId'
     | '/_authenticated/collections/'
     | '/_authenticated/collections/$collectionId/edit'
+    | '/_authenticated/collections/$collectionId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogSetsExpansionSetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/collections/$collectionId/': {
+      id: '/_authenticated/collections/$collectionId/'
+      path: '/collections/$collectionId'
+      fullPath: '/collections/$collectionId/'
+      preLoaderRoute: typeof AuthenticatedCollectionsCollectionIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/collections/$collectionId/edit': {
       id: '/_authenticated/collections/$collectionId/edit'
       path: '/collections/$collectionId/edit'
@@ -275,6 +295,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCollectionsNewRoute: typeof AuthenticatedCollectionsNewRoute
   AuthenticatedCollectionsIndexRoute: typeof AuthenticatedCollectionsIndexRoute
   AuthenticatedCollectionsCollectionIdEditRoute: typeof AuthenticatedCollectionsCollectionIdEditRoute
+  AuthenticatedCollectionsCollectionIdIndexRoute: typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -283,6 +304,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCollectionsIndexRoute: AuthenticatedCollectionsIndexRoute,
   AuthenticatedCollectionsCollectionIdEditRoute:
     AuthenticatedCollectionsCollectionIdEditRoute,
+  AuthenticatedCollectionsCollectionIdIndexRoute:
+    AuthenticatedCollectionsCollectionIdIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

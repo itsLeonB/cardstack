@@ -36,13 +36,13 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	}
 }
 
-// findByID looks up a user by ID, parsing userID and rejecting uuid.Nil up
+// getByID looks up a user by ID, parsing userID and rejecting uuid.Nil up
 // front. go-crud's crud.Specification builds its WHERE clause from
 // non-zero struct fields (see WhereBySpec), so a zero-value ID here would
 // silently drop the ID filter entirely and match an arbitrary row instead
 // of correctly reporting "not found" — a real uuidv7()-generated primary
 // key is never uuid.Nil, so this only ever rejects a malformed/absent ID.
-func (r *UserRepository) findByID(ctx context.Context, userID string) (entity.User, error) {
+func (r *UserRepository) getByID(ctx context.Context, userID string) (entity.User, error) {
 	id, err := uuid.Parse(userID)
 	if err != nil || id == uuid.Nil {
 		return entity.User{}, authkit.ErrUserNotFound
@@ -62,7 +62,7 @@ func (r *UserRepository) findByID(ctx context.Context, userID string) (entity.Us
 }
 
 func (r *UserRepository) FindByID(ctx context.Context, userID string) (authkit.User, error) {
-	user, err := r.findByID(ctx, userID)
+	user, err := r.getByID(ctx, userID)
 	if err != nil {
 		return authkit.User{}, err
 	}
@@ -71,7 +71,7 @@ func (r *UserRepository) FindByID(ctx context.Context, userID string) (authkit.U
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (authkit.User, error) {
-	// Same zero-value gotcha as findByID: an empty email would otherwise
+	// Same zero-value gotcha as getByID: an empty email would otherwise
 	// match an arbitrary row instead of correctly reporting "not found".
 	if email == "" {
 		return authkit.User{}, authkit.ErrUserNotFound
@@ -120,7 +120,7 @@ func (r *UserRepository) CreateOAuth(ctx context.Context, email, name, _ string)
 }
 
 func (r *UserRepository) SetVerified(ctx context.Context, userID string, name, _ string) (authkit.User, error) {
-	user, err := r.findByID(ctx, userID)
+	user, err := r.getByID(ctx, userID)
 	if err != nil {
 		return authkit.User{}, err
 	}
@@ -193,7 +193,7 @@ func (r *UserRepository) FindProfileIDByUserID(ctx context.Context, userID strin
 }
 
 func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
-	user, err := r.findByID(ctx, userID)
+	user, err := r.getByID(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHas
 }
 
 func (r *UserRepository) Exists(ctx context.Context, userID string) error {
-	_, err := r.findByID(ctx, userID)
+	_, err := r.getByID(ctx, userID)
 	return err
 }
 

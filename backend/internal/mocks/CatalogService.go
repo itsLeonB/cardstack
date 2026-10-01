@@ -80,6 +80,63 @@ func (_c *MockCatalogService_ListCategories_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// ListFacets provides a mock function with given fields: ctx, filter
+func (_m *MockCatalogService) ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFacets")
+	}
+
+	var r0 dto.CatalogFacets
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CardFilter) (dto.CatalogFacets, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CardFilter) dto.CatalogFacets); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		r0 = ret.Get(0).(dto.CatalogFacets)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CardFilter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCatalogService_ListFacets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFacets'
+type MockCatalogService_ListFacets_Call struct {
+	*mock.Call
+}
+
+// ListFacets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter dto.CardFilter
+func (_e *MockCatalogService_Expecter) ListFacets(ctx interface{}, filter interface{}) *MockCatalogService_ListFacets_Call {
+	return &MockCatalogService_ListFacets_Call{Call: _e.mock.On("ListFacets", ctx, filter)}
+}
+
+func (_c *MockCatalogService_ListFacets_Call) Run(run func(ctx context.Context, filter dto.CardFilter)) *MockCatalogService_ListFacets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.CardFilter))
+	})
+	return _c
+}
+
+func (_c *MockCatalogService_ListFacets_Call) Return(_a0 dto.CatalogFacets, _a1 error) *MockCatalogService_ListFacets_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCatalogService_ListFacets_Call) RunAndReturn(run func(context.Context, dto.CardFilter) (dto.CatalogFacets, error)) *MockCatalogService_ListFacets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListRarities provides a mock function with given fields: ctx
 func (_m *MockCatalogService) ListRarities(ctx context.Context) ([]dto.RaritySummary, error) {
 	ret := _m.Called(ctx)

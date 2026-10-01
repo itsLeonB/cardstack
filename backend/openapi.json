@@ -1,6 +1,27 @@
 {
   "components": {
     "schemas": {
+      "AddEntryInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to add.",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Number of copies.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity"
+        ],
+        "type": "object"
+      },
       "AuthMessage": {
         "additionalProperties": false,
         "properties": {
@@ -13,6 +34,48 @@
         },
         "required": [
           "message"
+        ],
+        "type": "object"
+      },
+      "BulkUpdateEntriesInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Changes applied in order, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/BulkUpdateItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "BulkUpdateItem": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to change. Must be unique within the request (400 otherwise).",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Absolute target quantity. 0 removes the Card.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity"
         ],
         "type": "object"
       },
@@ -63,6 +126,54 @@
           "rarity",
           "illustrator",
           "imageUrl"
+        ],
+        "type": "object"
+      },
+      "CatalogFacets": {
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/StringFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "expansionSets": {
+            "items": {
+              "$ref": "#/components/schemas/ExpansionSetFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "rarities": {
+            "items": {
+              "$ref": "#/components/schemas/RarityFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/StringFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "expansionSets",
+          "rarities",
+          "categories",
+          "tags"
         ],
         "type": "object"
       },
@@ -128,6 +239,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeCatalogFacets": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CatalogFacets"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeCollectionSummary": {
         "additionalProperties": false,
         "properties": {
@@ -152,12 +275,42 @@
         ],
         "type": "object"
       },
+      "EnvelopeInventoryEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InventoryEntry"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeListCollectionSummary": {
         "additionalProperties": false,
         "properties": {
           "data": {
             "items": {
               "$ref": "#/components/schemas/CollectionSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeListInventoryChangeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryChangeResult"
             },
             "type": [
               "array",
@@ -252,6 +405,28 @@
         ],
         "type": "object"
       },
+      "EnvelopeWithMetaListInventoryItemPaginationMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -324,6 +499,37 @@
         },
         "type": "object"
       },
+      "ExpansionSetFacetOption": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "releaseDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "seriesId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "id",
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
       "ExpansionSetSummary": {
         "additionalProperties": false,
         "properties": {
@@ -357,6 +563,79 @@
         },
         "required": [
           "status"
+        ],
+        "type": "object"
+      },
+      "InventoryChangeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable reason for a declined item.",
+            "type": "string"
+          },
+          "quantity": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why the item was declined.",
+            "enum": [
+              "capacity_exceeded",
+              "card_not_found"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "applied: set or created; removed: deleted, or already absent; declined: not applied.",
+            "enum": [
+              "applied",
+              "removed",
+              "declined"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity",
+          "status"
+        ],
+        "type": "object"
+      },
+      "InventoryEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "string"
+          },
+          "quantity": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity"
+        ],
+        "type": "object"
+      },
+      "InventoryItem": {
+        "additionalProperties": false,
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary"
+          },
+          "quantity": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "card",
+          "quantity"
         ],
         "type": "object"
       },
@@ -413,6 +692,30 @@
           "total",
           "page",
           "limit"
+        ],
+        "type": "object"
+      },
+      "RarityFacetOption": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "id",
+          "code",
+          "name"
         ],
         "type": "object"
       },
@@ -513,6 +816,38 @@
           "code",
           "name",
           "expansionSets"
+        ],
+        "type": "object"
+      },
+      "StringFacetOption": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "available"
+        ],
+        "type": "object"
+      },
+      "UpdateEntryInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "description": "New number of copies.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
         ],
         "type": "object"
       }
@@ -754,53 +1089,77 @@
             }
           },
           {
-            "description": "Only Cards in this Expansion Set.",
-            "explode": false,
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in this Expansion Set.",
-              "type": "string"
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
-            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\"), typically combined with expansionSetId.",
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
             "explode": false,
             "in": "query",
             "name": "localId",
             "schema": {
-              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\"), typically combined with expansionSetId.",
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
               "type": "string"
             }
           },
           {
-            "description": "Only Cards with this Rarity.",
-            "explode": false,
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with this Rarity.",
-              "type": "string"
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
-            "description": "Only Cards with this exact category (e.g. Pokémon, Trainer, Energi).",
-            "explode": false,
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with this exact category (e.g. Pokémon, Trainer, Energi).",
-              "type": "string"
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
-            "description": "Only Cards carrying this tag.",
-            "explode": false,
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying this tag.",
-              "type": "string"
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
@@ -893,6 +1252,123 @@
           }
         },
         "summary": "List the distinct Card categories in use, for use as a search filter value",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/facets": {
+      "get": {
+        "operationId": "list-catalog-facets",
+        "parameters": [
+          {
+            "description": "Case-insensitive substring match on the Card's name.",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCatalogFacets"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)",
         "tags": [
           "catalog"
         ]
@@ -1235,6 +1711,543 @@
         "summary": "Edit one of the current user's own Collections",
         "tags": [
           "collections"
+        ]
+      }
+    },
+    "/collections/{id}/entries": {
+      "get": {
+        "operationId": "list-collection-entries",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name.",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "1-indexed page number.",
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "description": "1-indexed page number.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 24,
+              "description": "Page size.",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListInventoryItemPaginationMeta"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "patch": {
+        "operationId": "bulk-update-collection-entries",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpdateEntriesInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListInventoryChangeResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "post": {
+        "operationId": "add-collection-entry",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEntryInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeInventoryEntry"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Add a Card to one of the current user's own Collections",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/collections/{id}/entries/{cardId}": {
+      "delete": {
+        "operationId": "remove-collection-entry",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "cardId",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Remove a Card from one of the current user's own Collections",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "put": {
+        "operationId": "update-collection-entry",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "cardId",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEntryInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeInventoryEntry"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Set the quantity of a Card already in one of the current user's own Collections",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/collections/{id}/facets": {
+      "get": {
+        "operationId": "list-collection-facets",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name.",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCatalogFacets"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)",
+        "tags": [
+          "inventory"
         ]
       }
     },

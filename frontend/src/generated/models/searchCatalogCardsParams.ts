@@ -11,25 +11,25 @@ export type SearchCatalogCardsParams = {
  */
 name?: string;
 /**
- * Only Cards in this Expansion Set.
+ * Only Cards in any of these Expansion Sets (repeatable).
  */
-expansionSetId?: string;
+expansionSetId?: string[];
 /**
- * Only the Card with this number within its Expansion Set (e.g. "001"), typically combined with expansionSetId.
+ * Only the Card with this number within its Expansion Set (e.g. "001").
  */
 localId?: string;
 /**
- * Only Cards with this Rarity.
+ * Only Cards with any of these Rarities (repeatable).
  */
-rarityId?: string;
+rarityId?: string[];
 /**
- * Only Cards with this exact category (e.g. Pokémon, Trainer, Energi).
+ * Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).
  */
-category?: string;
+category?: string[];
 /**
- * Only Cards carrying this tag.
+ * Only Cards carrying any of these tags (repeatable).
  */
-tag?: string;
+tag?: string[];
 /**
  * 1-indexed page number.
  * @minimum 1
