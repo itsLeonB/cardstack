@@ -1,0 +1,41 @@
+docs/agents/conventions/frontend.md
+  s_e7bf2942672895::t_c4612362420a1e 11-13
+frontend/src/components/catalog/card-results.tsx
+  s_e7bf2942672895::t_e971ad623de238 8
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_e7bf2942672895::t_652094430c6dc6 1-156
+frontend/src/components/catalog/collection-card-results.tsx
+  s_e7bf2942672895::t_64ee8243cfeec5 1,6,8-11,13-17,19-20,22-33,35-36,38-39,42-43,45,48-63
+frontend/src/components/catalog/collection-picker.test.tsx
+  s_e7bf2942672895::t_2f5d1f1df280e0 1-83
+frontend/src/components/catalog/collection-picker.tsx
+  s_e7bf2942672895::t_18d8c0c0026e91 1-4,6-34,37-40,44-47,50-77
+frontend/src/components/collections/collection-entries.tsx
+  s_e7bf2942672895::t_3a73da3cc7d711 93
+frontend/src/generated/endpoints/inventory/inventory.ts
+  s_e7bf2942672895::t_033bf56b0c4a69 92
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_e7bf2942672895::t_e8795d2941a6e2 17-18,33
+frontend/src/generated/models/listCollectionEntriesParams.ts
+  s_e7bf2942672895::t_c46d17c969bb93 33-37
+frontend/src/lib/use-quantity-batch.ts
+  s_e7bf2942672895::t_e715779d14ab45 18,47
+frontend/src/routes/catalog/search.tsx
+  s_e7bf2942672895::t_66bd2b61114109 1,12,14-15,20-22,24-25,41,43-48,75-86,102,105-109,111-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8aa4a5753d528749f755c10ef2742b7505766bc8",
+  "prompts": {},
+  "sessions": {
+    "s_e7bf2942672895": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e7bf2942672895",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
