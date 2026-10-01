@@ -320,6 +320,72 @@ func (_c *MockInventoryService_ListFacets_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// ListMasterInventory provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) ListMasterInventory(ctx context.Context, req dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMasterInventory")
+	}
+
+	var r0 []dto.InventoryItem
+	var r1 dto.PaginationMeta
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.MasterInventoryRequest) []dto.InventoryItem); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.InventoryItem)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.MasterInventoryRequest) dto.PaginationMeta); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Get(1).(dto.PaginationMeta)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, dto.MasterInventoryRequest) error); ok {
+		r2 = rf(ctx, req)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockInventoryService_ListMasterInventory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMasterInventory'
+type MockInventoryService_ListMasterInventory_Call struct {
+	*mock.Call
+}
+
+// ListMasterInventory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.MasterInventoryRequest
+func (_e *MockInventoryService_Expecter) ListMasterInventory(ctx interface{}, req interface{}) *MockInventoryService_ListMasterInventory_Call {
+	return &MockInventoryService_ListMasterInventory_Call{Call: _e.mock.On("ListMasterInventory", ctx, req)}
+}
+
+func (_c *MockInventoryService_ListMasterInventory_Call) Run(run func(ctx context.Context, req dto.MasterInventoryRequest)) *MockInventoryService_ListMasterInventory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.MasterInventoryRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_ListMasterInventory_Call) Return(_a0 []dto.InventoryItem, _a1 dto.PaginationMeta, _a2 error) *MockInventoryService_ListMasterInventory_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockInventoryService_ListMasterInventory_Call) RunAndReturn(run func(context.Context, dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)) *MockInventoryService_ListMasterInventory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Remove provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) Remove(ctx context.Context, req dto.InventoryEntryLookup) error {
 	ret := _m.Called(ctx, req)

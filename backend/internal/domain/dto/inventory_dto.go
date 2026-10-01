@@ -90,3 +90,10 @@ type CardHolding struct {
 	Collection HoldingCollection `json:"collection"`
 	Quantity   int               `json:"quantity"`
 }
+
+// MasterInventoryRequest pages a profile's Master Inventory.
+type MasterInventoryRequest struct {
+	ProfileID uuid.UUID
+	Page      int
+	Limit     int
+}

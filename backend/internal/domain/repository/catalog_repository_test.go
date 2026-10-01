@@ -720,3 +720,52 @@ func TestCatalogRepository_CollectionScope(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, all.Categories, StringFacetOption{Value: "Energi", Available: true})
 }
+
+// TestCatalogRepository_MasterInventory: a profile's Cards are summed across
+// its Collections, other profiles' entries and unowned Cards are excluded.
+func TestCatalogRepository_MasterInventory(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	a := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1" })
+	b := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2" })
+	zero := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "3" })
+	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "4" })
+
+	newProfile := func() entity.UserProfile {
+		user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
+		require.NoError(t, err)
+		userID, err := uuid.Parse(user.ID)
+		require.NoError(t, err)
+		p := entity.UserProfile{UserID: userID, Name: "Master Test"}
+		require.NoError(t, db.Create(&p).Error)
+		return p
+	}
+	hold := func(p entity.UserProfile, cardID uuid.UUID, qty int) {
+		c := entity.Collection{ProfileID: p.ID, Title: uuid.NewString()}
+		require.NoError(t, db.Create(&c).Error)
+		require.NoError(t, db.Create(&entity.InventoryEntry{CollectionID: c.ID, CardID: cardID, Quantity: qty}).Error)
+	}
+	me, them := newProfile(), newProfile()
+	hold(me, a.ID, 2)
+	hold(me, a.ID, 3)
+	hold(me, b.ID, 1)
+	hold(them, a.ID, 10)
+	hold(them, zero.ID, 7)
+
+	results, total, err := repo.SearchCards(ctx, CardFilter{ProfileID: me.ID, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, total)
+	require.Len(t, results, 2)
+	assert.Equal(t, a.ID, results[0].ID)
+	assert.Equal(t, 5, results[0].Quantity)
+	assert.Equal(t, b.ID, results[1].ID)
+	assert.Equal(t, 1, results[1].Quantity)
+
+	results, total, err = repo.SearchCards(ctx, CardFilter{ProfileID: newProfile().ID, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, total)
+	assert.Empty(t, results)
+}

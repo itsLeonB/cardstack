@@ -368,3 +368,62 @@ func TestCardHoldingsFlow(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.JSONEq(t, `{"data":[]}`, resp.Body.String())
 }
+
+// TestMasterInventoryFlow: quantities sum across the caller's Collections,
+// another user's entries are never aggregated, and a Card removed from every
+// Collection drops out immediately.
+func TestMasterInventoryFlow(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+	cards := newTestCards(t, 2)
+	path := "/inventory/cards"
+
+	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	assert.Equal(t, http.StatusUnauthorized, api.Get(path).Code)
+
+	newCollection := func(who []*http.Cookie, title string) string {
+		resp := api.Post("/collections", cookieHeader(who), csrfHeader(who), map[string]any{"title": title})
+		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+		var c collectionEnvelope
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &c))
+		return c.Data.ID
+	}
+	add := func(who []*http.Cookie, colID string, card uuid.UUID, qty int) {
+		resp := api.Post("/collections/"+colID+"/entries", cookieHeader(who), csrfHeader(who), map[string]any{"cardId": card, "quantity": qty})
+		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	}
+	binder, box, theirs := newCollection(owner, "Binder"), newCollection(owner, "Box"), newCollection(other, "Theirs")
+	add(owner, binder, cards[0], 4)
+	add(owner, box, cards[0], 3)
+	add(other, theirs, cards[0], 50)
+	add(other, theirs, cards[1], 9)
+
+	type listResp struct {
+		Data []struct {
+			Card     struct{ ID string } `json:"card"`
+			Quantity int                 `json:"quantity"`
+		} `json:"data"`
+		Meta struct{ Total, Page, Limit int } `json:"meta"`
+	}
+	get := func(who []*http.Cookie) listResp {
+		resp := api.Get(path, cookieHeader(who))
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+		var out listResp
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+		return out
+	}
+
+	out := get(owner)
+	require.Len(t, out.Data, 1)
+	assert.Equal(t, 1, out.Meta.Total)
+	assert.Equal(t, cards[0].String(), out.Data[0].Card.ID)
+	assert.Equal(t, 7, out.Data[0].Quantity)
+
+	for _, col := range []string{binder, box} {
+		resp := api.Delete("/collections/"+col+"/entries/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner))
+		require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
+	}
+	assert.Empty(t, get(owner).Data)
+}

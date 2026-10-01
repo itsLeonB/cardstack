@@ -471,3 +471,23 @@ func TestInventoryService_ListCardHoldings_PropagatesRepositoryError(t *testing.
 	_, err := f.svc.ListCardHoldings(f.ctx, dto.CardHoldingsRequest{ProfileID: f.profileID, CardID: uuid.New()})
 	assert.ErrorIs(t, err, boom)
 }
+
+func TestInventoryService_ListMasterInventory(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	card := repository.CardResult{ID: uuid.New(), Name: "A", Quantity: 5}
+	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{ProfileID: f.profileID, Limit: 10, Offset: 10}).
+		Return([]repository.CardResult{card}, int64(11), nil).Once()
+
+	got, meta, err := f.svc.ListMasterInventory(f.ctx, dto.MasterInventoryRequest{ProfileID: f.profileID, Page: 2, Limit: 10})
+	require.NoError(t, err)
+	assert.Equal(t, dto.PaginationMeta{Total: 11, Page: 2, Limit: 10}, meta)
+	require.Len(t, got, 1)
+	assert.Equal(t, 5, got[0].Quantity)
+}
+
+func TestInventoryService_ListMasterInventory_NilProfile(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+
+	_, _, err := f.svc.ListMasterInventory(f.ctx, dto.MasterInventoryRequest{})
+	assert.Error(t, err)
+}

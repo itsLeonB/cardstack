@@ -116,3 +116,21 @@ func TestInventoryHandler_ListCardHoldings_MissingSession(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards/"+uuid.NewString()+"/holdings").Code)
 }
+
+func TestInventoryHandler_ListMaster(t *testing.T) {
+	svc, api, profileID := newTestInventoryHandler(t, true)
+	svc.EXPECT().
+		ListMasterInventory(mock.Anything, dto.MasterInventoryRequest{ProfileID: profileID, Page: 2, Limit: 5}).
+		Return([]dto.InventoryItem{{Quantity: 7}}, dto.PaginationMeta{Total: 6, Page: 2, Limit: 5}, nil)
+
+	resp := api.Get("/inventory/cards?page=2&limit=5")
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Contains(t, resp.Body.String(), `"quantity":7`)
+	assert.Contains(t, resp.Body.String(), `"meta":{"total":6,"page":2,"limit":5}`)
+}
+
+func TestInventoryHandler_ListMaster_MissingSession(t *testing.T) {
+	_, api, _ := newTestInventoryHandler(t, false)
+
+	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards").Code)
+}
