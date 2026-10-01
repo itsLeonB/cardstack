@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useSearchCatalogCards } from "@/generated/endpoints/catalog/catalog"
 import {
   getListCollectionEntriesQueryKey,
+  getListCollectionFacetsQueryKey,
   useAddCollectionEntry,
 } from "@/generated/endpoints/inventory/inventory"
 import type { CardSummary } from "@/generated/models"
@@ -73,6 +74,9 @@ export function AddEntry({
           if (response.status === 201) {
             void queryClient.invalidateQueries({
               queryKey: getListCollectionEntriesQueryKey(collectionId),
+            })
+            void queryClient.invalidateQueries({
+              queryKey: getListCollectionFacetsQueryKey(collectionId),
             })
             // Hide results so the same Card can't be re-added (409).
             setName("")

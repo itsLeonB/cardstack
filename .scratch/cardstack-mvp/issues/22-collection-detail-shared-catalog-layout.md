@@ -3,7 +3,7 @@
 # 22: Collection detail page on the shared catalog layout, with filters and stepper editing
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done — implemented (backend `682c0fa`, frontend `eae627a` + `d670f20`), merged into `feat/inventory-entries`, not yet merged to `main`.
 
 **Blocked by:** 20 (Inventory bulk update endpoint), 21 (Catalog faceted multi-value filters)
 
@@ -33,16 +33,16 @@
 - A debounced batch-update hook on top of the generated bulk endpoint client.
 
 **Acceptance criteria:**
-- [ ] Catalog search and the Collection detail page render tiles, grid, filters and pagination from the same shared components
-- [ ] Filtering a Collection by any catalog filter returns only that Collection's cards, and filter options reflect only cards in that Collection
-- [ ] Backend tests (mocked repository units plus real-Postgres routes) cover filtering, pagination, facets scoping and 404 for a foreign Collection
-- [ ] Clicking + or - and typing a number both change the quantity with no save button
-- [ ] Several quick changes to several cards produce a single bulk request after the debounce, ordered oldest change first (test with fake timers)
-- [ ] A capacity-declined item reverts to its server quantity with an error message while the other items in the batch stay applied
-- [ ] Going to 0 keeps the tile visible at 0 until reload or leaving and returning, after which the card is gone
-- [ ] Changing a filter or page with pending edits flushes them first
-- [ ] Old row-based list, Save and Remove UI are gone from this page, with tests updated accordingly
-- [ ] Both verification scripts pass, `openapi.json` and the generated client are regenerated
+- [x] Catalog search and the Collection detail page render tiles, grid, filters and pagination from the same shared components
+- [x] Filtering a Collection by any catalog filter returns only that Collection's cards, and filter options reflect only cards in that Collection
+- [x] Backend tests (mocked repository units plus real-Postgres routes) cover filtering, pagination, facets scoping and 404 for a foreign Collection
+- [x] Clicking + or - and typing a number both change the quantity with no save button
+- [x] Several quick changes to several cards produce a single bulk request after the debounce, ordered oldest change first (test with fake timers)
+- [x] A capacity-declined item reverts to its server quantity with an error message while the other items in the batch stay applied
+- [x] Going to 0 keeps the tile visible at 0 until reload or leaving and returning, after which the card is gone
+- [x] Changing a filter or page with pending edits flushes them first
+- [x] Old row-based list, Save and Remove UI are gone from this page, with tests updated accordingly
+- [x] Both verification scripts pass, `openapi.json` and the generated client are regenerated
 
 **Out of scope:**
 - Adding cards from the catalog page (ticket 23)
