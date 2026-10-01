@@ -3,12 +3,12 @@ import { useQueryClient } from "@tanstack/react-query"
 import {
   getListCollectionEntriesQueryKey,
   getListCollectionFacetsQueryKey,
-  getListMasterInventoryQueryKey,
   useListCollectionEntries,
 } from "@/generated/endpoints/inventory/inventory"
 import { CardResults } from "@/components/catalog/card-results"
 import type { CardResultsProps } from "@/components/catalog/card-results"
 import { QuantityControl } from "@/components/collections/quantity-control"
+import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
 /**
@@ -24,7 +24,7 @@ export function CollectionCardResults({
     // Collection detail refetches entries on mount; facets are cached, so refresh them.
     void queryClient.invalidateQueries({ queryKey: getListCollectionEntriesQueryKey(collectionId) })
     void queryClient.invalidateQueries({ queryKey: getListCollectionFacetsQueryKey(collectionId) })
-    void queryClient.invalidateQueries({ queryKey: getListMasterInventoryQueryKey() })
+    invalidateMasterInventory(queryClient)
   })
 
   // An empty cardId list means "no restriction" to the API, so never ask with one.

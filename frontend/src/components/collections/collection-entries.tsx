@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import {
-  getListMasterInventoryQueryKey,
   useListCollectionEntries,
   useListCollectionFacets,
 } from "@/generated/endpoints/inventory/inventory"
@@ -11,6 +10,7 @@ import { CardResults } from "@/components/catalog/card-results"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import type { CatalogSearch } from "@/lib/catalog-search"
 import { hasActiveFilters, toFacetParams } from "@/lib/catalog-search"
+import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
 interface CollectionEntriesProps {
@@ -23,7 +23,7 @@ interface CollectionEntriesProps {
 export function CollectionEntries({ collectionId, search, onSearchChange }: CollectionEntriesProps) {
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, () => {
-    void queryClient.invalidateQueries({ queryKey: getListMasterInventoryQueryKey() })
+    invalidateMasterInventory(queryClient)
   })
 
   // Always refetch and never keep the entry list around after leaving: a card

@@ -5,7 +5,7 @@
  * OpenAPI spec version: 1.0
  */
 
-export type ListMasterInventoryParams = {
+export type ListMasterInventoryFacetsParams = {
 /**
  * Case-insensitive substring match on the Card's name.
  */
@@ -30,20 +30,4 @@ category?: string[];
  * Only Cards carrying any of these tags (repeatable).
  */
 tag?: string[];
-/**
- * Only these Cards (repeatable, at most 100), combined with the other filters.
- * @maxItems 100
- */
-cardId?: string[];
-/**
- * 1-indexed page number.
- * @minimum 1
- */
-page?: number;
-/**
- * Page size.
- * @minimum 1
- * @maximum 100
- */
-limit?: number;
 };

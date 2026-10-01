@@ -19,6 +19,7 @@ import type { CatalogSearch } from "@/lib/catalog-search"
 vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   getListCollectionEntriesQueryKey: (id: string) => ["entries", id],
   getListMasterInventoryQueryKey: () => ["inventory"],
+  getListMasterInventoryFacetsQueryKey: () => ["inventory-facets"],
   useListCollectionEntries: vi.fn(),
   useListCollectionFacets: vi.fn(),
   bulkUpdateCollectionEntries: vi.fn(),
