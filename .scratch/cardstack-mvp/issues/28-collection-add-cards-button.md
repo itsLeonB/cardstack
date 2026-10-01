@@ -3,7 +3,7 @@
 # 28: Collection detail page: "Add Cards" button to the catalog with the Collection preselected
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done — implemented (frontend `13ec540`) on `feat/inventory-entries`, not yet merged to `main`. E2E and browser checks not yet run.
 
 **Blocked by:** None (can start immediately)
 
