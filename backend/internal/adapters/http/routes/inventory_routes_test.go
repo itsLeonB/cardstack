@@ -270,3 +270,72 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 	}
 	assert.Equal(t, 5, total)
 }
+
+// TestInventoryFilterAndFacetsFlow: the entries list filters and paginates
+// like catalog search over only the Collection's Cards, facets are scoped to
+// them, and another profile's Collection is 404 on both.
+func TestInventoryFilterAndFacetsFlow(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+	cards := newTestCards(t, 3) // one shared set/rarity, category Pokémon
+
+	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder"})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	base := "/collections/" + created.Data.ID
+
+	// Only the first two Cards are in the Collection.
+	for i, q := range []int{3, 1} {
+		resp := api.Post(base+"/entries", cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": cards[i], "quantity": q})
+		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	}
+
+	type listResp struct {
+		Data []struct {
+			Card     struct{ ID string } `json:"card"`
+			Quantity int                 `json:"quantity"`
+		} `json:"data"`
+		Meta struct{ Total, Page, Limit int } `json:"meta"`
+	}
+	get := func(path string, who []*http.Cookie) (int, listResp) {
+		resp := api.Get(path, cookieHeader(who))
+		var out listResp
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+		return resp.Code, out
+	}
+
+	code, out := get(base+"/entries?limit=1&page=2", owner)
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, 2, out.Meta.Total)
+	require.Len(t, out.Data, 1)
+	assert.Equal(t, cards[1].String(), out.Data[0].Card.ID)
+	assert.Equal(t, 1, out.Data[0].Quantity)
+
+	// The third Card exists in the catalog but is filtered out of the Collection.
+	code, out = get(base+"/entries?localId=c", owner)
+	require.Equal(t, http.StatusOK, code)
+	assert.Empty(t, out.Data)
+	code, out = get(base+"/entries?category=Pok%C3%A9mon&category=Trainer", owner)
+	require.Equal(t, http.StatusOK, code)
+	assert.Len(t, out.Data, 2)
+
+	resp := api.Get(base+"/facets", cookieHeader(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var facets struct {
+		Data struct {
+			ExpansionSets []struct{ ID string }    `json:"expansionSets"`
+			Categories    []struct{ Value string } `json:"categories"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &facets))
+	assert.Len(t, facets.Data.ExpansionSets, 1)
+	assert.Equal(t, "Pokémon", facets.Data.Categories[0].Value)
+
+	assert.Equal(t, http.StatusNotFound, api.Get(base+"/entries", cookieHeader(other)).Code)
+	assert.Equal(t, http.StatusNotFound, api.Get(base+"/facets", cookieHeader(other)).Code)
+	assert.Equal(t, http.StatusUnauthorized, api.Get(base+"/facets").Code)
+}

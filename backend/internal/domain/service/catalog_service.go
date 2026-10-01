@@ -132,27 +132,30 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 }
 
 func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
-	page, limit := normalizePagination(filter.Page, filter.Limit)
-
-	repoFilter := toRepoFilter(filter)
-	repoFilter.Limit = limit
-	repoFilter.Offset = (page - 1) * limit
-
-	results, total, err := s.repo.SearchCards(ctx, repoFilter)
+	results, meta, err := searchCards(ctx, s.repo, filter, uuid.Nil)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	cards := make([]dto.CardSummary, len(results))
-	for i, r := range results {
-		cards[i] = mapper.ToCardSummary(r)
+	return ezutil.MapSlice(results, mapper.ToCardSummary), meta, nil
+}
+
+// searchCards runs the paginated search, over the whole catalog or (non-nil
+// collectionID) one Collection's Cards.
+func searchCards(ctx context.Context, repo repository.CatalogRepository, filter dto.CardFilter, collectionID uuid.UUID) ([]repository.CardResult, dto.PaginationMeta, error) {
+	page, limit := normalizePagination(filter.Page, filter.Limit)
+
+	repoFilter := toRepoFilter(filter)
+	repoFilter.CollectionID = collectionID
+	repoFilter.Limit = limit
+	repoFilter.Offset = (page - 1) * limit
+
+	results, total, err := repo.SearchCards(ctx, repoFilter)
+	if err != nil {
+		return nil, dto.PaginationMeta{}, err
 	}
 
-	return cards, dto.PaginationMeta{
-		Total: int(total),
-		Page:  page,
-		Limit: limit,
-	}, nil
+	return results, dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func toRepoFilter(filter dto.CardFilter) repository.CardFilter {
@@ -167,7 +170,11 @@ func toRepoFilter(filter dto.CardFilter) repository.CardFilter {
 }
 
 func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error) {
-	facets, err := s.repo.ListCardFacets(ctx, toRepoFilter(filter))
+	return listFacets(ctx, s.repo, toRepoFilter(filter))
+}
+
+func listFacets(ctx context.Context, repo repository.CatalogRepository, filter repository.CardFilter) (dto.CatalogFacets, error) {
+	facets, err := repo.ListCardFacets(ctx, filter)
 	if err != nil {
 		return dto.CatalogFacets{}, err
 	}

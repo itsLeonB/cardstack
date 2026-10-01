@@ -1,9 +1,7 @@
 package service
 
 import (
-	"cmp"
 	"context"
-	"slices"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
@@ -28,7 +26,10 @@ const (
 // profile's Collection is reported as "collection not found", same as a
 // missing one.
 type InventoryService interface {
-	List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error)
+	// List pages the Collection's Cards matching req.Filter, with quantities.
+	List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)
+	// ListFacets returns filter options computed only from the Collection's Cards.
+	ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error)
 	Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	Remove(ctx context.Context, req dto.InventoryEntryLookup) error
@@ -41,6 +42,7 @@ type inventoryService struct {
 	transactor  crud.Transactor
 	collections repository.CollectionRepository
 	entries     repository.InventoryRepository
+	catalog     repository.CatalogRepository
 	cards       crud.Repository[entity.Card]
 }
 
@@ -48,51 +50,33 @@ func NewInventoryService(
 	transactor crud.Transactor,
 	collections repository.CollectionRepository,
 	entries repository.InventoryRepository,
+	catalog repository.CatalogRepository,
 	cards crud.Repository[entity.Card],
 ) InventoryService {
-	return &inventoryService{transactor: transactor, collections: collections, entries: entries, cards: cards}
+	return &inventoryService{transactor: transactor, collections: collections, entries: entries, catalog: catalog, cards: cards}
 }
 
-func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error) {
+func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
 	if _, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, false); err != nil {
-		return nil, err
+		return nil, dto.PaginationMeta{}, err
 	}
 
-	entries, err := s.entries.FindAll(ctx, crud.Specification[entity.InventoryEntry]{
-		Model:            entity.InventoryEntry{CollectionID: req.CollectionID},
-		PreloadRelations: []string{"Card.Rarity", "Card.ExpansionSet"},
-	})
+	results, meta, err := searchCards(ctx, s.catalog, req.Filter, req.CollectionID)
 	if err != nil {
-		return nil, err
+		return nil, dto.PaginationMeta{}, err
 	}
 
-	// crud.Repository always orders by created_at, so sort here: release date
-	// (unknown last), then set, local id, name, id. Like catalog search, but
-	// strings compare bytewise here, not by DB collation.
-	slices.SortStableFunc(entries, compareEntries)
-
-	return ezutil.MapSlice(entries, mapper.ToInventoryItem), nil
+	return ezutil.MapSlice(results, mapper.ToInventoryItem), meta, nil
 }
 
-func compareEntries(a, b entity.InventoryEntry) int {
-	ar, br := a.Card.ExpansionSet.ReleaseDate, b.Card.ExpansionSet.ReleaseDate
-	if (ar == nil) != (br == nil) {
-		if ar == nil {
-			return 1
-		}
-		return -1
+func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
+	if _, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, false); err != nil {
+		return dto.CatalogFacets{}, err
 	}
-	if ar != nil {
-		if c := ar.Compare(*br); c != 0 {
-			return c
-		}
-	}
-	return cmp.Or(
-		cmp.Compare(a.Card.ExpansionSet.ID.String(), b.Card.ExpansionSet.ID.String()),
-		cmp.Compare(a.Card.LocalID, b.Card.LocalID),
-		cmp.Compare(a.Card.Name, b.Card.Name),
-		cmp.Compare(a.Card.ID.String(), b.Card.ID.String()),
-	)
+
+	f := toRepoFilter(req.Filter)
+	f.CollectionID = req.CollectionID
+	return listFacets(ctx, s.catalog, f)
 }
 
 // findEntry returns the Card's row-locked entry, or the zero value when absent.

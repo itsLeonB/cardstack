@@ -45,6 +45,7 @@ func ProvideInventoryService(ds *DataSources) service.InventoryService {
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
+		catalogrepository.NewCatalogRepository(ds.Gorm),
 		crud.NewRepository[entity.Card](ds.Gorm),
 	)
 }

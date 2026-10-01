@@ -647,3 +647,67 @@ func pick(m map[uuid.UUID]bool, keys []uuid.UUID) map[uuid.UUID]bool {
 	}
 	return out
 }
+
+// TestCatalogRepository_CollectionScope: with CollectionID set, search and
+// facets see only that Collection's Cards (search also returns quantities),
+// while the same filter without it sees the whole catalog.
+func TestCatalogRepository_CollectionScope(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	repo := NewCatalogRepository(db)
+
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	otherSet := fixture.newExpansionSet(t, db, nil, nil)
+	owned := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1"; c.Category = "Trainer" })
+	ownedToo := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2"; c.Category = "Pokémon" })
+	fixture.newCard(t, db, otherSet.ID, func(c *entity.Card) { c.LocalID = "3"; c.Category = "Energi" })
+
+	user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
+	require.NoError(t, err)
+	userID, err := uuid.Parse(user.ID)
+	require.NoError(t, err)
+	profile := entity.UserProfile{UserID: userID, Name: "Scope Test"}
+	require.NoError(t, db.Create(&profile).Error)
+	col := entity.Collection{ProfileID: profile.ID, Title: "Binder"}
+	require.NoError(t, db.Create(&col).Error)
+	require.NoError(t, db.Create(&entity.InventoryEntry{CollectionID: col.ID, CardID: owned.ID, Quantity: 4}).Error)
+	require.NoError(t, db.Create(&entity.InventoryEntry{CollectionID: col.ID, CardID: ownedToo.ID, Quantity: 1}).Error)
+
+	scoped := CardFilter{CollectionID: col.ID, Limit: 1}
+	results, total, err := repo.SearchCards(ctx, scoped)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, owned.ID, results[0].ID)
+	assert.Equal(t, 4, results[0].Quantity)
+
+	scoped.Offset = 1
+	results, _, err = repo.SearchCards(ctx, scoped)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, ownedToo.ID, results[0].ID)
+
+	results, total, err = repo.SearchCards(ctx, CardFilter{CollectionID: col.ID, Categories: []string{"Trainer"}, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	assert.Equal(t, owned.ID, results[0].ID)
+
+	facets, err := repo.ListCardFacets(ctx, CardFilter{CollectionID: col.ID})
+	require.NoError(t, err)
+	var setIDs []uuid.UUID
+	for _, o := range facets.ExpansionSets {
+		setIDs = append(setIDs, o.ID)
+	}
+	assert.Equal(t, []uuid.UUID{set.ID}, setIDs)
+	var cats []string
+	for _, o := range facets.Categories {
+		cats = append(cats, o.Value)
+	}
+	assert.ElementsMatch(t, []string{"Trainer", "Pokémon"}, cats)
+
+	// Unscoped, the unowned set and category show up too.
+	all, err := repo.ListCardFacets(ctx, CardFilter{ExpansionSetIDs: []uuid.UUID{otherSet.ID}})
+	require.NoError(t, err)
+	assert.Contains(t, all.Categories, StringFacetOption{Value: "Energi", Available: true})
+}
