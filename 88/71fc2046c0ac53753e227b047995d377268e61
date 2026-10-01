@@ -1,0 +1,67 @@
+frontend/orval.config.ts
+  s_ab4e2d5c84ad2e::t_ec411b497a459d 5-29
+frontend/src/components/catalog/facet-filters.test.tsx
+  s_ab4e2d5c84ad2e::t_64a6a98bd7ab03 1-79
+frontend/src/components/catalog/facet-filters.tsx
+  s_ab4e2d5c84ad2e::t_6daf651435ce26 1-148
+frontend/src/generated/endpoints/catalog/catalog.ts
+  s_ab4e2d5c84ad2e::t_85e5acf849236c 23,29,85-92,315-448
+frontend/src/generated/endpoints/catalog/catalog.zod.ts
+  s_ab4e2d5c84ad2e::t_a7bb32bc7ad2d0 22-26,66-104
+frontend/src/generated/endpoints/inventory/inventory.ts
+  s_ab4e2d5c84ad2e::t_fc2efd70438508 28,30,184-291
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_ab4e2d5c84ad2e::t_5d610578f0990a 43-73
+frontend/src/generated/models/bulkUpdateEntriesInputBody.ts
+  s_ab4e2d5c84ad2e::t_b6e1ae9103fcd2 1-17
+frontend/src/generated/models/bulkUpdateItem.ts
+  s_ab4e2d5c84ad2e::t_fdf19b23e7faa4 1-17
+frontend/src/generated/models/catalogFacets.ts
+  s_ab4e2d5c84ad2e::t_142816ef589ad7 1-20
+frontend/src/generated/models/envelopeCatalogFacets.ts
+  s_ab4e2d5c84ad2e::t_20cef43c4172c1 1-11
+frontend/src/generated/models/envelopeListInventoryChangeResult.ts
+  s_ab4e2d5c84ad2e::t_59d9f90bf62fee 1-12
+frontend/src/generated/models/expansionSetFacetOption.ts
+  s_ab4e2d5c84ad2e::t_db7b97298b6bac 1-15
+frontend/src/generated/models/index.ts
+  s_ab4e2d5c84ad2e::t_e9d9acb0caaeb4 10-11,13,17,22,31,34-36,39,43,49
+frontend/src/generated/models/inventoryChangeResult.ts
+  s_ab4e2d5c84ad2e::t_ad10e3fb599070 1-19
+frontend/src/generated/models/inventoryChangeResultReason.ts
+  s_ab4e2d5c84ad2e::t_16ec721fa8b055 1-17
+frontend/src/generated/models/inventoryChangeResultStatus.ts
+  s_ab4e2d5c84ad2e::t_dc63795a0f18f8 1-18
+frontend/src/generated/models/listCatalogFacetsParams.ts
+  s_ab4e2d5c84ad2e::t_218e18844413dc 1-33
+frontend/src/generated/models/rarityFacetOption.ts
+  s_ab4e2d5c84ad2e::t_917c7876dbd2d1 1-13
+frontend/src/generated/models/searchCatalogCardsParams.ts
+  s_ab4e2d5c84ad2e::t_6281ddf39b3895 14,16,18,22,24,26,28,30,32
+frontend/src/generated/models/stringFacetOption.ts
+  s_ab4e2d5c84ad2e::t_73c2ba944abe76 1-11
+frontend/src/lib/catalog-search.test.ts
+  s_ab4e2d5c84ad2e::t_f135bc29b504b8 1-23
+frontend/src/lib/catalog-search.ts
+  s_ab4e2d5c84ad2e::t_716fa59e0a6563 1-21
+frontend/src/routes/catalog/search.tsx
+  s_ab4e2d5c84ad2e::t_7b59222f9e1179 3,6,9,14,17-25,27-30,35-37,41-46,59-61,64-69,71-72,104-108,111-114,118-120,122,141-143,150-152,156-166,174-178
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_ab4e2d5c84ad2e::t_8480fe12c9c626 21,33-36,83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8871fc2046c0ac53753e227b047995d377268e61",
+  "prompts": {},
+  "sessions": {
+    "s_ab4e2d5c84ad2e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ab4e2d5c84ad2e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
