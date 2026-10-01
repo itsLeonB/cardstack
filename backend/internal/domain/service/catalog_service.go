@@ -166,6 +166,7 @@ func toRepoFilter(filter dto.CardFilter) repository.CardFilter {
 		RarityIDs:       filter.RarityIDs,
 		Categories:      filter.Categories,
 		Tags:            filter.Tags,
+		CardIDs:         filter.CardIDs,
 	}
 }
 

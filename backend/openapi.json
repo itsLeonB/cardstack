@@ -1813,6 +1813,23 @@
             }
           },
           {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
             "description": "1-indexed page number.",
             "explode": false,
             "in": "query",

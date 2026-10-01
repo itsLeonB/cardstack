@@ -71,8 +71,10 @@ type CardFilter struct {
 	RarityIDs       []uuid.UUID
 	Categories      []string
 	Tags            []string
-	Page            int
-	Limit           int
+	// CardIDs restricts to these Cards; only the Collection entries list sets it.
+	CardIDs []uuid.UUID
+	Page    int
+	Limit   int
 }
 
 // ExpansionSetFacetOption is one Expansion Set choice in GET

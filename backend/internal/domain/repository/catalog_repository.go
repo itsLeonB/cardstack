@@ -163,6 +163,7 @@ type CardFilter struct {
 	RarityIDs       []uuid.UUID
 	Categories      []string
 	Tags            []string
+	CardIDs         []uuid.UUID
 	Limit           int
 	Offset          int
 }
@@ -252,6 +253,9 @@ func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
 // limited to a Collection's Cards) scopes the conditions, and so the facets,
 // to that base set.
 func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
+	if len(filter.CardIDs) > 0 {
+		query = query.Where("cards.id IN ?", filter.CardIDs)
+	}
 	if filter.Name != "" {
 		query = query.Where("cards.name ILIKE ?", "%"+likeEscaper.Replace(filter.Name)+"%")
 	}

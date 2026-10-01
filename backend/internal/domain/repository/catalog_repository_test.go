@@ -688,6 +688,14 @@ func TestCatalogRepository_CollectionScope(t *testing.T) {
 	require.Len(t, results, 1)
 	assert.Equal(t, ownedToo.ID, results[0].ID)
 
+	// CardIDs narrows within the Collection: a Card outside it never appears.
+	results, total, err = repo.SearchCards(ctx, CardFilter{CollectionID: col.ID, CardIDs: []uuid.UUID{ownedToo.ID, uuid.New()}, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, ownedToo.ID, results[0].ID)
+	assert.Equal(t, 1, results[0].Quantity)
+
 	results, total, err = repo.SearchCards(ctx, CardFilter{CollectionID: col.ID, Categories: []string{"Trainer"}, Limit: 10})
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, total)
