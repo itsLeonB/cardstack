@@ -1,0 +1,27 @@
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_32a0513cbff685::t_c72f6dc6183a41 99,109
+frontend/src/components/catalog/collection-card-results.tsx
+  s_32a0513cbff685::t_11d629300a8751 33-34
+frontend/src/components/catalog/collection-picker.test.tsx
+  s_32a0513cbff685::t_4f91580565d249 27-32,34-38,41,53-57,91-104
+frontend/src/components/catalog/collection-picker.tsx
+  s_32a0513cbff685::t_f4e698827f7ed1 16,23-26,29,36,45-46,52-54,78,81
+frontend/src/routes/catalog/search.tsx
+  s_32a0513cbff685::t_282276e5f189e4 2,48,108-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c4ab905e6f37bda4a1f44b4675aceb1b432c1150",
+  "prompts": {},
+  "sessions": {
+    "s_32a0513cbff685": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_32a0513cbff685",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
