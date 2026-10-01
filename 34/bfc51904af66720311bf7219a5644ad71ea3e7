@@ -1,0 +1,41 @@
+backend/internal/adapters/http/handler/inventory_handler.go
+  s_72e317a56a1223::t_041a15f65d85f8 74-86,181-190
+backend/internal/adapters/http/handler/inventory_handler_test.go
+  s_72e317a56a1223::t_e9c917ca346cc2 101-118
+backend/internal/adapters/http/routes/inventory_routes_test.go
+  s_72e317a56a1223::t_618521358ea0ba 342-370
+backend/internal/domain/dto/inventory_dto.go
+  s_72e317a56a1223::t_05ac76e018999a 75-92
+backend/internal/domain/mapper/inventory_mapper.go
+  s_72e317a56a1223::t_b57abdaf1a77d9 16-19
+backend/internal/domain/repository/inventory_repository.go
+  s_72e317a56a1223::t_bd777232e8cf3b 19-29,58-78
+backend/internal/domain/repository/inventory_repository_test.go
+  s_72e317a56a1223::t_7e99a50c96e270 80-127
+backend/internal/domain/service/inventory_service.go
+  s_72e317a56a1223::t_0237afde896ac9 33-35,94-102
+backend/internal/domain/service/inventory_service_test.go
+  s_72e317a56a1223::t_544e8e0e46e9ee 454-473
+backend/internal/mocks/InventoryRepository.go
+  s_72e317a56a1223::t_e0538fc3f47771 15-16,417-476
+backend/internal/mocks/InventoryService.go
+  s_72e317a56a1223::t_600fcc62d85101 207-265
+backend/openapi.json
+  s_72e317a56a1223::t_a34efd34b73e48 82-98,307-324,604-619,2335-2382
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "34bfc51904af66720311bf7219a5644ad71ea3e7",
+  "prompts": {},
+  "sessions": {
+    "s_72e317a56a1223": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_72e317a56a1223",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
