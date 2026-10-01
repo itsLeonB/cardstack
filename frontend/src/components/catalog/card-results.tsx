@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { CardTile } from "@/components/catalog/card-tile"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,8 @@ interface CardResultsProps {
   errorMessage?: string
   emptyMessage: string
   onPageChange: (page: number) => void
+  /** Per-card control slot, rendered inside each tile. */
+  renderControl?: (card: CardSummary) => ReactNode
 }
 
 /**
@@ -31,6 +34,7 @@ export function CardResults({
   errorMessage,
   emptyMessage,
   onPageChange,
+  renderControl,
 }: CardResultsProps) {
   const totalPages = Math.max(1, Math.ceil(total / limit))
 
@@ -69,7 +73,7 @@ export function CardResults({
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {cards.map((card) => (
           <li key={card.id}>
-            <CardTile card={card} />
+            <CardTile card={card} control={renderControl?.(card)} />
           </li>
         ))}
       </ul>

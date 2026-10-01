@@ -19,3 +19,19 @@ export const catalogSearchSchema = SearchCatalogCardsQueryParams.omit({
 })
 
 export type CatalogSearch = z.infer<typeof catalogSearchSchema>
+
+// Facets take the same filters as the card search, minus pagination.
+export function toFacetParams({ page: _page, ...filters }: CatalogSearch) {
+  return filters
+}
+
+export function hasActiveFilters(search: CatalogSearch) {
+  return Boolean(
+    search.name ||
+      search.localId ||
+      search.expansionSetId?.length ||
+      search.rarityId?.length ||
+      search.category?.length ||
+      search.tag?.length
+  )
+}

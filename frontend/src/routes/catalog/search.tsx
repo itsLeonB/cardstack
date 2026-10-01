@@ -1,7 +1,5 @@
-import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { keepPreviousData } from "@tanstack/react-query"
-import { RiSearchLine } from "@remixicon/react"
 import {
   getListCatalogFacetsQueryOptions,
   getListCatalogSeriesQueryOptions,
@@ -11,18 +9,9 @@ import {
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
 import { CardResults } from "@/components/catalog/card-results"
-import { FacetFilters } from "@/components/catalog/facet-filters"
-import type { FacetKey } from "@/components/catalog/facet-filters"
-import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { catalogSearchSchema } from "@/lib/catalog-search"
+import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
+import { catalogSearchSchema, toFacetParams } from "@/lib/catalog-search"
 import type { CatalogSearch } from "@/lib/catalog-search"
-
-// Facets take the same filters as the card search, minus pagination.
-function toFacetParams({ page: _page, ...filters }: CatalogSearch) {
-  return filters
-}
 
 export const Route = createFileRoute("/catalog/search")({
   validateSearch: catalogSearchSchema,
@@ -44,9 +33,6 @@ export const Route = createFileRoute("/catalog/search")({
 function CatalogSearchPage() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-
-  const [nameInput, setNameInput] = useState(search.name ?? "")
-  const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
 
   const seriesQuery = useListCatalogSeries()
   const facetsQuery = useListCatalogFacets(toFacetParams(search), {
@@ -73,33 +59,6 @@ function CatalogSearchPage() {
     void navigate({ search: (prev) => ({ ...prev, page: nextPage }) })
   }
 
-  function handleTextSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    updateSearch({
-      name: nameInput.trim() || undefined,
-      localId: localIdInput.trim() || undefined,
-    })
-  }
-
-  function handleClearFilters() {
-    setNameInput("")
-    setLocalIdInput("")
-    void navigate({ search: {} })
-  }
-
-  const hasActiveFilters = Boolean(
-    search.name ||
-      search.localId ||
-      search.expansionSetId?.length ||
-      search.rarityId?.length ||
-      search.category?.length ||
-      search.tag?.length
-  )
-
-  function handleFacetChange(key: FacetKey, values: string[]) {
-    updateSearch({ [key]: values.length > 0 ? values : undefined })
-  }
-
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 p-6">
       <header className="flex flex-col gap-2">
@@ -110,56 +69,13 @@ function CatalogSearchPage() {
         </p>
       </header>
 
-      <form onSubmit={handleTextSearchSubmit}>
-        <FieldGroup>
-          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-            <Field>
-              <FieldLabel htmlFor="catalog-search-name">Card name</FieldLabel>
-              <Input
-                id="catalog-search-name"
-                type="search"
-                placeholder="e.g. Pikachu"
-                value={nameInput}
-                onChange={(event) => setNameInput(event.target.value)}
-              />
-            </Field>
-            <Field className="sm:w-40">
-              <FieldLabel htmlFor="catalog-search-local-id">Card number</FieldLabel>
-              <Input
-                id="catalog-search-local-id"
-                placeholder="e.g. 048"
-                value={localIdInput}
-                onChange={(event) => setLocalIdInput(event.target.value)}
-              />
-              <FieldDescription>Pairs with an Expansion Set below.</FieldDescription>
-            </Field>
-          </div>
-
-          <FacetFilters
-            facets={facets}
-            series={series}
-            selected={{
-              expansionSetId: search.expansionSetId ?? [],
-              rarityId: search.rarityId ?? [],
-              category: search.category ?? [],
-              tag: search.tag ?? [],
-            }}
-            onChange={handleFacetChange}
-          />
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit">
-              <RiSearchLine data-icon="inline-start" />
-              Search
-            </Button>
-            {hasActiveFilters && (
-              <Button type="button" variant="ghost" onClick={handleClearFilters}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-        </FieldGroup>
-      </form>
+      <CatalogFilterPanel
+        search={search}
+        facets={facets}
+        series={series}
+        onChange={updateSearch}
+        onClear={() => void navigate({ search: {} })}
+      />
 
       <CardResults
         cards={result?.data ?? []}

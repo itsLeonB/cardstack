@@ -26,10 +26,13 @@ import type {
 import type {
   AddEntryInputBody,
   BulkUpdateEntriesInputBody,
+  EnvelopeCatalogFacets,
   EnvelopeInventoryEntry,
   EnvelopeListInventoryChangeResult,
-  EnvelopeListInventoryItem,
+  EnvelopeWithMetaListInventoryItemPaginationMeta,
   ErrorModel,
+  ListCollectionEntriesParams,
+  ListCollectionFacetsParams,
   UpdateEntryInputBody
 } from '../../models';
 
@@ -63,7 +66,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 export type listCollectionEntriesResponse200 = {
-  data: EnvelopeListInventoryItem
+  data: EnvelopeWithMetaListInventoryItemPaginationMeta
   status: 200
 }
 
@@ -81,20 +84,37 @@ export type listCollectionEntriesResponseError = (listCollectionEntriesResponseD
 
 export type listCollectionEntriesResponse = (listCollectionEntriesResponseSuccess | listCollectionEntriesResponseError)
 
-export const getListCollectionEntriesUrl = (id: string,) => {
+export const getListCollectionEntriesUrl = (id: string,
+    params?: ListCollectionEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag"];
 
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`
 }
 
 /**
- * @summary List the Cards and quantities in one of the current user's own Collections
+ * @summary Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters
  */
-export const listCollectionEntries = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<listCollectionEntriesResponse> => {
+export const listCollectionEntries = async (id: string,
+    params?: ListCollectionEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<listCollectionEntriesResponse> => {
 
-  return customFetch<listCollectionEntriesResponse>(getListCollectionEntriesUrl(id),
+  return customFetch<listCollectionEntriesResponse>(getListCollectionEntriesUrl(id,params),
   {
     ...options,
     method: 'GET'
@@ -107,23 +127,25 @@ export const listCollectionEntries = async (id: string, options?: Parameters<typ
 
 
 
-export const getListCollectionEntriesQueryKey = (id: string,) => {
+export const getListCollectionEntriesQueryKey = (id: string,
+    params?: ListCollectionEntriesParams,) => {
     return [
-    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListCollectionEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getListCollectionEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListCollectionEntriesQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getListCollectionEntriesQueryKey(id,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCollectionEntries>>> = ({ signal }) => listCollectionEntries(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCollectionEntries>>> = ({ signal }) => listCollectionEntries(id,params, { signal, ...requestOptions });
 
 
 
@@ -137,7 +159,8 @@ export type ListCollectionEntriesQueryError = ErrorModel
 
 
 export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>> & Pick<
+ id: string,
+    params: undefined |  ListCollectionEntriesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listCollectionEntries>>,
           TError,
@@ -147,7 +170,8 @@ export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listC
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>> & Pick<
+ id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listCollectionEntries>>,
           TError,
@@ -157,19 +181,21 @@ export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listC
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary List the Cards and quantities in one of the current user's own Collections
+ * @summary Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters
  */
 
 export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListCollectionEntriesQueryOptions(id,options)
+  const queryOptions = getListCollectionEntriesQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -598,3 +624,145 @@ export const useUpdateCollectionEntry = <TError = ErrorModel,
       > => {
       return useMutation(getUpdateCollectionEntryMutationOptions(options), queryClient);
     }
+    export type listCollectionFacetsResponse200 = {
+  data: EnvelopeCatalogFacets
+  status: 200
+}
+
+export type listCollectionFacetsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listCollectionFacetsResponseSuccess = (listCollectionFacetsResponse200) & {
+  headers: Headers;
+};
+export type listCollectionFacetsResponseError = (listCollectionFacetsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listCollectionFacetsResponse = (listCollectionFacetsResponseSuccess | listCollectionFacetsResponseError)
+
+export const getListCollectionFacetsUrl = (id: string,
+    params?: ListCollectionFacetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/facets?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/facets`
+}
+
+/**
+ * @summary List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)
+ */
+export const listCollectionFacets = async (id: string,
+    params?: ListCollectionFacetsParams, options?: Parameters<typeof customFetch>[1]): Promise<listCollectionFacetsResponse> => {
+
+  return customFetch<listCollectionFacetsResponse>(getListCollectionFacetsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCollectionFacetsQueryKey = (id: string,
+    params?: ListCollectionFacetsParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/facets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCollectionFacetsQueryOptions = <TData = Awaited<ReturnType<typeof listCollectionFacets>>, TError = ErrorModel>(id: string,
+    params?: ListCollectionFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCollectionFacetsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCollectionFacets>>> = ({ signal }) => listCollectionFacets(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCollectionFacets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCollectionFacetsQueryResult = NonNullable<Awaited<ReturnType<typeof listCollectionFacets>>>
+export type ListCollectionFacetsQueryError = ErrorModel
+
+
+export function useListCollectionFacets<TData = Awaited<ReturnType<typeof listCollectionFacets>>, TError = ErrorModel>(
+ id: string,
+    params: undefined |  ListCollectionFacetsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionFacets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCollectionFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listCollectionFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCollectionFacets<TData = Awaited<ReturnType<typeof listCollectionFacets>>, TError = ErrorModel>(
+ id: string,
+    params?: ListCollectionFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionFacets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCollectionFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listCollectionFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCollectionFacets<TData = Awaited<ReturnType<typeof listCollectionFacets>>, TError = ErrorModel>(
+ id: string,
+    params?: ListCollectionFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)
+ */
+
+export function useListCollectionFacets<TData = Awaited<ReturnType<typeof listCollectionFacets>>, TError = ErrorModel>(
+ id: string,
+    params?: ListCollectionFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCollectionFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCollectionFacetsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
