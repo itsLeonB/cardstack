@@ -3,7 +3,7 @@
 # 29: Fix: Collection detail card list stays stale when returning to an already-open tab
 
 **Category:** bug
-**Status:** ready-for-agent
+**Status:** done — implemented (frontend `6815b1f`) on `feat/inventory-entries`, not yet merged to `main`. Browser check not yet run.
 
 **Blocked by:** None (can start immediately)
 
