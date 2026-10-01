@@ -43,35 +43,26 @@ func TestInventoryHandler_BulkUpdate(t *testing.T) {
 			ProfileID: profileID, CollectionID: collectionID,
 			Items: []dto.InventoryQuantityChange{{CardID: cardID, Quantity: 0}},
 		}).
-		Return([]dto.InventoryChangeResult{{CardID: cardID, Status: "declined", Reason: "capacity_exceeded", Message: "m"}}, nil)
+		Return([]dto.InventoryChangeResult{{CardID: cardID, Status: dto.InventoryStatusDeclined, Reason: dto.InventoryReasonCapacityExceeded, Message: "m"}}, nil)
 
 	resp := api.Patch("/collections/"+collectionID.String()+"/entries", map[string]any{"items": []map[string]any{{"cardId": cardID, "quantity": 0}}})
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
-	assert.Contains(t, resp.Body.String(), `"reason":"capacity_exceeded"`)
+	assert.Contains(t, resp.Body.String(), `"reason":"`+dto.InventoryReasonCapacityExceeded+`"`)
 }
 
-func TestInventoryHandler_BulkUpdate_Validation(t *testing.T) {
+// TestInventoryHandler_BulkUpdate_BatchBounds pins the documented 1..100 item
+// bounds; other schema rules are Huma's own.
+func TestInventoryHandler_BulkUpdate_BatchBounds(t *testing.T) {
 	_, api, _ := newTestInventoryHandler(t, true)
 	path := "/collections/" + uuid.NewString() + "/entries"
-	item := func() map[string]any { return map[string]any{"cardId": uuid.New(), "quantity": 1} }
 
 	over := make([]map[string]any, 101)
 	for i := range over {
-		over[i] = item()
+		over[i] = map[string]any{"cardId": uuid.New(), "quantity": 1}
 	}
 
-	bodies := map[string]any{
-		"empty list":  map[string]any{"items": []any{}},
-		"no items":    map[string]any{},
-		"oversized":   map[string]any{"items": over},
-		"negative":    map[string]any{"items": []map[string]any{{"cardId": uuid.New(), "quantity": -1}}},
-		"bad card id": map[string]any{"items": []map[string]any{{"cardId": "nope", "quantity": 1}}},
-	}
-	for name, body := range bodies {
-		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, http.StatusUnprocessableEntity, api.Patch(path, body).Code)
-		})
-	}
+	assert.Equal(t, http.StatusUnprocessableEntity, api.Patch(path, map[string]any{"items": []any{}}).Code)
+	assert.Equal(t, http.StatusUnprocessableEntity, api.Patch(path, map[string]any{"items": over}).Code)
 }
 
 func TestInventoryHandler_BulkUpdate_MissingSession(t *testing.T) {

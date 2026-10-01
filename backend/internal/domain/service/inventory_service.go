@@ -21,7 +21,6 @@ const (
 	entryExistsMsg         = "card is already in this collection"
 	capacityExceededMsg    = "collection capacity limit exceeded"
 	quantityNotPositiveMsg = "quantity must be positive"
-	quantityNegativeMsg    = "quantity must not be negative"
 	duplicateCardMsg       = "duplicate cardId in request"
 )
 
@@ -96,17 +95,22 @@ func compareEntries(a, b entity.InventoryEntry) int {
 	)
 }
 
-// getEntry returns the Card's row-locked entry, or the not-found 404. A nil
-// card id would drop that condition (see crud.WhereBySpec), hence the guard.
-func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
+// findEntry returns the Card's row-locked entry, or the zero value when absent.
+// A nil card id would drop that condition (see crud.WhereBySpec), hence the guard.
+func (s *inventoryService) findEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
 	if cardID == uuid.Nil {
-		return entity.InventoryEntry{}, ungerr.NotFoundError(entryNotFoundMsg)
+		return entity.InventoryEntry{}, nil
 	}
 
-	entry, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
+	return s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
 		Model:     entity.InventoryEntry{CollectionID: collectionID, CardID: cardID},
 		ForUpdate: true,
 	})
+}
+
+// getEntry is findEntry, or the not-found 404 when absent.
+func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
+	entry, err := s.findEntry(ctx, collectionID, cardID)
 	if err != nil {
 		return entity.InventoryEntry{}, err
 	}
@@ -115,6 +119,25 @@ func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uu
 	}
 
 	return entry, nil
+}
+
+// findCard returns the Card, or the zero value when absent. Guards a nil id
+// for the same reason as findEntry.
+func (s *inventoryService) findCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+	if cardID == uuid.Nil {
+		return entity.Card{}, nil
+	}
+
+	return s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+		Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}},
+	})
+}
+
+// exceedsCapacity reports whether raising a Card from current to quantity
+// leaves the Collection's summed quantity (sum, before the change) above its
+// limit (0 = no limit). A decrease never exceeds, even when already over.
+func exceedsCapacity(c entity.Collection, sum, current, quantity int) bool {
+	return c.MaxCardCount > 0 && quantity > current && sum-current+quantity > c.MaxCardCount
 }
 
 // checkCapacity rejects a write that raises a Card's quantity and would leave
@@ -131,7 +154,7 @@ func (s *inventoryService) checkCapacity(ctx context.Context, c entity.Collectio
 	if err != nil {
 		return err
 	}
-	if sum-current+quantity > c.MaxCardCount {
+	if exceedsCapacity(c, sum, current, quantity) {
 		return ungerr.UnprocessableEntityError(capacityExceededMsg)
 	}
 
@@ -150,12 +173,7 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 			return err
 		}
 
-		if req.CardID == uuid.Nil {
-			return ungerr.NotFoundError(cardNotFoundMsg)
-		}
-		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-			Model: entity.Card{BaseEntity: crud.BaseEntity{ID: req.CardID}},
-		})
+		card, err := s.findCard(ctx, req.CardID)
 		if err != nil {
 			return err
 		}
@@ -241,9 +259,6 @@ func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLoo
 func (s *inventoryService) BulkUpdate(ctx context.Context, req dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error) {
 	seen := make(map[uuid.UUID]struct{}, len(req.Items))
 	for _, item := range req.Items {
-		if item.Quantity < 0 {
-			return nil, ungerr.BadRequestError(quantityNegativeMsg)
-		}
 		if _, dup := seen[item.CardID]; dup {
 			return nil, ungerr.BadRequestError(duplicateCardMsg)
 		}
@@ -292,32 +307,18 @@ func (s *inventoryService) applyChange(ctx context.Context, c entity.Collection,
 		return dto.InventoryChangeResult{CardID: item.CardID, Status: dto.InventoryStatusDeclined, Reason: reason, Message: msg}
 	}
 
-	existing := entity.InventoryEntry{}
-	if item.CardID != uuid.Nil {
-		var err error
-		existing, err = s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
-			Model:     entity.InventoryEntry{CollectionID: c.ID, CardID: item.CardID},
-			ForUpdate: true,
-		})
-		if err != nil {
-			return dto.InventoryChangeResult{}, 0, err
-		}
+	existing, err := s.findEntry(ctx, c.ID, item.CardID)
+	if err != nil {
+		return dto.InventoryChangeResult{}, 0, err
 	}
 
 	if existing.IsZero() {
-		found := false
-		if item.CardID != uuid.Nil {
-			card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-				Model: entity.Card{BaseEntity: crud.BaseEntity{ID: item.CardID}},
-			})
-			if err != nil {
-				return dto.InventoryChangeResult{}, 0, err
-			}
-			found = !card.IsZero()
+		card, err := s.findCard(ctx, item.CardID)
+		if err != nil {
+			return dto.InventoryChangeResult{}, 0, err
 		}
-		if !found {
-			res := declined(dto.InventoryReasonCardNotFound, cardNotFoundMsg)
-			return res, 0, nil
+		if card.IsZero() {
+			return declined(dto.InventoryReasonCardNotFound, cardNotFoundMsg), 0, nil
 		}
 		if item.Quantity == 0 {
 			return dto.InventoryChangeResult{CardID: item.CardID, Status: dto.InventoryStatusRemoved}, 0, nil
@@ -325,13 +326,12 @@ func (s *inventoryService) applyChange(ctx context.Context, c entity.Collection,
 	}
 
 	current := existing.Quantity
-	if item.Quantity > current && c.MaxCardCount > 0 && sum-current+item.Quantity > c.MaxCardCount {
+	if exceedsCapacity(c, sum, current, item.Quantity) {
 		res := declined(dto.InventoryReasonCapacityExceeded, capacityExceededMsg)
 		res.Quantity = current
 		return res, 0, nil
 	}
 
-	var err error
 	switch {
 	case item.Quantity == 0:
 		err = s.entries.Delete(ctx, existing)

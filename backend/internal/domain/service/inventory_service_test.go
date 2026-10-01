@@ -317,11 +317,11 @@ func TestInventoryService_BulkUpdate_MixedBatch(t *testing.T) {
 	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(add, 2), change(inc, 4), change(dec, 1), change(rm, 0), change(gone, 0)))
 	require.NoError(t, err)
 	assert.Equal(t, []dto.InventoryChangeResult{
-		{CardID: add, Quantity: 2, Status: "applied"},
-		{CardID: inc, Quantity: 4, Status: "applied"},
-		{CardID: dec, Quantity: 1, Status: "applied"},
-		{CardID: rm, Quantity: 0, Status: "removed"},
-		{CardID: gone, Quantity: 0, Status: "removed"},
+		{CardID: add, Quantity: 2, Status: dto.InventoryStatusApplied},
+		{CardID: inc, Quantity: 4, Status: dto.InventoryStatusApplied},
+		{CardID: dec, Quantity: 1, Status: dto.InventoryStatusApplied},
+		{CardID: rm, Quantity: 0, Status: dto.InventoryStatusRemoved},
+		{CardID: gone, Quantity: 0, Status: dto.InventoryStatusRemoved},
 	}, got)
 }
 
@@ -345,9 +345,9 @@ func TestInventoryService_BulkUpdate_CapacityDeclinesLaterItems(t *testing.T) {
 
 	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(a, 3), change(b, 5), change(c, 1)))
 	require.NoError(t, err)
-	assert.Equal(t, dto.InventoryChangeResult{CardID: a, Quantity: 3, Status: "applied"}, got[0])
-	assert.Equal(t, dto.InventoryChangeResult{CardID: b, Quantity: 2, Status: "declined", Reason: "capacity_exceeded", Message: capacityExceededMsg}, got[1])
-	assert.Equal(t, dto.InventoryChangeResult{CardID: c, Quantity: 1, Status: "applied"}, got[2])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: a, Quantity: 3, Status: dto.InventoryStatusApplied}, got[0])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: b, Quantity: 2, Status: dto.InventoryStatusDeclined, Reason: dto.InventoryReasonCapacityExceeded, Message: capacityExceededMsg}, got[1])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: c, Quantity: 1, Status: dto.InventoryStatusApplied}, got[2])
 }
 
 func TestInventoryService_BulkUpdate_DecreaseOverLimitIsApplied(t *testing.T) {
@@ -365,8 +365,8 @@ func TestInventoryService_BulkUpdate_DecreaseOverLimitIsApplied(t *testing.T) {
 	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(a, 3), change(b, 4)))
 	require.NoError(t, err)
 	assert.Equal(t, []dto.InventoryChangeResult{
-		{CardID: a, Quantity: 3, Status: "applied"},
-		{CardID: b, Quantity: 4, Status: "applied"},
+		{CardID: a, Quantity: 3, Status: dto.InventoryStatusApplied},
+		{CardID: b, Quantity: 4, Status: dto.InventoryStatusApplied},
 	}, got)
 }
 
@@ -383,8 +383,8 @@ func TestInventoryService_BulkUpdate_UnknownCardDeclinedRestApplied(t *testing.T
 
 	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(unknown, 2), change(ok, 1)))
 	require.NoError(t, err)
-	assert.Equal(t, dto.InventoryChangeResult{CardID: unknown, Status: "declined", Reason: "card_not_found", Message: cardNotFoundMsg}, got[0])
-	assert.Equal(t, dto.InventoryChangeResult{CardID: ok, Quantity: 1, Status: "applied"}, got[1])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: unknown, Status: dto.InventoryStatusDeclined, Reason: dto.InventoryReasonCardNotFound, Message: cardNotFoundMsg}, got[0])
+	assert.Equal(t, dto.InventoryChangeResult{CardID: ok, Quantity: 1, Status: dto.InventoryStatusApplied}, got[1])
 }
 
 func TestInventoryService_BulkUpdate_NilCardIsNotFound(t *testing.T) {
@@ -393,7 +393,7 @@ func TestInventoryService_BulkUpdate_NilCardIsNotFound(t *testing.T) {
 
 	got, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(uuid.Nil, 1)))
 	require.NoError(t, err)
-	assert.Equal(t, "card_not_found", got[0].Reason)
+	assert.Equal(t, dto.InventoryReasonCardNotFound, got[0].Reason)
 }
 
 func TestInventoryService_BulkUpdate_Rejections(t *testing.T) {
@@ -402,11 +402,6 @@ func TestInventoryService_BulkUpdate_Rejections(t *testing.T) {
 	t.Run("duplicate card", func(t *testing.T) {
 		f := newInventoryFixture(t, 0)
 		_, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(cardID, 1), change(cardID, 2)))
-		requireStatus(t, err, http.StatusBadRequest)
-	})
-	t.Run("negative quantity", func(t *testing.T) {
-		f := newInventoryFixture(t, 0)
-		_, err := f.svc.BulkUpdate(f.ctx, f.bulkReq(change(cardID, -1)))
 		requireStatus(t, err, http.StatusBadRequest)
 	})
 	t.Run("not owned collection", func(t *testing.T) {

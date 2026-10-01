@@ -43,7 +43,7 @@
           "items": {
             "description": "Changes applied in order, at most 100.",
             "items": {
-              "$ref": "#/components/schemas/Item"
+              "$ref": "#/components/schemas/BulkUpdateItem"
             },
             "maxItems": 100,
             "minItems": 1,
@@ -55,6 +55,27 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "BulkUpdateItem": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to change. Must be unique within the request (400 otherwise).",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Absolute target quantity. 0 removes the Card.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity"
         ],
         "type": "object"
       },
@@ -519,27 +540,6 @@
         },
         "required": [
           "card",
-          "quantity"
-        ],
-        "type": "object"
-      },
-      "Item": {
-        "additionalProperties": false,
-        "properties": {
-          "cardId": {
-            "description": "The Card to change. Must be unique within the request.",
-            "type": "string"
-          },
-          "quantity": {
-            "description": "Absolute target quantity. 0 removes the Card.",
-            "format": "int64",
-            "maximum": 2147483647,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "cardId",
           "quantity"
         ],
         "type": "object"

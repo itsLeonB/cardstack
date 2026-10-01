@@ -10,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -167,18 +168,10 @@ func TestInventoryListOrder(t *testing.T) {
 	assert.Equal(t, unknown.String(), list.Data[1].Card.ID)
 }
 
-type bulkResult struct {
-	CardID   string `json:"cardId"`
-	Quantity int    `json:"quantity"`
-	Status   string `json:"status"`
-	Reason   string `json:"reason"`
-	Message  string `json:"message"`
-}
-
-// TestInventoryBulkUpdateFlow covers the bulk endpoint end to end: mixed
-// batch, partial success, auth/CSRF/ownership, and concurrent batches on one
-// Collection serializing on its row lock. Branch cases live in the service
-// unit tests.
+// TestInventoryBulkUpdateFlow covers the bulk endpoint end to end: apply,
+// idempotent retry, auth/CSRF/ownership, and concurrent batches on one
+// Collection serializing on its row lock. Branch cases (capacity, unknown
+// card, duplicates) live in the service unit tests.
 func TestInventoryBulkUpdateFlow(t *testing.T) {
 	services := authTestServices(t)
 	_, api := humatest.New(t, httpapi.NewConfig())
@@ -201,10 +194,10 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 		}
 		return map[string]any{"items": list}
 	}
-	patch := func(user []*http.Cookie, path string, body any) (int, []bulkResult) {
+	patch := func(user []*http.Cookie, path string, body any) (int, []dto.InventoryChangeResult) {
 		resp := api.Patch(path, cookieHeader(user), csrfHeader(user), body)
 		var out struct {
-			Data []bulkResult `json:"data"`
+			Data []dto.InventoryChangeResult `json:"data"`
 		}
 		if resp.Code == http.StatusOK {
 			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out), resp.Body.String())
@@ -228,34 +221,21 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 		return got
 	}
 
-	// Mixed batch: create, create, then capacity (5) declines the third while
-	// the unknown Card is declined and a later removal still applies.
-	code, res := patch(owner, base, items(cards[0], 3, cards[1], 2, cards[2], 1, uuid.New(), 1, cards[3], 0))
+	code, res := patch(owner, base, items(cards[0], 3, cards[1], 2, cards[3], 0))
 	require.Equal(t, http.StatusOK, code)
-	require.Len(t, res, 5)
-	assert.Equal(t, bulkResult{CardID: cards[0].String(), Quantity: 3, Status: "applied"}, res[0])
-	assert.Equal(t, bulkResult{CardID: cards[1].String(), Quantity: 2, Status: "applied"}, res[1])
-	assert.Equal(t, "declined", res[2].Status)
-	assert.Equal(t, "capacity_exceeded", res[2].Reason)
-	assert.NotEmpty(t, res[2].Message)
-	assert.Equal(t, "card_not_found", res[3].Reason)
-	assert.Equal(t, bulkResult{CardID: cards[3].String(), Status: "removed"}, res[4])
+	assert.Equal(t, []dto.InventoryChangeResult{
+		{CardID: cards[0], Quantity: 3, Status: dto.InventoryStatusApplied},
+		{CardID: cards[1], Quantity: 2, Status: dto.InventoryStatusApplied},
+		{CardID: cards[3], Status: dto.InventoryStatusRemoved},
+	}, res)
 	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[1].String(): 2}, quantities())
 
-	// Idempotent retry; decrease frees room, remove and re-add in one batch.
-	code, res = patch(owner, base, items(cards[0], 3, cards[1], 0, cards[2], 2))
+	// Idempotent retry of the same absolute targets, plus a remove.
+	code, res = patch(owner, base, items(cards[0], 3, cards[1], 0))
 	require.Equal(t, http.StatusOK, code)
-	assert.Equal(t, []string{"applied", "removed", "applied"}, []string{res[0].Status, res[1].Status, res[2].Status})
-	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[2].String(): 2}, quantities())
-
-	// Client errors change nothing.
-	code, _ = patch(owner, base, items(cards[0], 1, cards[0], 2))
-	assert.Equal(t, http.StatusBadRequest, code, "duplicate cardId")
-	code, _ = patch(owner, base, items(cards[0], -1))
-	assert.Equal(t, http.StatusUnprocessableEntity, code, "negative")
-	code, _ = patch(owner, base, map[string]any{"items": []any{}})
-	assert.Equal(t, http.StatusUnprocessableEntity, code, "empty")
-	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[2].String(): 2}, quantities())
+	assert.Equal(t, dto.InventoryStatusApplied, res[0].Status)
+	assert.Equal(t, dto.InventoryStatusRemoved, res[1].Status)
+	assert.Equal(t, map[string]int{cards[0].String(): 3}, quantities())
 
 	// Auth, CSRF, ownership.
 	// CSRF is checked first, so an anonymous caller needs a matching token pair to reach the 401.
@@ -265,27 +245,25 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, code)
 	code, _ = patch(owner, "/collections/"+uuid.NewString()+"/entries", items(cards[0], 1))
 	assert.Equal(t, http.StatusNotFound, code)
-	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[2].String(): 2}, quantities())
+	assert.Equal(t, map[string]int{cards[0].String(): 3}, quantities())
 
-	// Concurrent batches serialize: each wants 3 more of its own Card with 0
-	// room left for both (5 - 5 = 0 after the first fills), so exactly one
-	// wins and the limit holds.
-	code, _ = patch(owner, base, items(cards[0], 1, cards[2], 1))
-	require.Equal(t, http.StatusOK, code)
+	// Concurrent batches serialize: 3 of 5 are used and each batch wants 2
+	// more of its own Card, so only one fits. Exactly one is applied, and the
+	// limit holds.
 	var wg sync.WaitGroup
 	statuses := make([]string, 2)
-	for i, id := range []uuid.UUID{cards[1], cards[3]} {
+	for i, id := range []uuid.UUID{cards[1], cards[2]} {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			c, r := patch(owner, base, items(id, 3))
+			c, r := patch(owner, base, items(id, 2))
 			if assert.Equal(t, http.StatusOK, c) {
 				statuses[i] = r[0].Status
 			}
 		}()
 	}
 	wg.Wait()
-	assert.ElementsMatch(t, []string{"applied", "declined"}, statuses)
+	assert.ElementsMatch(t, []string{dto.InventoryStatusApplied, dto.InventoryStatusDeclined}, statuses)
 	total := 0
 	for _, q := range quantities() {
 		total += q

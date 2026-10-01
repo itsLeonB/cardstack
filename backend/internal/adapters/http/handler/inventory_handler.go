@@ -8,6 +8,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
+	"github.com/itsLeonB/ezutil/v2"
 )
 
 type InventoryHandler struct {
@@ -43,13 +44,17 @@ type updateEntryInput struct {
 	}
 }
 
+// bulkUpdateItem's maximum matches the other quantity fields: it is the
+// largest value the integer column holds.
+type bulkUpdateItem struct {
+	CardID   uuid.UUID `json:"cardId" required:"true" doc:"The Card to change. Must be unique within the request (400 otherwise)."`
+	Quantity int       `json:"quantity" required:"true" minimum:"0" maximum:"2147483647" doc:"Absolute target quantity. 0 removes the Card."`
+}
+
 type bulkUpdateEntriesInput struct {
 	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
 	Body         struct {
-		Items []struct {
-			CardID   uuid.UUID `json:"cardId" required:"true" doc:"The Card to change. Must be unique within the request."`
-			Quantity int       `json:"quantity" required:"true" minimum:"0" maximum:"2147483647" doc:"Absolute target quantity. 0 removes the Card."`
-		} `json:"items" required:"true" minItems:"1" maxItems:"100" doc:"Changes applied in order, at most 100."`
+		Items []bulkUpdateItem `json:"items" required:"true" minItems:"1" maxItems:"100" doc:"Changes applied in order, at most 100."`
 	}
 }
 
@@ -96,10 +101,9 @@ func (h *InventoryHandler) bulkUpdate(ctx context.Context, in bulkUpdateEntriesI
 		return nil, err
 	}
 
-	items := make([]dto.InventoryQuantityChange, len(in.Body.Items))
-	for i, it := range in.Body.Items {
-		items[i] = dto.InventoryQuantityChange{CardID: it.CardID, Quantity: it.Quantity}
-	}
+	items := ezutil.MapSlice(in.Body.Items, func(it bulkUpdateItem) dto.InventoryQuantityChange {
+		return dto.InventoryQuantityChange{CardID: it.CardID, Quantity: it.Quantity}
+	})
 
 	return h.inventorySvc.BulkUpdate(ctx, dto.InventoryBulkUpdateRequest{ProfileID: profileID, CollectionID: in.CollectionID, Items: items})
 }
