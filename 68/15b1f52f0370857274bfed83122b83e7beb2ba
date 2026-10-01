@@ -1,0 +1,23 @@
+frontend/src/components/collections/collection-entries.test.tsx
+  s_ecb69fbc332960::t_abced2423d1390 153-174
+frontend/src/components/collections/collection-entries.tsx
+  s_ecb69fbc332960::t_32371cc0e6de8a 26-27,29-34
+frontend/src/lib/use-quantity-batch.ts
+  s_ecb69fbc332960::t_57eb0f4b20661a 84-88,114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6815b1f52f0370857274bfed83122b83e7beb2ba",
+  "prompts": {},
+  "sessions": {
+    "s_ecb69fbc332960": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ecb69fbc332960",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
