@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/ezutil/v2"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -58,22 +59,27 @@ type CatalogRepository interface {
 }
 
 // catalogRepository is CatalogRepository's GORM-backed implementation. It
-// holds the bare *gorm.DB rather than going through
-// crud.Repository/GetGormInstance's transaction lookup: every method here is
-// a plain read that never needs to participate in a write transaction.
+// embeds a crud.Repository only for GetGormInstance, which every method uses
+// to get the database (the transaction carried by ctx, if any). The entity
+// type is arbitrary: no method uses the base's CRUD operations.
 type catalogRepository struct {
-	db *gorm.DB
+	crud.Repository[entity.Card]
 }
 
-// NewCatalogRepository builds a CatalogRepository over db.
-func NewCatalogRepository(db *gorm.DB) CatalogRepository {
-	return &catalogRepository{db: db}
+// NewCatalogRepository builds a CatalogRepository over base's database.
+func NewCatalogRepository(base crud.Repository[entity.Card]) CatalogRepository {
+	return &catalogRepository{Repository: base}
 }
 
 // ListSeries returns every Series, ordered by name.
 func (r *catalogRepository) ListSeries(ctx context.Context) ([]entity.Series, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var series []entity.Series
-	err := r.db.WithContext(ctx).Order("name ASC").Find(&series).Error
+	err = db.Order("name ASC").Find(&series).Error
 	return series, err
 }
 
@@ -87,8 +93,13 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 		return nil, nil
 	}
 
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var sets []entity.ExpansionSet
-	err := r.db.WithContext(ctx).
+	err = db.
 		Where("series_id IN ?", seriesIDs).
 		Order("release_date ASC NULLS LAST, name ASC").
 		Find(&sets).
@@ -103,8 +114,13 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 // Series entry), not an edge case to special-case away - this is how it's
 // surfaced through GET /catalog/series alongside the grouped Series.
 func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var sets []entity.ExpansionSet
-	err := r.db.WithContext(ctx).
+	err = db.
 		Where("series_id IS NULL").
 		Order("release_date ASC NULLS LAST, name ASC").
 		Find(&sets).
@@ -114,16 +130,26 @@ func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]e
 
 // ListRarities returns every Rarity across all Games, ordered by name.
 func (r *catalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var rarities []entity.Rarity
-	err := r.db.WithContext(ctx).Order("name ASC").Find(&rarities).Error
+	err = db.Order("name ASC").Find(&rarities).Error
 	return rarities, err
 }
 
 // ListDistinctCategories returns the distinct Card.Category values actually
 // in use, ordered alphabetically.
 func (r *catalogRepository) ListDistinctCategories(ctx context.Context) ([]string, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var categories []string
-	err := r.db.WithContext(ctx).
+	err = db.
 		Model(&entity.Card{}).
 		Distinct("category").
 		Order("category ASC").
@@ -140,8 +166,13 @@ func (r *catalogRepository) ListDistinctCategories(ctx context.Context) ([]strin
 // actually a JSON array (e.g. an unset Tags column stores JSON null) -
 // jsonb_array_elements_text errors on a non-array/scalar value otherwise.
 func (r *catalogRepository) ListDistinctTags(ctx context.Context) ([]string, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var tags []string
-	err := r.db.WithContext(ctx).
+	err = db.
 		Raw(`SELECT DISTINCT tag FROM cards, jsonb_array_elements_text(cards.tags) AS tag
 			WHERE jsonb_typeof(cards.tags) = 'array'
 			ORDER BY tag ASC`).
@@ -288,7 +319,12 @@ func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
 // and Expansion Set), limited/offset per filter, plus the total number of
 // Cards matching filter before that pagination.
 func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) ([]CardResult, int64, error) {
-	base := cardsBase(r.db.WithContext(ctx), filter).
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	base := cardsBase(db, filter).
 		Joins("JOIN rarities ON rarities.id = cards.rarity_id").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id")
 
@@ -305,7 +341,7 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 	}
 
 	var results []CardResult
-	err := base.Session(&gorm.Session{}).
+	err = base.Session(&gorm.Session{}).
 		Select(columns).
 		Order("expansion_sets.release_date ASC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
 		Limit(filter.Limit).
@@ -320,10 +356,15 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 // matching every other facet's filter (its own selection excluded), merged
 // with its selected values so a selection never disappears.
 func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilter) (CardFacets, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return CardFacets{}, err
+	}
+
 	without := func(mutate func(*CardFilter)) *gorm.DB {
 		f := filter
 		mutate(&f)
-		return applyCardFilters(cardsBase(r.db.WithContext(ctx), f), f)
+		return applyCardFilters(cardsBase(db, f), f)
 	}
 
 	var facets CardFacets
@@ -334,7 +375,7 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 	}
 	var sets []entity.ExpansionSet
 	if ids := unionIDs(setIDs, filter.ExpansionSetIDs); len(ids) > 0 {
-		if err := r.db.WithContext(ctx).Where("id IN ?", ids).
+		if err := db.Where("id IN ?", ids).
 			Order("release_date ASC NULLS LAST, name ASC").Find(&sets).Error; err != nil {
 			return CardFacets{}, ungerr.Wrap(err, "listing expansion set facet options")
 		}
@@ -349,7 +390,7 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 	}
 	var rarities []entity.Rarity
 	if ids := unionIDs(rarityIDs, filter.RarityIDs); len(ids) > 0 {
-		if err := r.db.WithContext(ctx).Where("id IN ?", ids).Order("name ASC").Find(&rarities).Error; err != nil {
+		if err := db.Where("id IN ?", ids).Order("name ASC").Find(&rarities).Error; err != nil {
 			return CardFacets{}, ungerr.Wrap(err, "listing rarity facet options")
 		}
 	}

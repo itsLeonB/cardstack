@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -105,7 +106,7 @@ func TestCatalogRepository_ListSeries(t *testing.T) {
 	fixture := newCatalogFixture(t, db)
 	series := fixture.newSeries(t, db)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	all, err := repo.ListSeries(context.Background())
 	if err != nil {
 		t.Fatalf("ListSeries: %v", err)
@@ -141,7 +142,7 @@ func TestCatalogRepository_ListExpansionSets(t *testing.T) {
 	// series.ID only.
 	fixture.newExpansionSet(t, db, &otherSeries.ID, nil)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	sets, err := repo.ListExpansionSets(context.Background(), []uuid.UUID{series.ID})
 	if err != nil {
 		t.Fatalf("ListExpansionSets: %v", err)
@@ -174,7 +175,7 @@ func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
 	// Belongs to a Series - must not be returned.
 	grouped := fixture.newExpansionSet(t, db, &series.ID, nil)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	all, err := repo.ListUngroupedExpansionSets(context.Background())
 	if err != nil {
 		t.Fatalf("ListUngroupedExpansionSets: %v", err)
@@ -214,7 +215,7 @@ func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
 
 func TestCatalogRepository_ListExpansionSets_EmptyIDs(t *testing.T) {
 	db := testDB(t)
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 
 	sets, err := repo.ListExpansionSets(context.Background(), nil)
 	if err != nil {
@@ -237,7 +238,7 @@ func TestCatalogRepository_ListRarities(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	rarities, err := repo.ListRarities(context.Background())
 	if err != nil {
 		t.Fatalf("ListRarities: %v", err)
@@ -263,7 +264,7 @@ func TestCatalogRepository_ListDistinctCategories(t *testing.T) {
 	uniqueCategory := "CatalogTestCategory-" + uuid.NewString()
 	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.Category = uniqueCategory })
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	categories, err := repo.ListDistinctCategories(context.Background())
 	if err != nil {
 		t.Fatalf("ListDistinctCategories: %v", err)
@@ -285,7 +286,7 @@ func TestCatalogRepository_ListDistinctTags(t *testing.T) {
 		c.Tags = datatypes.JSONSlice[string]{uniqueTag, "Basic"}
 	})
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	tags, err := repo.ListDistinctTags(context.Background())
 	if err != nil {
 		t.Fatalf("ListDistinctTags: %v", err)
@@ -332,7 +333,7 @@ func TestCatalogRepository_SearchCards_StablePaginationAcrossTiedOrderKeys(t *te
 		want = append(want, cardA.ID, cardB.ID)
 	}
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	ctx := context.Background()
 
 	const pageSize = 3
@@ -396,7 +397,7 @@ func TestCatalogRepository_SearchCards(t *testing.T) {
 		c.Name = "Pikachu"
 	})
 
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	ctx := context.Background()
 
 	t.Run("filters by expansion set and orders by local_id", func(t *testing.T) {
@@ -512,7 +513,7 @@ func TestCatalogRepository_MultiValueSearch(t *testing.T) {
 	ctx := context.Background()
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 
 	setA := fixture.newExpansionSet(t, db, nil, nil)
 	setB := fixture.newExpansionSet(t, db, nil, nil)
@@ -563,7 +564,7 @@ func TestCatalogRepository_ListCardFacets(t *testing.T) {
 	ctx := context.Background()
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	suffix := uuid.NewString()
 
 	newRarity := func(code string) entity.Rarity {
@@ -655,7 +656,7 @@ func TestCatalogRepository_CollectionScope(t *testing.T) {
 	ctx := context.Background()
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
-	repo := NewCatalogRepository(db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 
 	set := fixture.newExpansionSet(t, db, nil, nil)
 	otherSet := fixture.newExpansionSet(t, db, nil, nil)

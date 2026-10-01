@@ -30,7 +30,7 @@ type Services struct {
 // so cmd/genspec can call it without a DB (see ProvideServices's own doc
 // comment).
 func ProvideCatalogService(ds *DataSources) service.CatalogService {
-	return service.NewCatalogService(catalogrepository.NewCatalogRepository(ds.Gorm))
+	return service.NewCatalogService(catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)))
 }
 
 // ProvideCollectionService builds the collection service over ds's DB, for
@@ -45,7 +45,7 @@ func ProvideInventoryService(ds *DataSources) service.InventoryService {
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
-		catalogrepository.NewCatalogRepository(ds.Gorm),
+		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
 		crud.NewRepository[entity.Card](ds.Gorm),
 	)
 }
