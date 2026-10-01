@@ -7,6 +7,17 @@ interface Option {
   value: string
   label: string
   available: boolean
+  seriesId?: string
+}
+
+// Selected values must never vanish: if the facets call failed or hasn't
+// loaded, show the URL's selection as checked options (labelled by raw value).
+function withSelected(options: Option[], selected: string[]): Option[] {
+  const known = new Set(options.map((option) => option.value))
+  const missing = selected
+    .filter((value) => !known.has(value))
+    .map((value) => ({ value, label: value, available: true }))
+  return [...options, ...missing]
 }
 
 interface FacetFiltersProps {
@@ -58,6 +69,7 @@ function OptionGroup({
               }
             />
             {option.label}
+            {!option.available && <span className="sr-only"> (unavailable)</span>}
           </label>
         )
       })}
@@ -70,37 +82,30 @@ function OptionGroup({
  * facets endpoint, which already keeps selected-but-unavailable values in the
  * list (available: false); they stay checked and enabled so they can be unchecked.
  */
-export function FacetFilters({
-  facets,
-  series,
-  selected,
-  onChange,
-}: FacetFiltersProps) {
-  const sets = facets?.expansionSets ?? []
-  const toOption = (set: (typeof sets)[number]): Option => ({
-    value: set.id,
-    label: `${set.name} (${set.code})`,
-    available: set.available,
-  })
-  const knownSeriesIds = new Set(series.map((oneSeries) => oneSeries.id))
-  const ungrouped = sets.filter(
-    (set) => !set.seriesId || !knownSeriesIds.has(set.seriesId)
+export function FacetFilters({ facets, series, selected, onChange }: FacetFiltersProps) {
+  const sets = withSelected(
+    (facets?.expansionSets ?? []).map((set) => ({
+      value: set.id,
+      label: `${set.name} (${set.code})`,
+      available: set.available,
+      seriesId: set.seriesId,
+    })),
+    selected.expansionSetId
   )
-  const setHandler = (key: FacetKey) => (values: string[]) =>
-    onChange(key, values)
+  const knownSeriesIds = new Set(series.map((oneSeries) => oneSeries.id))
+  const ungrouped = sets.filter((set) => !set.seriesId || !knownSeriesIds.has(set.seriesId))
+  const setHandler = (key: FacetKey) => (values: string[]) => onChange(key, values)
 
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Expansion Sets</h2>
+      <fieldset className="flex min-w-0 flex-col gap-3">
+        <legend className="text-sm font-medium">Expansion Sets</legend>
         {series.map((oneSeries) => (
           <OptionGroup
             key={oneSeries.id}
             nested
             legend={oneSeries.name}
-            options={sets
-              .filter((set) => set.seriesId === oneSeries.id)
-              .map(toOption)}
+            options={sets.filter((set) => set.seriesId === oneSeries.id)}
             selected={selected.expansionSetId}
             onChange={setHandler("expansionSetId")}
           />
@@ -108,38 +113,39 @@ export function FacetFilters({
         <OptionGroup
           nested
           legend="Ungrouped"
-          options={ungrouped.map(toOption)}
+          options={ungrouped}
           selected={selected.expansionSetId}
           onChange={setHandler("expansionSetId")}
         />
-      </div>
+      </fieldset>
       <OptionGroup
         legend="Rarity"
-        options={(facets?.rarities ?? []).map((rarity) => ({
-          value: rarity.id,
-          label: rarity.name,
-          available: rarity.available,
-        }))}
+        options={withSelected(
+          (facets?.rarities ?? []).map((rarity) => ({
+            value: rarity.id,
+            label: rarity.name,
+            available: rarity.available,
+          })),
+          selected.rarityId
+        )}
         selected={selected.rarityId}
         onChange={setHandler("rarityId")}
       />
       <OptionGroup
         legend="Category"
-        options={(facets?.categories ?? []).map((c) => ({
-          value: c.value,
-          label: c.value,
-          available: c.available,
-        }))}
+        options={withSelected(
+          (facets?.categories ?? []).map((c) => ({ value: c.value, label: c.value, available: c.available })),
+          selected.category
+        )}
         selected={selected.category}
         onChange={setHandler("category")}
       />
       <OptionGroup
         legend="Tag"
-        options={(facets?.tags ?? []).map((t) => ({
-          value: t.value,
-          label: t.value,
-          available: t.available,
-        }))}
+        options={withSelected(
+          (facets?.tags ?? []).map((t) => ({ value: t.value, label: t.value, available: t.available })),
+          selected.tag
+        )}
         selected={selected.tag}
         onChange={setHandler("tag")}
       />

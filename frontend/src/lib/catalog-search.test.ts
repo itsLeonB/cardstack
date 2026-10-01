@@ -1,3 +1,4 @@
+import { defaultParseSearch, defaultStringifySearch } from "@tanstack/react-router"
 import { describe, expect, it } from "vitest"
 import { catalogSearchSchema } from "./catalog-search"
 
@@ -19,5 +20,10 @@ describe("catalogSearchSchema", () => {
 
   it("leaves absent filters undefined", () => {
     expect(catalogSearchSchema.parse({}).category).toBeUndefined()
+  })
+
+  it("round-trips numeric-looking strings like 007 through the URL", () => {
+    const url = defaultStringifySearch({ tag: ["007", "V"] })
+    expect(catalogSearchSchema.parse(defaultParseSearch(url)).tag).toEqual(["007", "V"])
   })
 })

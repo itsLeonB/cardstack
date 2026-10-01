@@ -71,9 +71,29 @@ describe("FacetFilters", () => {
       />
     )
 
-    const box = screen.getByRole("checkbox", { name: "Special Art" })
+    const box = screen.getByRole("checkbox", { name: /^Special Art/ })
     expect(box).toHaveProperty("checked", true)
     fireEvent.click(box)
     expect(onChange).toHaveBeenCalledWith("rarityId", [])
+  })
+
+  it("still shows the selected values, checked, when facet data is missing", () => {
+    render(
+      <FacetFilters
+        facets={undefined}
+        series={[]}
+        selected={{ ...none, tag: ["V"], expansionSetId: ["s1"] }}
+        onChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole("checkbox", { name: "V" })).toHaveProperty("checked", true)
+    expect(screen.getByRole("checkbox", { name: "s1" })).toHaveProperty("checked", true)
+  })
+
+  it("flags unavailable options for screen readers", () => {
+    render(<FacetFilters facets={facets} series={series} selected={none} onChange={vi.fn()} />)
+
+    expect(screen.getByRole("checkbox", { name: /Special Art\s*\(unavailable\)/ })).toBeTruthy()
   })
 })
