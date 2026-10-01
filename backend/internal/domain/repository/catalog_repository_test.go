@@ -729,9 +729,9 @@ func TestCatalogRepository_MasterInventory(t *testing.T) {
 	fixture := newCatalogFixture(t, db)
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	set := fixture.newExpansionSet(t, db, nil, nil)
-	a := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1" })
-	b := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2" })
-	zero := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "3" })
+	a := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1"; c.Category = "Trainer" })
+	b := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2"; c.Category = "Pokémon" })
+	zero := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "3"; c.Category = "Energi" })
 	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "4" })
 
 	newProfile := func() entity.UserProfile {
@@ -763,6 +763,31 @@ func TestCatalogRepository_MasterInventory(t *testing.T) {
 	assert.Equal(t, 5, results[0].Quantity)
 	assert.Equal(t, b.ID, results[1].ID)
 	assert.Equal(t, 1, results[1].Quantity)
+
+	// Filters combine with the scope: other profiles' entries never match or count.
+	results, total, err = repo.SearchCards(ctx, CardFilter{ProfileID: me.ID, CardIDs: []uuid.UUID{b.ID, zero.ID}, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, b.ID, results[0].ID)
+
+	results, total, err = repo.SearchCards(ctx, CardFilter{ProfileID: me.ID, LocalID: "3", Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, total)
+	assert.Empty(t, results)
+
+	facets, err := repo.ListCardFacets(ctx, CardFilter{ProfileID: me.ID})
+	require.NoError(t, err)
+	var cats []string
+	for _, o := range facets.Categories {
+		cats = append(cats, o.Value)
+	}
+	assert.ElementsMatch(t, []string{"Trainer", "Pokémon"}, cats)
+
+	results, total, err = repo.SearchCards(ctx, CardFilter{ProfileID: me.ID, Categories: []string{"Energi"}, Limit: 10})
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, total)
+	assert.Empty(t, results)
 
 	results, total, err = repo.SearchCards(ctx, CardFilter{ProfileID: newProfile().ID, Limit: 10})
 	require.NoError(t, err)

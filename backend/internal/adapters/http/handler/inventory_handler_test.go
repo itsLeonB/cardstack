@@ -120,7 +120,7 @@ func TestInventoryHandler_ListCardHoldings_MissingSession(t *testing.T) {
 func TestInventoryHandler_ListMaster(t *testing.T) {
 	svc, api, profileID := newTestInventoryHandler(t, true)
 	svc.EXPECT().
-		ListMasterInventory(mock.Anything, dto.MasterInventoryRequest{ProfileID: profileID, Page: 2, Limit: 5}).
+		ListMasterInventory(mock.Anything, dto.MasterInventoryRequest{ProfileID: profileID, Filter: dto.CardFilter{Page: 2, Limit: 5}}).
 		Return([]dto.InventoryItem{{Quantity: 7}}, dto.PaginationMeta{Total: 6, Page: 2, Limit: 5}, nil)
 
 	resp := api.Get("/inventory/cards?page=2&limit=5")
@@ -133,4 +133,35 @@ func TestInventoryHandler_ListMaster_MissingSession(t *testing.T) {
 	_, api, _ := newTestInventoryHandler(t, false)
 
 	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards").Code)
+}
+
+func TestInventoryHandler_ListMaster_Filters(t *testing.T) {
+	svc, api, profileID := newTestInventoryHandler(t, true)
+	cardID := uuid.New()
+	svc.EXPECT().
+		ListMasterInventory(mock.Anything, dto.MasterInventoryRequest{
+			ProfileID: profileID,
+			Filter:    dto.CardFilter{Name: "pika", Categories: []string{"Pokemon"}, CardIDs: []uuid.UUID{cardID}, Page: 1, Limit: 24},
+		}).
+		Return([]dto.InventoryItem{}, dto.PaginationMeta{Page: 1, Limit: 24}, nil)
+
+	resp := api.Get("/inventory/cards?name=pika&category=Pokemon&cardId=" + cardID.String())
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, http.StatusBadRequest, api.Get("/inventory/cards?cardId=nope").Code)
+}
+
+func TestInventoryHandler_ListMasterFacets(t *testing.T) {
+	svc, api, profileID := newTestInventoryHandler(t, true)
+	svc.EXPECT().
+		ListMasterFacets(mock.Anything, dto.MasterInventoryRequest{ProfileID: profileID, Filter: dto.CardFilter{Name: "pika"}}).
+		Return(dto.CatalogFacets{}, nil)
+
+	resp := api.Get("/inventory/cards/facets?name=pika")
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+}
+
+func TestInventoryHandler_ListMasterFacets_MissingSession(t *testing.T) {
+	_, api, _ := newTestInventoryHandler(t, false)
+
+	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards/facets").Code)
 }
