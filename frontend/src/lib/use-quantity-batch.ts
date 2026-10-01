@@ -81,6 +81,11 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
     return pending.current.size > 0
   }
 
+  /** Whether any edit is unsent or being saved. */
+  function isBusy() {
+    return pending.current.size > 0 || inFlight.current.size > 0
+  }
+
   /**
    * Drop optimistic values for cards with nothing outstanding. Call when fresh
    * server data arrives so stale overrides can't mask it. Not called after a
@@ -106,5 +111,5 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
     debouncer.maybeExecute()
   }
 
-  return { quantities, errors, setQuantity, flush, hasPending, prune }
+  return { quantities, errors, setQuantity, flush, hasPending, isBusy, prune }
 }

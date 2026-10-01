@@ -150,6 +150,28 @@ describe("CollectionEntries", () => {
     )
   })
 
+  it("refetches on window focus only while no quantity edits are pending or saving", async () => {
+    vi.useFakeTimers()
+    setList([{ card, quantity: 3 }])
+    renderEntries()
+    const calls = vi.mocked(useListCollectionEntries).mock.calls
+    const shouldRefetch = () => {
+      // SAFETY: the component passes a function; the test calls it like TanStack Query would.
+      const option = calls.at(-1)?.[2]?.query?.refetchOnWindowFocus as () => boolean
+      return option()
+    }
+
+    expect(shouldRefetch()).toBe(true)
+
+    bulk.mockReturnValue(new Promise(() => {}))
+    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    expect(shouldRefetch()).toBe(false)
+
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenCalledTimes(1)
+    expect(shouldRefetch()).toBe(false)
+  })
+
   it("applies +, - and typed quantities optimistically, then sends one bulk call after the debounce", async () => {
     vi.useFakeTimers()
     setList([{ card, quantity: 3 }])

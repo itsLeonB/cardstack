@@ -23,9 +23,15 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
   const batch = useQuantityBatch(collectionId)
 
   // Always refetch and never keep the entry list around after leaving: a card
-  // taken to 0 stays on screen only until the user comes back.
+  // taken to 0 stays on screen only until the user comes back. Refocusing the
+  // tab counts as coming back, but not while edits are unsent or saving.
   const query = useListCollectionEntries(collectionId, search, {
-    query: { gcTime: 0, refetchOnMount: "always", refetchOnWindowFocus: false, placeholderData: keepPreviousData },
+    query: {
+      gcTime: 0,
+      refetchOnMount: "always",
+      refetchOnWindowFocus: () => !batch.isBusy(),
+      placeholderData: keepPreviousData,
+    },
   })
   const facetsQuery = useListCollectionFacets(collectionId, toFacetParams(search), {
     query: { placeholderData: keepPreviousData },
