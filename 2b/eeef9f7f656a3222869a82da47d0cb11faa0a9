@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/29-fix-stale-collection-card-list-on-focus.md
+  s_e36ed7c93328d6::t_c4e0f87eab9444 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2beeef9f7f656a3222869a82da47d0cb11faa0a9",
+  "prompts": {},
+  "sessions": {
+    "s_e36ed7c93328d6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e36ed7c93328d6",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
