@@ -31,6 +31,11 @@ category?: string[];
  */
 tag?: string[];
 /**
+ * Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page.
+ * @maxItems 100
+ */
+cardId?: string[];
+/**
  * 1-indexed page number.
  * @minimum 1
  */

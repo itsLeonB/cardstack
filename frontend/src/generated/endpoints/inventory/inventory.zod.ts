@@ -14,6 +14,8 @@ export const ListCollectionEntriesParams = zod.object({
   "id": zod.string().describe('Collection ID')
 })
 
+export const listCollectionEntriesQueryCardIdMax = 100;
+
 export const listCollectionEntriesQueryPageDefault = 1;
 
 export const listCollectionEntriesQueryLimitDefault = 24;
@@ -28,6 +30,7 @@ export const ListCollectionEntriesQueryParams = zod.object({
   "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
   "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
   "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).'),
+  "cardId": zod.array(zod.string()).max(listCollectionEntriesQueryCardIdMax).optional().describe('Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page.'),
   "page": zod.int().min(1).default(listCollectionEntriesQueryPageDefault).describe('1-indexed page number.'),
   "limit": zod.int().min(1).max(listCollectionEntriesQueryLimitMax).default(listCollectionEntriesQueryLimitDefault).describe('Page size.')
 })

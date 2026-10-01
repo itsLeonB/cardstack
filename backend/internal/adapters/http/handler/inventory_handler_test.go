@@ -71,3 +71,30 @@ func TestInventoryHandler_BulkUpdate_MissingSession(t *testing.T) {
 	resp := api.Patch("/collections/"+uuid.NewString()+"/entries", map[string]any{"items": []map[string]any{{"cardId": uuid.New(), "quantity": 1}}})
 	assert.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
 }
+
+func TestInventoryHandler_List_CardIDs(t *testing.T) {
+	svc, api, profileID := newTestInventoryHandler(t, true)
+	collectionID, a, b := uuid.New(), uuid.New(), uuid.New()
+	svc.EXPECT().
+		List(mock.Anything, dto.InventoryListRequest{
+			ProfileID: profileID, CollectionID: collectionID,
+			Filter: dto.CardFilter{CardIDs: []uuid.UUID{a, b}, Page: 1, Limit: 24},
+		}).
+		Return([]dto.InventoryItem{}, dto.PaginationMeta{Page: 1, Limit: 24}, nil)
+
+	resp := api.Get("/collections/" + collectionID.String() + "/entries?cardId=" + a.String() + "&cardId=" + b.String())
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+}
+
+func TestInventoryHandler_List_CardIDs_Invalid(t *testing.T) {
+	_, api, _ := newTestInventoryHandler(t, true)
+	path := "/collections/" + uuid.NewString() + "/entries"
+
+	assert.Equal(t, http.StatusBadRequest, api.Get(path+"?cardId=nope").Code)
+
+	q := ""
+	for i := 0; i < 101; i++ {
+		q += "&cardId=" + uuid.NewString()
+	}
+	assert.Equal(t, http.StatusUnprocessableEntity, api.Get(path+"?"+q[1:]).Code)
+}

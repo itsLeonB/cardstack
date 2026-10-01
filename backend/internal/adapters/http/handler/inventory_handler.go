@@ -59,8 +59,9 @@ type bulkUpdateEntriesInput struct {
 type listEntriesInput struct {
 	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
 	CardFilterParams
-	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
-	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+	CardIDs []string `query:"cardId,explode" maxItems:"100" doc:"Only these Cards (repeatable, at most 100), combined with the other filters; use it to fetch quantities for the Cards on a page."`
+	Page    int      `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
+	Limit   int      `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
 }
 
 // listEntryFacetsInput is GET /collections/{id}/facets: the same filters,
@@ -77,6 +78,9 @@ func (h *InventoryHandler) list(ctx context.Context, in listEntriesInput) ([]dto
 	}
 	filter, err := buildCardFilter(in.CardFilterParams)
 	if err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+	if filter.CardIDs, err = parseUUIDs("cardId", in.CardIDs); err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
 	filter.Page, filter.Limit = in.Page, in.Limit

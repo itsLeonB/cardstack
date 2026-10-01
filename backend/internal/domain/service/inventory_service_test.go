@@ -126,6 +126,19 @@ func TestInventoryService_List(t *testing.T) {
 	assert.Equal(t, 3, got[0].Quantity)
 }
 
+func TestInventoryService_List_CardIDs(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	ids := []uuid.UUID{uuid.New(), uuid.New()}
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()
+	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{CollectionID: f.collection.ID, CardIDs: ids, Limit: 24}).
+		Return([]repository.CardResult{}, int64(0), nil).Once()
+
+	_, _, err := f.svc.List(f.ctx, dto.InventoryListRequest{
+		ProfileID: f.profileID, CollectionID: f.collection.ID, Filter: dto.CardFilter{CardIDs: ids},
+	})
+	require.NoError(t, err)
+}
+
 func TestInventoryService_ListFacets_ScopedToCollection(t *testing.T) {
 	f := newInventoryFixture(t, 0)
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()

@@ -15,7 +15,7 @@ type Errors = Record<string, string>
  * first) so that, if capacity runs short, the most recently pressed card is the
  * one declined. `quantities` holds the optimistic value per touched card.
  */
-export function useQuantityBatch(collectionId: string) {
+export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   const [quantities, setQuantities] = useState<Quantities>({})
   const [errors, setErrors] = useState<Errors>({})
   // Map iteration order is insertion order; re-inserting on change keeps it by last change.
@@ -44,6 +44,7 @@ export function useQuantityBatch(collectionId: string) {
         for (const [cardId] of items) revert(cardId, confirmed.current[cardId], message)
         return
       }
+      onSaved?.()
       for (const result of response.data.data ?? []) {
         confirmed.current[result.cardId] = result.quantity
         if (result.status === InventoryChangeResultStatus.declined) {
