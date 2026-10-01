@@ -9,16 +9,19 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-// InventoryRepository is crud.Repository[entity.InventoryEntry] plus the one
-// aggregate go-crud has no equivalent for.
+// InventoryRepository is crud.Repository[entity.InventoryEntry] plus the
+// queries go-crud has no equivalent for: an aggregate (SumQuantity) and an
+// ownership-scoped join on collections (ListHoldings).
 type InventoryRepository interface {
 	crud.Repository[entity.InventoryEntry]
 	// SumQuantity returns the Collection's summed quantity (0 when empty).
 	// It runs in the transaction carried by ctx, if any.
 	SumQuantity(ctx context.Context, collectionID uuid.UUID) (int, error)
 	// ListHoldings returns the profile's Collections that hold the Card, with
-	// the Card's quantity in each, ordered by Collection title. The ownership
-	// filter is part of the query.
+	// the Card's quantity in each, ordered by Collection title. Ownership is
+	// scoped in the query itself via a join on collections: InventoryEntry has
+	// no Collection relation and go-crud's Specification cannot filter on
+	// collections.profile_id, so this is a deliberate exception to using it.
 	ListHoldings(ctx context.Context, profileID, cardID uuid.UUID) ([]CardHolding, error)
 }
 
