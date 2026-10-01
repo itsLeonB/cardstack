@@ -197,6 +197,52 @@ export const ListCollectionFacetsResponse = zod.object({
 })
 
 /**
+ * @summary Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)
+ */
+export const listMasterInventoryQueryPageDefault = 1;
+
+export const listMasterInventoryQueryLimitDefault = 24;
+export const listMasterInventoryQueryLimitMax = 100;
+
+
+
+export const ListMasterInventoryQueryParams = zod.object({
+  "page": zod.int().min(1).default(listMasterInventoryQueryPageDefault).describe('1-indexed page number.'),
+  "limit": zod.int().min(1).max(listMasterInventoryQueryLimitMax).default(listMasterInventoryQueryLimitDefault).describe('Page size.')
+})
+
+export const ListMasterInventoryResponse = zod.object({
+  "data": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}),
+  "quantity": zod.int()
+})).nullable(),
+  "meta": zod.object({
+  "limit": zod.int(),
+  "page": zod.int(),
+  "total": zod.int()
+})
+})
+
+/**
  * @summary List the current user's own Collections that hold a Card, with the quantity in each (empty when none)
  */
 export const ListCardHoldingsParams = zod.object({

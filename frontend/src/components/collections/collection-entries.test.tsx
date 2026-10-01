@@ -18,6 +18,7 @@ import type { CatalogSearch } from "@/lib/catalog-search"
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   getListCollectionEntriesQueryKey: (id: string) => ["entries", id],
+  getListMasterInventoryQueryKey: () => ["inventory"],
   useListCollectionEntries: vi.fn(),
   useListCollectionFacets: vi.fn(),
   bulkUpdateCollectionEntries: vi.fn(),

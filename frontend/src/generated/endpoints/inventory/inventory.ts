@@ -34,6 +34,7 @@ import type {
   ErrorModel,
   ListCollectionEntriesParams,
   ListCollectionFacetsParams,
+  ListMasterInventoryParams,
   UpdateEntryInputBody
 } from '../../models';
 
@@ -756,6 +757,132 @@ export function useListCollectionFacets<TData = Awaited<ReturnType<typeof listCo
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCollectionFacetsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listMasterInventoryResponse200 = {
+  data: EnvelopeWithMetaListInventoryItemPaginationMeta
+  status: 200
+}
+
+export type listMasterInventoryResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listMasterInventoryResponseSuccess = (listMasterInventoryResponse200) & {
+  headers: Headers;
+};
+export type listMasterInventoryResponseError = (listMasterInventoryResponseDefault) & {
+  headers: Headers;
+};
+
+export type listMasterInventoryResponse = (listMasterInventoryResponseSuccess | listMasterInventoryResponseError)
+
+export const getListMasterInventoryUrl = (params?: ListMasterInventoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards`
+}
+
+/**
+ * @summary Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)
+ */
+export const listMasterInventory = async (params?: ListMasterInventoryParams, options?: Parameters<typeof customFetch>[1]): Promise<listMasterInventoryResponse> => {
+
+  return customFetch<listMasterInventoryResponse>(getListMasterInventoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMasterInventoryQueryKey = (params?: ListMasterInventoryParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMasterInventoryQueryOptions = <TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(params?: ListMasterInventoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMasterInventoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMasterInventory>>> = ({ signal }) => listMasterInventory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMasterInventoryQueryResult = NonNullable<Awaited<ReturnType<typeof listMasterInventory>>>
+export type ListMasterInventoryQueryError = ErrorModel
+
+
+export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(
+ params: undefined |  ListMasterInventoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMasterInventory>>,
+          TError,
+          Awaited<ReturnType<typeof listMasterInventory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(
+ params?: ListMasterInventoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMasterInventory>>,
+          TError,
+          Awaited<ReturnType<typeof listMasterInventory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(
+ params?: ListMasterInventoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)
+ */
+
+export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(
+ params?: ListMasterInventoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMasterInventoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
