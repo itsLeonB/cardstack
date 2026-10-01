@@ -1,0 +1,21 @@
+frontend/src/components/collections/collection-entries.test.tsx
+  s_5a080d3c4e526d::t_06c19b30db6f06 175-202
+frontend/src/lib/use-quantity-batch.ts
+  s_5a080d3c4e526d::t_988b3238a49247 27-29,40-42,47-48,55,62-67,71,73-74,80-84,121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8ab606fe80caac0a25879745f5586d0fa0ab5f92",
+  "prompts": {},
+  "sessions": {
+    "s_5a080d3c4e526d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5a080d3c4e526d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
