@@ -1,0 +1,27 @@
+frontend/orval.config.ts
+  s_5690556e2ad340::t_de24d3f955ca22 9-19,23-26,34,39-43
+frontend/src/components/catalog/facet-filters.test.tsx
+  s_5690556e2ad340::t_f01ca32bd73f3e 74,79-98
+frontend/src/components/catalog/facet-filters.tsx
+  s_5690556e2ad340::t_3779033d51c6af 10-20,72,85-93,95-97,101-102,108,116,120,123-130,136-139,145-148
+frontend/src/lib/catalog-search.test.ts
+  s_5690556e2ad340::t_7770e957430b6b 1,24-28
+frontend/src/routes/catalog/search.tsx
+  s_5690556e2ad340::t_07014b8f8b2c86 15,17,30-32,36,57-58,60,92-96,106,108,127,134,156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a03b5a2a8c304a41a0bc969f87726870f26e7dc0",
+  "prompts": {},
+  "sessions": {
+    "s_5690556e2ad340": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5690556e2ad340",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
