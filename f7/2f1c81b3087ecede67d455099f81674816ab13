@@ -1,0 +1,45 @@
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_e4dff3e54c0cae::t_fd47ff262a512c 17
+frontend/src/components/catalog/collection-card-results.tsx
+  s_e4dff3e54c0cae::t_c9f3a5c140fb68 6,27
+frontend/src/components/collections/collection-entries.test.tsx
+  s_e4dff3e54c0cae::t_1c6dc9de6da5ef 21
+frontend/src/components/collections/collection-entries.tsx
+  s_e4dff3e54c0cae::t_7c2e54191fee8a 2,5,24-27
+frontend/src/components/inventory/master-inventory.test.tsx
+  s_e4dff3e54c0cae::t_18189fc3d12c07 1-81
+frontend/src/components/inventory/master-inventory.tsx
+  s_e4dff3e54c0cae::t_92d95a33e3e785 1-34
+frontend/src/generated/endpoints/inventory/inventory.ts
+  s_e4dff3e54c0cae::t_d92ac6dfbff983 37,771-896
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_e4dff3e54c0cae::t_6001cfdf0b65ef 199-244
+frontend/src/generated/models/index.ts
+  s_e4dff3e54c0cae::t_f7c8ff5d8febf7 45
+frontend/src/generated/models/listMasterInventoryParams.ts
+  s_e4dff3e54c0cae::t_64ccf7f6631dac 1-20
+frontend/src/lib/collections.ts
+  s_e4dff3e54c0cae::t_383d36d9082a7e 2,59-60
+frontend/src/routeTree.gen.ts
+  s_e4dff3e54c0cae::t_c4e0f3cd2d233d 18,57-61,115,131,149,167,183,200,267-273,335,344
+frontend/src/routes/_authenticated/account.tsx
+  s_e4dff3e54c0cae::t_cde4680ac83393 36-38
+frontend/src/routes/_authenticated/inventory.tsx
+  s_e4dff3e54c0cae::t_f87eae0e80f9b6 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f72f1c81b3087ecede67d455099f81674816ab13",
+  "prompts": {},
+  "sessions": {
+    "s_e4dff3e54c0cae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e4dff3e54c0cae",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
