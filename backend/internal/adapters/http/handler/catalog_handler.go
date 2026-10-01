@@ -49,60 +49,89 @@ func (h *CatalogHandler) listTags(ctx context.Context, _ listTagsInput) ([]strin
 	return h.catalogSvc.ListTags(ctx)
 }
 
-// searchCardsInput is GET /catalog/cards's query string. Every filter field
-// is optional; an empty/zero value means "don't filter on this facet" (see
-// dto.CardFilter).
-type searchCardsInput struct {
-	Name           string `query:"name" doc:"Case-insensitive substring match on the Card's name."`
-	ExpansionSetID string `query:"expansionSetId" doc:"Only Cards in this Expansion Set."`
-	LocalID        string `query:"localId" doc:"Only the Card with this number within its Expansion Set (e.g. \"001\"), typically combined with expansionSetId."`
-	RarityID       string `query:"rarityId" doc:"Only Cards with this Rarity."`
-	Category       string `query:"category" doc:"Only Cards with this exact category (e.g. Pokémon, Trainer, Energi)."`
-	Tag            string `query:"tag" doc:"Only Cards carrying this tag."`
-	Page           int    `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
-	Limit          int    `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+// CardFilterParams are the filter query parameters shared by GET
+// /catalog/cards and GET /catalog/facets. Every field is optional; an empty
+// value means "don't filter on this facet". The multi-value ones are
+// repeated params (?rarityId=a&rarityId=b): OR within a param, AND across.
+type CardFilterParams struct {
+	Name            string   `query:"name" doc:"Case-insensitive substring match on the Card's name."`
+	ExpansionSetIDs []string `query:"expansionSetId,explode" doc:"Only Cards in any of these Expansion Sets (repeatable)."`
+	LocalID         string   `query:"localId" doc:"Only the Card with this number within its Expansion Set (e.g. \"001\")."`
+	RarityIDs       []string `query:"rarityId,explode" doc:"Only Cards with any of these Rarities (repeatable)."`
+	Categories      []string `query:"category,explode" doc:"Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi)."`
+	Tags            []string `query:"tag,explode" doc:"Only Cards carrying any of these tags (repeatable)."`
 }
 
-// buildCardFilter validates and converts in into a dto.CardFilter,
-// parsing its string ID fields to uuid.UUID up front so an invalid ID is
-// rejected as a 400 before any query runs, rather than surfacing as an
+// searchCardsInput is GET /catalog/cards's query string.
+type searchCardsInput struct {
+	CardFilterParams
+	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
+	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+}
+
+// listFacetsInput is GET /catalog/facets's query string: the same filters
+// as the search, without pagination.
+type listFacetsInput struct {
+	CardFilterParams
+}
+
+func parseUUIDs(param string, raw []string) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	for _, r := range raw {
+		if r == "" {
+			continue
+		}
+		id, err := uuid.Parse(r)
+		if err != nil {
+			return nil, ungerr.BadRequestError("invalid " + param + ": " + r)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// buildCardFilter validates and converts p into a dto.CardFilter, parsing
+// its string ID fields to uuid.UUID up front so an invalid ID is rejected
+// as a 400 before any query runs, rather than surfacing as an
 // empty/mismatched result.
-func buildCardFilter(in searchCardsInput) (dto.CardFilter, error) {
-	filter := dto.CardFilter{
-		Name:     in.Name,
-		LocalID:  in.LocalID,
-		Category: in.Category,
-		Tag:      in.Tag,
-		Page:     in.Page,
-		Limit:    in.Limit,
+func buildCardFilter(p CardFilterParams) (dto.CardFilter, error) {
+	setIDs, err := parseUUIDs("expansionSetId", p.ExpansionSetIDs)
+	if err != nil {
+		return dto.CardFilter{}, err
+	}
+	rarityIDs, err := parseUUIDs("rarityId", p.RarityIDs)
+	if err != nil {
+		return dto.CardFilter{}, err
 	}
 
-	if in.ExpansionSetID != "" {
-		id, err := uuid.Parse(in.ExpansionSetID)
-		if err != nil {
-			return dto.CardFilter{}, ungerr.BadRequestError("invalid expansionSetId: " + in.ExpansionSetID)
-		}
-		filter.ExpansionSetID = id
-	}
-
-	if in.RarityID != "" {
-		id, err := uuid.Parse(in.RarityID)
-		if err != nil {
-			return dto.CardFilter{}, ungerr.BadRequestError("invalid rarityId: " + in.RarityID)
-		}
-		filter.RarityID = id
-	}
-
-	return filter, nil
+	return dto.CardFilter{
+		Name:            p.Name,
+		ExpansionSetIDs: setIDs,
+		LocalID:         p.LocalID,
+		RarityIDs:       rarityIDs,
+		Categories:      p.Categories,
+		Tags:            p.Tags,
+	}, nil
 }
 
 func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) ([]dto.CardSummary, dto.PaginationMeta, error) {
-	filter, err := buildCardFilter(in)
+	filter, err := buildCardFilter(in.CardFilterParams)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
+	filter.Page = in.Page
+	filter.Limit = in.Limit
 
 	return h.catalogSvc.SearchCards(ctx, filter)
+}
+
+func (h *CatalogHandler) listFacets(ctx context.Context, in listFacetsInput) (dto.CatalogFacets, error) {
+	filter, err := buildCardFilter(in.CardFilterParams)
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+
+	return h.catalogSvc.ListFacets(ctx, filter)
 }
 
 // Routes returns every route CatalogHandler exposes, for registration via
@@ -155,6 +184,16 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     false,
 			HandlerFunc: h.searchCards,
+		}),
+		endpoint.New(endpoint.Endpoint[listFacetsInput, dto.CatalogFacets]{
+			OperationID: "list-catalog-facets",
+			Method:      http.MethodGet,
+			Path:        "/catalog/facets",
+			Summary:     "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)",
+			Tags:        []string{"catalog"},
+			SuccessCode: http.StatusOK,
+			Secured:     false,
+			HandlerFunc: h.listFacets,
 		}),
 	}
 }

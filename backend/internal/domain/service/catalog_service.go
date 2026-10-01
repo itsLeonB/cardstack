@@ -7,6 +7,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+	"github.com/itsLeonB/ezutil/v2"
 )
 
 // defaultCardSearchLimit/maxCardSearchLimit bound CardFilter.Limit before it
@@ -43,6 +44,10 @@ type CatalogService interface {
 	// SearchCards returns the page of Cards matching filter, plus that
 	// page's pagination metadata.
 	SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error)
+	// ListFacets returns each filter's available options given filter: the
+	// values on Cards matching every other filter, plus the filter's own
+	// selected values (flagged unavailable when unreachable).
+	ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error)
 }
 
 type catalogService struct {
@@ -129,16 +134,11 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
 	page, limit := normalizePagination(filter.Page, filter.Limit)
 
-	results, total, err := s.repo.SearchCards(ctx, repository.CardFilter{
-		Name:           filter.Name,
-		ExpansionSetID: filter.ExpansionSetID,
-		LocalID:        filter.LocalID,
-		RarityID:       filter.RarityID,
-		Category:       filter.Category,
-		Tag:            filter.Tag,
-		Limit:          limit,
-		Offset:         (page - 1) * limit,
-	})
+	repoFilter := toRepoFilter(filter)
+	repoFilter.Limit = limit
+	repoFilter.Offset = (page - 1) * limit
+
+	results, total, err := s.repo.SearchCards(ctx, repoFilter)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
@@ -152,6 +152,31 @@ func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter)
 		Total: int(total),
 		Page:  page,
 		Limit: limit,
+	}, nil
+}
+
+func toRepoFilter(filter dto.CardFilter) repository.CardFilter {
+	return repository.CardFilter{
+		Name:            filter.Name,
+		ExpansionSetIDs: filter.ExpansionSetIDs,
+		LocalID:         filter.LocalID,
+		RarityIDs:       filter.RarityIDs,
+		Categories:      filter.Categories,
+		Tags:            filter.Tags,
+	}
+}
+
+func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error) {
+	facets, err := s.repo.ListCardFacets(ctx, toRepoFilter(filter))
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+
+	return dto.CatalogFacets{
+		ExpansionSets: ezutil.MapSlice(facets.ExpansionSets, mapper.ToExpansionSetFacetOption),
+		Rarities:      ezutil.MapSlice(facets.Rarities, mapper.ToRarityFacetOption),
+		Categories:    ezutil.MapSlice(facets.Categories, mapper.ToStringFacetOption),
+		Tags:          ezutil.MapSlice(facets.Tags, mapper.ToStringFacetOption),
 	}, nil
 }
 
