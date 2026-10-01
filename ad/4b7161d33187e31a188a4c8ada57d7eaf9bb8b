@@ -1,0 +1,23 @@
+.scratch/frontend-visual-identity/issues/01-app-shell-and-brand.md
+  s_891507b6736ab1::t_d688592de8569c 14
+frontend/src/components/layout/nav-link-item.tsx
+  s_891507b6736ab1::t_fd46385cca4044 22
+frontend/src/components/layout/site-header.test.tsx
+  s_891507b6736ab1::t_e3afdac054cbbf 128,133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ad4b7161d33187e31a188a4c8ada57d7eaf9bb8b",
+  "prompts": {},
+  "sessions": {
+    "s_891507b6736ab1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_891507b6736ab1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
