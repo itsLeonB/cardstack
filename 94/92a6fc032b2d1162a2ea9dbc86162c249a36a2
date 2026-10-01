@@ -1,0 +1,19 @@
+backend/internal/domain/repository/inventory_repository.go
+  s_dc15eeaa382de7::t_4af2e84638ea10 12-14,21-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9492a6fc032b2d1162a2ea9dbc86162c249a36a2",
+  "prompts": {},
+  "sessions": {
+    "s_dc15eeaa382de7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_dc15eeaa382de7",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
