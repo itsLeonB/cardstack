@@ -1,0 +1,23 @@
+.claude/hooks/block-commit-on-main.sh
+  s_5e9517e2e4f524::t_6cc0d3bcf2cc61 1-10
+.claude/settings.json
+  s_5e9517e2e4f524::t_05ff82296fa550 21-29
+docs/agents/orchestration.md
+  s_5e9517e2e4f524::t_8af9a0f16dbe07 14-17,29,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c636a6f2857e3ac7c07b39c9b574b43da877fc90",
+  "prompts": {},
+  "sessions": {
+    "s_5e9517e2e4f524": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5e9517e2e4f524",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
