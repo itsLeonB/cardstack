@@ -74,6 +74,22 @@ describe("FacetFilters", () => {
     expect(screen.queryByRole("group", { name: "Scarlet" })).toBeNull()
   })
 
+  it("keeps a selected value listed when the search does not match it", () => {
+    renderFilters({ ...none, expansionSetId: ["s1"] })
+    open(/^Expansion Set/)
+
+    fireEvent.change(screen.getByLabelText("Search Expansion Set"), { target: { value: "two" } })
+    expect(screen.getByRole("checkbox", { name: /Set One/ })).toHaveProperty("checked", true)
+  })
+
+  it("says so when the search matches nothing", () => {
+    renderFilters()
+    open("Expansion Set")
+
+    fireEvent.change(screen.getByLabelText("Search Expansion Set"), { target: { value: "zzz" } })
+    expect(screen.getByText("No matches")).toBeTruthy()
+  })
+
   it("has no search box on the other dropdowns", () => {
     renderFilters()
     open("Rarity")

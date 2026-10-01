@@ -38,13 +38,16 @@ export function MultiSelect({
 }: MultiSelectProps) {
   const [query, setQuery] = useState("")
   const needle = query.trim().toLowerCase()
+  // Selected options always stay listed so they can be unchecked.
+  const visible = (option: MultiSelectOption) =>
+    selected.includes(option.value) || option.label.toLowerCase().includes(needle)
+  const shown = groups.map((group) => ({ ...group, options: group.options.filter(visible) }))
+  const noMatches = shown.every((group) => group.options.length === 0)
 
   return (
     <Popover onOpenChange={() => setQuery("")}>
       <PopoverTrigger
-        className={cn(
-          "inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 sm:w-fit"
-        )}
+        className="inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 sm:w-fit"
       >
         {label}
         {selected.length > 0 && (
@@ -67,10 +70,9 @@ export function MultiSelect({
           />
         )}
         <div className="flex flex-col gap-3">
-          {groups.map((group) => {
-            const options = group.options.filter((option) =>
-              option.label.toLowerCase().includes(needle)
-            )
+          {noMatches && <p className="text-sm text-muted-foreground">No matches</p>}
+          {shown.map((group) => {
+            const options = group.options
             if (options.length === 0) return null
             return (
               <fieldset key={group.label ?? ""} className="flex min-w-0 flex-col gap-1.5">

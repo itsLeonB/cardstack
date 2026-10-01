@@ -1,17 +1,15 @@
 import { RiCloseLine } from "@remixicon/react"
 import { MultiSelect } from "@/components/ui/multi-select"
-import type { MultiSelectGroup } from "@/components/ui/multi-select"
+import type { MultiSelectGroup, MultiSelectOption } from "@/components/ui/multi-select"
 import type { CatalogFacets } from "@/generated/models"
 
 export type FacetKey = "expansionSetId" | "rarityId" | "category" | "tag"
 export type FacetSelection = Record<FacetKey, string[]>
 
-interface Option {
-  value: string
-  label: string
-  available: boolean
-  seriesId?: string
-}
+type Option = MultiSelectOption & { seriesId?: string }
+
+const valueOptions = (items: { value: string; available: boolean }[]): Option[] =>
+  items.map(({ value, available }) => ({ value, label: value, available }))
 
 // Selected values must never vanish: if the facets call failed or hasn't
 // loaded, show the URL's selection as checked options (labelled by raw value).
@@ -31,8 +29,8 @@ interface FacetFiltersProps {
 }
 
 /**
- * Dropdown multi-selects (with removable chips) for the faceted catalog filters. Options come from the
- * facets endpoint, which already keeps selected-but-unavailable values in the
+ * Dropdown multi-selects (with removable chips) for the faceted catalog
+ * filters. Options come from the facets endpoint, which already keeps selected-but-unavailable values in the
  * list (available: false); they stay checked and enabled so they can be unchecked.
  */
 export function FacetFilters({ facets, series, selected, onChange }: FacetFiltersProps) {
@@ -75,7 +73,7 @@ export function FacetFilters({ facets, series, selected, onChange }: FacetFilter
       label: "Category",
       groups: flat(
         "category",
-        (facets?.categories ?? []).map((c) => ({ value: c.value, label: c.value, available: c.available }))
+        valueOptions(facets?.categories ?? [])
       ),
     },
     {
@@ -83,7 +81,7 @@ export function FacetFilters({ facets, series, selected, onChange }: FacetFilter
       label: "Tag",
       groups: flat(
         "tag",
-        (facets?.tags ?? []).map((t) => ({ value: t.value, label: t.value, available: t.available }))
+        valueOptions(facets?.tags ?? [])
       ),
     },
   ]
@@ -113,16 +111,16 @@ export function FacetFilters({ facets, series, selected, onChange }: FacetFilter
         <div role="group" aria-label="Active filters" className="flex flex-wrap gap-1.5">
           {chips.map((chip) => (
             <button
-                key={`${chip.key}:${chip.value}`}
-                type="button"
-                aria-label={`Remove ${chip.label}`}
-                onClick={() =>
-                  onChange(chip.key, selected[chip.key].filter((value) => value !== chip.value))
-                }
-                className="inline-flex items-center gap-1 rounded-3xl bg-secondary px-2.5 py-1 text-xs text-secondary-foreground outline-none hover:bg-secondary/80 focus-visible:ring-3 focus-visible:ring-ring/30"
+              key={`${chip.key}:${chip.value}`}
+              type="button"
+              aria-label={`Remove ${chip.label}`}
+              onClick={() =>
+                onChange(chip.key, selected[chip.key].filter((value) => value !== chip.value))
+              }
+              className="inline-flex items-center gap-1 rounded-3xl bg-secondary px-2.5 py-1 text-xs text-secondary-foreground outline-none hover:bg-secondary/80 focus-visible:ring-3 focus-visible:ring-ring/30"
               >
-                {chip.label}
-                <RiCloseLine aria-hidden className="size-3" />
+              {chip.label}
+              <RiCloseLine aria-hidden className="size-3" />
               </button>
           ))}
         </div>
