@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/08-card-detail-cross-collection-lookup.md
+  s_9e89a6bf3c84e8::t_f156d16d590440 7,9-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1ad916946701a15b82f5ece72d1d4a6d7221fae1",
+  "prompts": {},
+  "sessions": {
+    "s_9e89a6bf3c84e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_9e89a6bf3c84e8",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
