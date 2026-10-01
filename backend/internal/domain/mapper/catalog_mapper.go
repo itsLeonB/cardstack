@@ -18,6 +18,17 @@ func ToExpansionSetSummary(set entity.ExpansionSet) dto.ExpansionSetSummary {
 	}
 }
 
+// ToSeriesSummary converts an entity.Series plus its already-mapped
+// Expansion Sets into the browsable summary DTO.
+func ToSeriesSummary(sr entity.Series, sets []dto.ExpansionSetSummary) dto.SeriesSummary {
+	return dto.SeriesSummary{ID: sr.ID, Code: sr.Code, Name: sr.Name, ExpansionSets: sets}
+}
+
+// ToRaritySummary converts an entity.Rarity into its summary DTO.
+func ToRaritySummary(r entity.Rarity) dto.RaritySummary {
+	return dto.RaritySummary{ID: r.ID, Code: r.Code, Name: r.Name}
+}
+
 // ToCardSummary converts a repository.CardResult row (a Card already joined
 // with its Rarity and Expansion Set) into the catalog service's search
 // result DTO.
