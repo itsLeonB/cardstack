@@ -13,22 +13,27 @@ export function useCatalogCollection(
   selectedId: string | undefined,
   onSelect: (id: string | undefined) => void
 ) {
-  const { isAuthenticated, isLoading } = useSession()
+  const { isAuthenticated, isLoading, query: session } = useSession()
   const query = useListCollections({ query: { enabled: isAuthenticated } })
   const collections =
     query.data?.status === 200 ? (query.data.data.data ?? []) : []
   const loaded = query.data?.status === 200
   const known = collections.some((collection) => collection.id === selectedId)
 
+  // Only definitive answers clear the selection: not loading, 5xx or network errors.
+  const sessionStatus = session.data?.status
+  const listStatus = query.data?.status
+  const denied = (status?: number) => status === 401 || status === 403
   const invalid =
     selectedId !== undefined &&
-    ((!isLoading && !isAuthenticated) || (loaded && !known))
+    (denied(sessionStatus) || denied(listStatus) || listStatus === 404 || (loaded && !known))
   useEffect(() => {
     if (invalid) onSelect(undefined)
   }, [invalid, onSelect])
 
   return {
     isAuthenticated,
+    isLoading,
     collections,
     selected: known && isAuthenticated ? selectedId : undefined,
   }
@@ -37,11 +42,16 @@ export function useCatalogCollection(
 /** "Add to collection" selector; disabled with a login prompt for guests. */
 export function CollectionPicker({
   isAuthenticated,
+  isLoading = false,
+  loginRedirect = "/catalog/search",
   collections,
   value,
   onChange,
 }: {
   isAuthenticated: boolean
+  isLoading?: boolean
+  /** Same-origin path (with search) to return to after logging in. */
+  loginRedirect?: string
   collections: { id: string; title: string }[]
   value: string | undefined
   onChange: (id: string | undefined) => void
@@ -65,10 +75,10 @@ export function CollectionPicker({
           </option>
         ))}
       </select>
-      {!isAuthenticated && (
+      {!isAuthenticated && !isLoading && (
         <Link
           to="/login"
-          search={{ redirect: "/catalog/search" }}
+          search={{ redirect: loginRedirect }}
           className="text-sm underline-offset-2 hover:underline"
         >
           Log in to add cards to a Collection

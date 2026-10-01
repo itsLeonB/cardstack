@@ -6,7 +6,6 @@ import { CollectionEntries } from "./collection-entries"
 import { QUANTITY_DEBOUNCE_MS } from "@/lib/use-quantity-batch"
 import {
   bulkUpdateCollectionEntries,
-  useAddCollectionEntry,
   useListCollectionEntries,
   useListCollectionFacets,
 } from "@/generated/endpoints/inventory/inventory"
@@ -21,7 +20,6 @@ vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   getListCollectionEntriesQueryKey: (id: string) => ["entries", id],
   useListCollectionEntries: vi.fn(),
   useListCollectionFacets: vi.fn(),
-  useAddCollectionEntry: vi.fn(),
   bulkUpdateCollectionEntries: vi.fn(),
 }))
 // oxlint-disable-next-line anti-slop/no-module-mocking
@@ -56,7 +54,6 @@ const card: CardSummary = {
   rarity: { id: "r-1", code: "RR", name: "Double Rare" },
 }
 
-const add = vi.fn()
 const onSearchChange = vi.fn()
 const bulk = vi.mocked(bulkUpdateCollectionEntries)
 
@@ -92,13 +89,10 @@ async function advance(ms: number) {
 
 describe("CollectionEntries", () => {
   beforeEach(() => {
-    add.mockReset()
     onSearchChange.mockReset()
     bulk.mockReset()
     // SAFETY: partial response; the hook reads only status and data.data.
     bulk.mockResolvedValue({ status: 200, data: { data: [] } } as any)
-    // SAFETY: partial mock; only mutate/isPending are read.
-    vi.mocked(useAddCollectionEntry).mockReturnValue({ mutate: add, isPending: false } as any)
     // SAFETY: partial mock; only status/data/isError are read.
     vi.mocked(useSearchCatalogCards).mockReturnValue({
       isError: false,

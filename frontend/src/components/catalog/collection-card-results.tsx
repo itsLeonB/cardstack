@@ -30,7 +30,8 @@ export function CollectionCardResults({
   const query = useListCollectionEntries(
     collectionId,
     { cardId: cardIds, limit: cardIds.length },
-    { query: { enabled: cardIds.length > 0 } }
+    // gcTime 0 + refetchOnMount: no cached page can show (or seed a revert with) a quantity from before an edit.
+    { query: { enabled: cardIds.length > 0, gcTime: 0, refetchOnMount: "always" } }
   )
   const response = query.data?.status === 200 ? query.data.data : undefined
   const serverQuantities = new Map((response?.data ?? []).map((item) => [item.card.id, item.quantity]))

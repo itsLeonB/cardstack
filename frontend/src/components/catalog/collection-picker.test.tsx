@@ -24,12 +24,21 @@ afterEach(() => cleanup())
 
 const collections = [{ id: "c1", title: "Binder" }]
 
-function setup({ authed, list }: { authed: boolean; list?: unknown }) {
+function setup({
+  authed,
+  list,
+  sessionStatus = authed ? 200 : 401,
+  listStatus = 200,
+}: { authed: boolean; list?: unknown; sessionStatus?: number; listStatus?: number }) {
   // SAFETY: partial mocks; the hook reads only these fields.
-  vi.mocked(useSession).mockReturnValue({ isAuthenticated: authed, isLoading: false } as any)
+  vi.mocked(useSession).mockReturnValue({
+    isAuthenticated: authed,
+    isLoading: false,
+    query: { data: { status: sessionStatus } },
+  } as any)
   // SAFETY: partial mock; only data is read.
   vi.mocked(useListCollections).mockReturnValue({
-    data: list === undefined ? undefined : { status: 200, data: { data: list } },
+    data: list === undefined ? undefined : { status: listStatus, data: { data: list } },
   } as any)
 }
 
@@ -39,6 +48,11 @@ describe("CollectionPicker", () => {
     // SAFETY: the labelled control is a <select>.
     expect((screen.getByLabelText("Add to collection") as HTMLSelectElement).disabled).toBe(true)
     screen.getByText("Log in to add cards to a Collection")
+  })
+
+  it("shows no login prompt while the session loads", () => {
+    render(<CollectionPicker isAuthenticated={false} isLoading collections={[]} value={undefined} onChange={vi.fn()} />)
+    expect(screen.queryByText(/Log in/)).toBeNull()
   })
 
   it("lists Collections and reports the selection when authenticated", () => {
@@ -72,6 +86,20 @@ describe("useCatalogCollection", () => {
     const { result } = renderHook(() => useCatalogCollection("c1", onSelect))
     expect(result.current.selected).toBeUndefined()
     expect(onSelect).toHaveBeenCalledWith(undefined)
+  })
+
+  it("clears when the Collections list is denied", () => {
+    setup({ authed: true, list: null, listStatus: 403 })
+    const onSelect = vi.fn()
+    renderHook(() => useCatalogCollection("c1", onSelect))
+    expect(onSelect).toHaveBeenCalledWith(undefined)
+  })
+
+  it("keeps the selection through a transient server error", () => {
+    setup({ authed: false, sessionStatus: 500 })
+    const onSelect = vi.fn()
+    renderHook(() => useCatalogCollection("c1", onSelect))
+    expect(onSelect).not.toHaveBeenCalled()
   })
 
   it("waits for the list before judging the selection", () => {

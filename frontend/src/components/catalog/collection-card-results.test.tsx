@@ -96,7 +96,7 @@ describe("CollectionCardResults", () => {
     expect(entries).toHaveBeenCalledWith(
       "col-1",
       { cardId: ["card-1"], limit: 1 },
-      expect.objectContaining({ query: { enabled: true } })
+      expect.objectContaining({ query: expect.objectContaining({ enabled: true, gcTime: 0, refetchOnMount: "always" }) })
     )
   })
 
@@ -106,7 +106,7 @@ describe("CollectionCardResults", () => {
     expect(entries).toHaveBeenCalledWith(
       "col-1",
       expect.anything(),
-      expect.objectContaining({ query: { enabled: false } })
+      expect.objectContaining({ query: expect.objectContaining({ enabled: false }) })
     )
   })
 

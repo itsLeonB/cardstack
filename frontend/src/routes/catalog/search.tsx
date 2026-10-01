@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useLocation, useNavigate } from "@tanstack/react-router"
 import { keepPreviousData } from "@tanstack/react-query"
 import {
   getListCatalogFacetsQueryOptions,
@@ -45,6 +45,7 @@ function CatalogSearchPage() {
       void navigate({ search: (prev) => ({ ...prev, collectionId: id }), replace: true }),
     [navigate]
   )
+  const href = useLocation({ select: (location) => location.href })
   const collection = useCatalogCollection(collectionId, selectCollection)
 
   const seriesQuery = useListCatalogSeries()
@@ -104,6 +105,8 @@ function CatalogSearchPage() {
 
       <CollectionPicker
         isAuthenticated={collection.isAuthenticated}
+        isLoading={collection.isLoading}
+        loginRedirect={href}
         collections={collection.collections}
         value={collection.selected}
         onChange={selectCollection}
