@@ -50,3 +50,7 @@
 - Proactive/background token refresh
 - Changing `requireAuth`'s caching behavior
 - Changing token lifetimes
+
+## Comments
+
+The frontend-visual-identity effort (ticket 05) also adds the shadcn `sonner` toast and mounts its toaster in the root. Whichever ticket runs first installs it; if it is already installed and mounted, skip that step and proceed with the rest as written. This ticket still owns the session-expired toast and the refresh logic.
