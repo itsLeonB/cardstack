@@ -125,16 +125,12 @@ describe("SiteHeader", () => {
     ).toBeNull()
   })
 
-  it("mirrors the header links in the footer", async () => {
+  it("renders the footer description without repeating nav links", async () => {
     mockSession("guest")
     await renderShell()
 
     const footer = screen.getByRole("contentinfo")
-    expect(linkNames(within(footer).getByRole("navigation"))).toEqual([
-      "Catalog",
-      "Log in",
-      "Register",
-    ])
+    expect(within(footer).queryByRole("navigation")).toBeNull()
     expect(footer.textContent).toContain("personal MVP")
   })
 })
