@@ -1,0 +1,19 @@
+frontend/src/components/inventory/master-inventory.test.tsx
+  s_cfbba86cd09fa8::t_503ae41d420d1e 38-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e1311f2400c53982facd70524b35e61a0d882008",
+  "prompts": {},
+  "sessions": {
+    "s_cfbba86cd09fa8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cfbba86cd09fa8",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
