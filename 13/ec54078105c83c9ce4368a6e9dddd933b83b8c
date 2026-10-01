@@ -1,0 +1,23 @@
+frontend/src/components/collections/add-cards-link.test.tsx
+  s_7224e6162bdb2c::t_c36363cb121484 1-27
+frontend/src/components/collections/add-cards-link.tsx
+  s_7224e6162bdb2c::t_66cd4d7625cac8 1-10
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_7224e6162bdb2c::t_9dfd8b247841a6 6,43-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "13ec54078105c83c9ce4368a6e9dddd933b83b8c",
+  "prompts": {},
+  "sessions": {
+    "s_7224e6162bdb2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_7224e6162bdb2c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
