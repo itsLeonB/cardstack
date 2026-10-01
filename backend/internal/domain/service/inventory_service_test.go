@@ -451,3 +451,23 @@ func TestInventoryService_BulkUpdate_Rejections(t *testing.T) {
 		assert.ErrorIs(t, err, wantErr)
 	})
 }
+
+func TestInventoryService_ListCardHoldings(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	cardID, collectionID := uuid.New(), uuid.New()
+	f.entries.EXPECT().ListHoldings(f.ctx, f.profileID, cardID).
+		Return([]repository.CardHolding{{CollectionID: collectionID, CollectionTitle: "Binder", Quantity: 3}}, nil).Once()
+
+	got, err := f.svc.ListCardHoldings(f.ctx, dto.CardHoldingsRequest{ProfileID: f.profileID, CardID: cardID})
+	require.NoError(t, err)
+	assert.Equal(t, []dto.CardHolding{{Collection: dto.HoldingCollection{ID: collectionID, Name: "Binder"}, Quantity: 3}}, got)
+}
+
+func TestInventoryService_ListCardHoldings_PropagatesRepositoryError(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	boom := errors.New("boom")
+	f.entries.EXPECT().ListHoldings(f.ctx, f.profileID, mock.Anything).Return(nil, boom).Once()
+
+	_, err := f.svc.ListCardHoldings(f.ctx, dto.CardHoldingsRequest{ProfileID: f.profileID, CardID: uuid.New()})
+	assert.ErrorIs(t, err, boom)
+}

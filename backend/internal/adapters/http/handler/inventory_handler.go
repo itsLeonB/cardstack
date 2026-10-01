@@ -71,6 +71,19 @@ type listEntryFacetsInput struct {
 	CardFilterParams
 }
 
+type cardHoldingsInput struct {
+	CardID uuid.UUID `path:"cardId" doc:"Card ID"`
+}
+
+func (h *InventoryHandler) listHoldings(ctx context.Context, in cardHoldingsInput) ([]dto.CardHolding, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.inventorySvc.ListCardHoldings(ctx, dto.CardHoldingsRequest{ProfileID: profileID, CardID: in.CardID})
+}
+
 func (h *InventoryHandler) list(ctx context.Context, in listEntriesInput) ([]dto.InventoryItem, dto.PaginationMeta, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -164,6 +177,16 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.list,
+		}),
+		endpoint.New(endpoint.Endpoint[cardHoldingsInput, []dto.CardHolding]{
+			OperationID: "list-card-holdings",
+			Method:      http.MethodGet,
+			Path:        "/inventory/cards/{cardId}/holdings",
+			Summary:     "List the current user's own Collections that hold a Card, with the quantity in each (empty when none)",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.listHoldings,
 		}),
 		endpoint.New(endpoint.Endpoint[listEntryFacetsInput, dto.CatalogFacets]{
 			OperationID: "list-collection-facets",

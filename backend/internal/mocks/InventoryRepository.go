@@ -12,6 +12,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	repository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+
 	uuid "github.com/google/uuid"
 )
 
@@ -408,6 +410,66 @@ func (_c *MockInventoryRepository_InsertMany_Call) Return(_a0 []entity.Inventory
 }
 
 func (_c *MockInventoryRepository_InsertMany_Call) RunAndReturn(run func(context.Context, []entity.InventoryEntry) ([]entity.InventoryEntry, error)) *MockInventoryRepository_InsertMany_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListHoldings provides a mock function with given fields: ctx, profileID, cardID
+func (_m *MockInventoryRepository) ListHoldings(ctx context.Context, profileID uuid.UUID, cardID uuid.UUID) ([]repository.CardHolding, error) {
+	ret := _m.Called(ctx, profileID, cardID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListHoldings")
+	}
+
+	var r0 []repository.CardHolding
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) ([]repository.CardHolding, error)); ok {
+		return rf(ctx, profileID, cardID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) []repository.CardHolding); ok {
+		r0 = rf(ctx, profileID, cardID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]repository.CardHolding)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = rf(ctx, profileID, cardID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryRepository_ListHoldings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListHoldings'
+type MockInventoryRepository_ListHoldings_Call struct {
+	*mock.Call
+}
+
+// ListHoldings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileID uuid.UUID
+//   - cardID uuid.UUID
+func (_e *MockInventoryRepository_Expecter) ListHoldings(ctx interface{}, profileID interface{}, cardID interface{}) *MockInventoryRepository_ListHoldings_Call {
+	return &MockInventoryRepository_ListHoldings_Call{Call: _e.mock.On("ListHoldings", ctx, profileID, cardID)}
+}
+
+func (_c *MockInventoryRepository_ListHoldings_Call) Run(run func(ctx context.Context, profileID uuid.UUID, cardID uuid.UUID)) *MockInventoryRepository_ListHoldings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockInventoryRepository_ListHoldings_Call) Return(_a0 []repository.CardHolding, _a1 error) *MockInventoryRepository_ListHoldings_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInventoryRepository_ListHoldings_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) ([]repository.CardHolding, error)) *MockInventoryRepository_ListHoldings_Call {
 	_c.Call.Return(run)
 	return _c
 }

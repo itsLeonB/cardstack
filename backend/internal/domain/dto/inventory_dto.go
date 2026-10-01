@@ -72,3 +72,21 @@ const (
 	InventoryReasonCapacityExceeded = "capacity_exceeded"
 	InventoryReasonCardNotFound     = "card_not_found"
 )
+
+// CardHoldingsRequest lists which of a profile's Collections hold a Card.
+type CardHoldingsRequest struct {
+	ProfileID uuid.UUID
+	CardID    uuid.UUID
+}
+
+// HoldingCollection identifies the Collection of a CardHolding.
+type HoldingCollection struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// CardHolding is the quantity of a Card in one Collection.
+type CardHolding struct {
+	Collection HoldingCollection `json:"collection"`
+	Quantity   int               `json:"quantity"`
+}

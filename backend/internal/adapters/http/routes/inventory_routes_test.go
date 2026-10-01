@@ -339,3 +339,32 @@ func TestInventoryFilterAndFacetsFlow(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, api.Get(base+"/facets", cookieHeader(other)).Code)
 	assert.Equal(t, http.StatusUnauthorized, api.Get(base+"/facets").Code)
 }
+
+// TestCardHoldingsFlow: holdings list only the caller's own Collections, and
+// are empty (not an error) for a user who holds nothing.
+func TestCardHoldingsFlow(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+	card := newTestCards(t, 1)[0]
+	path := "/inventory/cards/" + card.String() + "/holdings"
+
+	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	assert.Equal(t, http.StatusUnauthorized, api.Get(path).Code)
+
+	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder"})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	resp := api.Post("/collections/"+created.Data.ID+"/entries", cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": card, "quantity": 4})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+
+	resp = api.Get(path, cookieHeader(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.JSONEq(t, `{"data":[{"collection":{"id":"`+created.Data.ID+`","name":"Binder"},"quantity":4}]}`, resp.Body.String())
+
+	resp = api.Get(path, cookieHeader(other))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.JSONEq(t, `{"data":[]}`, resp.Body.String())
+}

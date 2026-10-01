@@ -98,3 +98,21 @@ func TestInventoryHandler_List_CardIDs_Invalid(t *testing.T) {
 	}
 	assert.Equal(t, http.StatusUnprocessableEntity, api.Get(path+"?"+q[1:]).Code)
 }
+
+func TestInventoryHandler_ListCardHoldings(t *testing.T) {
+	svc, api, profileID := newTestInventoryHandler(t, true)
+	cardID, collectionID := uuid.New(), uuid.New()
+	svc.EXPECT().
+		ListCardHoldings(mock.Anything, dto.CardHoldingsRequest{ProfileID: profileID, CardID: cardID}).
+		Return([]dto.CardHolding{{Collection: dto.HoldingCollection{ID: collectionID, Name: "Binder"}, Quantity: 2}}, nil)
+
+	resp := api.Get("/inventory/cards/" + cardID.String() + "/holdings")
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.JSONEq(t, `{"data":[{"collection":{"id":"`+collectionID.String()+`","name":"Binder"},"quantity":2}]}`, resp.Body.String())
+}
+
+func TestInventoryHandler_ListCardHoldings_MissingSession(t *testing.T) {
+	_, api, _ := newTestInventoryHandler(t, false)
+
+	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards/"+uuid.NewString()+"/holdings").Code)
+}
