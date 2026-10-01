@@ -1,0 +1,37 @@
+backend/internal/adapters/http/handler/catalog_handler.go
+  s_fbfb9e0938577e::t_53097afb21eb87 52-65,67-69,72-76,78-81,83,85,87-88,90-101,104-111,115,119-120,125-133,185-194
+backend/internal/adapters/http/handler/catalog_handler_test.go
+  s_fbfb9e0938577e::t_8b9d5f4514aefc 113-120,198-247
+backend/internal/domain/dto/catalog_dto.go
+  s_fbfb9e0938577e::t_77581aa45cfcaf 63-66,68-106
+backend/internal/domain/repository/catalog_repository.go
+  s_fbfb9e0938577e::t_488b7100527128 4,7,53-56,152-154,156-188,233-237,242-243,248-249,251-252,254,256-266,299-385
+backend/internal/domain/repository/catalog_repository_test.go
+  s_fbfb9e0938577e::t_28bc0bcb5b26c7 11-12,342,403,419,443,453,463,473,483,491,501,510-649
+backend/internal/domain/service/catalog_service.go
+  s_fbfb9e0938577e::t_e9d8fad2e50d6b 10,47-50,137-141,158-194
+backend/internal/domain/service/catalog_service_test.go
+  s_fbfb9e0938577e::t_d5c6296337d357 14-15,257-324
+backend/internal/mocks/CatalogRepository.go
+  s_fbfb9e0938577e::t_e58135cc3e58f3 29-85
+backend/internal/mocks/CatalogService.go
+  s_fbfb9e0938577e::t_193c2af42a50c6 83-139
+backend/openapi.json
+  s_fbfb9e0938577e::t_0a965d0f204792 132-179,242-253,498-528,694-717,818-833,1088-1089,1093-1100,1104,1109,1114-1115,1119-1126,1130-1131,1135-1142,1146-1147,1151-1158,1256-1372
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f906977ee21f573266a43dd312a68bb81a9405af",
+  "prompts": {},
+  "sessions": {
+    "s_fbfb9e0938577e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fbfb9e0938577e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
