@@ -29,7 +29,7 @@ function CardDetailPage() {
   const failed = query.isError || (query.data !== undefined && query.data.status !== 200)
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <Link
         to="/catalog/sets/$expansionSetId"
         params={{ expansionSetId }}
@@ -52,6 +52,6 @@ function CardDetailPage() {
           <CardHoldings cardId={card.id} />
         </div>
       )}
-    </main>
+    </div>
   )
 }

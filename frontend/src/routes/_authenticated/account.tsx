@@ -27,7 +27,7 @@ function AccountPage() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col gap-4 p-6">
+    <div className="flex flex-col gap-4 p-6">
       <h1 className="font-medium">Account</h1>
       {user && <p>Logged in as {user.email}</p>}
       <Link to="/collections" className="w-fit text-sm text-primary underline">

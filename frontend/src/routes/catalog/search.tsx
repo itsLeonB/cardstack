@@ -86,7 +86,7 @@ function CatalogSearchPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-8 p-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6">
       <header className="flex flex-col gap-2">
         <h1 className="font-heading text-2xl font-medium">Search the catalog</h1>
         <p className="text-sm text-muted-foreground">
@@ -117,6 +117,6 @@ function CatalogSearchPage() {
       ) : (
         <CardResults {...resultsProps} />
       )}
-    </main>
+    </div>
   )
 }

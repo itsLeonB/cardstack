@@ -26,7 +26,7 @@ function CollectionPage() {
   const loadError = errorDetail(query.data, "Could not load this Collection.")
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
       <Link
         to="/collections"
         className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
@@ -61,6 +61,6 @@ function CollectionPage() {
           />
         </>
       )}
-    </main>
+    </div>
   )
 }
