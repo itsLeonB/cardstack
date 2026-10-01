@@ -1,66 +1,42 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import type { z } from "zod"
+import { keepPreviousData } from "@tanstack/react-query"
 import { RiSearchLine } from "@remixicon/react"
 import {
-  getListCatalogCategoriesQueryOptions,
-  getListCatalogRaritiesQueryOptions,
+  getListCatalogFacetsQueryOptions,
   getListCatalogSeriesQueryOptions,
-  getListCatalogTagsQueryOptions,
   getSearchCatalogCardsQueryOptions,
-  useListCatalogCategories,
-  useListCatalogRarities,
+  useListCatalogFacets,
   useListCatalogSeries,
-  useListCatalogTags,
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
-import { SearchCatalogCardsQueryParams } from "@/generated/endpoints/catalog/catalog.zod"
 import { CardResults } from "@/components/catalog/card-results"
+import { FacetFilters } from "@/components/catalog/facet-filters"
+import type { FacetKey } from "@/components/catalog/facet-filters"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { catalogSearchSchema } from "@/lib/catalog-search"
+import type { CatalogSearch } from "@/lib/catalog-search"
 
-// Derived from orval's generated SearchCatalogCardsQueryParams rather than
-// hand-duplicated: same fields/bounds as the backend actually enforces, one
-// definition to keep in sync. `limit` is omitted since this search UI has
-// no page-size control — CardResults gets `limit` from the query response.
-// The `.min(1)` refinements the previous hand-written schema had aren't
-// reinstated: every UI control here (Select/Input handlers below) already
-// converts an empty value to `undefined` before it reaches `navigate`, so
-// an empty-string search param is not something this page's own UI can
-// produce; a hand-crafted URL with `?name=` is an edge case the generated
-// schema and the backend are both fine accepting as a no-op filter.
-const catalogSearchSchema = SearchCatalogCardsQueryParams.omit({ limit: true })
-
-type CatalogSearch = z.infer<typeof catalogSearchSchema>
+// Facets take the same filters as the card search, minus pagination.
+function toFacetParams({ page: _page, ...filters }: CatalogSearch) {
+  return filters
+}
 
 export const Route = createFileRoute("/catalog/search")({
   validateSearch: catalogSearchSchema,
   loaderDeps: ({ search }) => search,
-  // Only the card search itself is required for this route to render —
-  // series/rarities/categories/tags just populate filter dropdowns, so a
-  // transport-level failure on one of those (customFetch only rejects on
-  // an actual fetch/parse failure, never on a non-2xx response) shouldn't
-  // fail the whole page via Promise.all. Each optional query still gets
-  // fetched and cached when it succeeds; on failure the component's own
-  // useListCatalog*() hooks fetch it themselves and degrade that one
-  // filter, rather than blocking the results the user actually asked for.
+  // Only the card search itself is required for this route to render:
+  // series names and facets just populate the filters, so a transport-level
+  // failure on either degrades the filters instead of blocking the results.
   loader: ({ context: { queryClient }, deps }) =>
     Promise.all([
       queryClient.ensureQueryData(getSearchCatalogCardsQueryOptions(deps)),
       queryClient.ensureQueryData(getListCatalogSeriesQueryOptions()).catch(() => undefined),
-      queryClient.ensureQueryData(getListCatalogRaritiesQueryOptions()).catch(() => undefined),
-      queryClient.ensureQueryData(getListCatalogCategoriesQueryOptions()).catch(() => undefined),
-      queryClient.ensureQueryData(getListCatalogTagsQueryOptions()).catch(() => undefined),
+      queryClient
+        .ensureQueryData(getListCatalogFacetsQueryOptions(toFacetParams(deps)))
+        .catch(() => undefined),
     ]),
   component: CatalogSearchPage,
 })
@@ -73,19 +49,13 @@ function CatalogSearchPage() {
   const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
 
   const seriesQuery = useListCatalogSeries()
-  const raritiesQuery = useListCatalogRarities()
-  const categoriesQuery = useListCatalogCategories()
-  const tagsQuery = useListCatalogTags()
+  const facetsQuery = useListCatalogFacets(toFacetParams(search), {
+    query: { placeholderData: keepPreviousData },
+  })
   const cardsQuery = useSearchCatalogCards(search)
 
-  const seriesBrowseResult =
-    seriesQuery.data?.status === 200 ? seriesQuery.data.data.data : undefined
-  const series = seriesBrowseResult?.series ?? []
-  const ungroupedExpansionSets = seriesBrowseResult?.ungroupedExpansionSets ?? []
-  const rarities = raritiesQuery.data?.status === 200 ? (raritiesQuery.data.data.data ?? []) : []
-  const categories =
-    categoriesQuery.data?.status === 200 ? (categoriesQuery.data.data.data ?? []) : []
-  const tags = tagsQuery.data?.status === 200 ? (tagsQuery.data.data.data ?? []) : []
+  const series = seriesQuery.data?.status === 200 ? (seriesQuery.data.data.data?.series ?? []) : []
+  const facets = facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
 
   const result = cardsQuery.data?.status === 200 ? cardsQuery.data.data : undefined
   const cardsErrorMessage =
@@ -119,12 +89,16 @@ function CatalogSearchPage() {
 
   const hasActiveFilters = Boolean(
     search.name ||
-      search.expansionSetId ||
       search.localId ||
-      search.rarityId ||
-      search.category ||
-      search.tag
+      search.expansionSetId?.length ||
+      search.rarityId?.length ||
+      search.category?.length ||
+      search.tag?.length
   )
+
+  function handleFacetChange(key: FacetKey, values: string[]) {
+    updateSearch({ [key]: values.length > 0 ? values : undefined })
+  }
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 p-6">
@@ -161,139 +135,17 @@ function CatalogSearchPage() {
             </Field>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="catalog-search-set">Expansion Set</FieldLabel>
-              <Select
-                items={[
-                  { label: "Any Expansion Set", value: null },
-                  ...series.flatMap((oneSeries) =>
-                    (oneSeries.expansionSets ?? []).map((set) => ({
-                      label: `${set.name} (${set.code})`,
-                      value: set.id,
-                    }))
-                  ),
-                  ...ungroupedExpansionSets.map((set) => ({
-                    label: `${set.name} (${set.code}) · Ungrouped`,
-                    value: set.id,
-                  })),
-                ]}
-                value={search.expansionSetId ?? null}
-                onValueChange={(value) =>
-                  updateSearch({ expansionSetId: value ?? undefined })
-                }
-              >
-                <SelectTrigger id="catalog-search-set" className="w-full">
-                  <SelectValue placeholder="Any Expansion Set" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={null}>Any Expansion Set</SelectItem>
-                  </SelectGroup>
-                  {series.map((oneSeries) => (
-                    <SelectGroup key={oneSeries.id}>
-                      <SelectLabel>{oneSeries.name}</SelectLabel>
-                      {(oneSeries.expansionSets ?? []).map((set) => (
-                        <SelectItem key={set.id} value={set.id}>
-                          {set.name} ({set.code})
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                  {ungroupedExpansionSets.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Ungrouped</SelectLabel>
-                      {ungroupedExpansionSets.map((set) => (
-                        <SelectItem key={set.id} value={set.id}>
-                          {set.name} ({set.code})
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="catalog-search-rarity">Rarity</FieldLabel>
-              <Select
-                items={[
-                  { label: "Any rarity", value: null },
-                  ...rarities.map((rarity) => ({ label: rarity.name, value: rarity.id })),
-                ]}
-                value={search.rarityId ?? null}
-                onValueChange={(value) => updateSearch({ rarityId: value ?? undefined })}
-              >
-                <SelectTrigger id="catalog-search-rarity" className="w-full">
-                  <SelectValue placeholder="Any rarity" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={null}>Any rarity</SelectItem>
-                    {rarities.map((rarity) => (
-                      <SelectItem key={rarity.id} value={rarity.id}>
-                        {rarity.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="catalog-search-category">Category</FieldLabel>
-              <Select
-                items={[
-                  { label: "Any category", value: null },
-                  ...categories.map((category) => ({ label: category, value: category })),
-                ]}
-                value={search.category ?? null}
-                onValueChange={(value) => updateSearch({ category: value ?? undefined })}
-              >
-                <SelectTrigger id="catalog-search-category" className="w-full">
-                  <SelectValue placeholder="Any category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={null}>Any category</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="catalog-search-tag">Tag</FieldLabel>
-              <Select
-                items={[
-                  { label: "Any tag", value: null },
-                  ...tags.map((tag) => ({ label: tag, value: tag })),
-                ]}
-                value={search.tag ?? null}
-                onValueChange={(value) => updateSearch({ tag: value ?? undefined })}
-              >
-                <SelectTrigger id="catalog-search-tag" className="w-full">
-                  <SelectValue placeholder="Any tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={null}>Any tag</SelectItem>
-                    {tags.map((tag) => (
-                      <SelectItem key={tag} value={tag}>
-                        {tag}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
+          <FacetFilters
+            facets={facets}
+            series={series}
+            selected={{
+              expansionSetId: search.expansionSetId ?? [],
+              rarityId: search.rarityId ?? [],
+              category: search.category ?? [],
+              tag: search.tag ?? [],
+            }}
+            onChange={handleFacetChange}
+          />
 
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit">

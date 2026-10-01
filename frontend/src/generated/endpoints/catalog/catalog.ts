@@ -20,11 +20,13 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  EnvelopeCatalogFacets,
   EnvelopeListRaritySummary,
   EnvelopeListString,
   EnvelopeSeriesBrowseResult,
   EnvelopeWithMetaListCardSummaryPaginationMeta,
   ErrorModel,
+  ListCatalogFacetsParams,
   SearchCatalogCardsParams
 } from '../../models';
 
@@ -80,6 +82,14 @@ export const getSearchCatalogCardsUrl = (params?: SearchCatalogCardsParams,) => 
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
 
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : String(value))
@@ -291,6 +301,140 @@ export function useListCatalogCategories<TData = Awaited<ReturnType<typeof listC
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCatalogCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listCatalogFacetsResponse200 = {
+  data: EnvelopeCatalogFacets
+  status: 200
+}
+
+export type listCatalogFacetsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listCatalogFacetsResponseSuccess = (listCatalogFacetsResponse200) & {
+  headers: Headers;
+};
+export type listCatalogFacetsResponseError = (listCatalogFacetsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listCatalogFacetsResponse = (listCatalogFacetsResponseSuccess | listCatalogFacetsResponseError)
+
+export const getListCatalogFacetsUrl = (params?: ListCatalogFacetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/catalog/facets?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/catalog/facets`
+}
+
+/**
+ * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)
+ */
+export const listCatalogFacets = async (params?: ListCatalogFacetsParams, options?: Parameters<typeof customFetch>[1]): Promise<listCatalogFacetsResponse> => {
+
+  return customFetch<listCatalogFacetsResponse>(getListCatalogFacetsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCatalogFacetsQueryKey = (params?: ListCatalogFacetsParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/catalog/facets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCatalogFacetsQueryOptions = <TData = Awaited<ReturnType<typeof listCatalogFacets>>, TError = ErrorModel>(params?: ListCatalogFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCatalogFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCatalogFacetsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCatalogFacets>>> = ({ signal }) => listCatalogFacets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCatalogFacets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCatalogFacetsQueryResult = NonNullable<Awaited<ReturnType<typeof listCatalogFacets>>>
+export type ListCatalogFacetsQueryError = ErrorModel
+
+
+export function useListCatalogFacets<TData = Awaited<ReturnType<typeof listCatalogFacets>>, TError = ErrorModel>(
+ params: undefined |  ListCatalogFacetsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCatalogFacets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCatalogFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listCatalogFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCatalogFacets<TData = Awaited<ReturnType<typeof listCatalogFacets>>, TError = ErrorModel>(
+ params?: ListCatalogFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCatalogFacets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCatalogFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listCatalogFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCatalogFacets<TData = Awaited<ReturnType<typeof listCatalogFacets>>, TError = ErrorModel>(
+ params?: ListCatalogFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCatalogFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)
+ */
+
+export function useListCatalogFacets<TData = Awaited<ReturnType<typeof listCatalogFacets>>, TError = ErrorModel>(
+ params?: ListCatalogFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCatalogFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCatalogFacetsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

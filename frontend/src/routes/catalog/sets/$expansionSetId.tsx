@@ -18,7 +18,7 @@ export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
   loader: ({ context: { queryClient }, params, deps }) =>
     queryClient.ensureQueryData(
       getSearchCatalogCardsQueryOptions({
-        expansionSetId: params.expansionSetId,
+        expansionSetId: [params.expansionSetId],
         page: deps.page,
       })
     ),
@@ -30,7 +30,10 @@ function ExpansionSetCardsPage() {
   const { page } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
 
-  const query = useSearchCatalogCards({ expansionSetId, page })
+  const query = useSearchCatalogCards({
+    expansionSetId: [expansionSetId],
+    page,
+  })
   const result = query.data?.status === 200 ? query.data.data : undefined
   const cards = result?.data ?? []
   const firstCard = cards[0]
@@ -77,7 +80,7 @@ function ExpansionSetCardsPage() {
       {result && result.meta.total > 0 && (
         <Link
           to="/catalog/search"
-          search={{ expansionSetId, page: 1 }}
+          search={{ expansionSetId: [expansionSetId], page: 1 }}
           className="w-fit text-sm text-primary underline-offset-2 hover:underline"
         >
           Search within this set
