@@ -1,0 +1,19 @@
+frontend/src/components/collections/quantity-control.tsx
+  s_1010bbdc6f6e06::t_c569f7330a24c6 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8f37518f3ad74b825897bf137cc329ec8ebf5aeb",
+  "prompts": {},
+  "sessions": {
+    "s_1010bbdc6f6e06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1010bbdc6f6e06",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
