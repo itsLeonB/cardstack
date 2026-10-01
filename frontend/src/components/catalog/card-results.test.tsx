@@ -155,4 +155,21 @@ describe("CardResults", () => {
       screen.getByRole("button", { name: /next/i }).hasAttribute("disabled")
     ).toBe(false)
   })
+
+  it("renders the per-card control slot inside each tile", () => {
+    render(
+      <CardResults
+        cards={[card]}
+        total={1}
+        page={1}
+        limit={24}
+        isPending={false}
+        isError={false}
+        emptyMessage="No cards"
+        onPageChange={vi.fn()}
+        renderControl={(c) => <button type="button">Control for {c.name}</button>}
+      />
+    )
+    expect(screen.getByRole("button", { name: "Control for Pikachu V" })).toBeTruthy()
+  })
 })

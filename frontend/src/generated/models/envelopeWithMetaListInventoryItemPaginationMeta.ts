@@ -5,8 +5,10 @@
  * OpenAPI spec version: 1.0
  */
 import type { InventoryItem } from './inventoryItem.ts';
+import type { PaginationMeta } from './paginationMeta.ts';
 
-export interface EnvelopeListInventoryItem {
+export interface EnvelopeWithMetaListInventoryItemPaginationMeta {
   /** @nullable */
   data: InventoryItem[] | null;
+  meta: PaginationMeta;
 }

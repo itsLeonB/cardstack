@@ -8,10 +8,28 @@ import * as zod from 'zod';
 
 
 /**
- * @summary List the Cards and quantities in one of the current user's own Collections
+ * @summary Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters
  */
 export const ListCollectionEntriesParams = zod.object({
   "id": zod.string().describe('Collection ID')
+})
+
+export const listCollectionEntriesQueryPageDefault = 1;
+
+export const listCollectionEntriesQueryLimitDefault = 24;
+export const listCollectionEntriesQueryLimitMax = 100;
+
+
+
+export const ListCollectionEntriesQueryParams = zod.object({
+  "name": zod.string().optional().describe('Case-insensitive substring match on the Card\'s name.'),
+  "expansionSetId": zod.array(zod.string()).optional().describe('Only Cards in any of these Expansion Sets (repeatable).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
+  "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).'),
+  "page": zod.int().min(1).default(listCollectionEntriesQueryPageDefault).describe('1-indexed page number.'),
+  "limit": zod.int().min(1).max(listCollectionEntriesQueryLimitMax).default(listCollectionEntriesQueryLimitDefault).describe('Page size.')
 })
 
 export const ListCollectionEntriesResponse = zod.object({
@@ -37,7 +55,12 @@ export const ListCollectionEntriesResponse = zod.object({
   "tags": zod.array(zod.string()).nullable()
 }),
   "quantity": zod.int()
-})).nullable()
+})).nullable(),
+  "meta": zod.object({
+  "limit": zod.int(),
+  "page": zod.int(),
+  "total": zod.int()
+})
 })
 
 /**
@@ -124,6 +147,49 @@ export const UpdateCollectionEntryResponse = zod.object({
   "data": zod.object({
   "cardId": zod.string(),
   "quantity": zod.int()
+})
+})
+
+/**
+ * @summary List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)
+ */
+export const ListCollectionFacetsParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+export const ListCollectionFacetsQueryParams = zod.object({
+  "name": zod.string().optional().describe('Case-insensitive substring match on the Card\'s name.'),
+  "expansionSetId": zod.array(zod.string()).optional().describe('Only Cards in any of these Expansion Sets (repeatable).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
+  "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).')
+})
+
+export const ListCollectionFacetsResponse = zod.object({
+  "data": zod.object({
+  "categories": zod.array(zod.object({
+  "available": zod.boolean(),
+  "value": zod.string()
+})).nullable(),
+  "expansionSets": zod.array(zod.object({
+  "available": zod.boolean(),
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional(),
+  "seriesId": zod.string().optional()
+})).nullable(),
+  "rarities": zod.array(zod.object({
+  "available": zod.boolean(),
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+})).nullable(),
+  "tags": zod.array(zod.object({
+  "available": zod.boolean(),
+  "value": zod.string()
+})).nullable()
 })
 })
 
