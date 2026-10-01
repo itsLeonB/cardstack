@@ -5,7 +5,7 @@
  * OpenAPI spec version: 1.0
  */
 
-export type SearchCatalogCardsParams = {
+export type ListCatalogFacetsParams = {
 /**
  * Case-insensitive substring match on the Card's name.
  */
@@ -30,15 +30,4 @@ category?: string[];
  * Only Cards carrying any of these tags (repeatable).
  */
 tag?: string[];
-/**
- * 1-indexed page number.
- * @minimum 1
- */
-page?: number;
-/**
- * Page size.
- * @minimum 1
- * @maximum 100
- */
-limit?: number;
 };

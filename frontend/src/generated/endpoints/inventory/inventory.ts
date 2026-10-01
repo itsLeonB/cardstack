@@ -25,7 +25,9 @@ import type {
 
 import type {
   AddEntryInputBody,
+  BulkUpdateEntriesInputBody,
   EnvelopeInventoryEntry,
+  EnvelopeListInventoryChangeResult,
   EnvelopeListInventoryItem,
   ErrorModel,
   UpdateEntryInputBody
@@ -179,7 +181,114 @@ export function useListCollectionEntries<TData = Awaited<ReturnType<typeof listC
 
 
 
-export type addCollectionEntryResponse201 = {
+export type bulkUpdateCollectionEntriesResponse200 = {
+  data: EnvelopeListInventoryChangeResult
+  status: 200
+}
+
+export type bulkUpdateCollectionEntriesResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type bulkUpdateCollectionEntriesResponseSuccess = (bulkUpdateCollectionEntriesResponse200) & {
+  headers: Headers;
+};
+export type bulkUpdateCollectionEntriesResponseError = (bulkUpdateCollectionEntriesResponseDefault) & {
+  headers: Headers;
+};
+
+export type bulkUpdateCollectionEntriesResponse = (bulkUpdateCollectionEntriesResponseSuccess | bulkUpdateCollectionEntriesResponseError)
+
+export const getBulkUpdateCollectionEntriesUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`
+}
+
+/**
+ * @summary Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied
+ */
+export const bulkUpdateCollectionEntries = async (id: string,
+    bulkUpdateEntriesInputBody: BulkUpdateEntriesInputBody, options?: Parameters<typeof customFetch>[1]): Promise<bulkUpdateCollectionEntriesResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<bulkUpdateCollectionEntriesResponse>(getBulkUpdateCollectionEntriesUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkUpdateEntriesInputBody)
+  }
+);}
+
+
+
+
+
+export const getBulkUpdateCollectionEntriesMutationKey = () => ['bulkUpdateCollectionEntries'] as const;
+
+export const getBulkUpdateCollectionEntriesMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateCollectionEntries>>, TError,BulkUpdateCollectionEntriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateCollectionEntries>>, TError,BulkUpdateCollectionEntriesMutationVariables, TContext> => {
+
+const mutationKey = getBulkUpdateCollectionEntriesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateCollectionEntries>>, BulkUpdateCollectionEntriesMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  bulkUpdateCollectionEntries(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateCollectionEntriesMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateCollectionEntries>>>
+    export type BulkUpdateCollectionEntriesMutationBody = BulkUpdateEntriesInputBody
+    export type BulkUpdateCollectionEntriesMutationError = ErrorModel
+    export type BulkUpdateCollectionEntriesMutationVariables = {id: string;data: BulkUpdateEntriesInputBody}
+
+    /**
+ * @summary Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied
+ */
+export const useBulkUpdateCollectionEntries = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateCollectionEntries>>, TError,BulkUpdateCollectionEntriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateCollectionEntries>>,
+        TError,
+        BulkUpdateCollectionEntriesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkUpdateCollectionEntriesMutationOptions(options), queryClient);
+    }
+    export type addCollectionEntryResponse201 = {
   data: EnvelopeInventoryEntry
   status: 201
 }

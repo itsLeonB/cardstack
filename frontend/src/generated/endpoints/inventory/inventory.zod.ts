@@ -41,6 +41,37 @@ export const ListCollectionEntriesResponse = zod.object({
 })
 
 /**
+ * @summary Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied
+ */
+export const BulkUpdateCollectionEntriesParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+export const bulkUpdateCollectionEntriesBodyItemsItemQuantityMin = 0;
+export const bulkUpdateCollectionEntriesBodyItemsItemQuantityMax = 2147483647;
+
+export const bulkUpdateCollectionEntriesBodyItemsMax = 100;
+
+
+
+export const BulkUpdateCollectionEntriesBody = zod.object({
+  "items": zod.array(zod.object({
+  "cardId": zod.string().describe('The Card to change. Must be unique within the request (400 otherwise).'),
+  "quantity": zod.int().min(bulkUpdateCollectionEntriesBodyItemsItemQuantityMin).max(bulkUpdateCollectionEntriesBodyItemsItemQuantityMax).describe('Absolute target quantity. 0 removes the Card.')
+})).min(1).max(bulkUpdateCollectionEntriesBodyItemsMax).nullable().describe('Changes applied in order, at most 100.')
+})
+
+export const BulkUpdateCollectionEntriesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "cardId": zod.string(),
+  "message": zod.string().optional().describe('Human-readable reason for a declined item.'),
+  "quantity": zod.int(),
+  "reason": zod.enum(['capacity_exceeded', 'card_not_found']).optional().describe('Why the item was declined.'),
+  "status": zod.enum(['applied', 'removed', 'declined']).describe('applied: set or created; removed: deleted, or already absent; declined: not applied.')
+})).nullable()
+})
+
+/**
  * @summary Add a Card to one of the current user's own Collections
  */
 export const AddCollectionEntryParams = zod.object({
