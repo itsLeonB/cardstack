@@ -1,0 +1,23 @@
+frontend/src/components/catalog/facet-filters.test.tsx
+  s_edf5c62968e3b4::t_48af73df097924 77-92
+frontend/src/components/catalog/facet-filters.tsx
+  s_edf5c62968e3b4::t_654da0fdb2d4c9 3,9-12,32-33,76,84,114-120,122-123
+frontend/src/components/ui/multi-select.tsx
+  s_edf5c62968e3b4::t_1372085b749e64 41-45,50,73-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e2a8bdbb9bbd327bf677fa4e4ebd113316780aec",
+  "prompts": {},
+  "sessions": {
+    "s_edf5c62968e3b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_edf5c62968e3b4",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
