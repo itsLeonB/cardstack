@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/28-collection-add-cards-button.md
+  s_6c256c0afd15ad::t_476d73ca32a1f6 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "36b4d468626c8d064770011542971e0fe1439b92",
+  "prompts": {},
+  "sessions": {
+    "s_6c256c0afd15ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_6c256c0afd15ad",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
