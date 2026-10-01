@@ -196,3 +196,20 @@ export const ListCollectionFacetsResponse = zod.object({
 })
 })
 
+/**
+ * @summary List the current user's own Collections that hold a Card, with the quantity in each (empty when none)
+ */
+export const ListCardHoldingsParams = zod.object({
+  "cardId": zod.string().describe('Card ID')
+})
+
+export const ListCardHoldingsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "collection": zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.int()
+})).nullable()
+})
+
