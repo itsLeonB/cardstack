@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react"
+import { useDebouncer } from "@tanstack/react-pacer"
+import { useRef, useState } from "react"
 import { bulkUpdateCollectionEntries } from "@/generated/endpoints/inventory/inventory"
 import { InventoryChangeResultStatus } from "@/generated/models"
 import { NETWORK_ERROR } from "@/lib/collections"
@@ -23,7 +24,13 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   // Last quantity the server is known to hold, the revert target.
   const confirmed = useRef<Quantities>({})
   const inFlight = useRef(new Set<string>())
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // The debouncer may hold an older closure; always run the latest flush.
+  const latestFlush = useRef<() => Promise<void>>(() => Promise.resolve())
+  // Leaving the page must not drop edits still waiting on the debounce.
+  const debouncer = useDebouncer(() => void latestFlush.current(), {
+    wait: QUANTITY_DEBOUNCE_MS,
+    onUnmount: (d) => d.flush(),
+  })
   // Serializes requests so a later batch can't overtake an earlier one.
   const queue = useRef<Promise<void>>(Promise.resolve())
 
@@ -59,13 +66,15 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   }
 
   function flush() {
-    clearTimeout(timer.current)
+    debouncer.cancel()
     const items = [...pending.current]
     pending.current.clear()
     for (const [cardId] of items) inFlight.current.add(cardId)
     if (items.length > 0) queue.current = queue.current.then(() => send(items))
     return queue.current
   }
+
+  latestFlush.current = flush
 
   /** Whether edits are waiting for the next batch (e.g. made while a flush was in flight). */
   function hasPending() {
@@ -94,14 +103,8 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
     pending.current.set(cardId, quantity)
     setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
     setErrors(({ [cardId]: _cleared, ...rest }) => rest)
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => void flush(), QUANTITY_DEBOUNCE_MS)
+    debouncer.maybeExecute()
   }
-
-  // Leaving the page must not drop edits still waiting on the debounce.
-  const latestFlush = useRef(flush)
-  latestFlush.current = flush
-  useEffect(() => () => void latestFlush.current(), [])
 
   return { quantities, errors, setQuantity, flush, hasPending, prune }
 }

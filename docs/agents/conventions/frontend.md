@@ -11,3 +11,4 @@ These apply to every frontend change, whether made by the root agent or a subage
 - On public routes, read auth state with `useSession()` (no redirect) and gate features on `isAuthenticated`; only `requireAuth` under `_authenticated/` redirects.
 - Quantity editing goes through `useQuantityBatch` + `QuantityControl`; new surfaces reuse them rather than re-implementing batching, ordering or decline handling.
 - The `cardId` entries filter treats an empty list as "no restriction": disable the query when there are no ids rather than sending an empty list.
+- Debounce with TanStack Pacer's `useDebouncer` (`@tanstack/react-pacer`), not hand-rolled `setTimeout`/`clearTimeout` timers; pass `onUnmount: (d) => d.flush()` when pending work must survive unmount, and call the latest handler through a ref to avoid stale closures.
