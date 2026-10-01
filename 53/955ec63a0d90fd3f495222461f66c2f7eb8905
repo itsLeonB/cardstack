@@ -1,0 +1,33 @@
+backend/internal/adapters/http/handler/inventory_handler.go
+  s_7e028084d447b5::t_30bbd3fb15b1cc 74-75,77-85,94-116,230,236-245
+backend/internal/adapters/http/handler/inventory_handler_test.go
+  s_7e028084d447b5::t_ee74f78ac18498 123,137-167
+backend/internal/domain/dto/inventory_dto.go
+  s_7e028084d447b5::t_b714e1b94fc901 94-95,98
+backend/internal/domain/repository/catalog_repository_test.go
+  s_7e028084d447b5::t_1242659df080be 732-734,767-791
+backend/internal/domain/service/inventory_service.go
+  s_7e028084d447b5::t_48313814ea22fa 38-39,105,116-132
+backend/internal/domain/service/inventory_service_test.go
+  s_7e028084d447b5::t_62717e7a237d2d 481,494-525
+backend/internal/mocks/InventoryService.go
+  s_7e028084d447b5::t_23770f295fe77b 323-379
+backend/openapi.json
+  s_7e028084d447b5::t_292f459c97f2c0 2340-2440,2496-2618
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "53955ec63a0d90fd3f495222461f66c2f7eb8905",
+  "prompts": {},
+  "sessions": {
+    "s_7e028084d447b5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_7e028084d447b5",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
