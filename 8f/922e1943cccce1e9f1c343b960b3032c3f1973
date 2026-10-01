@@ -1,0 +1,25 @@
+backend/internal/domain/repository/catalog_repository.go
+  s_cb098a57b00c39::t_1d445d335ade08 13,62-64,66,69-71,76-80,82,96-100,102,117-121,123,133-137,139,146-150,152,169-173,175,322-327,344,359-363,367,378,393
+backend/internal/domain/repository/catalog_repository_test.go
+  s_cb098a57b00c39::t_817e07d5555966 11,109,145,178,218,241,267,289,336,400,516,567,659
+backend/internal/provider/service_provider.go
+  s_cb098a57b00c39::t_4895a5cc2e0b86 33,48
+docs/agents/conventions/backend.md
+  s_cb098a57b00c39::t_c9e66d70a7646a 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8f922e1943cccce1e9f1c343b960b3032c3f1973",
+  "prompts": {},
+  "sessions": {
+    "s_cb098a57b00c39": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cb098a57b00c39",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
