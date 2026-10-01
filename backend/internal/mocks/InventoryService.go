@@ -204,6 +204,65 @@ func (_c *MockInventoryService_List_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// ListCardHoldings provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) ListCardHoldings(ctx context.Context, req dto.CardHoldingsRequest) ([]dto.CardHolding, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListCardHoldings")
+	}
+
+	var r0 []dto.CardHolding
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CardHoldingsRequest) ([]dto.CardHolding, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CardHoldingsRequest) []dto.CardHolding); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.CardHolding)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CardHoldingsRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryService_ListCardHoldings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListCardHoldings'
+type MockInventoryService_ListCardHoldings_Call struct {
+	*mock.Call
+}
+
+// ListCardHoldings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.CardHoldingsRequest
+func (_e *MockInventoryService_Expecter) ListCardHoldings(ctx interface{}, req interface{}) *MockInventoryService_ListCardHoldings_Call {
+	return &MockInventoryService_ListCardHoldings_Call{Call: _e.mock.On("ListCardHoldings", ctx, req)}
+}
+
+func (_c *MockInventoryService_ListCardHoldings_Call) Run(run func(ctx context.Context, req dto.CardHoldingsRequest)) *MockInventoryService_ListCardHoldings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.CardHoldingsRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_ListCardHoldings_Call) Return(_a0 []dto.CardHolding, _a1 error) *MockInventoryService_ListCardHoldings_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInventoryService_ListCardHoldings_Call) RunAndReturn(run func(context.Context, dto.CardHoldingsRequest) ([]dto.CardHolding, error)) *MockInventoryService_ListCardHoldings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListFacets provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
 	ret := _m.Called(ctx, req)

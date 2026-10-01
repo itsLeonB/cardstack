@@ -30,6 +30,9 @@ type InventoryService interface {
 	List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)
 	// ListFacets returns filter options computed only from the Collection's Cards.
 	ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error)
+	// ListCardHoldings returns the profile's own Collections holding the Card
+	// (empty when none, or when the Card is unknown).
+	ListCardHoldings(ctx context.Context, req dto.CardHoldingsRequest) ([]dto.CardHolding, error)
 	Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	Remove(ctx context.Context, req dto.InventoryEntryLookup) error
@@ -86,6 +89,15 @@ func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryList
 	}
 
 	return mapper.ToCatalogFacets(facets), nil
+}
+
+func (s *inventoryService) ListCardHoldings(ctx context.Context, req dto.CardHoldingsRequest) ([]dto.CardHolding, error) {
+	holdings, err := s.entries.ListHoldings(ctx, req.ProfileID, req.CardID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ezutil.MapSlice(holdings, mapper.ToCardHolding), nil
 }
 
 // findEntry returns the Card's row-locked entry, or the zero value when absent.
