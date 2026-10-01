@@ -102,9 +102,3 @@ export function collectionSubmitCallbacks({
 }
 
 export const NETWORK_ERROR = "Could not reach the server. Please try again."
-
-/** A whole number >= 1, the only quantities the API accepts (removing is how a Card reaches 0). */
-export function parseQuantity(value: string) {
-  const quantity = Number(value)
-  return Number.isInteger(quantity) && quantity >= 1 ? quantity : undefined
-}

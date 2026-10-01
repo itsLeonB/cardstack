@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { RiArrowLeftSLine, RiArrowRightSLine } from "@remixicon/react"
 import type { CardSummary } from "@/generated/models"
 
-interface CardResultsProps {
+export interface CardResultsProps {
   cards: CardSummary[]
   total: number
   page: number

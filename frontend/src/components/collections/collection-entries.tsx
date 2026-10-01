@@ -5,7 +5,6 @@ import {
   useListCollectionEntries,
   useListCollectionFacets,
 } from "@/generated/endpoints/inventory/inventory"
-import { AddEntry } from "@/components/collections/add-entry"
 import { QuantityControl } from "@/components/collections/quantity-control"
 import { CardResults } from "@/components/catalog/card-results"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
@@ -21,7 +20,6 @@ interface CollectionEntriesProps {
 }
 
 export function CollectionEntries({ collectionId, search, onSearchChange }: CollectionEntriesProps) {
-  const [addError, setAddError] = useState<string | null>(null)
   const batch = useQuantityBatch(collectionId)
 
   // Always refetch and never keep the entry list around after leaving: a card
@@ -73,14 +71,6 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
 
   return (
     <section className="flex flex-col gap-6" aria-label="Collection contents">
-      <AddEntry collectionId={collectionId} onError={setAddError} />
-
-      {addError && (
-        <p role="alert" className="text-sm text-destructive">
-          {addError}
-        </p>
-      )}
-
       <CatalogFilterPanel
         search={pendingSearch ?? search}
         facets={facets}
@@ -100,7 +90,7 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
         emptyMessage={
           hasActiveFilters(search)
             ? "No Cards in this Collection match these filters."
-            : "This Collection has no Cards yet. Search above to add one."
+            : "This Collection has no Cards yet. Add some from the catalog."
         }
         onPageChange={(page) => changeSearch((current) => ({ ...current, page }))}
         renderControl={(card) => {
