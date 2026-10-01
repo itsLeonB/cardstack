@@ -119,4 +119,63 @@ describe("useQuantityBatch", () => {
 
     expect(bulk).toHaveBeenCalledTimes(1)
   })
+
+  it("sends an edit made during an in-flight request in the next batch, oldest first", async () => {
+    let release: () => void = () => {}
+    // SAFETY: partial response; the hook reads only status and data.data.
+    bulk.mockImplementationOnce(
+      () => new Promise((resolve) => (release = () => resolve({ status: 200, data: { data: [] } } as any)))
+    )
+    respond([])
+    const { result } = renderHook(() => useQuantityBatch("col-1"))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenCalledTimes(1)
+
+    act(() => result.current.setQuantity("b", 5, 4))
+    act(() => result.current.setQuantity("c", 7, 6))
+    act(() => result.current.setQuantity("b", 8, 4))
+    expect(result.current.hasPending()).toBe(true)
+    await tick(QUANTITY_DEBOUNCE_MS)
+    // Serialized behind the first request.
+    expect(bulk).toHaveBeenCalledTimes(1)
+
+    await act(async () => release())
+    await tick(0)
+    expect(bulk).toHaveBeenCalledTimes(2)
+    expect(bulk).toHaveBeenLastCalledWith("col-1", {
+      items: [
+        { cardId: "c", quantity: 7 },
+        { cardId: "b", quantity: 8 },
+      ],
+    })
+  })
+
+  it("does not flag an outcome that a newer pending edit supersedes", async () => {
+    bulk.mockRejectedValueOnce(new Error("offline"))
+    const { result } = renderHook(() => useQuantityBatch("col-1"))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await act(async () => {
+      void result.current.flush()
+      result.current.setQuantity("a", 3, 1)
+    })
+    await tick(0)
+
+    expect(result.current.quantities.a).toBe(3)
+    expect(result.current.errors).toEqual({})
+  })
+
+  it("prune drops settled overrides so fresh server data shows", async () => {
+    respond([{ cardId: "a", quantity: 0, status: "removed" }])
+    const { result } = renderHook(() => useQuantityBatch("col-1"))
+
+    act(() => result.current.setQuantity("a", 0, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    expect(result.current.quantities.a).toBe(0)
+
+    act(() => result.current.prune())
+    expect(result.current.quantities).toEqual({})
+  })
 })

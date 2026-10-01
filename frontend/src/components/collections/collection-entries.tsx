@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { keepPreviousData } from "@tanstack/react-query"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import {
@@ -27,7 +27,7 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
   // Always refetch and never keep the entry list around after leaving: a card
   // taken to 0 stays on screen only until the user comes back.
   const query = useListCollectionEntries(collectionId, search, {
-    query: { gcTime: 0, refetchOnMount: "always", placeholderData: keepPreviousData },
+    query: { gcTime: 0, refetchOnMount: "always", refetchOnWindowFocus: false, placeholderData: keepPreviousData },
   })
   const facetsQuery = useListCollectionFacets(collectionId, toFacetParams(search), {
     query: { placeholderData: keepPreviousData },
@@ -44,9 +44,31 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
       ? (query.data.data.detail ?? "Could not load this Collection's Cards.")
       : undefined
 
-  // Pending edits go out before the filters/page change so they aren't lost.
-  function changeSearch(next: CatalogSearch) {
-    void batch.flush().then(() => onSearchChange(next))
+  // Fresh server data replaces optimistic values (not after a save, which leaves data untouched).
+  useEffect(() => batch.prune(), [query.data])
+
+  // Rapid filter/page clicks build on each other (pendingSearch is what the
+  // panel shows meanwhile); the drain flushes edits until none are left, then
+  // writes the final search to the URL once.
+  const [pendingSearch, setPendingSearch] = useState<CatalogSearch | null>(null)
+  const target = useRef<CatalogSearch | null>(null)
+
+  async function drain() {
+    do {
+      await batch.flush()
+    } while (batch.hasPending())
+    const next = target.current
+    target.current = null
+    setPendingSearch(null)
+    if (next) onSearchChange(next)
+  }
+
+  function changeSearch(update: (current: CatalogSearch) => CatalogSearch) {
+    const next = update(pendingSearch ?? search)
+    const draining = target.current !== null
+    target.current = next
+    setPendingSearch(next)
+    if (!draining) void drain()
   }
 
   return (
@@ -60,11 +82,11 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
       )}
 
       <CatalogFilterPanel
-        search={search}
+        search={pendingSearch ?? search}
         facets={facets}
         series={series}
-        onChange={(patch) => changeSearch({ ...search, ...patch, page: 1 })}
-        onClear={() => changeSearch({ page: 1 })}
+        onChange={(patch) => changeSearch((current) => ({ ...current, ...patch, page: 1 }))}
+        onClear={() => changeSearch(() => ({ page: 1 }))}
       />
 
       <CardResults
@@ -80,7 +102,7 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
             ? "No Cards in this Collection match these filters."
             : "This Collection has no Cards yet. Search above to add one."
         }
-        onPageChange={(page) => changeSearch({ ...search, page })}
+        onPageChange={(page) => changeSearch((current) => ({ ...current, page }))}
         renderControl={(card) => {
           const server = serverQuantities.get(card.id) ?? 0
           return (

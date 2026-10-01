@@ -15,7 +15,6 @@ interface CardResultsProps {
   errorMessage?: string
   emptyMessage: string
   onPageChange: (page: number) => void
-  /** Per-card control slot, rendered inside each tile. */
   renderControl?: (card: CardSummary) => ReactNode
 }
 

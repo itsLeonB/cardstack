@@ -242,36 +242,47 @@ describe("CollectionEntries", () => {
     expect(onSearchChange).toHaveBeenCalledWith({ page: 2 })
   })
 
-  it("adds a searched Card with a quantity and surfaces a duplicate (409)", () => {
-    setList([])
-    add.mockImplementation((_vars, options) =>
-      options.onSuccess({ status: 409, data: { detail: "Card already in collection" } })
-    )
+  it("raises a card at 0 in place with +", async () => {
+    vi.useFakeTimers()
+    setList([{ card, quantity: 0 }])
     renderEntries()
-
-    fireEvent.change(screen.getByLabelText("Search Cards to add"), { target: { value: "pika" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Search" })[0])
-    fireEvent.change(screen.getByLabelText("Quantity to add of Pikachu V"), {
-      target: { value: "2" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Add Pikachu V" }))
-
-    expect(add).toHaveBeenCalledWith(
-      { id: "col-1", data: { cardId: "card-1", quantity: 2 } },
-      expect.anything()
-    )
-    expect(screen.getByRole("alert").textContent).toBe("Card already in collection")
+    expect(screen.getByRole("button", { name: "Decrease quantity of Pikachu V" }).hasAttribute("disabled")).toBe(true)
+    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    expect(quantityInput().value).toBe("1")
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenCalledWith("col-1", { items: [{ cardId: "card-1", quantity: 1 }] })
   })
 
-  it("clears the search results after a successful add", () => {
-    setList([])
-    add.mockImplementation((_vars, options) =>
-      options.onSuccess({ status: 201, data: { data: { cardId: "card-1", quantity: 1 } } })
-    )
+  it("keeps both filter clicks made while a flush is pending", async () => {
+    vi.useFakeTimers()
+    setList([{ card, quantity: 3 }])
+    // SAFETY: partial mock; only status/data are read.
+    vi.mocked(useListCollectionFacets).mockReturnValue({
+      data: {
+        status: 200,
+        data: {
+          data: {
+            expansionSets: [],
+            rarities: [
+              { id: "r-1", code: "RR", name: "Double Rare", available: true },
+              { id: "r-2", code: "C", name: "Common", available: true },
+            ],
+            categories: [],
+            tags: [],
+          },
+        },
+        headers: new Headers(),
+      },
+    } as any)
     renderEntries()
-    fireEvent.change(screen.getByLabelText("Search Cards to add"), { target: { value: "pika" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Search" })[0])
-    fireEvent.click(screen.getByRole("button", { name: "Add Pikachu V" }))
-    expect(screen.queryByRole("button", { name: "Add Pikachu V" })).toBeNull()
+
+    fireEvent.change(quantityInput(), { target: { value: "5" } })
+    fireEvent.click(screen.getByLabelText("Double Rare"))
+    // The search prop is still the old one: the second click must build on the first.
+    fireEvent.click(screen.getByLabelText("Common"))
+    await advance(0)
+
+    expect(onSearchChange).toHaveBeenCalledTimes(1)
+    expect(onSearchChange).toHaveBeenCalledWith({ page: 1, rarityId: ["r-1", "r-2"] })
   })
 })

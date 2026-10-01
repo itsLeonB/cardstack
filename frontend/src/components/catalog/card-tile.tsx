@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
 /** One Card in a browse/search results grid: art, name, set/number, rarity, category, and tags. */
-/** `control` is an optional slot rendered under the tile details (e.g. a quantity control). */
 export function CardTile({ card, control }: { card: CardSummary; control?: ReactNode }) {
   const [imageFailed, setImageFailed] = useState(false)
   const tags = card.tags ?? []

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { bulkUpdateCollectionEntries } from "@/generated/endpoints/inventory/inventory"
 import { InventoryChangeResultStatus } from "@/generated/models"
 import { NETWORK_ERROR } from "@/lib/collections"
@@ -22,15 +22,15 @@ export function useQuantityBatch(collectionId: string) {
   const pending = useRef(new Map<string, number>())
   // Last quantity the server is known to hold, the revert target.
   const confirmed = useRef<Quantities>({})
+  const inFlight = useRef(new Set<string>())
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // Serializes requests so a later batch can't overtake an earlier one.
   const queue = useRef<Promise<void>>(Promise.resolve())
 
   function revert(cardId: string, quantity: number, message: string) {
-    // A newer pending change for the same card wins over the revert.
-    if (!pending.current.has(cardId)) {
-      setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
-    }
+    // A newer pending change for the same card supersedes this outcome, error included.
+    if (pending.current.has(cardId)) return
+    setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
     setErrors((prev) => ({ ...prev, [cardId]: message }))
   }
 
@@ -41,7 +41,7 @@ export function useQuantityBatch(collectionId: string) {
       })
       if (response.status !== 200) {
         const message = response.data.detail ?? "Could not update these quantities."
-        for (const [cardId] of items) revert(cardId, confirmed.current[cardId] ?? 0, message)
+        for (const [cardId] of items) revert(cardId, confirmed.current[cardId], message)
         return
       }
       for (const result of response.data.data ?? []) {
@@ -51,19 +51,41 @@ export function useQuantityBatch(collectionId: string) {
         }
       }
     } catch {
-      for (const [cardId] of items) revert(cardId, confirmed.current[cardId] ?? 0, NETWORK_ERROR)
+      for (const [cardId] of items) revert(cardId, confirmed.current[cardId], NETWORK_ERROR)
+    } finally {
+      for (const [cardId] of items) inFlight.current.delete(cardId)
     }
   }
 
-  // ponytail: reads only refs, so a stale closure is harmless; stable for effect cleanup.
-  const flush = useCallback(() => {
+  function flush() {
     clearTimeout(timer.current)
     const items = [...pending.current]
     pending.current.clear()
+    for (const [cardId] of items) inFlight.current.add(cardId)
     if (items.length > 0) queue.current = queue.current.then(() => send(items))
     return queue.current
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- send only closes over collectionId and refs
-  }, [collectionId])
+  }
+
+  /** Whether edits are waiting for the next batch (e.g. made while a flush was in flight). */
+  function hasPending() {
+    return pending.current.size > 0
+  }
+
+  /**
+   * Drop optimistic values for cards with nothing outstanding. Call when fresh
+   * server data arrives so stale overrides can't mask it. Not called after a
+   * successful batch, which is what keeps a card at 0 on screen until reload.
+   */
+  function prune() {
+    const settled = (cardId: string) => !pending.current.has(cardId) && !inFlight.current.has(cardId)
+    for (const cardId of Object.keys(confirmed.current)) {
+      if (settled(cardId)) delete confirmed.current[cardId]
+    }
+    const keep = <T,>(record: Record<string, T>) =>
+      Object.fromEntries(Object.entries(record).filter(([cardId]) => !settled(cardId)))
+    setQuantities(keep)
+    setErrors(keep)
+  }
 
   function setQuantity(cardId: string, quantity: number, serverQuantity: number) {
     confirmed.current[cardId] ??= serverQuantity
@@ -76,7 +98,9 @@ export function useQuantityBatch(collectionId: string) {
   }
 
   // Leaving the page must not drop edits still waiting on the debounce.
-  useEffect(() => () => void flush(), [flush])
+  const latestFlush = useRef(flush)
+  latestFlush.current = flush
+  useEffect(() => () => void latestFlush.current(), [])
 
-  return { quantities, errors, setQuantity, flush }
+  return { quantities, errors, setQuantity, flush, hasPending, prune }
 }
