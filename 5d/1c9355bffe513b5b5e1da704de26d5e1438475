@@ -1,0 +1,25 @@
+docs/agents/conventions/frontend.md
+  s_896d16228978ff::t_782fff4c3b73e6 14
+frontend/bun.lock
+  s_896d16228978ff::t_51f82912d81d90 13,496-497,502-503
+frontend/package.json
+  s_896d16228978ff::t_dfc42ea9936cf9 24
+frontend/src/lib/use-quantity-batch.ts
+  s_896d16228978ff::t_330cfcb419e831 1-2,27-33,69,77-78,106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5d1c9355bffe513b5b5e1da704de26d5e1438475",
+  "prompts": {},
+  "sessions": {
+    "s_896d16228978ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_896d16228978ff",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
