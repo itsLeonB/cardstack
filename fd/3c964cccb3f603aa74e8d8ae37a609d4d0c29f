@@ -1,0 +1,21 @@
+backend/internal/domain/mapper/catalog_mapper.go
+  s_9def95a7acebf0::t_de1af7f5ffba3e 21-31
+backend/internal/domain/service/catalog_service.go
+  s_9def95a7acebf0::t_fc4f4d0d0070c9 8,69,88-91,101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "fd3c964cccb3f603aa74e8d8ae37a609d4d0c29f",
+  "prompts": {},
+  "sessions": {
+    "s_9def95a7acebf0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_9def95a7acebf0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
