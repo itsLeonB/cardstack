@@ -12,3 +12,4 @@ These apply to every frontend change, whether made by the root agent or a subage
 - Quantity editing goes through `useQuantityBatch` + `QuantityControl`; new surfaces reuse them rather than re-implementing batching, ordering or decline handling.
 - The `cardId` entries filter treats an empty list as "no restriction": disable the query when there are no ids rather than sending an empty list.
 - Debounce with TanStack Pacer's `useDebouncer` (`@tanstack/react-pacer`), not hand-rolled `setTimeout`/`clearTimeout` timers; pass `onUnmount: (d) => d.flush()` when pending work must survive unmount, and call the latest handler through a ref to avoid stale closures.
+- Multi-value filter dropdowns use `MultiSelect` (`components/ui/multi-select.tsx`, a base-ui Popover of native checkboxes); the popover only mounts when open, so tests and e2e must click the trigger first. Render active-selection chips as buttons, not `li`, because e2e specs count results by `listitem`.

@@ -1,3 +1,6 @@
+import { RiCloseLine } from "@remixicon/react"
+import { MultiSelect } from "@/components/ui/multi-select"
+import type { MultiSelectGroup } from "@/components/ui/multi-select"
 import type { CatalogFacets } from "@/generated/models"
 
 export type FacetKey = "expansionSetId" | "rarityId" | "category" | "tag"
@@ -27,58 +30,8 @@ interface FacetFiltersProps {
   onChange: (key: FacetKey, values: string[]) => void
 }
 
-function OptionGroup({
-  legend,
-  options,
-  selected,
-  onChange,
-  nested,
-}: {
-  legend: string
-  options: Option[]
-  selected: string[]
-  onChange: (values: string[]) => void
-  nested?: boolean
-}) {
-  if (options.length === 0) return null
-  return (
-    <fieldset className="flex min-w-0 flex-col gap-1.5">
-      <legend
-        className={
-          nested ? "text-xs text-muted-foreground" : "text-sm font-medium"
-        }
-      >
-        {legend}
-      </legend>
-      {options.map((option) => {
-        const checked = selected.includes(option.value)
-        return (
-          <label
-            key={option.value}
-            className={`flex items-center gap-2 text-sm ${option.available ? "" : "text-muted-foreground"}`}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() =>
-                onChange(
-                  checked
-                    ? selected.filter((value) => value !== option.value)
-                    : [...selected, option.value]
-                )
-              }
-            />
-            {option.label}
-            {!option.available && <span className="sr-only"> (unavailable)</span>}
-          </label>
-        )
-      })}
-    </fieldset>
-  )
-}
-
 /**
- * Checkbox groups for the faceted catalog filters. Options come from the
+ * Dropdown multi-selects (with removable chips) for the faceted catalog filters. Options come from the
  * facets endpoint, which already keeps selected-but-unavailable values in the
  * list (available: false); they stay checked and enabled so they can be unchecked.
  */
@@ -93,62 +46,87 @@ export function FacetFilters({ facets, series, selected, onChange }: FacetFilter
     selected.expansionSetId
   )
   const knownSeriesIds = new Set(series.map((oneSeries) => oneSeries.id))
-  const ungrouped = sets.filter((set) => !set.seriesId || !knownSeriesIds.has(set.seriesId))
-  const setHandler = (key: FacetKey) => (values: string[]) => onChange(key, values)
+  const setGroups: MultiSelectGroup[] = [
+    ...series.map((oneSeries) => ({
+      label: oneSeries.name,
+      options: sets.filter((set) => set.seriesId === oneSeries.id),
+    })),
+    {
+      label: "Ungrouped",
+      options: sets.filter((set) => !set.seriesId || !knownSeriesIds.has(set.seriesId)),
+    },
+  ].filter((group) => group.options.length > 0)
+
+  const flat = (key: FacetKey, options: Option[]): MultiSelectGroup[] => [
+    { options: withSelected(options, selected[key]) },
+  ]
+  const filters: { key: FacetKey; label: string; groups: MultiSelectGroup[]; searchable?: boolean }[] = [
+    { key: "expansionSetId", label: "Expansion Set", groups: setGroups, searchable: true },
+    {
+      key: "rarityId",
+      label: "Rarity",
+      groups: flat(
+        "rarityId",
+        (facets?.rarities ?? []).map((r) => ({ value: r.id, label: r.name, available: r.available }))
+      ),
+    },
+    {
+      key: "category",
+      label: "Category",
+      groups: flat(
+        "category",
+        (facets?.categories ?? []).map((c) => ({ value: c.value, label: c.value, available: c.available }))
+      ),
+    },
+    {
+      key: "tag",
+      label: "Tag",
+      groups: flat(
+        "tag",
+        (facets?.tags ?? []).map((t) => ({ value: t.value, label: t.value, available: t.available }))
+      ),
+    },
+  ]
+  const chips = filters.flatMap(({ key, groups }) =>
+    selected[key].map((value) => ({
+      key,
+      value,
+      label: groups.flatMap((g) => g.options).find((o) => o.value === value)?.label ?? value,
+    }))
+  )
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      <fieldset className="flex min-w-0 flex-col gap-3">
-        <legend className="text-sm font-medium">Expansion Sets</legend>
-        {series.map((oneSeries) => (
-          <OptionGroup
-            key={oneSeries.id}
-            nested
-            legend={oneSeries.name}
-            options={sets.filter((set) => set.seriesId === oneSeries.id)}
-            selected={selected.expansionSetId}
-            onChange={setHandler("expansionSetId")}
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-2 sm:flex sm:flex-wrap">
+        {filters.map(({ key, label, groups, searchable }) => (
+          <MultiSelect
+            key={key}
+            label={label}
+            groups={groups}
+            searchable={searchable}
+            selected={selected[key]}
+            onChange={(values) => onChange(key, values)}
           />
         ))}
-        <OptionGroup
-          nested
-          legend="Ungrouped"
-          options={ungrouped}
-          selected={selected.expansionSetId}
-          onChange={setHandler("expansionSetId")}
-        />
-      </fieldset>
-      <OptionGroup
-        legend="Rarity"
-        options={withSelected(
-          (facets?.rarities ?? []).map((rarity) => ({
-            value: rarity.id,
-            label: rarity.name,
-            available: rarity.available,
-          })),
-          selected.rarityId
-        )}
-        selected={selected.rarityId}
-        onChange={setHandler("rarityId")}
-      />
-      <OptionGroup
-        legend="Category"
-        options={withSelected(
-          (facets?.categories ?? []).map((c) => ({ value: c.value, label: c.value, available: c.available })),
-          selected.category
-        )}
-        selected={selected.category}
-        onChange={setHandler("category")}
-      />
-      <OptionGroup
-        legend="Tag"
-        options={withSelected(
-          (facets?.tags ?? []).map((t) => ({ value: t.value, label: t.value, available: t.available })),
-          selected.tag
-        )}
-        selected={selected.tag}
-        onChange={setHandler("tag")}
-      />
+      </div>
+      {chips.length > 0 && (
+        <div role="group" aria-label="Active filters" className="flex flex-wrap gap-1.5">
+          {chips.map((chip) => (
+            <button
+                key={`${chip.key}:${chip.value}`}
+                type="button"
+                aria-label={`Remove ${chip.label}`}
+                onClick={() =>
+                  onChange(chip.key, selected[chip.key].filter((value) => value !== chip.value))
+                }
+                className="inline-flex items-center gap-1 rounded-3xl bg-secondary px-2.5 py-1 text-xs text-secondary-foreground outline-none hover:bg-secondary/80 focus-visible:ring-3 focus-visible:ring-ring/30"
+              >
+                {chip.label}
+                <RiCloseLine aria-hidden className="size-3" />
+              </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

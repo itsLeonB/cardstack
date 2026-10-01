@@ -215,6 +215,7 @@ describe("CollectionEntries", () => {
     renderEntries()
 
     fireEvent.change(quantityInput(), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: "Rarity" }))
     fireEvent.click(screen.getByLabelText("Double Rare"))
 
     // The batch goes out without waiting for the debounce, and navigation follows it.
@@ -271,6 +272,7 @@ describe("CollectionEntries", () => {
     renderEntries()
 
     fireEvent.change(quantityInput(), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: "Rarity" }))
     fireEvent.click(screen.getByLabelText("Double Rare"))
     // The search prop is still the old one: the second click must build on the first.
     fireEvent.click(screen.getByLabelText("Common"))
