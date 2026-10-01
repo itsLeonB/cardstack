@@ -71,9 +71,18 @@ type listEntryFacetsInput struct {
 	CardFilterParams
 }
 
+// masterInventoryInput is GET /inventory/cards: the same query string as
+// listEntriesInput, minus the Collection id.
 type masterInventoryInput struct {
-	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
-	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+	CardFilterParams
+	CardIDs []string `query:"cardId,explode" maxItems:"100" doc:"Only these Cards (repeatable, at most 100), combined with the other filters."`
+	Page    int      `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
+	Limit   int      `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+}
+
+// masterFacetsInput is GET /inventory/cards/facets: the same filters, without pagination.
+type masterFacetsInput struct {
+	CardFilterParams
 }
 
 func (h *InventoryHandler) listMaster(ctx context.Context, in masterInventoryInput) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -82,7 +91,29 @@ func (h *InventoryHandler) listMaster(ctx context.Context, in masterInventoryInp
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return h.inventorySvc.ListMasterInventory(ctx, dto.MasterInventoryRequest{ProfileID: profileID, Page: in.Page, Limit: in.Limit})
+	filter, err := buildCardFilter(in.CardFilterParams)
+	if err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+	if filter.CardIDs, err = parseUUIDs("cardId", in.CardIDs); err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+	filter.Page, filter.Limit = in.Page, in.Limit
+
+	return h.inventorySvc.ListMasterInventory(ctx, dto.MasterInventoryRequest{ProfileID: profileID, Filter: filter})
+}
+
+func (h *InventoryHandler) listMasterFacets(ctx context.Context, in masterFacetsInput) (dto.CatalogFacets, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+	filter, err := buildCardFilter(in.CardFilterParams)
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+
+	return h.inventorySvc.ListMasterFacets(ctx, dto.MasterInventoryRequest{ProfileID: profileID, Filter: filter})
 }
 
 type cardHoldingsInput struct {
@@ -196,11 +227,21 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			OperationID: "list-master-inventory",
 			Method:      http.MethodGet,
 			Path:        "/inventory/cards",
-			Summary:     "Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)",
+			Summary:     "Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)",
 			Tags:        []string{"inventory"},
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.listMaster,
+		}),
+		endpoint.New(endpoint.Endpoint[masterFacetsInput, dto.CatalogFacets]{
+			OperationID: "list-master-inventory-facets",
+			Method:      http.MethodGet,
+			Path:        "/inventory/cards/facets",
+			Summary:     "List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.listMasterFacets,
 		}),
 		endpoint.New(endpoint.Endpoint[cardHoldingsInput, []dto.CardHolding]{
 			OperationID: "list-card-holdings",

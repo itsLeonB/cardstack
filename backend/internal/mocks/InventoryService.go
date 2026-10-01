@@ -320,6 +320,63 @@ func (_c *MockInventoryService_ListFacets_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// ListMasterFacets provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) ListMasterFacets(ctx context.Context, req dto.MasterInventoryRequest) (dto.CatalogFacets, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMasterFacets")
+	}
+
+	var r0 dto.CatalogFacets
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.MasterInventoryRequest) (dto.CatalogFacets, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.MasterInventoryRequest) dto.CatalogFacets); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.CatalogFacets)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.MasterInventoryRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryService_ListMasterFacets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMasterFacets'
+type MockInventoryService_ListMasterFacets_Call struct {
+	*mock.Call
+}
+
+// ListMasterFacets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.MasterInventoryRequest
+func (_e *MockInventoryService_Expecter) ListMasterFacets(ctx interface{}, req interface{}) *MockInventoryService_ListMasterFacets_Call {
+	return &MockInventoryService_ListMasterFacets_Call{Call: _e.mock.On("ListMasterFacets", ctx, req)}
+}
+
+func (_c *MockInventoryService_ListMasterFacets_Call) Run(run func(ctx context.Context, req dto.MasterInventoryRequest)) *MockInventoryService_ListMasterFacets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.MasterInventoryRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_ListMasterFacets_Call) Return(_a0 dto.CatalogFacets, _a1 error) *MockInventoryService_ListMasterFacets_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInventoryService_ListMasterFacets_Call) RunAndReturn(run func(context.Context, dto.MasterInventoryRequest) (dto.CatalogFacets, error)) *MockInventoryService_ListMasterFacets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListMasterInventory provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) ListMasterInventory(ctx context.Context, req dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
 	ret := _m.Called(ctx, req)
