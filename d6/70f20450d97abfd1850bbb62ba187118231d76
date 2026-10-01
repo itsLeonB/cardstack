@@ -1,0 +1,25 @@
+frontend/src/components/collections/collection-entries.test.tsx
+  s_6c89fc5dfff1ff::t_da12c37fb5d3a8 245-247,249-253,256-276,278-286
+frontend/src/components/collections/collection-entries.tsx
+  s_6c89fc5dfff1ff::t_1ba997f415f59e 1,30,47-71,85,88-89,105
+frontend/src/lib/use-quantity-batch.test.ts
+  s_6c89fc5dfff1ff::t_336785cb2cbd76 122-180
+frontend/src/lib/use-quantity-batch.ts
+  s_6c89fc5dfff1ff::t_5e3bfa6cc2bc54 1,25,31-33,44,54-56,60,64,67-88,101-103,105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d670f20450d97abfd1850bbb62ba187118231d76",
+  "prompts": {},
+  "sessions": {
+    "s_6c89fc5dfff1ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_6c89fc5dfff1ff",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
