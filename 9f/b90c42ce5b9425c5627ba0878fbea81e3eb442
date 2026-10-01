@@ -1,0 +1,27 @@
+backend/internal/domain/mapper/catalog_mapper.go
+  s_fe0fa7f1eebf38::t_85167dc2012e90 7,62-84
+backend/internal/domain/repository/catalog_repository.go
+  s_fe0fa7f1eebf38::t_acbb7e52b06188 12,279-280,399-401
+backend/internal/domain/service/catalog_service.go
+  s_fe0fa7f1eebf38::t_7fa25fd8f1c4d9 135-137,142,145-147,150,154,158,163
+backend/internal/domain/service/inventory_service.go
+  s_fe0fa7f1eebf38::t_bb281980b98f9d 64-67,72,80,82-88
+docs/agents/conventions/backend.md
+  s_fe0fa7f1eebf38::t_51c7e12eb9b1d3 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9fb90c42ce5b9425c5627ba0878fbea81e3eb442",
+  "prompts": {},
+  "sessions": {
+    "s_fe0fa7f1eebf38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fe0fa7f1eebf38",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
