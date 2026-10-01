@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/30-sanitize-auth-error-messages.md
+  s_7b05458abae232::t_21864e963c15ca 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d797f1a103478bff8077c5be8f0016da7a383127",
+  "prompts": {},
+  "sessions": {
+    "s_7b05458abae232": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_7b05458abae232",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
