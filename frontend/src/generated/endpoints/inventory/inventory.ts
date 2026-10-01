@@ -28,6 +28,7 @@ import type {
   BulkUpdateEntriesInputBody,
   EnvelopeCatalogFacets,
   EnvelopeInventoryEntry,
+  EnvelopeListCardHolding,
   EnvelopeListInventoryChangeResult,
   EnvelopeWithMetaListInventoryItemPaginationMeta,
   ErrorModel,
@@ -755,6 +756,125 @@ export function useListCollectionFacets<TData = Awaited<ReturnType<typeof listCo
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCollectionFacetsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listCardHoldingsResponse200 = {
+  data: EnvelopeListCardHolding
+  status: 200
+}
+
+export type listCardHoldingsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listCardHoldingsResponseSuccess = (listCardHoldingsResponse200) & {
+  headers: Headers;
+};
+export type listCardHoldingsResponseError = (listCardHoldingsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listCardHoldingsResponse = (listCardHoldingsResponseSuccess | listCardHoldingsResponseError)
+
+export const getListCardHoldingsUrl = (cardId: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards/${cardId}/holdings`
+}
+
+/**
+ * @summary List the current user's own Collections that hold a Card, with the quantity in each (empty when none)
+ */
+export const listCardHoldings = async (cardId: string, options?: Parameters<typeof customFetch>[1]): Promise<listCardHoldingsResponse> => {
+
+  return customFetch<listCardHoldingsResponse>(getListCardHoldingsUrl(cardId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCardHoldingsQueryKey = (cardId: string,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards/${cardId}/holdings`
+    ] as const;
+    }
+
+
+export const getListCardHoldingsQueryOptions = <TData = Awaited<ReturnType<typeof listCardHoldings>>, TError = ErrorModel>(cardId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCardHoldings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCardHoldingsQueryKey(cardId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCardHoldings>>> = ({ signal }) => listCardHoldings(cardId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: cardId !== null && cardId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCardHoldings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCardHoldingsQueryResult = NonNullable<Awaited<ReturnType<typeof listCardHoldings>>>
+export type ListCardHoldingsQueryError = ErrorModel
+
+
+export function useListCardHoldings<TData = Awaited<ReturnType<typeof listCardHoldings>>, TError = ErrorModel>(
+ cardId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCardHoldings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCardHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof listCardHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCardHoldings<TData = Awaited<ReturnType<typeof listCardHoldings>>, TError = ErrorModel>(
+ cardId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCardHoldings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCardHoldings>>,
+          TError,
+          Awaited<ReturnType<typeof listCardHoldings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCardHoldings<TData = Awaited<ReturnType<typeof listCardHoldings>>, TError = ErrorModel>(
+ cardId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCardHoldings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List the current user's own Collections that hold a Card, with the quantity in each (empty when none)
+ */
+
+export function useListCardHoldings<TData = Awaited<ReturnType<typeof listCardHoldings>>, TError = ErrorModel>(
+ cardId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCardHoldings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCardHoldingsQueryOptions(cardId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
