@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/21-catalog-faceted-multi-value-filters.md
+  s_c3c82cd79f4f89::t_d9bafd52130c6e 6,33-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2889082cbf5fd13a5405f6885867d6af94cc5a52",
+  "prompts": {},
+  "sessions": {
+    "s_c3c82cd79f4f89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c3c82cd79f4f89",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
