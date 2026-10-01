@@ -24,6 +24,9 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   // Last quantity the server is known to hold, the revert target.
   const confirmed = useRef<Quantities>({})
   const inFlight = useRef(new Set<string>())
+  // Bumped on every edit; a batch only acts on a card while its revision is still the latest.
+  const revisions = useRef(new Map<string, number>())
+  const isLatest = (cardId: string, revision: number) => revisions.current.get(cardId) === revision
   // The debouncer may hold an older closure; always run the latest flush.
   const latestFlush = useRef<() => Promise<void>>(() => Promise.resolve())
   // Leaving the page must not drop edits still waiting on the debounce.
@@ -34,40 +37,51 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   // Serializes requests so a later batch can't overtake an earlier one.
   const queue = useRef<Promise<void>>(Promise.resolve())
 
-  function revert(cardId: string, quantity: number, message: string) {
-    // A newer pending change for the same card supersedes this outcome, error included.
-    if (pending.current.has(cardId)) return
+  function revert(cardId: string, revision: number, quantity: number, message: string) {
+    // A newer edit for the same card (pending or already sent) supersedes this outcome, error included.
+    if (!isLatest(cardId, revision)) return
     setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
     setErrors((prev) => ({ ...prev, [cardId]: message }))
   }
 
-  async function send(items: [string, number][]) {
+  async function send(items: [string, number, number][]) {
+    const revisionOf = new Map(items.map(([cardId, , revision]) => [cardId, revision]))
     try {
       const response = await bulkUpdateCollectionEntries(collectionId, {
         items: items.map(([cardId, quantity]) => ({ cardId, quantity })),
       })
       if (response.status !== 200) {
         const message = response.data.detail ?? "Could not update these quantities."
-        for (const [cardId] of items) revert(cardId, confirmed.current[cardId], message)
+        for (const [cardId, , revision] of items) revert(cardId, revision, confirmed.current[cardId], message)
         return
       }
       onSaved?.()
       for (const result of response.data.data ?? []) {
         confirmed.current[result.cardId] = result.quantity
         if (result.status === InventoryChangeResultStatus.declined) {
-          revert(result.cardId, result.quantity, result.message ?? "Could not update this quantity.")
+          revert(
+            result.cardId,
+            revisionOf.get(result.cardId) ?? -1,
+            result.quantity,
+            result.message ?? "Could not update this quantity."
+          )
         }
       }
     } catch {
-      for (const [cardId] of items) revert(cardId, confirmed.current[cardId], NETWORK_ERROR)
+      for (const [cardId, , revision] of items) revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
     } finally {
-      for (const [cardId] of items) inFlight.current.delete(cardId)
+      // A newer batch for the card keeps its protection until that batch settles.
+      for (const [cardId, , revision] of items) if (isLatest(cardId, revision)) inFlight.current.delete(cardId)
     }
   }
 
   function flush() {
     debouncer.cancel()
-    const items = [...pending.current]
+    const items = [...pending.current].map(([cardId, quantity]): [string, number, number] => [
+      cardId,
+      quantity,
+      revisions.current.get(cardId) ?? 0,
+    ])
     pending.current.clear()
     for (const [cardId] of items) inFlight.current.add(cardId)
     if (items.length > 0) queue.current = queue.current.then(() => send(items))
@@ -104,6 +118,7 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
 
   function setQuantity(cardId: string, quantity: number, serverQuantity: number) {
     confirmed.current[cardId] ??= serverQuantity
+    revisions.current.set(cardId, (revisions.current.get(cardId) ?? 0) + 1)
     pending.current.delete(cardId)
     pending.current.set(cardId, quantity)
     setQuantities((prev) => ({ ...prev, [cardId]: quantity }))

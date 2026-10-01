@@ -172,6 +172,34 @@ describe("CollectionEntries", () => {
     expect(shouldRefetch()).toBe(false)
   })
 
+  it("lets an older failed batch neither revert nor unprotect a newer, already-sent edit", async () => {
+    vi.useFakeTimers()
+    setList([{ card, quantity: 3 }])
+    renderEntries()
+    const calls = vi.mocked(useListCollectionEntries).mock.calls
+    const shouldRefetch = () => {
+      // SAFETY: the component passes a function; the test calls it like TanStack Query would.
+      const option = calls.at(-1)?.[2]?.query?.refetchOnWindowFocus as () => boolean
+      return option()
+    }
+    let failFirst: () => void = () => {}
+    bulk.mockReturnValueOnce(new Promise((_, reject) => (failFirst = () => reject(new Error("offline")))))
+    bulk.mockReturnValueOnce(new Promise(() => {}))
+
+    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    await advance(QUANTITY_DEBOUNCE_MS)
+    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenCalledTimes(1)
+
+    failFirst()
+    await advance(0)
+
+    expect(bulk).toHaveBeenCalledTimes(2)
+    expect(quantityInput().value).toBe("5")
+    expect(shouldRefetch()).toBe(false)
+  })
+
   it("applies +, - and typed quantities optimistically, then sends one bulk call after the debounce", async () => {
     vi.useFakeTimers()
     setList([{ card, quantity: 3 }])
