@@ -38,6 +38,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@oxlint/plugins": "^1.83.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@tanstack/devtools-vite": "latest",

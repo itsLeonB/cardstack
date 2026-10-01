@@ -44,7 +44,7 @@ function EditCollectionPage() {
   const updateMutation = useUpdateCollectionMutation()
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-lg flex-col gap-6 p-6">
       <Link
         to="/collections"
         className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
@@ -107,6 +107,6 @@ function EditCollectionPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   )
 }
