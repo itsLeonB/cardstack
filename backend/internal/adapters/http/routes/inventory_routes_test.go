@@ -3,6 +3,7 @@ package routes
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -164,4 +165,130 @@ func TestInventoryListOrder(t *testing.T) {
 	require.Len(t, list.Data, 2)
 	assert.Equal(t, known.String(), list.Data[0].Card.ID)
 	assert.Equal(t, unknown.String(), list.Data[1].Card.ID)
+}
+
+type bulkResult struct {
+	CardID   string `json:"cardId"`
+	Quantity int    `json:"quantity"`
+	Status   string `json:"status"`
+	Reason   string `json:"reason"`
+	Message  string `json:"message"`
+}
+
+// TestInventoryBulkUpdateFlow covers the bulk endpoint end to end: mixed
+// batch, partial success, auth/CSRF/ownership, and concurrent batches on one
+// Collection serializing on its row lock. Branch cases live in the service
+// unit tests.
+func TestInventoryBulkUpdateFlow(t *testing.T) {
+	services := authTestServices(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	RegisterRoutes(api, services)
+	cards := newTestCards(t, 4)
+
+	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+
+	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder", "maxCardCount": 5})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	base := "/collections/" + created.Data.ID + "/entries"
+
+	items := func(pairs ...any) map[string]any {
+		var list []map[string]any
+		for i := 0; i < len(pairs); i += 2 {
+			list = append(list, map[string]any{"cardId": pairs[i], "quantity": pairs[i+1]})
+		}
+		return map[string]any{"items": list}
+	}
+	patch := func(user []*http.Cookie, path string, body any) (int, []bulkResult) {
+		resp := api.Patch(path, cookieHeader(user), csrfHeader(user), body)
+		var out struct {
+			Data []bulkResult `json:"data"`
+		}
+		if resp.Code == http.StatusOK {
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out), resp.Body.String())
+		}
+		return resp.Code, out.Data
+	}
+	quantities := func() map[string]int {
+		resp := api.Get(base, cookieHeader(owner))
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+		var list struct {
+			Data []struct {
+				Card     struct{ ID string } `json:"card"`
+				Quantity int                 `json:"quantity"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &list))
+		got := map[string]int{}
+		for _, it := range list.Data {
+			got[it.Card.ID] = it.Quantity
+		}
+		return got
+	}
+
+	// Mixed batch: create, create, then capacity (5) declines the third while
+	// the unknown Card is declined and a later removal still applies.
+	code, res := patch(owner, base, items(cards[0], 3, cards[1], 2, cards[2], 1, uuid.New(), 1, cards[3], 0))
+	require.Equal(t, http.StatusOK, code)
+	require.Len(t, res, 5)
+	assert.Equal(t, bulkResult{CardID: cards[0].String(), Quantity: 3, Status: "applied"}, res[0])
+	assert.Equal(t, bulkResult{CardID: cards[1].String(), Quantity: 2, Status: "applied"}, res[1])
+	assert.Equal(t, "declined", res[2].Status)
+	assert.Equal(t, "capacity_exceeded", res[2].Reason)
+	assert.NotEmpty(t, res[2].Message)
+	assert.Equal(t, "card_not_found", res[3].Reason)
+	assert.Equal(t, bulkResult{CardID: cards[3].String(), Status: "removed"}, res[4])
+	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[1].String(): 2}, quantities())
+
+	// Idempotent retry; decrease frees room, remove and re-add in one batch.
+	code, res = patch(owner, base, items(cards[0], 3, cards[1], 0, cards[2], 2))
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, []string{"applied", "removed", "applied"}, []string{res[0].Status, res[1].Status, res[2].Status})
+	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[2].String(): 2}, quantities())
+
+	// Client errors change nothing.
+	code, _ = patch(owner, base, items(cards[0], 1, cards[0], 2))
+	assert.Equal(t, http.StatusBadRequest, code, "duplicate cardId")
+	code, _ = patch(owner, base, items(cards[0], -1))
+	assert.Equal(t, http.StatusUnprocessableEntity, code, "negative")
+	code, _ = patch(owner, base, map[string]any{"items": []any{}})
+	assert.Equal(t, http.StatusUnprocessableEntity, code, "empty")
+	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[2].String(): 2}, quantities())
+
+	// Auth, CSRF, ownership.
+	// CSRF is checked first, so an anonymous caller needs a matching token pair to reach the 401.
+	assert.Equal(t, http.StatusUnauthorized, api.Patch(base, "Cookie: csrf_token=x", "X-CSRF-Token: x", items(cards[0], 1)).Code)
+	assert.Equal(t, http.StatusForbidden, api.Patch(base, cookieHeader(owner), items(cards[0], 1)).Code)
+	code, _ = patch(other, base, items(cards[0], 1))
+	assert.Equal(t, http.StatusNotFound, code)
+	code, _ = patch(owner, "/collections/"+uuid.NewString()+"/entries", items(cards[0], 1))
+	assert.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[2].String(): 2}, quantities())
+
+	// Concurrent batches serialize: each wants 3 more of its own Card with 0
+	// room left for both (5 - 5 = 0 after the first fills), so exactly one
+	// wins and the limit holds.
+	code, _ = patch(owner, base, items(cards[0], 1, cards[2], 1))
+	require.Equal(t, http.StatusOK, code)
+	var wg sync.WaitGroup
+	statuses := make([]string, 2)
+	for i, id := range []uuid.UUID{cards[1], cards[3]} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c, r := patch(owner, base, items(id, 3))
+			if assert.Equal(t, http.StatusOK, c) {
+				statuses[i] = r[0].Status
+			}
+		}()
+	}
+	wg.Wait()
+	assert.ElementsMatch(t, []string{"applied", "declined"}, statuses)
+	total := 0
+	for _, q := range quantities() {
+		total += q
+	}
+	assert.Equal(t, 5, total)
 }

@@ -43,6 +43,16 @@ type updateEntryInput struct {
 	}
 }
 
+type bulkUpdateEntriesInput struct {
+	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
+	Body         struct {
+		Items []struct {
+			CardID   uuid.UUID `json:"cardId" required:"true" doc:"The Card to change. Must be unique within the request."`
+			Quantity int       `json:"quantity" required:"true" minimum:"0" maximum:"2147483647" doc:"Absolute target quantity. 0 removes the Card."`
+		} `json:"items" required:"true" minItems:"1" maxItems:"100" doc:"Changes applied in order, at most 100."`
+	}
+}
+
 func (h *InventoryHandler) list(ctx context.Context, in collectionEntriesInput) ([]dto.InventoryItem, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -78,6 +88,20 @@ func (h *InventoryHandler) update(ctx context.Context, in updateEntryInput) (dto
 		CardID:       in.CardID,
 		Quantity:     in.Body.Quantity,
 	})
+}
+
+func (h *InventoryHandler) bulkUpdate(ctx context.Context, in bulkUpdateEntriesInput) ([]dto.InventoryChangeResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.InventoryQuantityChange, len(in.Body.Items))
+	for i, it := range in.Body.Items {
+		items[i] = dto.InventoryQuantityChange{CardID: it.CardID, Quantity: it.Quantity}
+	}
+
+	return h.inventorySvc.BulkUpdate(ctx, dto.InventoryBulkUpdateRequest{ProfileID: profileID, CollectionID: in.CollectionID, Items: items})
 }
 
 func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
@@ -121,6 +145,16 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.update,
+		}),
+		endpoint.New(endpoint.Endpoint[bulkUpdateEntriesInput, []dto.InventoryChangeResult]{
+			OperationID: "bulk-update-collection-entries",
+			Method:      http.MethodPatch,
+			Path:        "/collections/{id}/entries",
+			Summary:     "Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.bulkUpdate,
 		}),
 		endpoint.NewNoBody(endpoint.NoBodyEndpoint[entryInput]{
 			OperationID: "remove-collection-entry",

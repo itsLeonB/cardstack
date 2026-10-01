@@ -37,6 +37,27 @@
         ],
         "type": "object"
       },
+      "BulkUpdateEntriesInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Changes applied in order, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "CardSummary": {
         "additionalProperties": false,
         "properties": {
@@ -191,6 +212,24 @@
           "data": {
             "items": {
               "$ref": "#/components/schemas/CollectionSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeListInventoryChangeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryChangeResult"
             },
             "type": [
               "array",
@@ -411,6 +450,45 @@
         ],
         "type": "object"
       },
+      "InventoryChangeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable reason for a declined item.",
+            "type": "string"
+          },
+          "quantity": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why the item was declined.",
+            "enum": [
+              "capacity_exceeded",
+              "card_not_found"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "applied: set or created; removed: deleted, or already absent; declined: not applied.",
+            "enum": [
+              "applied",
+              "removed",
+              "declined"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity",
+          "status"
+        ],
+        "type": "object"
+      },
       "InventoryEntry": {
         "additionalProperties": false,
         "properties": {
@@ -441,6 +519,27 @@
         },
         "required": [
           "card",
+          "quantity"
+        ],
+        "type": "object"
+      },
+      "Item": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to change. Must be unique within the request.",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Absolute target quantity. 0 removes the Card.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
           "quantity"
         ],
         "type": "object"
@@ -1390,6 +1489,62 @@
           }
         ],
         "summary": "List the Cards and quantities in one of the current user's own Collections",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "patch": {
+        "operationId": "bulk-update-collection-entries",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpdateEntriesInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListInventoryChangeResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied",
         "tags": [
           "inventory"
         ]
