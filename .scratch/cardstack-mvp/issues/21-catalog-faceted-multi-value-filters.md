@@ -3,7 +3,7 @@
 # 21: Catalog filters: multi-value checkboxes with dependent (faceted) options
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done — implemented (backend `f906977` + `1166d16`, frontend `8871fc2` + `a03b5a2`), merged into `feat/inventory-entries`, not yet merged to `main`.
 
 **Blocked by:** None (can start immediately)
 
@@ -30,14 +30,14 @@
 - The catalog search page's filter components and search-param schema.
 
 **Acceptance criteria:**
-- [ ] Search with several Expansion Sets, Rarities, Categories or Tags returns cards matching any value within a filter and all filters together
-- [ ] The facets endpoint, given an Expansion Set filter, returns only the Rarities, Categories and Tags present on that set's cards, and returns the Expansion Set options computed without the set filter itself
-- [ ] A backend test with fixture cards proves the Deck Taktik versus 30th CELEBRATIONS behavior (a Rarity absent from one set's cards is absent from its options and present for the other)
-- [ ] No filter selection is silently dropped: a selected but now unavailable value is still returned as selected/visible to the client contract or handled in the UI as described
-- [ ] The search page renders checkbox groups for the four filters plus the two text inputs, and options update when other filters change
-- [ ] Multiple selected values round-trip through the URL (reload and shared link reproduce the same view)
-- [ ] Existing single-value filtering behavior and browse-by-set pages keep working
-- [ ] Service unit tests use mocked repositories, real-Postgres tests cover the queries, frontend tests cover the interaction, and both verification scripts pass with `openapi.json` and the generated client regenerated
+- [x] Search with several Expansion Sets, Rarities, Categories or Tags returns cards matching any value within a filter and all filters together
+- [x] The facets endpoint, given an Expansion Set filter, returns only the Rarities, Categories and Tags present on that set's cards, and returns the Expansion Set options computed without the set filter itself
+- [x] A backend test with fixture cards proves the Deck Taktik versus 30th CELEBRATIONS behavior (a Rarity absent from one set's cards is absent from its options and present for the other)
+- [x] No filter selection is silently dropped: a selected but now unavailable value is still returned as selected/visible to the client contract or handled in the UI as described
+- [x] The search page renders checkbox groups for the four filters plus the two text inputs, and options update when other filters change
+- [x] Multiple selected values round-trip through the URL (reload and shared link reproduce the same view)
+- [x] Existing single-value filtering behavior and browse-by-set pages keep working
+- [x] Service unit tests use mocked repositories, real-Postgres tests cover the queries, frontend tests cover the interaction, and both verification scripts pass with `openapi.json` and the generated client regenerated
 
 **Out of scope:**
 - Filtering inside a Collection (ticket 22)
