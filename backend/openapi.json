@@ -79,6 +79,23 @@
         ],
         "type": "object"
       },
+      "CardHolding": {
+        "additionalProperties": false,
+        "properties": {
+          "collection": {
+            "$ref": "#/components/schemas/HoldingCollection"
+          },
+          "quantity": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "collection",
+          "quantity"
+        ],
+        "type": "object"
+      },
       "CardSummary": {
         "additionalProperties": false,
         "properties": {
@@ -280,6 +297,24 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/InventoryEntry"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeListCardHolding": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CardHolding"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -563,6 +598,22 @@
         },
         "required": [
           "status"
+        ],
+        "type": "object"
+      },
+      "HoldingCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ],
         "type": "object"
       },
@@ -2279,6 +2330,54 @@
         "summary": "Health check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/inventory/cards/{cardId}/holdings": {
+      "get": {
+        "operationId": "list-card-holdings",
+        "parameters": [
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "cardId",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListCardHolding"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "summary": "List the current user's own Collections that hold a Card, with the quantity in each (empty when none)",
+        "tags": [
+          "inventory"
         ]
       }
     }

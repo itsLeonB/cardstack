@@ -27,7 +27,13 @@ export function CardTile({ card, control }: { card: CardSummary; control?: React
       )}
       <CardContent className="flex flex-col gap-1.5">
         <p className="truncate text-sm font-medium" title={card.name}>
-          {card.name}
+          <Link
+            to="/catalog/cards/$expansionSetId/$localId"
+            params={{ expansionSetId: card.expansionSet.id, localId: card.localId }}
+            className="underline-offset-2 hover:underline"
+          >
+            {card.name}
+          </Link>
         </p>
         <p className="text-xs text-muted-foreground">
           <Link

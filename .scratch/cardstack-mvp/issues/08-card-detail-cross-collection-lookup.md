@@ -4,8 +4,8 @@
 
 **Blocked by:** 05 (Catalog browse & search), 07 (Inventory Entries: record & browse holdings)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A card's detail page/endpoint shows every Collection (belonging to the requesting user) that contains that card, and the quantity in each
-- [ ] Only the requesting user's own Collections are considered — no cross-user visibility
-- [ ] A card the user owns in zero Collections shows no entries (not an error state)
+- [x] A card's detail page/endpoint shows every Collection (belonging to the requesting user) that contains that card, and the quantity in each
+- [x] Only the requesting user's own Collections are considered — no cross-user visibility
+- [x] A card the user owns in zero Collections shows no entries (not an error state)

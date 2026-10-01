@@ -11,6 +11,10 @@ A task is **big/multi-component** if either is true:
 
 Otherwise it is **small, one component** — proceed without subagents.
 
+## Feature branch first
+
+Never commit or merge onto `main` directly. Before any other step, check `git branch --show-current`: if it is `main`, create and switch to the feature branch (`git switch -c <semantic branch>/<branch name>`, see [branch naming convention](#branch-naming-conventions)). Everything below happens on that branch: worktrees branch from it, and "the shared feature branch" means it. A `PreToolUse` hook in `.claude/settings.json` blocks `git commit` and `git merge` while on `main`.
+
 ## Big/multiple components task
 
 1. Delegate work to `backend-agent` and/or `frontend-agent` (`.claude/agents/backend-agent.md`, `.claude/agents/frontend-agent.md`) — only the components actually touched.
@@ -22,7 +26,7 @@ Otherwise it is **small, one component** — proceed without subagents.
 7. The orchestrator evaluates that report:
    - Small findings: fix directly, then re-run the relevant verification script(s).
    - Larger findings: delegate back to the relevant implementer subagent (same worktree pattern) rather than fixing inline.
-8. Commit the merge on the feature branch and push — confirm with the user before pushing.
+8. Commit the merge on the feature branch (never on `main`) and push — confirm with the user before pushing.
 
 Both component subagents reference their relevant skills/MCPs internally (Serena for all code edits, context7 for library docs, plus stack-specific skills — see each agent file). The orchestrator itself should load Serena for any direct edits it makes in step 8, and context7 for any library-specific question it needs to resolve itself.
 
@@ -33,7 +37,7 @@ If the task touches a limited part of one component, it is small enough and just
 1. Implement directly — no `backend-agent`/`frontend-agent` delegation, no worktree. Drive it with TDD at agreed seams (`tdd` skill) when the task comes from a spec/ticket file, otherwise implement directly. Use Serena for all code reads/edits (mandatory, see `serena.md` / `initial_instructions`), and context7 for any library docs needed. Load the stack-specific skill for the area touched (e.g. `golang-testing`, `tanstack-query`, `shadcn`) the same way the component agents would.
 2. Run that component's verification script (same commands as step 3 above).
 3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. The orchestrator does have an Agent/Task tool, so this runs as the skill's normal two-parallel-sub-agent review. Re-run that component's verification script (step 2) after fixing findings, before committing.
-4. Commit using the [commit naming convention](#commit-naming-conventions) and push — confirm with the user before pushing.
+4. Commit on the feature branch (never on `main`) using the [commit naming convention](#commit-naming-conventions) and push — confirm with the user before pushing.
 
 ## Commit naming conventions
 
