@@ -139,7 +139,7 @@ func (_c *MockInventoryService_BulkUpdate_Call) RunAndReturn(run func(context.Co
 }
 
 // List provides a mock function with given fields: ctx, req
-func (_m *MockInventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, error) {
+func (_m *MockInventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
 	ret := _m.Called(ctx, req)
 
 	if len(ret) == 0 {
@@ -147,8 +147,9 @@ func (_m *MockInventoryService) List(ctx context.Context, req dto.InventoryListR
 	}
 
 	var r0 []dto.InventoryItem
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) ([]dto.InventoryItem, error)); ok {
+	var r1 dto.PaginationMeta
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)); ok {
 		return rf(ctx, req)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) []dto.InventoryItem); ok {
@@ -159,13 +160,19 @@ func (_m *MockInventoryService) List(ctx context.Context, req dto.InventoryListR
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, dto.InventoryListRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, dto.InventoryListRequest) dto.PaginationMeta); ok {
 		r1 = rf(ctx, req)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(dto.PaginationMeta)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, dto.InventoryListRequest) error); ok {
+		r2 = rf(ctx, req)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // MockInventoryService_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
@@ -187,12 +194,69 @@ func (_c *MockInventoryService_List_Call) Run(run func(ctx context.Context, req 
 	return _c
 }
 
-func (_c *MockInventoryService_List_Call) Return(_a0 []dto.InventoryItem, _a1 error) *MockInventoryService_List_Call {
+func (_c *MockInventoryService_List_Call) Return(_a0 []dto.InventoryItem, _a1 dto.PaginationMeta, _a2 error) *MockInventoryService_List_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockInventoryService_List_Call) RunAndReturn(run func(context.Context, dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)) *MockInventoryService_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListFacets provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFacets")
+	}
+
+	var r0 dto.CatalogFacets
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) (dto.CatalogFacets, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) dto.CatalogFacets); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.CatalogFacets)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.InventoryListRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryService_ListFacets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFacets'
+type MockInventoryService_ListFacets_Call struct {
+	*mock.Call
+}
+
+// ListFacets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.InventoryListRequest
+func (_e *MockInventoryService_Expecter) ListFacets(ctx interface{}, req interface{}) *MockInventoryService_ListFacets_Call {
+	return &MockInventoryService_ListFacets_Call{Call: _e.mock.On("ListFacets", ctx, req)}
+}
+
+func (_c *MockInventoryService_ListFacets_Call) Run(run func(ctx context.Context, req dto.InventoryListRequest)) *MockInventoryService_ListFacets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.InventoryListRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_ListFacets_Call) Return(_a0 dto.CatalogFacets, _a1 error) *MockInventoryService_ListFacets_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockInventoryService_List_Call) RunAndReturn(run func(context.Context, dto.InventoryListRequest) ([]dto.InventoryItem, error)) *MockInventoryService_List_Call {
+func (_c *MockInventoryService_ListFacets_Call) RunAndReturn(run func(context.Context, dto.InventoryListRequest) (dto.CatalogFacets, error)) *MockInventoryService_ListFacets_Call {
 	_c.Call.Return(run)
 	return _c
 }

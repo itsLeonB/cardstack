@@ -2,10 +2,13 @@ package dto
 
 import "github.com/google/uuid"
 
-// InventoryListRequest lists the contents of one of a profile's Collections.
+// InventoryListRequest lists or facets the contents of one of a profile's
+// Collections, filtered like a catalog search (Page/Limit are ignored by
+// facets).
 type InventoryListRequest struct {
 	ProfileID    uuid.UUID
 	CollectionID uuid.UUID
+	Filter       CardFilter
 }
 
 // InventoryEntryRequest sets a Card's quantity in a Collection: adds the Card

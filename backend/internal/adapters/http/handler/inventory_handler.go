@@ -19,10 +19,6 @@ func NewInventoryHandler(inventorySvc service.InventoryService) *InventoryHandle
 	return &InventoryHandler{inventorySvc: inventorySvc}
 }
 
-type collectionEntriesInput struct {
-	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
-}
-
 type addEntryInput struct {
 	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
 	Body         struct {
@@ -58,13 +54,47 @@ type bulkUpdateEntriesInput struct {
 	}
 }
 
-func (h *InventoryHandler) list(ctx context.Context, in collectionEntriesInput) ([]dto.InventoryItem, error) {
+// listEntriesInput is GET /collections/{id}/entries: the catalog search
+// filters plus pagination.
+type listEntriesInput struct {
+	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
+	CardFilterParams
+	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
+	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+}
+
+// listEntryFacetsInput is GET /collections/{id}/facets: the same filters,
+// without pagination.
+type listEntryFacetsInput struct {
+	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
+	CardFilterParams
+}
+
+func (h *InventoryHandler) list(ctx context.Context, in listEntriesInput) ([]dto.InventoryItem, dto.PaginationMeta, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, dto.PaginationMeta{}, err
+	}
+	filter, err := buildCardFilter(in.CardFilterParams)
+	if err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+	filter.Page, filter.Limit = in.Page, in.Limit
+
+	return h.inventorySvc.List(ctx, dto.InventoryListRequest{ProfileID: profileID, CollectionID: in.CollectionID, Filter: filter})
+}
+
+func (h *InventoryHandler) listFacets(ctx context.Context, in listEntryFacetsInput) (dto.CatalogFacets, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.CatalogFacets{}, err
+	}
+	filter, err := buildCardFilter(in.CardFilterParams)
+	if err != nil {
+		return dto.CatalogFacets{}, err
 	}
 
-	return h.inventorySvc.List(ctx, dto.InventoryListRequest{ProfileID: profileID, CollectionID: in.CollectionID})
+	return h.inventorySvc.ListFacets(ctx, dto.InventoryListRequest{ProfileID: profileID, CollectionID: in.CollectionID, Filter: filter})
 }
 
 func (h *InventoryHandler) add(ctx context.Context, in addEntryInput) (dto.InventoryEntry, error) {
@@ -121,14 +151,25 @@ func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
 // SessionGuard to RegisterAll.
 func (h *InventoryHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
-		endpoint.NewList(endpoint.ListEndpoint[collectionEntriesInput, dto.InventoryItem]{
+		endpoint.NewWithMeta(endpoint.EndpointWithMeta[listEntriesInput, []dto.InventoryItem, dto.PaginationMeta]{
 			OperationID: "list-collection-entries",
 			Method:      http.MethodGet,
 			Path:        "/collections/{id}/entries",
-			Summary:     "List the Cards and quantities in one of the current user's own Collections",
+			Summary:     "Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters",
 			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.list,
+		}),
+		endpoint.New(endpoint.Endpoint[listEntryFacetsInput, dto.CatalogFacets]{
+			OperationID: "list-collection-facets",
+			Method:      http.MethodGet,
+			Path:        "/collections/{id}/facets",
+			Summary:     "List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.listFacets,
 		}),
 		endpoint.New(endpoint.Endpoint[addEntryInput, dto.InventoryEntry]{
 			OperationID: "add-collection-entry",

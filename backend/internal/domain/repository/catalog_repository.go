@@ -153,6 +153,10 @@ func (r *catalogRepository) ListDistinctTags(ctx context.Context) ([]string, err
 // empty/zero field means "don't filter on this facet". Values within one
 // multi-value field combine with OR; fields combine with AND.
 type CardFilter struct {
+	// CollectionID, when set, restricts the base set to that Collection's
+	// Cards (SearchCards also returns their quantity). The caller must have
+	// checked ownership; uuid.Nil means the whole catalog.
+	CollectionID    uuid.UUID
 	Name            string
 	ExpansionSetIDs []uuid.UUID
 	LocalID         string
@@ -207,6 +211,8 @@ type CardResult struct {
 	ExpansionSetCode        string
 	ExpansionSetName        string
 	ExpansionSetReleaseDate *time.Time
+	// Quantity is set only when searching within a Collection.
+	Quantity int
 }
 
 const cardResultColumns = `cards.id AS id,
@@ -229,6 +235,16 @@ const cardResultColumns = `cards.id AS id,
 // can't widen a search beyond what the user typed (e.g. searching "A_B"
 // matching "AxB" too, since _ means "any one character" unless escaped).
 var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
+
+// cardsBase is the query over cards that filters apply to: all Cards, or only
+// the Collection's when filter.CollectionID is set.
+func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
+	q := db.Table("cards")
+	if filter.CollectionID != uuid.Nil {
+		q = q.Joins("JOIN inventory_entries ON inventory_entries.card_id = cards.id AND inventory_entries.collection_id = ?", filter.CollectionID)
+	}
+	return q
+}
 
 // applyCardFilters adds filter's non-empty facets as WHERE conditions to
 // query, which must be scoped to a query over the cards table (the
@@ -271,8 +287,7 @@ func applyCardFilters(query *gorm.DB, filter CardFilter) *gorm.DB {
 // and Expansion Set), limited/offset per filter, plus the total number of
 // Cards matching filter before that pagination.
 func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) ([]CardResult, int64, error) {
-	base := r.db.WithContext(ctx).
-		Table("cards").
+	base := cardsBase(r.db.WithContext(ctx), filter).
 		Joins("JOIN rarities ON rarities.id = cards.rarity_id").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id")
 
@@ -283,9 +298,14 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 		return nil, 0, err
 	}
 
+	columns := cardResultColumns
+	if filter.CollectionID != uuid.Nil {
+		columns += ", inventory_entries.quantity AS quantity"
+	}
+
 	var results []CardResult
 	err := base.Session(&gorm.Session{}).
-		Select(cardResultColumns).
+		Select(columns).
 		Order("expansion_sets.release_date ASC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
 		Limit(filter.Limit).
 		Offset(filter.Offset).
@@ -299,12 +319,10 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 // matching every other facet's filter (its own selection excluded), merged
 // with its selected values so a selection never disappears.
 func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilter) (CardFacets, error) {
-	// without is where a narrower base set (ticket 22's Collection) would
-	// plug in: swap the starting query for one limited to those Cards.
 	without := func(mutate func(*CardFilter)) *gorm.DB {
 		f := filter
 		mutate(&f)
-		return applyCardFilters(r.db.WithContext(ctx).Table("cards"), f)
+		return applyCardFilters(cardsBase(r.db.WithContext(ctx), f), f)
 	}
 
 	var facets CardFacets

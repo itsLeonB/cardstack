@@ -5,11 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
@@ -24,6 +24,7 @@ type inventoryFixture struct {
 	collection  entity.Collection
 	collections *mocks.MockCollectionRepository
 	entries     *mocks.MockInventoryRepository
+	catalog     *mocks.MockCatalogRepository
 	cards       *mocks.MockRepository[entity.Card]
 	svc         InventoryService
 }
@@ -37,11 +38,12 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 	f.collection = entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: f.profileID, Title: "Binder", MaxCardCount: limit}
 	f.collections = mocks.NewMockCollectionRepository(t)
 	f.entries = mocks.NewMockInventoryRepository(t)
+	f.catalog = mocks.NewMockCatalogRepository(t)
 	f.cards = mocks.NewMockRepository[entity.Card](t)
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewInventoryService(transactor, f.collections, f.entries, f.cards)
+	f.svc = NewInventoryService(transactor, f.collections, f.entries, f.catalog, f.cards)
 	return f
 }
 
@@ -87,10 +89,13 @@ func TestInventoryService_NotOwnedCollectionIsNotFound(t *testing.T) {
 	f := newInventoryFixture(t, 0)
 	cardID := uuid.New()
 	notFound := ungerr.NotFoundError("collection not found")
-	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(entity.Collection{}, notFound).Once()
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(entity.Collection{}, notFound).Times(2)
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, true).Return(entity.Collection{}, notFound).Times(3)
 
-	_, err := f.svc.List(f.ctx, dto.InventoryListRequest{ProfileID: f.profileID, CollectionID: f.collection.ID})
+	req := dto.InventoryListRequest{ProfileID: f.profileID, CollectionID: f.collection.ID}
+	_, _, err := f.svc.List(f.ctx, req)
+	requireStatus(t, err, http.StatusNotFound)
+	_, err = f.svc.ListFacets(f.ctx, req)
 	requireStatus(t, err, http.StatusNotFound)
 	_, err = f.svc.Add(f.ctx, f.entryReq(cardID, 1))
 	requireStatus(t, err, http.StatusNotFound)
@@ -99,26 +104,39 @@ func TestInventoryService_NotOwnedCollectionIsNotFound(t *testing.T) {
 	requireStatus(t, f.svc.Remove(f.ctx, dto.InventoryEntryLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, CardID: cardID}), http.StatusNotFound)
 }
 
+// TestInventoryService_List: the filter is scoped to the Collection, the
+// page is normalized and the meta reports the total.
 func TestInventoryService_List(t *testing.T) {
 	f := newInventoryFixture(t, 0)
-	early, late := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	mk := func(name string, release *time.Time, quantity int) entity.InventoryEntry {
-		return entity.InventoryEntry{
-			Quantity: quantity,
-			Card:     entity.Card{BaseEntity: baseEntity(uuid.New()), Name: name, ExpansionSet: entity.ExpansionSet{ReleaseDate: release}},
-		}
-	}
+	setID := uuid.New()
+	card := repository.CardResult{ID: uuid.New(), Name: "A", Quantity: 3}
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()
-	f.entries.EXPECT().FindAll(f.ctx, crud.Specification[entity.InventoryEntry]{
-		Model:            entity.InventoryEntry{CollectionID: f.collection.ID},
-		PreloadRelations: []string{"Card.Rarity", "Card.ExpansionSet"},
-	}).Return([]entity.InventoryEntry{mk("unknown", nil, 1), mk("late", &late, 2), mk("early", &early, 3)}, nil).Once()
+	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{
+		CollectionID: f.collection.ID, Name: "a", ExpansionSetIDs: []uuid.UUID{setID}, Limit: 24, Offset: 24,
+	}).Return([]repository.CardResult{card}, int64(30), nil).Once()
 
-	got, err := f.svc.List(f.ctx, dto.InventoryListRequest{ProfileID: f.profileID, CollectionID: f.collection.ID})
+	got, meta, err := f.svc.List(f.ctx, dto.InventoryListRequest{
+		ProfileID: f.profileID, CollectionID: f.collection.ID,
+		Filter: dto.CardFilter{Name: "a", ExpansionSetIDs: []uuid.UUID{setID}, Page: 2},
+	})
 	require.NoError(t, err)
-	require.Len(t, got, 3)
-	assert.Equal(t, []string{"early", "late", "unknown"}, []string{got[0].Card.Name, got[1].Card.Name, got[2].Card.Name})
+	assert.Equal(t, dto.PaginationMeta{Total: 30, Page: 2, Limit: 24}, meta)
+	require.Len(t, got, 1)
+	assert.Equal(t, card.ID, got[0].Card.ID)
 	assert.Equal(t, 3, got[0].Quantity)
+}
+
+func TestInventoryService_ListFacets_ScopedToCollection(t *testing.T) {
+	f := newInventoryFixture(t, 0)
+	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()
+	f.catalog.EXPECT().ListCardFacets(f.ctx, repository.CardFilter{CollectionID: f.collection.ID, Categories: []string{"Trainer"}}).
+		Return(repository.CardFacets{Categories: []repository.StringFacetOption{{Value: "Trainer", Available: true}}}, nil).Once()
+
+	got, err := f.svc.ListFacets(f.ctx, dto.InventoryListRequest{
+		ProfileID: f.profileID, CollectionID: f.collection.ID, Filter: dto.CardFilter{Categories: []string{"Trainer"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []dto.StringFacetOption{{Value: "Trainer", Available: true}}, got.Categories)
 }
 
 func TestInventoryService_Add(t *testing.T) {
