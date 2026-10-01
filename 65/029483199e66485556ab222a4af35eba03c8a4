@@ -1,0 +1,39 @@
+frontend/src/components/catalog/card-holdings.test.tsx
+  s_21e722b35e17fc::t_98e92a555b6d79 1-85
+frontend/src/components/catalog/card-holdings.tsx
+  s_21e722b35e17fc::t_d4877f034d29df 1-57
+frontend/src/components/catalog/card-tile.tsx
+  s_21e722b35e17fc::t_be697379c5a5be 30-36
+frontend/src/generated/endpoints/inventory/inventory.ts
+  s_21e722b35e17fc::t_80a131dbd1907d 31,770-888
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_21e722b35e17fc::t_5814b65888f00d 199-215
+frontend/src/generated/models/cardHolding.ts
+  s_21e722b35e17fc::t_7f8eee631696b2 1-12
+frontend/src/generated/models/envelopeListCardHolding.ts
+  s_21e722b35e17fc::t_8b5d570c2830dd 1-12
+frontend/src/generated/models/holdingCollection.ts
+  s_21e722b35e17fc::t_d158d392ec3021 1-11
+frontend/src/generated/models/index.ts
+  s_21e722b35e17fc::t_1b9c2883a7a7a4 12,22,36
+frontend/src/routeTree.gen.ts
+  s_21e722b35e17fc::t_b1f598e90608c2 25,96-101,115,130,147,164,179,195,208,304-310,345-346
+frontend/src/routes/catalog/cards.$expansionSetId.$localId.tsx
+  s_21e722b35e17fc::t_adda40f8533c89 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "65029483199e66485556ab222a4af35eba03c8a4",
+  "prompts": {},
+  "sessions": {
+    "s_21e722b35e17fc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_21e722b35e17fc",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
