@@ -110,14 +110,14 @@ func TestCatalogHandler_SearchCards_ParsesFilters(t *testing.T) {
 	rarityID := uuid.New()
 
 	want := dto.CardFilter{
-		Name:           "pika",
-		ExpansionSetID: expansionSetID,
-		LocalID:        "001",
-		RarityID:       rarityID,
-		Category:       "Pokémon",
-		Tag:            "Basic",
-		Page:           2,
-		Limit:          10,
+		Name:            "pika",
+		ExpansionSetIDs: []uuid.UUID{expansionSetID},
+		LocalID:         "001",
+		RarityIDs:       []uuid.UUID{rarityID},
+		Categories:      []string{"Pokémon"},
+		Tags:            []string{"Basic"},
+		Page:            2,
+		Limit:           10,
 	}
 	svc.EXPECT().SearchCards(mock.Anything, want).Return(nil, dto.PaginationMeta{}, nil)
 
@@ -193,5 +193,55 @@ func TestCatalogHandler_UnclassifiedErrorsAreRedacted(t *testing.T) {
 		if body := resp.Body.String(); strings.Contains(body, "s3cr3t") || strings.Contains(body, "dbhost") {
 			t.Fatalf("%s leaks internal detail: %s", path, body)
 		}
+	}
+}
+
+func TestCatalogHandler_SearchCards_AcceptsRepeatedParams(t *testing.T) {
+	svc, api := newTestCatalogHandler(t)
+	setA, setB := uuid.New(), uuid.New()
+
+	svc.EXPECT().SearchCards(mock.Anything, dto.CardFilter{
+		ExpansionSetIDs: []uuid.UUID{setA, setB},
+		Categories:      []string{"Pokémon", "Trainer"},
+		Tags:            []string{"Basic", "ex"},
+		Page:            1,
+		Limit:           24,
+	}).Return(nil, dto.PaginationMeta{}, nil)
+
+	resp := api.Get("/catalog/cards?expansionSetId=" + setA.String() + "&expansionSetId=" + setB.String() +
+		"&category=Pok%C3%A9mon&category=Trainer&tag=Basic&tag=ex")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestCatalogHandler_ListFacets(t *testing.T) {
+	svc, api := newTestCatalogHandler(t)
+	setID, rarityID := uuid.New(), uuid.New()
+
+	svc.EXPECT().ListFacets(mock.Anything, dto.CardFilter{
+		ExpansionSetIDs: []uuid.UUID{setID},
+		RarityIDs:       []uuid.UUID{rarityID},
+		Name:            "pika",
+		Tags:            []string{"Basic"},
+	}).Return(dto.CatalogFacets{
+		Tags: []dto.StringFacetOption{{Value: "Basic", Available: false}},
+	}, nil)
+
+	resp := api.Get("/catalog/facets?name=pika&expansionSetId=" + setID.String() + "&rarityId=" + rarityID.String() + "&tag=Basic")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), `"value":"Basic","available":false`) {
+		t.Fatalf("expected selected-but-unavailable tag in body, got %s", resp.Body.String())
+	}
+}
+
+func TestCatalogHandler_ListFacets_InvalidID(t *testing.T) {
+	_, api := newTestCatalogHandler(t)
+
+	resp := api.Get("/catalog/facets?rarityId=nope")
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", resp.Code, resp.Body.String())
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
@@ -251,4 +253,72 @@ func TestCatalogService_SearchCards_PropagatesRepositoryError(t *testing.T) {
 
 func baseEntity(id uuid.UUID) crud.BaseEntity {
 	return crud.BaseEntity{ID: id}
+}
+
+func TestCatalogService_SearchCards_PassesMultiValueFilter(t *testing.T) {
+	ctx := context.Background()
+	setA, setB, rarityID := uuid.New(), uuid.New(), uuid.New()
+
+	repo := mocks.NewMockCatalogRepository(t)
+	repo.EXPECT().
+		SearchCards(ctx, repository.CardFilter{
+			ExpansionSetIDs: []uuid.UUID{setA, setB},
+			RarityIDs:       []uuid.UUID{rarityID},
+			Categories:      []string{"Pokémon", "Trainer"},
+			Tags:            []string{"Basic", "ex"},
+			Limit:           defaultCardSearchLimit,
+		}).
+		Return(nil, 0, nil).
+		Once()
+	svc := NewCatalogService(repo)
+
+	_, _, err := svc.SearchCards(ctx, dto.CardFilter{
+		ExpansionSetIDs: []uuid.UUID{setA, setB},
+		RarityIDs:       []uuid.UUID{rarityID},
+		Categories:      []string{"Pokémon", "Trainer"},
+		Tags:            []string{"Basic", "ex"},
+	})
+	require.NoError(t, err)
+}
+
+func TestCatalogService_ListFacets_MapsOptionsAndAvailability(t *testing.T) {
+	ctx := context.Background()
+	setID, seriesID, rarityID := uuid.New(), uuid.New(), uuid.New()
+	filter := dto.CardFilter{ExpansionSetIDs: []uuid.UUID{setID}, Tags: []string{"gone"}}
+
+	repo := mocks.NewMockCatalogRepository(t)
+	repo.EXPECT().
+		ListCardFacets(ctx, repository.CardFilter{ExpansionSetIDs: []uuid.UUID{setID}, Tags: []string{"gone"}}).
+		Return(repository.CardFacets{
+			ExpansionSets: []repository.ExpansionSetFacetOption{{
+				ExpansionSet: entity.ExpansionSet{BaseEntity: baseEntity(setID), Code: "s1", Name: "Set 1", SeriesID: &seriesID},
+				Available:    true,
+			}},
+			Rarities:   []repository.RarityFacetOption{{Rarity: entity.Rarity{BaseEntity: baseEntity(rarityID), Code: "SR", Name: "Super Rare"}}},
+			Categories: []repository.StringFacetOption{{Value: "Trainer", Available: true}},
+			Tags:       []repository.StringFacetOption{{Value: "gone", Available: false}},
+		}, nil).
+		Once()
+	svc := NewCatalogService(repo)
+
+	got, err := svc.ListFacets(ctx, filter)
+	require.NoError(t, err)
+
+	assert.Equal(t, []dto.ExpansionSetFacetOption{{
+		ExpansionSetSummary: dto.ExpansionSetSummary{ID: setID, Code: "s1", Name: "Set 1"},
+		SeriesID:            &seriesID,
+		Available:           true,
+	}}, got.ExpansionSets)
+	assert.Equal(t, []dto.RarityFacetOption{{RaritySummary: dto.RaritySummary{ID: rarityID, Code: "SR", Name: "Super Rare"}}}, got.Rarities)
+	assert.Equal(t, []dto.StringFacetOption{{Value: "Trainer", Available: true}}, got.Categories)
+	assert.Equal(t, []dto.StringFacetOption{{Value: "gone", Available: false}}, got.Tags)
+}
+
+func TestCatalogService_ListFacets_PropagatesRepositoryError(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewMockCatalogRepository(t)
+	repo.EXPECT().ListCardFacets(ctx, repository.CardFilter{}).Return(repository.CardFacets{}, errors.New("boom")).Once()
+
+	_, err := NewCatalogService(repo).ListFacets(ctx, dto.CardFilter{})
+	assert.EqualError(t, err, "boom")
 }

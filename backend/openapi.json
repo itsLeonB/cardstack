@@ -129,6 +129,54 @@
         ],
         "type": "object"
       },
+      "CatalogFacets": {
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/StringFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "expansionSets": {
+            "items": {
+              "$ref": "#/components/schemas/ExpansionSetFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "rarities": {
+            "items": {
+              "$ref": "#/components/schemas/RarityFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/StringFacetOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "expansionSets",
+          "rarities",
+          "categories",
+          "tags"
+        ],
+        "type": "object"
+      },
       "CollectionBody": {
         "additionalProperties": false,
         "properties": {
@@ -184,6 +232,18 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/AuthMessage"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeCatalogFacets": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CatalogFacets"
           }
         },
         "required": [
@@ -435,6 +495,37 @@
         },
         "type": "object"
       },
+      "ExpansionSetFacetOption": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "releaseDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "seriesId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "id",
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
       "ExpansionSetSummary": {
         "additionalProperties": false,
         "properties": {
@@ -600,6 +691,30 @@
         ],
         "type": "object"
       },
+      "RarityFacetOption": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "id",
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
       "RaritySummary": {
         "additionalProperties": false,
         "properties": {
@@ -697,6 +812,22 @@
           "code",
           "name",
           "expansionSets"
+        ],
+        "type": "object"
+      },
+      "StringFacetOption": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "available"
         ],
         "type": "object"
       },
@@ -954,53 +1085,77 @@
             }
           },
           {
-            "description": "Only Cards in this Expansion Set.",
-            "explode": false,
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in this Expansion Set.",
-              "type": "string"
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
-            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\"), typically combined with expansionSetId.",
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
             "explode": false,
             "in": "query",
             "name": "localId",
             "schema": {
-              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\"), typically combined with expansionSetId.",
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
               "type": "string"
             }
           },
           {
-            "description": "Only Cards with this Rarity.",
-            "explode": false,
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with this Rarity.",
-              "type": "string"
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
-            "description": "Only Cards with this exact category (e.g. Pokémon, Trainer, Energi).",
-            "explode": false,
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with this exact category (e.g. Pokémon, Trainer, Energi).",
-              "type": "string"
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
-            "description": "Only Cards carrying this tag.",
-            "explode": false,
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying this tag.",
-              "type": "string"
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             }
           },
           {
@@ -1093,6 +1248,123 @@
           }
         },
         "summary": "List the distinct Card categories in use, for use as a search filter value",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/facets": {
+      "get": {
+        "operationId": "list-catalog-facets",
+        "parameters": [
+          {
+            "description": "Case-insensitive substring match on the Card's name.",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable).",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCatalogFacets"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)",
         "tags": [
           "catalog"
         ]
