@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/ezutil/v2"
@@ -65,12 +66,7 @@ func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult
 		return dto.SeriesBrowseResult{}, err
 	}
 
-	seriesIDs := make([]uuid.UUID, len(series))
-	for i, sr := range series {
-		seriesIDs[i] = sr.ID
-	}
-
-	sets, err := s.repo.ListExpansionSets(ctx, seriesIDs)
+	sets, err := s.repo.ListExpansionSets(ctx, ezutil.MapSlice(series, func(sr entity.Series) uuid.UUID { return sr.ID }))
 	if err != nil {
 		return dto.SeriesBrowseResult{}, err
 	}
@@ -88,24 +84,11 @@ func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult
 		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], mapper.ToExpansionSetSummary(set))
 	}
 
-	summaries := make([]dto.SeriesSummary, len(series))
-	for i, sr := range series {
-		summaries[i] = dto.SeriesSummary{
-			ID:            sr.ID,
-			Code:          sr.Code,
-			Name:          sr.Name,
-			ExpansionSets: setsBySeries[sr.ID],
-		}
-	}
-
-	ungroupedSummaries := make([]dto.ExpansionSetSummary, len(ungrouped))
-	for i, set := range ungrouped {
-		ungroupedSummaries[i] = mapper.ToExpansionSetSummary(set)
-	}
-
 	return dto.SeriesBrowseResult{
-		Series:                 summaries,
-		UngroupedExpansionSets: ungroupedSummaries,
+		Series: ezutil.MapSlice(series, func(sr entity.Series) dto.SeriesSummary {
+			return mapper.ToSeriesSummary(sr, setsBySeries[sr.ID])
+		}),
+		UngroupedExpansionSets: ezutil.MapSlice(ungrouped, mapper.ToExpansionSetSummary),
 	}, nil
 }
 
@@ -115,12 +98,7 @@ func (s *catalogService) ListRarities(ctx context.Context) ([]dto.RaritySummary,
 		return nil, err
 	}
 
-	summaries := make([]dto.RaritySummary, len(rarities))
-	for i, r := range rarities {
-		summaries[i] = dto.RaritySummary{ID: r.ID, Code: r.Code, Name: r.Name}
-	}
-
-	return summaries, nil
+	return ezutil.MapSlice(rarities, mapper.ToRaritySummary), nil
 }
 
 func (s *catalogService) ListCategories(ctx context.Context) ([]string, error) {
