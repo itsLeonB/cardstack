@@ -1,0 +1,23 @@
+frontend/e2e/catalog-search.spec.ts
+  s_0df90b1b6346a8::t_17653efdb26b1f 2,8,16-23,39,52-53,63-64,74-75,82,87-88
+frontend/src/components/catalog/filter-panel.test.tsx
+  s_0df90b1b6346a8::t_4d1c68d735b013 1-36
+frontend/src/components/catalog/filter-panel.tsx
+  s_0df90b1b6346a8::t_7af3e5d9dea18f 25-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a4de70807103db23f9a7eb77a413cd4c60bb6c1b",
+  "prompts": {},
+  "sessions": {
+    "s_0df90b1b6346a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_0df90b1b6346a8",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
