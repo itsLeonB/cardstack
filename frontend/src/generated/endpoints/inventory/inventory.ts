@@ -34,6 +34,7 @@ import type {
   ErrorModel,
   ListCollectionEntriesParams,
   ListCollectionFacetsParams,
+  ListMasterInventoryFacetsParams,
   ListMasterInventoryParams,
   UpdateEntryInputBody
 } from '../../models';
@@ -791,6 +792,14 @@ export const getListMasterInventoryUrl = (params?: ListMasterInventoryParams,) =
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag","cardId"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
 
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : String(value))
@@ -803,7 +812,7 @@ export const getListMasterInventoryUrl = (params?: ListMasterInventoryParams,) =
 }
 
 /**
- * @summary Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)
+ * @summary Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)
  */
 export const listMasterInventory = async (params?: ListMasterInventoryParams, options?: Parameters<typeof customFetch>[1]): Promise<listMasterInventoryResponse> => {
 
@@ -874,7 +883,7 @@ export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMas
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Page the current user's Master Inventory: each owned Card with its quantity summed across all their Collections (computed on read)
+ * @summary Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)
  */
 
 export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(
@@ -883,6 +892,140 @@ export function useListMasterInventory<TData = Awaited<ReturnType<typeof listMas
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListMasterInventoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listMasterInventoryFacetsResponse200 = {
+  data: EnvelopeCatalogFacets
+  status: 200
+}
+
+export type listMasterInventoryFacetsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listMasterInventoryFacetsResponseSuccess = (listMasterInventoryFacetsResponse200) & {
+  headers: Headers;
+};
+export type listMasterInventoryFacetsResponseError = (listMasterInventoryFacetsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listMasterInventoryFacetsResponse = (listMasterInventoryFacetsResponseSuccess | listMasterInventoryFacetsResponseError)
+
+export const getListMasterInventoryFacetsUrl = (params?: ListMasterInventoryFacetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards/facets?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards/facets`
+}
+
+/**
+ * @summary List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)
+ */
+export const listMasterInventoryFacets = async (params?: ListMasterInventoryFacetsParams, options?: Parameters<typeof customFetch>[1]): Promise<listMasterInventoryFacetsResponse> => {
+
+  return customFetch<listMasterInventoryFacetsResponse>(getListMasterInventoryFacetsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMasterInventoryFacetsQueryKey = (params?: ListMasterInventoryFacetsParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards/facets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMasterInventoryFacetsQueryOptions = <TData = Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError = ErrorModel>(params?: ListMasterInventoryFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMasterInventoryFacetsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMasterInventoryFacets>>> = ({ signal }) => listMasterInventoryFacets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMasterInventoryFacetsQueryResult = NonNullable<Awaited<ReturnType<typeof listMasterInventoryFacets>>>
+export type ListMasterInventoryFacetsQueryError = ErrorModel
+
+
+export function useListMasterInventoryFacets<TData = Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError = ErrorModel>(
+ params: undefined |  ListMasterInventoryFacetsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMasterInventoryFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listMasterInventoryFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMasterInventoryFacets<TData = Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError = ErrorModel>(
+ params?: ListMasterInventoryFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMasterInventoryFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listMasterInventoryFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMasterInventoryFacets<TData = Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError = ErrorModel>(
+ params?: ListMasterInventoryFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)
+ */
+
+export function useListMasterInventoryFacets<TData = Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError = ErrorModel>(
+ params?: ListMasterInventoryFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventoryFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMasterInventoryFacetsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

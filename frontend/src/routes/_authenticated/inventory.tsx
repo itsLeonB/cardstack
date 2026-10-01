@@ -1,14 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { z } from "zod"
 import { MasterInventory } from "@/components/inventory/master-inventory"
+import { catalogSearchSchema } from "@/lib/catalog-search"
 
 export const Route = createFileRoute("/_authenticated/inventory")({
-  validateSearch: z.object({ page: z.number().int().min(1).catch(1).default(1) }),
+  validateSearch: catalogSearchSchema,
   component: InventoryPage,
 })
 
 function InventoryPage() {
-  const { page } = Route.useSearch()
+  const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
 
   return (
@@ -20,7 +20,7 @@ function InventoryPage() {
         ← Back to Account
       </Link>
       <h1 className="font-heading text-2xl font-medium">Master Inventory</h1>
-      <MasterInventory page={page} onPageChange={(next) => void navigate({ search: { page: next } })} />
+      <MasterInventory search={search} onSearchChange={(next) => void navigate({ search: next })} />
     </main>
   )
 }

@@ -42,6 +42,7 @@ export * from './inventoryItem.ts';
 export * from './listCatalogFacetsParams.ts';
 export * from './listCollectionEntriesParams.ts';
 export * from './listCollectionFacetsParams.ts';
+export * from './listMasterInventoryFacetsParams.ts';
 export * from './listMasterInventoryParams.ts';
 export * from './loginInputBody.ts';
 export * from './meResponse.ts';
