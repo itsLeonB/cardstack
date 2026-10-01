@@ -51,7 +51,7 @@ export function QuantityControl({
           max={MAX_QUANTITY}
           step={1}
           inputMode="numeric"
-          className="text-center"
+          className="text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-label={`Quantity of ${cardName}`}
           value={shown}
           onChange={(event) => handleType(event.target.value)}
