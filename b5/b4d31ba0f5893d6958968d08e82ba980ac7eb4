@@ -1,0 +1,21 @@
+.scratch/cardstack-mvp/issues/22-collection-detail-shared-catalog-layout.md
+  s_5a4ce5edf99429::t_bb0119fbcfd6b8 6,36-45
+frontend/src/components/collections/add-entry.tsx
+  s_5a4ce5edf99429::t_9b88dc4d327c3f 6,78-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b5b4d31ba0f5893d6958968d08e82ba980ac7eb4",
+  "prompts": {},
+  "sessions": {
+    "s_5a4ce5edf99429": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5a4ce5edf99429",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
