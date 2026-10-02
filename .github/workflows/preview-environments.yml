@@ -7,10 +7,11 @@ name: Preview Environments
 #      on the project)
 #   3. a fresh Vercel preview deployment pointed at that Railway environment
 #
-# Railway's own PR environment and Vercel's own preview deployment are torn
-# down automatically by those platforms when the PR is merged/closed; this
-# workflow only owns the Neon branch lifecycle and the cross-wiring between
-# all three.
+# Railway's own PR environment is torn down automatically by Railway when the
+# PR is merged/closed. This workflow owns the Neon branch lifecycle, the PR's
+# Vercel preview deployments and the branch-scoped VITE_API_BASE_URL env var
+# it adds to the Vercel project (neither is removed by Vercel on its own),
+# and the cross-wiring between all three.
 
 on:
   pull_request:
@@ -371,7 +372,9 @@ jobs:
           branch: ${{ env.NEON_BRANCH_NAME }}
           api_key: ${{ secrets.NEON_API_KEY }}
       # Railway's PR environment is deleted automatically by Railway on
-      # PR close/merge — nothing to do here for it.
+      # PR close/merge — nothing to do here for it. The Vercel steps below
+      # clean up what provision created there: preview deployments and the
+      # branch-scoped VITE_API_BASE_URL env var.
 
       - name: Delete this PR's Vercel preview deployments
         env:
@@ -421,3 +424,49 @@ jobs:
           if [[ "$deleted_any" == false ]]; then
             echo "No Vercel preview deployments found for branch $HEAD_REF."
           fi
+
+      - name: Delete this PR's Vercel env var
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # Remove the branch-scoped VITE_API_BASE_URL that provision adds.
+          # Uses the REST API rather than `vercel env rm`: the CLI exits
+          # non-zero both for "no such entry" and for real failures, so it
+          # can't make this step idempotent without swallowing auth/API
+          # errors. Here, curl -f fails on any HTTP error, and an absent
+          # entry is just an empty match list.
+          #
+          # curl and jq are deliberately not piped: the default shell has no
+          # pipefail, so a curl failure (bad token, API error) would hand jq
+          # empty input and the step would pass without deleting anything.
+          #
+          # The jq filter enforces key, preview target and exact branch, so
+          # production and other branches' entries can never match.
+          page=$(curl -fsS -G \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env" \
+            --data-urlencode "teamId=$VERCEL_ORG_ID" \
+            --data-urlencode "gitBranch=$HEAD_REF")
+          ids=$(echo "$page" | jq -r --arg branch "$HEAD_REF" \
+            '.envs[]
+              | select(.key == "VITE_API_BASE_URL"
+                and .gitBranch == $branch
+                and (.target | index("preview")))
+              | .id')
+
+          if [[ -z "$ids" ]]; then
+            echo "No VITE_API_BASE_URL env var found for branch $HEAD_REF."
+            exit 0
+          fi
+
+          env_url="https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env"
+          for id in $ids; do
+            echo "Deleting Vercel env var $id"
+            curl -fsS -X DELETE \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -G "$env_url/$id" \
+              --data-urlencode "teamId=$VERCEL_ORG_ID"
+          done
