@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { PageContainer } from "@/components/layout/page-container"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -56,8 +57,8 @@ function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-[70svh] flex-col items-center justify-center gap-4 p-6">
-      <Card className="w-full max-w-sm">
+    <PageContainer variant="narrow" className="min-h-[70svh] items-center justify-center gap-4">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Create an account</CardTitle>
           <CardDescription>
@@ -125,6 +126,6 @@ function RegisterPage() {
           Log in
         </Link>
       </p>
-    </div>
+    </PageContainer>
   )
 }

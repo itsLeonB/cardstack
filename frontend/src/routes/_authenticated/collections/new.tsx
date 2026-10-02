@@ -1,12 +1,9 @@
 import { useState } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
+import { Card, CardContent } from "@/components/ui/card"
 import { CollectionForm } from "@/components/collections/collection-form"
 import {
   collectionSubmitCallbacks,
@@ -23,22 +20,19 @@ function NewCollectionPage() {
   const createMutation = useCreateCollectionMutation()
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6 p-6">
-      <Link
-        to="/collections"
-        className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← Back to Collections
-      </Link>
+    <PageContainer>
+      <Breadcrumbs
+        crumbs={[
+          { label: "Collections", link: { to: "/collections" } },
+          { label: "New Collection" },
+        ]}
+      />
+      <PageHeader
+        title="New Collection"
+        description="Give it a title, and optionally a description or a hard cap on its summed card quantity."
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>New Collection</CardTitle>
-          <CardDescription>
-            Give it a title, and optionally a description or a hard cap on
-            its summed card quantity.
-          </CardDescription>
-        </CardHeader>
+      <Card className="max-w-lg">
         <CardContent>
           <CollectionForm
             submitLabel="Create Collection"
@@ -60,6 +54,6 @@ function NewCollectionPage() {
           />
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }
