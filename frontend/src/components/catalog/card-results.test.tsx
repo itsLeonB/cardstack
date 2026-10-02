@@ -13,8 +13,7 @@ afterEach(() => cleanup())
 // CardTile links to the card's Expansion Set via TanStack Router's `Link`,
 // which needs a `<RouterProvider>` in the tree to resolve routes/hrefs.
 // These tests render CardResults in isolation from the router, so `Link` is
-// swapped for a plain anchor — the same isolation approach health-check.test.tsx
-// uses for the generated query hooks.
+// swapped for a plain anchor.
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof TanStackRouter>()

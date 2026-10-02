@@ -12,6 +12,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/layout/app-shell"
 import { NotFound } from "@/components/layout/not-found"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 import appCss from "../styles.css?url"
 
 export const Route = createRootRouteWithContext<{
@@ -87,7 +88,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
         <TanStackDevtools
           config={{
             position: "bottom-right",
