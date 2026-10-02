@@ -24,7 +24,7 @@ test.describe("Catalog browse", () => {
     await expect(
       page.getByRole("heading", { name: "Test Set Alpha", level: 1 })
     ).toBeVisible()
-    await expect(page.getByText("3 cards", { exact: true })).toBeVisible()
+    await expect(page.getByText("3 of 3 cards loaded")).toBeVisible()
 
     const cards = page.getByRole("listitem")
     await expect(cards).toHaveCount(3)
@@ -51,7 +51,7 @@ test.describe("Catalog browse", () => {
     await expect(
       page.getByRole("heading", { name: "Ungrouped Test Set", level: 1 })
     ).toBeVisible()
-    await expect(page.getByText("1 card", { exact: true })).toBeVisible()
+    await expect(page.getByText("1 of 1 cards loaded")).toBeVisible()
 
     const cards = page.getByRole("listitem")
     await expect(cards).toHaveCount(1)
