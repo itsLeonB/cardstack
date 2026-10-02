@@ -3,12 +3,14 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
+  useMatches,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import type { QueryClient } from "@tanstack/react-query"
 
 import { AppShell } from "@/components/layout/app-shell"
+import { NotFound } from "@/components/layout/not-found"
 import { ThemeProvider } from "@/components/theme-provider"
 import appCss from "../styles.css?url"
 
@@ -59,19 +61,24 @@ export const Route = createRootRouteWithContext<{
       },
     ],
   }),
-  notFoundComponent: () => (
-    <div className="container mx-auto p-4 pt-16">
-      <h1>404</h1>
-      <p>The requested page could not be found.</p>
-    </div>
-  ),
-  component: () => (
+  notFoundComponent: NotFound,
+  component: RootLayout,
+  shellComponent: RootDocument,
+})
+
+// `/auth` brings its own minimal shell (routes/auth/route.tsx), so the main
+// shell steps aside for it.
+function RootLayout() {
+  const isAuthRoute = useMatches({
+    select: (matches) => matches.some((match) => match.routeId === "/auth"),
+  })
+  if (isAuthRoute) return <Outlet />
+  return (
     <AppShell>
       <Outlet />
     </AppShell>
-  ),
-  shellComponent: RootDocument,
-})
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (

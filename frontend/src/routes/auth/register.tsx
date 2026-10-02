@@ -5,16 +5,15 @@ import { AuthField } from "@/components/auth/auth-field"
 import { AuthPage } from "@/components/auth/auth-page"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldGroup } from "@/components/ui/field"
-import { redirectSchema, requireGuest } from "@/lib/route-guard"
+import { redirectSchema } from "@/lib/route-guard"
 import { useRegisterMutation } from "@/lib/session"
 
 // Carried through to login so a user sent here from a protected page still
 // lands back on it after registering and signing in.
 const registerSearchSchema = z.object({ redirect: redirectSchema })
 
-export const Route = createFileRoute("/register")({
+export const Route = createFileRoute("/auth/register")({
   validateSearch: registerSearchSchema,
-  beforeLoad: requireGuest,
   component: RegisterPage,
 })
 
@@ -56,7 +55,7 @@ function RegisterPage() {
       {
         onSuccess: (response) => {
           if (response.status === 201) {
-            void navigate({ to: "/login", search: { registered: true, redirect } })
+            void navigate({ to: "/auth/login", search: { registered: true, redirect } })
             return
           }
           setFormError(response.data.detail ?? "Could not create account.")
@@ -75,7 +74,7 @@ function RegisterPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/login" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
+          <Link to="/auth/login" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
             Log in
           </Link>
         </>

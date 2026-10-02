@@ -77,7 +77,7 @@ export function CollectionPicker({
       </select>
       {!isAuthenticated && !isLoading && (
         <Link
-          to="/login"
+          to="/auth/login"
           search={{ redirect: loginRedirect }}
           className="text-sm underline-offset-2 hover:underline"
         >

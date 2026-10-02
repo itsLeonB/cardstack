@@ -43,13 +43,11 @@ async function renderLogin(url: string, loginStatus = 200) {
   } as any)
 
   const queryClient = new QueryClient()
-  queryClient.setQueryData(["/auth/me"], { status: 401, data: {} })
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()()
   const login = createRoute({
     getParentRoute: () => root,
-    path: "/login",
+    path: "/auth/login",
     validateSearch: LoginRoute.options.validateSearch,
-    beforeLoad: LoginRoute.options.beforeLoad,
     component: LoginRoute.options.component,
   })
   const router = createRouter({
@@ -77,13 +75,13 @@ function submit() {
 
 describe("login redirect", () => {
   it("sends the user back to the attempted path, query string included", async () => {
-    const { push } = await renderLogin("/login?redirect=%2Fcollections%3Fq%3Dbinder")
+    const { push } = await renderLogin("/auth/login?redirect=%2Fcollections%3Fq%3Dbinder")
     submit()
     await waitFor(() => expect(push).toHaveBeenCalledWith("/collections?q=binder"))
   })
 
   it("falls back to /account without a redirect", async () => {
-    const { push } = await renderLogin("/login")
+    const { push } = await renderLogin("/auth/login")
     submit()
     await waitFor(() => expect(push).toHaveBeenCalledWith("/account"))
   })
@@ -92,28 +90,28 @@ describe("login redirect", () => {
   // checks that login navigation really falls back.
   it("drops an external redirect target and falls back to /account", async () => {
     const { push } = await renderLogin(
-      `/login?redirect=${encodeURIComponent("https://evil.example/")}`
+      `/auth/login?redirect=${encodeURIComponent("https://evil.example/")}`
     )
     submit()
     await waitFor(() => expect(push).toHaveBeenCalledWith("/account"))
   })
 
   it("carries the redirect through the Register link", async () => {
-    await renderLogin("/login?redirect=%2Fcollections%3Fq%3Dbinder")
+    await renderLogin("/auth/login?redirect=%2Fcollections%3Fq%3Dbinder")
     expect(screen.getByRole("link", { name: "Register" }).getAttribute("href")).toBe(
-      "/register?redirect=%2Fcollections%3Fq%3Dbinder"
+      "/auth/register?redirect=%2Fcollections%3Fq%3Dbinder"
     )
   })
 })
 
 describe("login form", () => {
   it("shows the account-created notice", async () => {
-    await renderLogin("/login?registered=true")
+    await renderLogin("/auth/login?registered=true")
     expect(screen.getByRole("status").textContent).toBe("Account created. Log in below.")
   })
 
   it("shows field errors tied to their inputs without calling the API", async () => {
-    const { push } = await renderLogin("/login")
+    const { push } = await renderLogin("/auth/login")
     fireEvent.click(screen.getByRole("button", { name: "Log in" }))
 
     const email = screen.getByLabelText("Email")
@@ -124,7 +122,7 @@ describe("login form", () => {
   })
 
   it("shows a rejected login inline", async () => {
-    await renderLogin("/login", 401)
+    await renderLogin("/auth/login", 401)
     submit()
     expect((await screen.findByRole("alert")).textContent).toBe("Invalid credentials.")
   })

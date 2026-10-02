@@ -5,22 +5,21 @@ import { AuthField } from "@/components/auth/auth-field"
 import { AuthPage } from "@/components/auth/auth-page"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldGroup } from "@/components/ui/field"
-import { isSameOriginPath, redirectSchema, requireGuest } from "@/lib/route-guard"
+import { isSameOriginPath, redirectSchema } from "@/lib/route-guard"
 import { useLoginMutation } from "@/lib/session"
 
 // `redirect` only ever needs to point back into this app (requireAuth sets
 // it from the router's own location path and query), so it's restricted to
 // a same-origin relative path here. Left unvalidated, a crafted
-// `/login?redirect=` link could send a successful login to an attacker
+// `/auth/login?redirect=` link could send a successful login to an attacker
 // controlled destination (open redirect).
 const loginSearchSchema = z.object({
   redirect: redirectSchema,
   registered: z.boolean().optional(),
 })
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/auth/login")({
   validateSearch: loginSearchSchema,
-  beforeLoad: requireGuest,
   component: LoginPage,
 })
 
@@ -78,7 +77,7 @@ function LoginPage() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link to="/register" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
+          <Link to="/auth/register" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
             Register
           </Link>
         </>
