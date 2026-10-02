@@ -1,0 +1,35 @@
+frontend/src/components/catalog/collection-card-results.tsx
+  s_7a62e49eac126c::t_52ce7dd24f2ae1 11,29
+frontend/src/components/collections/collection-card.test.tsx
+  s_7a62e49eac126c::t_8d0400d8facd70 1-101
+frontend/src/components/collections/collection-card.tsx
+  s_7a62e49eac126c::t_d04b95d7f277cf 1-63
+frontend/src/components/collections/collection-entries.tsx
+  s_7a62e49eac126c::t_dd68ab0b85bdc4 13,28
+frontend/src/generated/endpoints/collections/collections.zod.ts
+  s_7a62e49eac126c::t_11fa19033aacde 15,40,66,95
+frontend/src/generated/models/collectionSummary.ts
+  s_7a62e49eac126c::t_0049c7adc96588 9
+frontend/src/lib/collections.test.tsx
+  s_7a62e49eac126c::t_518525380e77a7 19,76,150,275-286
+frontend/src/lib/collections.ts
+  s_7a62e49eac126c::t_9d319093ec93ae 2,12-21
+frontend/src/routes/_authenticated/collections/index.tsx
+  s_7a62e49eac126c::t_28508c71d2c66d 12,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "461e0a19ff9ffe403d6a0d2013bea50b3c417d68",
+  "prompts": {},
+  "sessions": {
+    "s_7a62e49eac126c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_7a62e49eac126c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
