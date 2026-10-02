@@ -3,7 +3,7 @@
 # 35: Expansion Set page on the shared infinite grid
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** 33
 
@@ -27,10 +27,10 @@ The Expansion Set page lists its cards with the numbered pager and carries `page
 - The shared virtualized grid and infinite data hook from ticket 33.
 
 **Acceptance criteria:**
-- [ ] Scrolling an Expansion Set page loads all of its cards with no duplicates
-- [ ] A legacy `?page=` URL opens the first page without an error
-- [ ] Unit tests updated and an e2e for scroll loading on this route
-- [ ] Both verification scripts pass
+- [x] Scrolling an Expansion Set page loads all of its cards with no duplicates
+- [x] A legacy `?page=` URL opens the first page without an error
+- [x] Unit tests updated and an e2e for scroll loading on this route
+- [x] Both verification scripts pass
 
 **Out of scope:**
 - Changes to the shared grid itself (ticket 33 and 34)
