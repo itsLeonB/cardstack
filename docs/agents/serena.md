@@ -1,5 +1,7 @@
 # Serena across Claude Code and pi
 
+Setup notes for the human maintainer, not agent instructions. Agents follow `docs/agents/conventions/serena.md`.
+
 How Serena is wired so both clients, and pi's subagents, use Serena's symbol-level tools as the primary way to read and edit code in this repo.
 
 ## What each client reads today

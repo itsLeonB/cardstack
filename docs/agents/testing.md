@@ -24,7 +24,7 @@ Pin `frontend/package.json`'s `playwright` devDependency to that same version. `
 
 ## Getting a local Postgres
 
-Repository tests run against a real Postgres per `docs/adr/0005`, using the `DB_*` env vars from `backend/.env.example` (`localhost:5432`, user/password/db all `cardstack`). Whether you provision this yourself depends on the environment:
+Repository tests run against a real Postgres per `docs/adr/0005-backend-tests-hit-real-postgres.md`, using the `DB_*` env vars from `backend/.env.example` (`localhost:5432`, user/password/db all `cardstack`). Whether you provision this yourself depends on the environment:
 
 - **Cloud/remote agent environment** (no human sitting at this machine, no existing Postgres you'd be stepping on): check for and self-provision one. Look for a pre-installed server first (`pg_lsclusters`, `service postgresql status`) before assuming Docker is available or needed — a cloud sandbox may ship a packaged Postgres with no Docker daemon at all. Start it (`service postgresql start`), then create the `cardstack` role/database if missing, matching `.env.example`'s credentials exactly.
 - **Local developer environment**: don't touch their setup. Assume they already have Postgres running per `backend/internal/domain/repository/repository_test_helper_test.go`'s existing Docker-based instructions, and let them provision it themselves if not.
