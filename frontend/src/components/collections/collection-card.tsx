@@ -27,7 +27,7 @@ export function CollectionCard({ collection }: { collection: CollectionSummary }
           <Link
             to="/collections/$collectionId"
             params={{ collectionId: collection.id }}
-            className="outline-none after:absolute after:inset-0 after:rounded-4xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            className="outline-none after:absolute after:inset-0 after:rounded-4xl focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
           >
             {collection.title}
           </Link>

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   RouterProvider,
@@ -77,6 +78,14 @@ describe("CollectionCard", () => {
   it("navigates to the detail page when the title link is activated", async () => {
     const router = await renderCard()
     fireEvent.click(screen.getByRole("link", { name: "Vintage binder" }))
+    await waitFor(() => expect(router.state.location.pathname).toBe("/collections/col-1"))
+  })
+
+  it("is reachable by keyboard and activates on Enter", async () => {
+    const router = await renderCard()
+    await userEvent.tab()
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Vintage binder" }))
+    await userEvent.keyboard("{Enter}")
     await waitFor(() => expect(router.state.location.pathname).toBe("/collections/col-1"))
   })
 
