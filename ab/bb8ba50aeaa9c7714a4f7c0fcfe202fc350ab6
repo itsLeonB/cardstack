@@ -1,0 +1,25 @@
+backend/internal/adapters/ingestion/pokemonasia/ingest.go
+  s_b6973b8640ad00::t_f998853e6545cd 149-150
+backend/internal/domain/entity/expansion_set.go
+  s_b6973b8640ad00::t_9f5740825e3ede 16
+backend/internal/domain/mapper/catalog_mapper_test.go
+  s_b6973b8640ad00::t_474b244800dfa5 7,16-21
+backend/internal/domain/repository/catalog_repository_test.go
+  s_b6973b8640ad00::t_296c5ed670cbb1 450-465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "abbb8ba50aeaa9c7714a4f7c0fcfe202fc350ab6",
+  "prompts": {},
+  "sessions": {
+    "s_b6973b8640ad00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b6973b8640ad00",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
