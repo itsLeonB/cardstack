@@ -1,0 +1,19 @@
+backend/internal/domain/service/collection_service.go
+  s_05fac1ef408638::t_76b4aa39aa7f96 66-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8f29a60e5023f81d91c5dfa3438032339e20e6de",
+  "prompts": {},
+  "sessions": {
+    "s_05fac1ef408638": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_05fac1ef408638",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
