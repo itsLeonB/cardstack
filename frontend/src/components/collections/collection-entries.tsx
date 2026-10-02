@@ -10,6 +10,7 @@ import { CardResults } from "@/components/catalog/card-results"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import type { CatalogSearch } from "@/lib/catalog-search"
 import { hasActiveFilters, toFacetParams } from "@/lib/catalog-search"
+import { invalidateCollectionCounts } from "@/lib/collections"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
@@ -24,6 +25,7 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, () => {
     invalidateMasterInventory(queryClient)
+    invalidateCollectionCounts(queryClient, collectionId)
   })
 
   // Always refetch and never keep the entry list around after leaving: a card
