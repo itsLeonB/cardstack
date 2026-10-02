@@ -1,14 +1,16 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
-  getListCollectionEntriesQueryKey,
   getListCollectionFacetsQueryKey,
   useListCollectionEntries,
 } from "@/generated/endpoints/inventory/inventory"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import type { InfiniteCardResultsProps } from "@/components/catalog/infinite-card-results"
 import { QuantityControl } from "@/components/collections/quantity-control"
-import { invalidateCollectionCounts } from "@/lib/collections"
+import {
+  invalidateCollectionCounts,
+  invalidateCollectionEntries,
+} from "@/lib/collections"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
@@ -24,10 +26,10 @@ export function CollectionCardResults({
 }: Omit<InfiniteCardResultsProps, "renderControl"> & { collectionId: string }) {
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, () => {
-    // Collection detail refetches entries on mount; facets are cached, so refresh them.
-    void queryClient.invalidateQueries({
-      queryKey: getListCollectionEntriesQueryKey(collectionId),
-    })
+    // Refreshes this page's quantity lookup (plain keys) and the Collection
+    // page's infinite list (`'infinite'` keys) if it is cached; the latter
+    // refetches on mount anyway. Facets are cached, so refresh them too.
+    invalidateCollectionEntries(queryClient, collectionId)
     void queryClient.invalidateQueries({
       queryKey: getListCollectionFacetsQueryKey(collectionId),
     })
@@ -58,7 +60,15 @@ export function CollectionCardResults({
   )
 
   // Fresh server data replaces optimistic values.
-  useEffect(() => batch.prune(), [query.data])
+  useEffect(
+    () =>
+      batch.prune((cardId) =>
+        lookedUpIds.has(cardId)
+          ? (serverQuantities.get(cardId) ?? 0)
+          : undefined
+      ),
+    [query.data]
+  )
 
   return (
     <>

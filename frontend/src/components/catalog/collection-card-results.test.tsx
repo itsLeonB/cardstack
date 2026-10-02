@@ -14,7 +14,13 @@ import type { CardSummary } from "@/generated/models"
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   getListCollectionEntriesQueryKey: (id: string) => ["entries", id],
+  getListCollectionEntriesInfiniteQueryKey: (id: string) => [
+    "infinite",
+    "entries",
+    id,
+  ],
   getListMasterInventoryQueryKey: () => ["inventory"],
+  getListMasterInventoryInfiniteQueryKey: () => ["infinite", "inventory"],
   getListMasterInventoryFacetsQueryKey: () => ["inventory-facets"],
   getListCollectionFacetsQueryKey: (id: string) => ["facets", id],
   useListCollectionEntries: vi.fn(),
@@ -62,9 +68,12 @@ function setEntries(items: { card: CardSummary; quantity: number }[]) {
   } as any)
 }
 
-function renderResults(cards: CardSummary[] = [card]) {
+function renderResults(
+  cards: CardSummary[] = [card],
+  client = new QueryClient()
+) {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <CollectionCardResults
         collectionId="col-1"
         cards={cards}
@@ -195,5 +204,21 @@ describe("CollectionCardResults", () => {
     await advance(QUANTITY_DEBOUNCE_MS)
     expect(screen.getByRole("alert").textContent).toBe("Capacity exceeded")
     expect(quantityInput().value).toBe("0")
+  })
+
+  it("after a save, invalidates both this lookup and the Collection page's infinite list", async () => {
+    vi.useFakeTimers()
+    setEntries([])
+    const client = new QueryClient()
+    const invalidate = vi.spyOn(client, "invalidateQueries")
+    renderResults([card], client)
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
+    await advance(QUANTITY_DEBOUNCE_MS)
+
+    const keys = invalidate.mock.calls.map(([filters]) => filters?.queryKey)
+    expect(keys).toContainEqual(["entries", "col-1"])
+    expect(keys).toContainEqual(["infinite", "entries", "col-1"])
   })
 })
