@@ -5,7 +5,7 @@ import { AuthField } from "@/components/auth/auth-field"
 import { AuthPage } from "@/components/auth/auth-page"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldGroup } from "@/components/ui/field"
-import { isSameOriginPath, requireGuest } from "@/lib/route-guard"
+import { isSameOriginPath, redirectSchema, requireGuest } from "@/lib/route-guard"
 import { useLoginMutation } from "@/lib/session"
 
 // `redirect` only ever needs to point back into this app (requireAuth sets
@@ -14,8 +14,7 @@ import { useLoginMutation } from "@/lib/session"
 // `/login?redirect=` link could send a successful login to an attacker
 // controlled destination (open redirect).
 const loginSearchSchema = z.object({
-  // `.catch`: a rejected target is dropped, so login still works.
-  redirect: z.string().refine(isSameOriginPath).optional().catch(undefined),
+  redirect: redirectSchema,
   registered: z.boolean().optional(),
 })
 
@@ -79,7 +78,7 @@ function LoginPage() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link to="/register" className="font-medium text-foreground underline underline-offset-4">
+          <Link to="/register" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
             Register
           </Link>
         </>

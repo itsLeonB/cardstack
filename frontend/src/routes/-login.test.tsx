@@ -88,14 +88,22 @@ describe("login redirect", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/account"))
   })
 
-  it.each(["https://evil.example/", "//evil.example", "/\\evil.example"])(
-    "drops the external redirect target %s",
-    async (target) => {
-      const { push } = await renderLogin(`/login?redirect=${encodeURIComponent(target)}`)
-      submit()
-      await waitFor(() => expect(push).toHaveBeenCalledWith("/account"))
-    }
-  )
+  // The schema/predicate edge cases live in route-guard.test.ts; this only
+  // checks that login navigation really falls back.
+  it("drops an external redirect target and falls back to /account", async () => {
+    const { push } = await renderLogin(
+      `/login?redirect=${encodeURIComponent("https://evil.example/")}`
+    )
+    submit()
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/account"))
+  })
+
+  it("carries the redirect through the Register link", async () => {
+    await renderLogin("/login?redirect=%2Fcollections%3Fq%3Dbinder")
+    expect(screen.getByRole("link", { name: "Register" }).getAttribute("href")).toBe(
+      "/register?redirect=%2Fcollections%3Fq%3Dbinder"
+    )
+  })
 })
 
 describe("login form", () => {

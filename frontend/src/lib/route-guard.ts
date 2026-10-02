@@ -1,4 +1,5 @@
 import { redirect } from "@tanstack/react-router"
+import { z } from "zod"
 import { CancelledError } from "@tanstack/react-query"
 import type { QueryClient } from "@tanstack/react-query"
 import { getGetCurrentUserQueryOptions } from "@/generated/endpoints/auth/auth"
@@ -38,6 +39,13 @@ export function isSameOriginPath(path: string | undefined): path is string {
     !path.startsWith("/\\")
   )
 }
+
+// `.catch`: a rejected target is dropped, so login and register still work.
+export const redirectSchema = z
+  .string()
+  .refine(isSameOriginPath)
+  .optional()
+  .catch(undefined)
 
 /**
  * Reusable `beforeLoad` guard for protected routes. Probes `GET /auth/me`
