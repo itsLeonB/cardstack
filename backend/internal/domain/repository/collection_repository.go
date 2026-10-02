@@ -26,6 +26,8 @@ type CollectionRepository interface {
 	// SumQuantities returns each Collection's summed Inventory Entry quantity
 	// in one grouped query. Collections with no entries are absent from the
 	// map, so a lookup yields 0. go-crud has no aggregate, hence raw GORM.
+	// It must count quantity the same way InventoryRepository.SumQuantity
+	// does, or the displayed count disagrees with the capacity check.
 	SumQuantities(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error)
 }
 
