@@ -13,6 +13,7 @@ import (
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,6 +33,7 @@ func TestCollectionService_Create(t *testing.T) {
 	assert.Equal(t, "Binder", got.Title)
 	assert.Equal(t, "desc", got.Description)
 	assert.Equal(t, limit, got.MaxCardCount)
+	assert.Zero(t, got.CardCount)
 }
 
 func TestCollectionService_Create_PropagatesRepositoryError(t *testing.T) {
@@ -50,18 +52,40 @@ func TestCollectionService_List(t *testing.T) {
 	ctx := context.Background()
 	profileID := uuid.New()
 	id := uuid.New()
+	emptyID := uuid.New()
 
 	repo := mocks.NewMockCollectionRepository(t)
 	repo.EXPECT().
 		FindAll(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: profileID}}).
-		Return([]entity.Collection{{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}}, nil).
+		Return([]entity.Collection{
+			{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"},
+			{BaseEntity: baseEntity(emptyID), ProfileID: profileID, Title: "Empty"},
+		}, nil).
 		Once()
+	// One aggregate call for the whole list; an empty Collection is absent from the map.
+	repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id, emptyID}).Return(map[uuid.UUID]int{id: 37}, nil).Once()
 
 	got, err := NewCollectionService(repo).List(ctx, dto.CollectionListRequest{ProfileID: profileID})
 	require.NoError(t, err)
-	require.Len(t, got, 1)
+	require.Len(t, got, 2)
 	assert.Equal(t, id, got[0].ID)
 	assert.Equal(t, "Binder", got[0].Title)
+	assert.Equal(t, 37, got[0].CardCount)
+	assert.Zero(t, got[1].CardCount)
+}
+
+func TestCollectionService_List_PropagatesSumError(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	wantErr := errors.New("boom")
+
+	repo := mocks.NewMockCollectionRepository(t)
+	repo.EXPECT().FindAll(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: profileID}}).
+		Return([]entity.Collection{{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID}}, nil).Once()
+	repo.EXPECT().SumQuantities(ctx, mock.Anything).Return(nil, wantErr).Once()
+
+	_, err := NewCollectionService(repo).List(ctx, dto.CollectionListRequest{ProfileID: profileID})
+	assert.ErrorIs(t, err, wantErr)
 }
 
 func TestCollectionService_Get_ReturnsOwnedCollection(t *testing.T) {
@@ -71,10 +95,12 @@ func TestCollectionService_Get_ReturnsOwnedCollection(t *testing.T) {
 
 	repo := mocks.NewMockCollectionRepository(t)
 	repo.EXPECT().GetOwnedCollection(ctx, profileID, id, false).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}, nil).Once()
+	repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id}).Return(map[uuid.UUID]int{id: 12}, nil).Once()
 
 	got, err := NewCollectionService(repo).Get(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
 	require.NoError(t, err)
 	assert.Equal(t, id, got.ID)
+	assert.Equal(t, 12, got.CardCount)
 }
 
 // TestCollectionService_NotFound: the repository's not-found AppError (missing
@@ -123,12 +149,14 @@ func TestCollectionService_Update(t *testing.T) {
 		Update(ctx, entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}).
 		Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "New", Description: "new", MaxCardCount: limit}, nil).
 		Once()
+	repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id}).Return(map[uuid.UUID]int{id: 7}, nil).Once()
 
 	got, err := NewCollectionService(repo).Update(ctx, dto.CollectionRequest{ProfileID: profileID, ID: id, Title: "New", Description: "new", MaxCardCount: limit})
 	require.NoError(t, err)
 	assert.Equal(t, "New", got.Title)
 	assert.Equal(t, "new", got.Description)
 	assert.Equal(t, limit, got.MaxCardCount)
+	assert.Equal(t, 7, got.CardCount)
 }
 
 func TestCollectionService_Delete(t *testing.T) {

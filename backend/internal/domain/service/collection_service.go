@@ -40,7 +40,7 @@ func (s *collectionService) Create(ctx context.Context, req dto.CollectionReques
 		return dto.CollectionSummary{}, err
 	}
 
-	return mapper.ToCollectionSummary(c), nil
+	return mapper.ToCollectionSummary(c, 0), nil // a new Collection has no entries
 }
 
 // List returns most recently created first (crud.Repository's DefaultOrder).
@@ -57,7 +57,18 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 		return nil, err
 	}
 
-	return ezutil.MapSlice(collections, mapper.ToCollectionSummary), nil
+	ids := ezutil.MapSlice(collections, func(c entity.Collection) uuid.UUID { return c.ID })
+	counts, err := s.repo.SumQuantities(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	summaries := make([]dto.CollectionSummary, len(collections))
+	for i, c := range collections {
+		summaries[i] = mapper.ToCollectionSummary(c, counts[c.ID])
+	}
+
+	return summaries, nil
 }
 
 func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
@@ -66,7 +77,7 @@ func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (
 		return dto.CollectionSummary{}, err
 	}
 
-	return mapper.ToCollectionSummary(c), nil
+	return s.summarize(ctx, c)
 }
 
 func (s *collectionService) Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
@@ -84,7 +95,7 @@ func (s *collectionService) Update(ctx context.Context, req dto.CollectionReques
 		return dto.CollectionSummary{}, err
 	}
 
-	return mapper.ToCollectionSummary(updated), nil
+	return s.summarize(ctx, updated)
 }
 
 func (s *collectionService) Delete(ctx context.Context, req dto.CollectionLookup) error {
@@ -94,4 +105,13 @@ func (s *collectionService) Delete(ctx context.Context, req dto.CollectionLookup
 	}
 
 	return s.repo.Delete(ctx, c)
+}
+
+func (s *collectionService) summarize(ctx context.Context, c entity.Collection) (dto.CollectionSummary, error) {
+	counts, err := s.repo.SumQuantities(ctx, []uuid.UUID{c.ID})
+	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	return mapper.ToCollectionSummary(c, counts[c.ID]), nil
 }
