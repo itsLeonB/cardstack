@@ -1,0 +1,41 @@
+frontend/src/components/catalog/card-results.test.tsx
+  s_3af55aa0d5f211::t_8ce2de8778a10d 36
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_3af55aa0d5f211::t_dd8215bad2a581 45
+frontend/src/components/catalog/expansion-set-tile.test.tsx
+  s_3af55aa0d5f211::t_d5b15f970c8010 1-53
+frontend/src/components/catalog/expansion-set-tile.tsx
+  s_3af55aa0d5f211::t_56e9e1949fe813 1-44
+frontend/src/components/catalog/facet-filters.test.tsx
+  s_3af55aa0d5f211::t_503b58a88e7d0c 16,19
+frontend/src/components/collections/collection-entries.test.tsx
+  s_3af55aa0d5f211::t_3b5ad2d03b061e 55
+frontend/src/components/inventory/master-inventory.test.tsx
+  s_3af55aa0d5f211::t_39b034b730a89a 41
+frontend/src/generated/endpoints/catalog/catalog.zod.ts
+  s_3af55aa0d5f211::t_11fc360eb34129 37,89,128,138
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_3af55aa0d5f211::t_f9cb0a45c19dd9 45,183,232,279
+frontend/src/generated/models/expansionSetFacetOption.ts
+  s_3af55aa0d5f211::t_58df9db9edb772 12
+frontend/src/generated/models/expansionSetSummary.ts
+  s_3af55aa0d5f211::t_29de07ca8ddd27 11
+frontend/src/routes/catalog/index.tsx
+  s_3af55aa0d5f211::t_1b7ab3271d9fe5 10,115-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "139f397458498a1eb2d247ac4c424afc9846ee96",
+  "prompts": {},
+  "sessions": {
+    "s_3af55aa0d5f211": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3af55aa0d5f211",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
