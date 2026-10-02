@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react"
+import { Link } from "@tanstack/react-router"
 import { RiCloseLine, RiMenuLine } from "@remixicon/react"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { useSession } from "@/lib/session"
+import { cn } from "cn"
 import { useNavLinks } from "./nav-links"
-import { NavLinkItem } from "./nav-link-item"
+import type { NavLink } from "./nav-links"
 import { ThemeToggle } from "./theme-toggle"
 import { UserMenu } from "./user-menu"
 import { Wordmark } from "./wordmark"
@@ -81,5 +83,35 @@ export function SiteHeader() {
         </nav>
       )}
     </header>
+  )
+}
+
+/**
+ * One header link, shared by the desktop nav and the mobile menu. `onNavigate`
+ * closes the mobile menu; `className` lets the mobile menu widen the primary
+ * (button-styled) link to fit its column.
+ */
+function NavLinkItem({
+  link,
+  onNavigate,
+  className,
+}: {
+  link: NavLink
+  onNavigate?: () => void
+  className?: string
+}) {
+  return (
+    <Link
+      to={link.to}
+      onClick={onNavigate}
+      className={cn(
+        link.primary
+          ? buttonVariants({ size: "sm" })
+          : "rounded-4xl px-4 py-2 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&[aria-current=page]]:bg-muted [&[aria-current=page]]:text-foreground",
+        className
+      )}
+    >
+      {link.label}
+    </Link>
   )
 }
