@@ -1,0 +1,55 @@
+.scratch/frontend-visual-identity/issues/05-not-found-crash-fallback-and-toasts.md
+  s_2b5deaa1d6f798::t_d734af040a53e7 9-18
+docs/agents/conventions/frontend.md
+  s_2b5deaa1d6f798::t_377ca96eeb047a 33-34
+frontend/bun.lock
+  s_2b5deaa1d6f798::t_75997bd18103ed 3,26,1251-1252
+frontend/e2e/auth.spec.ts
+  s_2b5deaa1d6f798::t_10c8f6b6a11926 125
+frontend/e2e/not-found.spec.ts
+  s_2b5deaa1d6f798::t_e6b1b10cda7009 1-61
+frontend/package.json
+  s_2b5deaa1d6f798::t_0548a1b252d179 36
+frontend/src/components/layout/crash-fallback.test.tsx
+  s_2b5deaa1d6f798::t_b3c1d154c912cf 1-49
+frontend/src/components/layout/crash-fallback.tsx
+  s_2b5deaa1d6f798::t_d4d0d0df29e7ad 1-19
+frontend/src/components/layout/not-found.test.tsx
+  s_2b5deaa1d6f798::t_71d93b923af644 1-53
+frontend/src/components/layout/not-found.tsx
+  s_2b5deaa1d6f798::t_59e74d3a9ac5f7 1-18,20-35
+frontend/src/components/layout/user-menu.test.tsx
+  s_2b5deaa1d6f798::t_a3708946666aca 1-97
+frontend/src/components/layout/user-menu.tsx
+  s_2b5deaa1d6f798::t_033994ff61e2ab 3,13-14,24,26
+frontend/src/components/ui/sonner.tsx
+  s_2b5deaa1d6f798::t_c3db8f696bea4e 1-45
+frontend/src/router.tsx
+  s_2b5deaa1d6f798::t_1c6d557b625ef9 4,15
+frontend/src/routes/__root.tsx
+  s_2b5deaa1d6f798::t_761c2b99f30aed 15,91-94
+frontend/src/routes/_authenticated/collections/$collectionId/edit.tsx
+  s_2b5deaa1d6f798::t_667e27588ad7e2 8,23-24,26-28
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_2b5deaa1d6f798::t_e121d264779c20 3,19-24
+frontend/src/routes/auth/-route.test.tsx
+  s_2b5deaa1d6f798::t_fe09fad1ea14eb 77
+frontend/src/routes/catalog/cards.$expansionSetId.$localId.tsx
+  s_2b5deaa1d6f798::t_a11b3c2e486a51 7,22-23,25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "fe0adc5c1cf318327c789420d328b62f6119daf4",
+  "prompts": {},
+  "sessions": {
+    "s_2b5deaa1d6f798": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_2b5deaa1d6f798",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
