@@ -8,6 +8,6 @@
 
 - [x] `.github/workflows/preview-environments.yml` ported from cashus, adjusted to cardstack's single Railway service and repo/service names
 - [x] `scripts/setup-preview-environments.sh` (one-time wizard) ported and adjusted the same way
-- [x] `docs/deployment/preview-environments.md` documents what gets provisioned and the one-time setup steps
+- [x] `docs/agents/deployment.md` documents what gets provisioned and how to check a deploy; one-time setup secrets are in `README.md`
 - [x] One-time setup actually run (Neon project, Railway project with PR Deploys enabled, Vercel project, secrets set) — human step, not agent-automatable
 - [x] A test PR confirms the full provision → comment → cleanup cycle works end to end

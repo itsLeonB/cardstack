@@ -6,7 +6,7 @@ Read it before the first tool call on a code file.
 
 ## Reaching the tools
 
-- **Claude Code**: Serena's tools are `mcp__serena__*`, called directly.
+- **Claude Code**: Serena's tools are `mcp__serena__*` and arrive deferred, so a direct call fails until loaded. Before your first code tool call, load them in one `ToolSearch` with `select:mcp__serena__initial_instructions,mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols,mcp__serena__replace_symbol_body,mcp__serena__replace_content`, then call `initial_instructions`.
 - **pi**: reach them through the `mcp` proxy, `mcp({ tool: "find_symbol", args: { ... } })`, or run `tool_search` and call the activated `mcp__serena__*` tool. The same rule covers every other MCP server: `mcp({ tool: "..." })` in pi, `mcp__<server>__<tool>` in Claude Code.
 - **pi subagents**: Serena is only reachable in a background child, because the `mcp` proxy comes from an ambient extension that foreground children do not load. The orchestrator's launches are background by default; do not pass `async: false` for a child that needs code tools.
 - Both clients start Serena with `--project-from-cwd` under a single-project context, so the project is already active. Do not call `activate_project`; that tool does not exist in these configurations.
