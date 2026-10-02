@@ -1,0 +1,63 @@
+frontend/bun.lock
+  s_75bd0a6d126514::t_9ee7a373711f01 20,529-530,555-556
+frontend/e2e/catalog-infinite-scroll.spec.ts
+  s_75bd0a6d126514::t_8452e496dca313 1-162
+frontend/orval.config.ts
+  s_75bd0a6d126514::t_be81448d00e9a8 72-78
+frontend/package.json
+  s_75bd0a6d126514::t_5c9ed2a7e0a96e 30
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_75bd0a6d126514::t_c614b825a7f2a8 75-77,117-129
+frontend/src/components/catalog/collection-card-results.tsx
+  s_75bd0a6d126514::t_decd7c538d4238 8-9,15-16,24,39-41,55,70,73
+frontend/src/components/catalog/filter-panel.test.tsx
+  s_75bd0a6d126514::t_db991007fc0426 4,15,29,32
+frontend/src/components/catalog/filter-panel.tsx
+  s_75bd0a6d126514::t_b70421c0511205 15,18,22
+frontend/src/components/catalog/infinite-card-results.test.tsx
+  s_75bd0a6d126514::t_6a692f494018c5 1-120
+frontend/src/components/catalog/infinite-card-results.tsx
+  s_75bd0a6d126514::t_d01269eea82f1c 1-112
+frontend/src/components/catalog/virtual-grid.test.tsx
+  s_75bd0a6d126514::t_5d93b50415ae73 1-68
+frontend/src/components/catalog/virtual-grid.tsx
+  s_75bd0a6d126514::t_4d4cdcc5df68f9 1-124
+frontend/src/generated/endpoints/catalog/catalog.ts
+  s_75bd0a6d126514::t_8ba8879a23cdd9 8,14,16,21-22,127-132,140-206
+frontend/src/lib/catalog-search.test.ts
+  s_75bd0a6d126514::t_224116d6856883 6,36-42
+frontend/src/lib/catalog-search.ts
+  s_75bd0a6d126514::t_a4f6fb3f9b03ad 23-28,34
+frontend/src/lib/grid-layout.test.ts
+  s_75bd0a6d126514::t_4babacedc7d44f 1-47
+frontend/src/lib/grid-layout.ts
+  s_75bd0a6d126514::t_6a311afe9b758f 1-47
+frontend/src/lib/infinite-catalog-cards.test.ts
+  s_75bd0a6d126514::t_21a899266114e8 1-80
+frontend/src/lib/infinite-catalog-cards.ts
+  s_75bd0a6d126514::t_a77d2d720199d5 1-91
+frontend/src/routes/catalog/search.tsx
+  s_75bd0a6d126514::t_c5b17f89e5e691 19,26-31,34,43-46,49-54,59,80,83-89,98-99,103-104,106-108,110-112,152
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_75bd0a6d126514::t_7e039a2dc70a75 86
+frontend/src/test-grid-layout.ts
+  s_75bd0a6d126514::t_c8f3254e0f89ad 1-42
+frontend/src/test-setup.ts
+  s_75bd0a6d126514::t_46e355907d6845 7-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "769232715b8d61bc5d80b225d5ca7c2627295875",
+  "prompts": {},
+  "sessions": {
+    "s_75bd0a6d126514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_75bd0a6d126514",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
