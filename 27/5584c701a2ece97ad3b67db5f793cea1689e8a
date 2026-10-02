@@ -1,0 +1,29 @@
+frontend/e2e/auth.spec.ts
+  s_ad664dd0759075::t_7c6af66878807f 14,31-32,37,41
+frontend/src/lib/route-guard.ts
+  s_ad664dd0759075::t_5a058deb1b441d 2,43-49
+frontend/src/routes/-login.test.tsx
+  s_ad664dd0759075::t_070f2438eff9da 91-106
+frontend/src/routes/-register.test.tsx
+  s_ad664dd0759075::t_adca4ff6ea4c97 1-97
+frontend/src/routes/login.tsx
+  s_ad664dd0759075::t_04158e64b8821d 8,17,81
+frontend/src/routes/register.tsx
+  s_ad664dd0759075::t_55f1a46d951a08 8,11-14,16,28,59,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "275584c701a2ece97ad3b67db5f793cea1689e8a",
+  "prompts": {},
+  "sessions": {
+    "s_ad664dd0759075": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ad664dd0759075",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
