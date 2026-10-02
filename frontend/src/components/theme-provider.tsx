@@ -41,7 +41,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem(storageKey)
+    let stored: string | null = null
+    try {
+      stored = localStorage.getItem(storageKey)
+    } catch {
+      // Storage can be denied (private mode, blocked cookies); use the default.
+    }
     setThemeState(
       stored === "light" || stored === "dark" || stored === "system"
         ? stored
@@ -65,7 +70,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme, mounted])
 
   const setTheme = (next: Theme) => {
-    localStorage.setItem(storageKey, next)
+    try {
+      localStorage.setItem(storageKey, next)
+    } catch {
+      // Not persisted, but the theme still applies for this session.
+    }
     setThemeState(next)
   }
 

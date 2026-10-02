@@ -15,6 +15,15 @@ export function SiteHeader() {
   const toggleRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)")
+    const onChange = () => {
+      if (media.matches) setOpen(false)
+    }
+    media.addEventListener("change", onChange)
+    return () => media.removeEventListener("change", onChange)
+  }, [])
+
+  useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
