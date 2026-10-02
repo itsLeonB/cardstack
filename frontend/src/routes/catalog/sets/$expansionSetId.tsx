@@ -1,4 +1,3 @@
-import { useCallback } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
@@ -8,24 +7,18 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatReleaseDate } from "@/lib/date"
 import {
-  catalogInfiniteQueryOptions,
+  prefetchInfiniteCatalogCards,
+  useInfiniteCardResultsProps,
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
 
 export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
   // No search schema: the list is infinite, so a stale `?page=` in an old link
   // is simply ignored and the first page opens.
-  // Page 1 is prefetched; later pages load on scroll. A failed request is left
-  // to the page's inline error instead of crashing the route.
   loader: async ({ context: { queryClient }, params }) => {
-    const data = await queryClient
-      .infiniteQuery({
-        ...catalogInfiniteQueryOptions({
-          expansionSetId: [params.expansionSetId],
-        }),
-        staleTime: "static",
-      })
-      .catch(() => undefined)
+    const data = await prefetchInfiniteCatalogCards(queryClient, {
+      expansionSetId: [params.expansionSetId],
+    })
     const first = data?.pages[0]
     return first?.status === 200
       ? first.data.data?.[0]?.expansionSet.name
@@ -39,14 +32,8 @@ function ExpansionSetCardsPage() {
   const { expansionSetId } = Route.useParams()
 
   const query = useInfiniteCatalogCards({ expansionSetId: [expansionSetId] })
-  const { fetchNextPage } = query
-  // cancelRefetch: false, or a call during a background refetch cancels it.
-  const loadMore = useCallback(
-    () => void fetchNextPage({ cancelRefetch: false }),
-    [fetchNextPage]
-  )
-  const cards = query.data?.cards ?? []
-  const total = query.data?.total ?? 0
+  const results = useInfiniteCardResultsProps(query)
+  const { cards, total } = results
   const firstCard = cards[0]
   const releaseDate = formatReleaseDate(firstCard?.expansionSet.releaseDate)
   const setName = firstCard?.expansionSet.name ?? "Expansion Set"
@@ -85,17 +72,8 @@ function ExpansionSetCardsPage() {
       )}
 
       <InfiniteCardResults
-        cards={cards}
-        total={total}
-        isPending={query.isPending}
-        isError={query.isError}
-        errorMessage={
-          query.error instanceof Error ? query.error.message : undefined
-        }
+        {...results}
         emptyMessage="This Expansion Set has no cards yet."
-        hasNextPage={query.hasNextPage}
-        isFetching={query.isFetching}
-        onLoadMore={loadMore}
       />
     </PageContainer>
   )

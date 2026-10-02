@@ -1,3 +1,5 @@
+import { useCallback } from "react"
+import type { QueryClient } from "@tanstack/react-query"
 import {
   getSearchCatalogCardsInfiniteQueryOptions,
   searchCatalogCards,
@@ -82,4 +84,52 @@ export function useInfiniteCatalogCards(filters: CatalogFilterParams) {
   return useSearchCatalogCardsInfinite(params, {
     query: { ...query, select: (data) => mergeCatalogPages(data.pages) },
   })
+}
+
+/**
+ * Route-loader prefetch of page 1; later pages load on scroll. A failed request
+ * resolves to undefined so the page shows its inline error instead of crashing
+ * the route.
+ */
+export function prefetchInfiniteCatalogCards(
+  queryClient: QueryClient,
+  filters: CatalogFilterParams
+) {
+  return queryClient
+    .infiniteQuery({
+      ...catalogInfiniteQueryOptions(filters),
+      staleTime: "static",
+    })
+    .catch(() => undefined)
+}
+
+/** Maps an infinite catalog query onto the props `InfiniteCardResults` takes, bar `emptyMessage`. */
+export function useInfiniteCardResultsProps(
+  query: Pick<
+    ReturnType<typeof useInfiniteCatalogCards>,
+    | "data"
+    | "fetchNextPage"
+    | "hasNextPage"
+    | "isError"
+    | "isFetching"
+    | "isPending"
+  > & { error: unknown }
+) {
+  const { fetchNextPage } = query
+  // cancelRefetch: false, or a call during a background refetch cancels it.
+  const onLoadMore = useCallback(
+    () => void fetchNextPage({ cancelRefetch: false }),
+    [fetchNextPage]
+  )
+  return {
+    cards: query.data?.cards ?? [],
+    total: query.data?.total ?? 0,
+    isPending: query.isPending,
+    isError: query.isError,
+    errorMessage:
+      query.error instanceof Error ? query.error.message : undefined,
+    hasNextPage: query.hasNextPage,
+    isFetching: query.isFetching,
+    onLoadMore,
+  }
 }

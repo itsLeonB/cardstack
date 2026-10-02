@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest"
+import { renderHook } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
 import {
   mergeCatalogPages,
   nextCatalogPageParam,
+  useInfiniteCardResultsProps,
 } from "./infinite-catalog-cards"
 import type { searchCatalogCards } from "@/generated/endpoints/catalog/catalog"
 import type { CardSummary } from "@/generated/models"
@@ -76,5 +78,44 @@ describe("mergeCatalogPages", () => {
       headers: new Headers(),
     } as Page
     expect(mergeCatalogPages([failed, empty])).toEqual({ cards: [], total: 0 })
+  })
+})
+
+describe("useInfiniteCardResultsProps", () => {
+  it("loads the next page without cancelling a background refetch", () => {
+    const fetchNextPage = vi.fn()
+    const query = {
+      data: { cards: [card("a")], total: 5 },
+      isPending: false,
+      isError: true,
+      error: new Error("boom"),
+      hasNextPage: true,
+      isFetching: false,
+      fetchNextPage,
+    }
+
+    const { result } = renderHook(() => useInfiniteCardResultsProps(query))
+    result.current.onLoadMore()
+
+    expect(fetchNextPage).toHaveBeenCalledWith({ cancelRefetch: false })
+    expect(result.current).toMatchObject({
+      total: 5,
+      errorMessage: "boom",
+      hasNextPage: true,
+    })
+  })
+
+  it("defaults to an empty list before data arrives", () => {
+    const query = {
+      data: undefined,
+      isPending: true,
+      isError: false,
+      error: null,
+      hasNextPage: false,
+      isFetching: true,
+      fetchNextPage: vi.fn(),
+    }
+    const { result } = renderHook(() => useInfiniteCardResultsProps(query))
+    expect(result.current).toMatchObject({ cards: [], total: 0 })
   })
 })

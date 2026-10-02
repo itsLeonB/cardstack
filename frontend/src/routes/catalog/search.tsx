@@ -26,7 +26,8 @@ import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import { catalogFilterSchema } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import {
-  catalogInfiniteQueryOptions,
+  prefetchInfiniteCatalogCards,
+  useInfiniteCardResultsProps,
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
 
@@ -46,12 +47,7 @@ export const Route = createFileRoute("/catalog/search")({
   // empty filter instead of crashing the route.
   loader: ({ context: { queryClient }, deps }) =>
     Promise.all([
-      queryClient
-        .infiniteQuery({
-          ...catalogInfiniteQueryOptions(deps),
-          staleTime: "static",
-        })
-        .catch(() => undefined),
+      prefetchInfiniteCatalogCards(queryClient, deps),
       queryClient
         .ensureQueryData(getListCatalogSeriesQueryOptions())
         .catch(() => undefined),
@@ -81,12 +77,7 @@ function CatalogSearchPage() {
     query: { placeholderData: keepPreviousData },
   })
   const cardsQuery = useInfiniteCatalogCards(search)
-  const { fetchNextPage } = cardsQuery
-  // cancelRefetch: false, or a call during a background refetch cancels it.
-  const loadMore = useCallback(
-    () => void fetchNextPage({ cancelRefetch: false }),
-    [fetchNextPage]
-  )
+  const cardResults = useInfiniteCardResultsProps(cardsQuery)
 
   const series =
     seriesQuery.data?.status === 200
@@ -109,16 +100,8 @@ function CatalogSearchPage() {
   }
 
   const resultsProps = {
-    cards: cardsQuery.data?.cards ?? [],
-    total: cardsQuery.data?.total ?? 0,
-    isPending: cardsQuery.isPending,
-    isError: cardsQuery.isError,
-    errorMessage:
-      cardsQuery.error instanceof Error ? cardsQuery.error.message : undefined,
+    ...cardResults,
     emptyMessage: "No cards match these filters.",
-    hasNextPage: cardsQuery.hasNextPage,
-    isFetching: cardsQuery.isFetching,
-    onLoadMore: loadMore,
   }
 
   return (
