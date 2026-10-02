@@ -48,7 +48,7 @@ function ExpansionSetCardsPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
       <Link
         to="/catalog"
         className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
@@ -98,6 +98,6 @@ function ExpansionSetCardsPage() {
         emptyMessage="This Expansion Set has no cards yet."
         onPageChange={handlePageChange}
       />
-    </main>
+    </div>
   )
 }

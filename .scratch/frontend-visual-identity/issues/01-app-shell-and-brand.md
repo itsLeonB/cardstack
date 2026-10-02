@@ -11,7 +11,7 @@
 - [ ] The current section is marked as the current page for assistive tech and styled distinctly
 - [ ] Mobile-first: on small screens the nav collapses into a menu that opens and closes by tap and keyboard; no horizontal scroll at phone width on any existing page
 - [ ] Header nav is plain links inside a `nav` with no list markup, so existing Playwright specs that count list items still pass unmodified
-- [ ] Footer: wordmark, one-line description, links mirroring the header per auth state, an MVP note (personal MVP, Indonesian print editions). No legal links
+- [ ] Footer: wordmark, one-line description, an MVP note (no nav links; the header already carries them) (personal MVP, Indonesian print editions). No legal links
 - [ ] Theme toggle (light, dark, system), default system, persisted, applied before first paint with no flash. Prefer a proven solution from the TanStack ecosystem or the shadcn-documented approach over a hand-rolled one; confirm against current docs first
 - [ ] Wordmark (stacked-cards glyph plus "Cardstack" in the heading font), SVG favicon, corrected manifest (no references to missing icons), real document title, `lang`, description and theme colour in the root head
 - [ ] Playwright: guest header and signed-in header, navigation between main areas, theme persistence, and an axe check on the shell
