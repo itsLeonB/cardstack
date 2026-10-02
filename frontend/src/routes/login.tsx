@@ -1,53 +1,54 @@
 import { useState } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { z } from "zod"
-import { PageContainer } from "@/components/layout/page-container"
+import { AuthField } from "@/components/auth/auth-field"
+import { AuthPage } from "@/components/auth/auth-page"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { Field, FieldError, FieldGroup } from "@/components/ui/field"
+import { isSameOriginPath, redirectSchema, requireGuest } from "@/lib/route-guard"
 import { useLoginMutation } from "@/lib/session"
 
 // `redirect` only ever needs to point back into this app (requireAuth sets
-// it from the router's own same-origin location.href), so it's restricted
-// to a same-origin relative path here. Left unvalidated, a crafted
+// it from the router's own location path and query), so it's restricted to
+// a same-origin relative path here. Left unvalidated, a crafted
 // `/login?redirect=` link could send a successful login to an attacker
 // controlled destination (open redirect).
 const loginSearchSchema = z.object({
-  redirect: z
-    .string()
-    .refine((path) => path.startsWith("/") && !path.startsWith("//"))
-    .optional(),
+  redirect: redirectSchema,
   registered: z.boolean().optional(),
 })
 
 export const Route = createFileRoute("/login")({
   validateSearch: loginSearchSchema,
+  beforeLoad: requireGuest,
   component: LoginPage,
 })
 
+interface FieldErrors {
+  email?: string
+  password?: string
+}
+
 function LoginPage() {
   const { redirect, registered } = Route.useSearch()
-  const navigate = useNavigate()
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const loginMutation = useLoginMutation()
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError(null)
+
+    const nextErrors: FieldErrors = {}
+    if (!z.email().safeParse(email).success) {
+      nextErrors.email = "Enter a valid email address."
+    }
+    if (!password) nextErrors.password = "Enter your password."
+    setErrors(nextErrors)
+    if (nextErrors.email || nextErrors.password) return
 
     loginMutation.mutate(
       { data: { email, password } },
@@ -56,10 +57,9 @@ function LoginPage() {
           if (response.status === 200) {
             // SAFETY: redundant with loginSearchSchema's refine, kept here
             // so a post-login redirect is never sent off-site even if
-            // validateSearch's own enforcement ever changes.
-            const isSameOriginPath =
-              redirect?.startsWith("/") && !redirect.startsWith("//")
-            void navigate({ to: isSameOriginPath ? redirect : "/account" })
+            // validateSearch's own enforcement ever changes. `history.push`
+            // (not `navigate({ to })`) because the target carries a query string.
+            router.history.push(isSameOriginPath(redirect) ? redirect : "/account")
             return
           }
           setFormError(response.data.detail ?? "Invalid email or password.")
@@ -72,60 +72,53 @@ function LoginPage() {
   }
 
   return (
-    <PageContainer variant="narrow" className="min-h-[70svh] items-center justify-center gap-4">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Log in</CardTitle>
-          <CardDescription>
-            Log in with your email and password to access your Collections.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} noValidate>
-            <FieldGroup>
-              {registered && (
-                <p className="text-sm text-muted-foreground">
-                  Account created. Log in below.
-                </p>
-              )}
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </Field>
-              {formError && <FieldError>{formError}</FieldError>}
-              <Field>
-                <Button type="submit" disabled={loginMutation.isPending}>
-                  {loginMutation.isPending ? "Logging in..." : "Log in"}
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-      <p className="text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
-        <Link to="/register" className="text-primary underline">
-          Register
-        </Link>
-      </p>
-    </PageContainer>
+    <AuthPage
+      title="Log in"
+      description="Log in with your email and password to access your Collections."
+      footer={
+        <>
+          Don&apos;t have an account?{" "}
+          <Link to="/register" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
+            Register
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} noValidate aria-busy={loginMutation.isPending}>
+        <FieldGroup>
+          {registered && (
+            <p role="status" className="rounded-2xl bg-muted px-4 py-3 text-sm text-foreground">
+              Account created. Log in below.
+            </p>
+          )}
+          <AuthField
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            error={errors.email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <AuthField
+            id="password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            error={errors.password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          {formError && <FieldError>{formError}</FieldError>}
+          <Field>
+            <Button type="submit" disabled={loginMutation.isPending}>
+              {loginMutation.isPending ? "Logging in..." : "Log in"}
+            </Button>
+          </Field>
+        </FieldGroup>
+      </form>
+    </AuthPage>
   )
 }

@@ -1,32 +1,36 @@
 import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { PageContainer } from "@/components/layout/page-container"
+import { z } from "zod"
+import { AuthField } from "@/components/auth/auth-field"
+import { AuthPage } from "@/components/auth/auth-page"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { Field, FieldError, FieldGroup } from "@/components/ui/field"
+import { redirectSchema, requireGuest } from "@/lib/route-guard"
 import { useRegisterMutation } from "@/lib/session"
 
+// Carried through to login so a user sent here from a protected page still
+// lands back on it after registering and signing in.
+const registerSearchSchema = z.object({ redirect: redirectSchema })
+
 export const Route = createFileRoute("/register")({
+  validateSearch: registerSearchSchema,
+  beforeLoad: requireGuest,
   component: RegisterPage,
 })
 
+interface FieldErrors {
+  email?: string
+  password?: string
+  passwordConfirmation?: string
+}
+
 function RegisterPage() {
+  const { redirect } = Route.useSearch()
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [passwordConfirmation, setPasswordConfirmation] = useState("")
+  const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const registerMutation = useRegisterMutation()
 
@@ -34,17 +38,25 @@ function RegisterPage() {
     event.preventDefault()
     setFormError(null)
 
-    if (password !== passwordConfirmation) {
-      setFormError("Passwords do not match.")
-      return
+    const nextErrors: FieldErrors = {}
+    if (!z.email().safeParse(email).success) {
+      nextErrors.email = "Enter a valid email address."
     }
+    if (password.length < 8) {
+      nextErrors.password = "Use at least 8 characters."
+    }
+    if (password !== passwordConfirmation) {
+      nextErrors.passwordConfirmation = "Passwords do not match."
+    }
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
 
     registerMutation.mutate(
       { data: { email, password, passwordConfirmation } },
       {
         onSuccess: (response) => {
           if (response.status === 201) {
-            void navigate({ to: "/login", search: { registered: true } })
+            void navigate({ to: "/login", search: { registered: true, redirect } })
             return
           }
           setFormError(response.data.detail ?? "Could not create account.")
@@ -57,75 +69,60 @@ function RegisterPage() {
   }
 
   return (
-    <PageContainer variant="narrow" className="min-h-[70svh] items-center justify-center gap-4">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Create an account</CardTitle>
-          <CardDescription>
-            Register with an email and password to start tracking your
-            Collections.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} noValidate>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="passwordConfirmation">
-                  Confirm password
-                </FieldLabel>
-                <Input
-                  id="passwordConfirmation"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                  value={passwordConfirmation}
-                  onChange={(event) =>
-                    setPasswordConfirmation(event.target.value)
-                  }
-                />
-              </Field>
-              {formError && <FieldError>{formError}</FieldError>}
-              <Field>
-                <Button type="submit" disabled={registerMutation.isPending}>
-                  {registerMutation.isPending
-                    ? "Creating account..."
-                    : "Create account"}
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-      <p className="text-sm text-muted-foreground">
-        Already have an account?{" "}
-        <Link to="/login" className="text-primary underline">
-          Log in
-        </Link>
-      </p>
-    </PageContainer>
+    <AuthPage
+      title="Create an account"
+      description="Register with an email and password to start tracking your Collections."
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link to="/login" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
+            Log in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} noValidate aria-busy={registerMutation.isPending}>
+        <FieldGroup>
+          <AuthField
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            error={errors.email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <AuthField
+            id="password"
+            label="Password"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            value={password}
+            error={errors.password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <AuthField
+            id="passwordConfirmation"
+            label="Confirm password"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            value={passwordConfirmation}
+            error={errors.passwordConfirmation}
+            onChange={(event) => setPasswordConfirmation(event.target.value)}
+          />
+          {formError && <FieldError>{formError}</FieldError>}
+          <Field>
+            <Button type="submit" disabled={registerMutation.isPending}>
+              {registerMutation.isPending ? "Creating account..." : "Create account"}
+            </Button>
+          </Field>
+        </FieldGroup>
+      </form>
+    </AuthPage>
   )
 }
