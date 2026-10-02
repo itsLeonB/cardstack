@@ -102,7 +102,10 @@ let onAuthLost: (() => void) | null = null
  * or router, so the app owns that wiring (`router.tsx`).
  */
 export function setOnAuthLost(callback: (() => void) | null): void {
-  onAuthLost = callback
+  // A server render builds a fresh router and queryClient per request, so a
+  // registration made there would leave this process-wide singleton holding
+  // one request's state for the next. Only the browser realm may register.
+  onAuthLost = canRefreshSession() ? callback : null
 }
 
 // One expiry, one notice: a burst of concurrent 401s all fail the same

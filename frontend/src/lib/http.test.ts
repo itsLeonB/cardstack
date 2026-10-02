@@ -340,4 +340,23 @@ describe("customFetch refresh on 401", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it("ignores an auth-lost registration made outside the browser realm", async () => {
+    const savedDocument = globalThis.document
+    const onAuthLost = vi.fn()
+
+    try {
+      Reflect.deleteProperty(globalThis, "document")
+      setOnAuthLost(onAuthLost)
+    } finally {
+      Reflect.set(globalThis, "document", savedDocument)
+    }
+
+    // The realm check gates the *registration*, not the refresh that follows:
+    // a server render's per-request router must not reach this singleton.
+    stubFetch(() => unauthorized())
+    await customFetch<ApiResult>(COLLECTIONS_URL, { method: "GET" })
+
+    expect(onAuthLost).not.toHaveBeenCalled()
+  })
 })
