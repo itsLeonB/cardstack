@@ -83,7 +83,7 @@ function ExpansionSetCardsPage() {
       {result && result.meta.total > 0 && (
         <Link
           to="/catalog/search"
-          search={{ expansionSetId: [expansionSetId], page: 1 }}
+          search={{ expansionSetId: [expansionSetId] }}
           className="w-fit text-sm text-primary underline-offset-2 hover:underline"
         >
           Search within this set

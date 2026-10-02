@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
 import { CatalogFilterPanel } from "./filter-panel"
-import type { CatalogSearch } from "@/lib/catalog-search"
+import type { CatalogFilters } from "@/lib/catalog-search"
 
 afterEach(() => cleanup())
 
@@ -12,7 +12,7 @@ function value(label: string) {
   return input.value
 }
 
-function panel(search: CatalogSearch) {
+function panel(search: CatalogFilters) {
   return (
     <CatalogFilterPanel
       search={search}
@@ -26,12 +26,10 @@ function panel(search: CatalogSearch) {
 
 describe("CatalogFilterPanel", () => {
   it("resyncs the text inputs when the URL changes from outside the panel", () => {
-    const { rerender } = render(
-      panel({ page: 1, name: "Pika", localId: "001" })
-    )
+    const { rerender } = render(panel({ name: "Pika", localId: "001" }))
     expect(value("Card name")).toBe("Pika")
 
-    rerender(panel({ page: 1, name: "Char" }))
+    rerender(panel({ name: "Char" }))
 
     expect(value("Card name")).toBe("Char")
     expect(value("Card number")).toBe("")
