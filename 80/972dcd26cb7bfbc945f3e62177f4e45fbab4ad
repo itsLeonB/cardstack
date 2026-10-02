@@ -1,0 +1,33 @@
+.scratch/cardstack-mvp/issues/10-preview-environments.md
+  s_3dbcc59871d00d::t_9aa87d4887f56d 11
+AGENTS.md
+  s_3dbcc59871d00d::t_129bfd1951b081 33-36
+docs/agents/conventions/general.md
+  s_3dbcc59871d00d::t_68117d47d83ebf 9
+docs/agents/conventions/serena.md
+  s_3dbcc59871d00d::t_2989a8e2c5e90a 9
+docs/agents/deployment.md
+  s_3dbcc59871d00d::t_5daf0ac5215365 1-39
+docs/agents/orchestration.md
+  s_3dbcc59871d00d::t_40673f287385ae 22,37
+docs/agents/serena.md
+  s_3dbcc59871d00d::t_739d4c982942ef 3-4
+docs/agents/testing.md
+  s_3dbcc59871d00d::t_d0ca298650a4da 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "80972dcd26cb7bfbc945f3e62177f4e45fbab4ad",
+  "prompts": {},
+  "sessions": {
+    "s_3dbcc59871d00d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3dbcc59871d00d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
