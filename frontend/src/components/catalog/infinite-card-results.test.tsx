@@ -90,6 +90,33 @@ describe("InfiniteCardResults", () => {
     expect(status.getAttribute("aria-live")).toBe("polite")
   })
 
+  it("keeps the same live region mounted from pending to loaded", () => {
+    const props = {
+      total: 500,
+      isError: false,
+      emptyMessage: "No cards",
+      hasNextPage: true,
+      isFetching: false,
+      onLoadMore: vi.fn(),
+    }
+    const { container, rerender } = render(
+      <InfiniteCardResults {...props} cards={[]} isPending />
+    )
+    const region = container.querySelector("[aria-live=polite]")
+    expect(region).not.toBeNull()
+    expect(region?.textContent).toBe("")
+
+    rerender(
+      <InfiniteCardResults
+        {...props}
+        cards={[makeCard(0), makeCard(1)]}
+        isPending={false}
+      />
+    )
+    expect(container.querySelector("[aria-live=polite]")).toBe(region)
+    expect(region?.textContent).toBe("2 of 500 cards loaded")
+  })
+
   it("loads the next page from the Load more button with the keyboard", async () => {
     const onLoadMore = renderResults()
     const button = screen.getByRole("button", { name: "Load more" })

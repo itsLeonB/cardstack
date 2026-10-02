@@ -46,8 +46,12 @@ export function InfiniteCardResults({
     [renderControl]
   )
 
+  const canLoadMore = hasNextPage && !isFetching
+  const showList = !isPending && cards.length > 0
+
+  let body: ReactNode
   if (isPending) {
-    return (
+    body = (
       <div
         className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
         aria-busy="true"
@@ -59,54 +63,56 @@ export function InfiniteCardResults({
         ))}
       </div>
     )
-  }
-
-  if (isError && cards.length === 0) {
-    return (
+  } else if (isError && cards.length === 0) {
+    body = (
       <p role="alert" className="text-sm text-destructive">
         {errorMessage ?? "Could not load cards. Please try again."}
       </p>
     )
-  }
-
-  if (cards.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-  }
-
-  const canLoad = hasNextPage && !isFetching
-
-  return (
-    <div className="flex flex-col gap-6">
+  } else if (cards.length === 0) {
+    body = <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+  } else {
+    body = (
       <VirtualGrid
         items={cards}
         getKey={getCardKey}
         renderItem={renderCard}
         // A failed page is retried by the button, never by scrolling alone.
-        canLoadMore={canLoad && !isError}
+        canLoadMore={canLoadMore && !isError}
         onLoadMore={onLoadMore}
       />
-      <div className="flex flex-col items-center gap-3">
-        {isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage ?? "Could not load more cards."}
-          </p>
-        )}
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {cards.length} of {total} cards loaded
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {body}
+      {showList && isError && (
+        <p role="alert" className="text-center text-sm text-destructive">
+          {errorMessage ?? "Could not load more cards."}
         </p>
+      )}
+      {/* Always mounted: a live region that appears together with its text is often not announced. */}
+      <p
+        className="text-center text-sm text-muted-foreground empty:sr-only"
+        aria-live="polite"
+      >
+        {showList ? `${cards.length} of ${total} cards loaded` : ""}
+      </p>
+      {showList && (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          aria-disabled={!canLoad}
-          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          aria-disabled={!canLoadMore}
+          className="self-center aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
           onClick={() => {
-            if (canLoad) onLoadMore()
+            if (canLoadMore) onLoadMore()
           }}
         >
           Load more
         </Button>
-      </div>
+      )}
     </div>
   )
 }

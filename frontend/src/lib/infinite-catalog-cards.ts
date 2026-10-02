@@ -41,9 +41,9 @@ export function mergeCatalogPages(pages: Page[]) {
   return { cards: [...byId.values()], total }
 }
 
-function infiniteOptions(filters: CatalogFilterParams) {
+function infiniteArgs(filters: CatalogFilterParams) {
   const params = { ...filters, limit: CATALOG_PAGE_SIZE }
-  return {
+  const query = {
     initialPageParam: 1,
     getNextPageParam: nextCatalogPageParam,
     // The generated fetcher resolves for every HTTP status; throw so an error
@@ -68,24 +68,18 @@ function infiniteOptions(filters: CatalogFilterParams) {
     // sequentially when stale, so don't refetch on each tab focus.
     staleTime: 60_000,
   }
+  return { params, query }
 }
 
 /** Loader options: the key is the filters alone, so a filter change is a new list. */
 export function catalogInfiniteQueryOptions(filters: CatalogFilterParams) {
-  return getSearchCatalogCardsInfiniteQueryOptions(
-    { ...filters, limit: CATALOG_PAGE_SIZE },
-    { query: infiniteOptions(filters) }
-  )
+  const { params, query } = infiniteArgs(filters)
+  return getSearchCatalogCardsInfiniteQueryOptions(params, { query })
 }
 
 export function useInfiniteCatalogCards(filters: CatalogFilterParams) {
-  return useSearchCatalogCardsInfinite(
-    { ...filters, limit: CATALOG_PAGE_SIZE },
-    {
-      query: {
-        ...infiniteOptions(filters),
-        select: (data) => mergeCatalogPages(data.pages),
-      },
-    }
-  )
+  const { params, query } = infiniteArgs(filters)
+  return useSearchCatalogCardsInfinite(params, {
+    query: { ...query, select: (data) => mergeCatalogPages(data.pages) },
+  })
 }

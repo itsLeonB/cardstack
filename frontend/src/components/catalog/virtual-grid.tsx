@@ -16,9 +16,6 @@ import {
   shouldLoadMore,
 } from "@/lib/grid-layout"
 
-// The sticky site header (h-14) covers the top of the window.
-const HEADER_HEIGHT = 56
-
 interface VirtualGridProps<T> {
   items: T[]
   getKey: (item: T) => string
@@ -81,7 +78,6 @@ export function VirtualGrid<T>({
     gap: GRID_GAP,
     overscan: 3,
     scrollMargin: layout.offsetTop,
-    scrollPaddingStart: HEADER_HEIGHT,
   })
 
   const virtualRows = virtualizer.getVirtualItems()
@@ -112,7 +108,7 @@ export function VirtualGrid<T>({
           className="absolute top-0 left-0 grid w-full gap-4"
           style={{
             gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)`,
+            transform: `translateY(${row.start - layout.offsetTop}px)`,
           }}
         >
           {rows[row.index]!.map((item) => (

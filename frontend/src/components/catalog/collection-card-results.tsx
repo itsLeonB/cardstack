@@ -52,7 +52,7 @@ export function CollectionCardResults({
     }
   )
   const response = query.data?.status === 200 ? query.data.data : undefined
-  const looked = new Set(cardIds)
+  const lookedUpIds = new Set(cardIds)
   const serverQuantities = new Map(
     (response?.data ?? []).map((item) => [item.card.id, item.quantity])
   )
@@ -70,7 +70,7 @@ export function CollectionCardResults({
       <InfiniteCardResults
         {...results}
         renderControl={(card) => {
-          if (!response || !looked.has(card.id)) return null
+          if (!response || !lookedUpIds.has(card.id)) return null
           const server = serverQuantities.get(card.id) ?? 0
           return (
             <QuantityControl

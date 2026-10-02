@@ -95,8 +95,17 @@ function CatalogSearchPage() {
   const facets =
     facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
 
-  function updateSearch(patch: Partial<CatalogFilters>) {
-    void navigate({ search: (prev) => ({ ...prev, ...patch }) })
+  // A filter change starts a fresh list, so return to its top. Done in the
+  // handlers and not in an effect keyed on the filters, which would also fire
+  // on back navigation and fight the router's scroll restoration.
+  async function updateSearch(patch: Partial<CatalogFilters>) {
+    await navigate({ search: (prev) => ({ ...prev, ...patch }) })
+    window.scrollTo({ top: 0 })
+  }
+
+  async function clearSearch() {
+    await navigate({ search: { collectionId } })
+    window.scrollTo({ top: 0 })
   }
 
   const resultsProps = {
@@ -129,8 +138,8 @@ function CatalogSearchPage() {
         search={search}
         facets={facets}
         series={series}
-        onChange={updateSearch}
-        onClear={() => void navigate({ search: { collectionId } })}
+        onChange={(patch) => void updateSearch(patch)}
+        onClear={() => void clearSearch()}
       />
 
       <CollectionPicker
