@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "serena",
+      "args": ["start-mcp-server", "--context", "ide", "--project-from-cwd"],
+      "directTools": "search",
+      "description": "Serena: semantic, symbol-level code tools (find_symbol, get_symbols_overview, replace_symbol_body, ...)."
+    }
+  }
+}
