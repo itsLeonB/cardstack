@@ -13,6 +13,7 @@ type ExpansionSetSummary struct {
 	Code        string     `json:"code"`
 	Name        string     `json:"name"`
 	ReleaseDate *time.Time `json:"releaseDate,omitempty"`
+	ImageURL    string     `json:"imageUrl"`
 }
 
 // SeriesSummary is a browsable Series with its Expansion Sets nested, so a

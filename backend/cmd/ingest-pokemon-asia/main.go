@@ -27,6 +27,11 @@ func main() {
 		false,
 		"one-time cleanup: delete rarities rows left over from the pre-fix Regulation-Mark-as-rarity bug (ticket 11) that have zero referencing cards; rows still referenced are reported, not deleted. Off by default - normal ingestion runs no deletion.",
 	)
+	syncExpansionSets := flag.Bool(
+		"sync-expansion-sets",
+		false,
+		"lightweight opt-in: enumerate listings and upsert only Series/Expansion Sets (e.g. to backfill expansion_sets.image_url), skipping every card/rarity crawl. Honors -series/-set.",
+	)
 	flag.Parse()
 
 	logger.Init("IngestPokemonAsia")
@@ -77,7 +82,11 @@ func main() {
 		return
 	}
 
-	summary, err := ingester.Run(ctx, *series, *set)
+	run := ingester.Run
+	if *syncExpansionSets {
+		run = ingester.SyncExpansionSets
+	}
+	summary, err := run(ctx, *series, *set)
 	if err != nil {
 		logger.Fatal(err)
 	}

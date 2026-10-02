@@ -143,7 +143,17 @@ func NewIngester(db *gorm.DB) *Ingester {
 // Re-running with the same arguments is idempotent: existing rows are
 // updated in place rather than duplicated.
 func (in *Ingester) Run(ctx context.Context, seriesFilter, setFilter string) (Summary, error) {
-	logger.Infof("starting ingestion (series filter: %q, set filter: %q)", seriesFilter, setFilter)
+	return in.run(ctx, seriesFilter, setFilter, true)
+}
+
+// SyncExpansionSets is Run with card crawling disabled, so it can backfill
+// listing-derived Expansion Set fields without re-crawling every card.
+func (in *Ingester) SyncExpansionSets(ctx context.Context, seriesFilter, setFilter string) (Summary, error) {
+	return in.run(ctx, seriesFilter, setFilter, false)
+}
+
+func (in *Ingester) run(ctx context.Context, seriesFilter, setFilter string, crawlCards bool) (Summary, error) {
+	logger.Infof("starting ingestion (series filter: %q, set filter: %q, crawl cards: %t)", seriesFilter, setFilter, crawlCards)
 
 	game, err := in.upsertGame(ctx)
 	if err != nil {
@@ -186,6 +196,11 @@ func (in *Ingester) Run(ctx context.Context, seriesFilter, setFilter string) (Su
 			continue
 		}
 		summary.Sets++
+
+		if !crawlCards {
+			logger.Infof("[%d/%d] synced set %s (%s, series %s)", i+1, len(listings), listing.Code, listing.Name, listing.Series)
+			continue
+		}
 
 		logger.Infof("[%d/%d] ingesting set %s (%s, series %s)...", i+1, len(listings), listing.Code, listing.Name, listing.Series)
 		n, err := in.ingestSet(ctx, set.ID, listing.Code)
@@ -510,6 +525,7 @@ func (in *Ingester) upsertExpansionSet(
 			LocaleID:    localeID,
 			SeriesID:    &seriesID,
 			ReleaseDate: &releaseDate,
+			ImageURL:    listing.ImageURL,
 		})
 	}
 
@@ -517,6 +533,7 @@ func (in *Ingester) upsertExpansionSet(
 	existing.LocaleID = localeID
 	existing.SeriesID = &seriesID
 	existing.ReleaseDate = &releaseDate
+	existing.ImageURL = listing.ImageURL
 	return in.sets.Update(ctx, existing)
 }
 

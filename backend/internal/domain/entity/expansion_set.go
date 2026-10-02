@@ -22,6 +22,7 @@ type ExpansionSet struct {
 	LocaleID    uuid.UUID  `gorm:"type:uuid;not null;index"`
 	SeriesID    *uuid.UUID `gorm:"type:uuid;index"`
 	ReleaseDate *time.Time
+	ImageURL    string `gorm:"not null;default:''"`
 }
 
 func (ExpansionSet) TableName() string { return "expansion_sets" }

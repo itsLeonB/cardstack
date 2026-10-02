@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -92,21 +93,24 @@ func TestIngester_UpsertExpansionSet_IdempotentAndPopulatesReleaseDate(t *testin
 	require.NoError(t, err)
 
 	code := uniqueCode(t)
-	listing := expansionListing{Series: series.Name, Code: code, Name: "Original Name", ReleaseDate: mustParseDate(t, "01-02-2026")}
+	listing := expansionListing{Series: series.Name, Code: code, Name: "Original Name", ReleaseDate: mustParseDate(t, "01-02-2026"), ImageURL: "https://example.test/a.png"}
 
 	first, err := in.upsertExpansionSet(ctx, game.ID, locale.ID, series.ID, listing)
 	require.NoError(t, err)
 	assert.Equal(t, "Original Name", first.Name)
+	assert.Equal(t, "https://example.test/a.png", first.ImageURL)
 	require.NotNil(t, first.ReleaseDate)
 	assert.True(t, first.ReleaseDate.Equal(listing.ReleaseDate))
 	require.NotNil(t, first.SeriesID)
 	assert.Equal(t, series.ID, *first.SeriesID)
 
 	listing.Name = "Updated Name"
+	listing.ImageURL = "https://example.test/b.png"
 	second, err := in.upsertExpansionSet(ctx, game.ID, locale.ID, series.ID, listing)
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID, "must update the existing row, not create a duplicate")
 	assert.Equal(t, "Updated Name", second.Name)
+	assert.Equal(t, "https://example.test/b.png", second.ImageURL)
 
 	rows, err := in.sets.FindAll(ctx, crud.Specification[entity.ExpansionSet]{
 		Model: entity.ExpansionSet{GameID: game.ID, Code: code},
@@ -768,4 +772,59 @@ func findCleanupResult(t *testing.T, results []CleanupResult, code string) Clean
 	}
 	t.Fatalf("no CleanupResult found for code %q", code)
 	return CleanupResult{}
+}
+
+// TestIngester_SyncExpansionSets_ListingOnly proves the lightweight mode
+// upserts Series/Expansion Sets (create-or-update, image URL included) and
+// never requests anything under /card-search/list/ or /card-search/detail/.
+func TestIngester_SyncExpansionSets_ListingOnly(t *testing.T) {
+	setCode := "MA" + uniqueCode(t)[:8]
+	imageURL := "https://asia.pokemon-card.com/id/products/MATL_PKG_IDN.png"
+
+	var cardCrawlRequests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/card-search/" {
+			cardCrawlRequests.Add(1)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.URL.Query().Get("pageNo") != "1" {
+			w.Write([]byte(`<html><body></body></html>`)) //nolint:errcheck
+			return
+		}
+		_, _ = fmt.Fprintf(w, `<html><body><ul class="expansionList"><li class="expansion">
+			<a class="expansionLink" href="/id/card-search/list/?expansionCodes=%s">
+			<div class="leftColumn"><div class="imageContainer"><img src="%s"></div></div>
+			<div class="seriesBlock"><span class="series">Evolusi Mega</span></div>
+			<h3 class="expansionTitle">Test Set</h3>
+			<time class="relaseDate" datetime="01-15-2026"></time>
+			</a></li></ul></body></html>`, setCode, imageURL)
+	}))
+	t.Cleanup(server.Close)
+
+	db := testDB(t)
+	t.Cleanup(func() {
+		db.Where("code = ?", setCode).Delete(&entity.ExpansionSet{}) //nolint:errcheck
+	})
+
+	in := NewIngester(db)
+	in.client.limiter = rate.NewLimiter(rate.Inf, 0)
+	in.client.baseURL = server.URL
+
+	// Run twice: first creates the set (not in the DB yet), second updates it.
+	for range 2 {
+		summary, err := in.SyncExpansionSets(context.Background(), "", "")
+		require.NoError(t, err)
+		assert.Equal(t, 1, summary.Sets)
+		assert.Zero(t, summary.Cards)
+		assert.Zero(t, summary.Rarities)
+	}
+	assert.Zero(t, cardCrawlRequests.Load(), "lightweight sync must not fetch any card-search list/detail page")
+
+	set, err := in.sets.FindFirst(context.Background(), crud.Specification[entity.ExpansionSet]{
+		Model: entity.ExpansionSet{GameID: in.gameID, Code: setCode},
+	})
+	require.NoError(t, err)
+	require.False(t, set.IsZero())
+	assert.Equal(t, imageURL, set.ImageURL)
 }
