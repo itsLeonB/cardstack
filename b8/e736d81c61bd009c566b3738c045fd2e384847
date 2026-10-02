@@ -1,0 +1,27 @@
+.scratch/cardstack-mvp/issues/17-fix-unauthenticated-login-redirect.md
+  s_85e916c6a500b5::t_b68d61a68f673c 37-38
+.scratch/cardstack-mvp/issues/18-redirect-authenticated-users-from-guest-routes.md
+  s_85e916c6a500b5::t_f946c05ea8c1c8 38-39
+.scratch/frontend-visual-identity/issues/04-login-register-polish-and-auth-redirects.md
+  s_85e916c6a500b5::t_d4be33ca6d9e46 7-24
+frontend/src/lib/session.test.tsx
+  s_85e916c6a500b5::t_54929d4c575b38 101,112,130,146,164,173,184,198
+frontend/src/lib/session.ts
+  s_85e916c6a500b5::t_b06ba8339a50de 58-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b8e736d81c61bd009c566b3738c045fd2e384847",
+  "prompts": {},
+  "sessions": {
+    "s_85e916c6a500b5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_85e916c6a500b5",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
