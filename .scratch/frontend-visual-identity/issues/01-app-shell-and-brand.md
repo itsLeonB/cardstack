@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented (frontend `4da4449` + `1ae0623`, `ad4b716`, `1eac445`), merged to `main` via PR #17.
 
 - [ ] Header, `main` landmark and footer wrap every route, with a skip-to-content link as the first focusable element and visible focus states
 - [ ] Guests see Catalog, Log in and Register (Register as the primary action); signed-in users see Catalog, Collections, Master Inventory and a user menu (email, Account, Log out). The label is "Master Inventory", never "Inventory"
