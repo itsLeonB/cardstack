@@ -1,0 +1,21 @@
+.scratch/cardstack-mvp/issues/33-infinite-virtualized-catalog-search.md
+  s_242d40df8f8e44::t_7454d682e47aeb 6,35-41
+.scratch/cardstack-mvp/issues/34-virtualized-grid-accessibility-focus-restoration.md
+  s_242d40df8f8e44::t_eb87f6743f8658 6,32-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e16aff4b09d25392ed722d32a7c82731a36b3744",
+  "prompts": {},
+  "sessions": {
+    "s_242d40df8f8e44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_242d40df8f8e44",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
