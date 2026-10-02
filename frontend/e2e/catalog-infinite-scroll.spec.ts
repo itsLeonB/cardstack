@@ -34,8 +34,12 @@ function json(route: Route, body: StubBody) {
   })
 }
 
-// `tagsPerCard` makes tiles taller than the grid's estimate, as real tagged cards are.
-async function stubCatalog(page: Page, tagsPerCard = 0) {
+// `tagsPerCard` makes tiles taller than the grid's estimate, as real tagged
+// cards are; `total` limits the stubbed catalog to its first cards.
+async function stubCatalog(
+  page: Page,
+  { tagsPerCard = 0, total = CARDS.length } = {}
+) {
   const requests: URL[] = []
   await page.route("**/auth/me", (route) =>
     route.fulfill({
@@ -64,7 +68,7 @@ async function stubCatalog(page: Page, tagsPerCard = 0) {
     const pageNumber = Number(url.searchParams.get("page") ?? 1)
     const limit = Number(url.searchParams.get("limit") ?? 24)
     const localId = url.searchParams.get("localId")
-    const matches = CARDS.filter(
+    const matches = CARDS.slice(0, total).filter(
       (card) =>
         card.name.toLowerCase().includes(name) &&
         (!localId || card.localId === localId)
@@ -178,6 +182,37 @@ test.describe("Catalog search infinite scroll", () => {
   })
 })
 
+// The first tile whose bottom edge is below the sticky header (about 56px).
+const topCard = (page: Page) =>
+  page.evaluate(() => {
+    const tile = [...document.querySelectorAll("[role=listitem]")].find(
+      (node) => node.getBoundingClientRect().bottom > 80
+    )
+    return {
+      position: tile?.getAttribute("aria-posinset") ?? "",
+      title: tile?.querySelector("p[title]")?.getAttribute("title") ?? "",
+    }
+  })
+
+// A tile's top edge in the viewport, or null while it is not rendered.
+const cardTop = (page: Page, position: string) =>
+  page.evaluate(
+    (at) =>
+      document
+        .querySelector(`[role=listitem][aria-posinset="${at}"]`)
+        ?.getBoundingClientRect().top ?? null,
+    position
+  )
+
+const lowestRenderedPosition = (page: Page) =>
+  page.evaluate(() =>
+    Math.min(
+      ...[...document.querySelectorAll("[role=listitem]")].map((node) =>
+        Number(node.getAttribute("aria-posinset"))
+      )
+    )
+  )
+
 // The accessibility and place-keeping behaviour of the virtualized grid.
 test.describe("Catalog search grid", () => {
   const loadedCount = async (page: Page) => {
@@ -208,8 +243,13 @@ test.describe("Catalog search grid", () => {
     await openSearch(page)
     await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
 
-    const results = await new AxeBuilder({ page }).analyze()
-    expect(results.violations).toEqual([])
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+    // Again with a second page loaded and the list scrolled into it.
+    await scrollToBottom(page)
+    await expect(page.getByText("120 of 300 cards loaded")).toBeVisible()
+    await expect(page.getByTitle("Alpha 58")).toBeVisible()
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   })
 
   test("keeps keyboard focus when its row scrolls out, and tabs on to Load more and the footer", async ({
@@ -242,45 +282,40 @@ test.describe("Catalog search grid", () => {
     ).toBeFocused()
   })
 
-  test("keeps the same card in view when resizing across a column breakpoint", async ({
-    page,
-  }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" })
-    await page.setViewportSize({ width: 1280, height: 800 })
-    await stubCatalog(page)
-    await openSearch(page)
-    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
-    await page.evaluate(() => window.scrollTo(0, 3000))
+  for (const [name, from, to] of [
+    ["narrowing", 1280, 700],
+    ["widening", 700, 1280],
+  ] as const) {
+    test(`keeps the same card at the top when ${name} across a column breakpoint`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" })
+      await page.setViewportSize({ width: from, height: 800 })
+      await stubCatalog(page)
+      await openSearch(page)
+      await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+      await page.evaluate(() => window.scrollTo(0, 3000))
+      // Wait for the window to move: the first rows are gone from the DOM.
+      await expect.poll(() => lowestRenderedPosition(page)).toBeGreaterThan(5)
 
-    // The first tile of the top visible row is the one the grid anchors on.
-    // Poll: the grid renders the new window a frame after the scroll.
-    let anchor: string | null = null
-    await expect
-      .poll(async () => {
-        anchor = await page.evaluate(() => {
-          const tiles = [...document.querySelectorAll("[role=listitem]")]
-          const top = tiles.find(
-            (tile) => tile.getBoundingClientRect().bottom > 80
-          )
-          return top?.getAttribute("aria-posinset") ?? null
+      // The first tile of the top visible row is the one the grid anchors on.
+      const anchor = await topCard(page)
+      await page.setViewportSize({ width: to, height: 800 })
+
+      // Re-anchored: its row sits right under the 56px sticky header.
+      await expect
+        .poll(async () => {
+          const top = await cardTop(page, anchor.position)
+          return top !== null && top >= 55 && top <= 70
         })
-        return anchor
-      })
-      .not.toBeNull()
-
-    await page.setViewportSize({ width: 700, height: 800 })
-
-    const tile = page.locator(`[role=listitem][aria-posinset="${anchor}"]`)
-    await expect(tile).toBeInViewport()
-    expect(
-      await tile.evaluate((node) => node.getBoundingClientRect().top)
-    ).toBeLessThan(400)
-  })
+        .toBe(true)
+    })
+  }
 
   test("returns to the same place with the loaded pages when navigating back", async ({
     page,
   }) => {
-    await stubCatalog(page, 6)
+    await stubCatalog(page, { tagsPerCard: 6 })
     await openSearch(page)
     await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
     await expect
@@ -289,10 +324,19 @@ test.describe("Catalog search grid", () => {
         return loadedCount(page)
       })
       .toBeGreaterThanOrEqual(120)
-    // Let the scroll position settle before leaving.
-    await page.waitForTimeout(300)
+    // Settled: the scroll position is the same two frames apart.
+    await page.waitForFunction(
+      () =>
+        new Promise<boolean>((done) => {
+          const y = window.scrollY
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => done(window.scrollY === y))
+          )
+        })
+    )
     const before = await page.evaluate(() => window.scrollY)
     const loaded = await loadedCount(page)
+    const firstVisible = await topCard(page)
 
     // A link well inside the viewport, so clicking it does not scroll first.
     const href = await page.evaluate(() => {
@@ -313,10 +357,58 @@ test.describe("Catalog search grid", () => {
     await expect(page).toHaveURL(/\/catalog\/cards\//)
     await page.goBack()
 
+    // The cached pages are back at once, and the same card is at the top.
     await expect(page.getByText(`${loaded} of 300 cards loaded`)).toBeVisible()
-    await expect
-      .poll(() => page.evaluate(() => window.scrollY))
-      .toBeGreaterThan(before - 300)
-    expect(await page.evaluate(() => window.scrollY)).toBeLessThan(before + 300)
+    await expect.poll(() => topCard(page)).toEqual(firstVisible)
+    expect(
+      Math.abs((await page.evaluate(() => window.scrollY)) - before)
+    ).toBeLessThan(100)
+  })
+
+  test("Tab walks every tile, then Load more (still live), then the footer, never losing focus", async ({
+    page,
+  }) => {
+    // 66 cards: the first page is full (60), so Load more has a next page.
+    await stubCatalog(page, { total: 66 })
+    await openSearch(page)
+    await expect(page.getByText("60 of 66 cards loaded")).toBeVisible()
+    const loadMore = page.getByRole("button", { name: "Load more" })
+    await expect(loadMore).toHaveAttribute("aria-disabled", "false")
+
+    const where = () =>
+      page.evaluate(() => {
+        const active = document.activeElement
+        return {
+          lost: !active || active === document.body,
+          inGrid: Boolean(active?.closest("[role=list]")),
+          loadMore: active?.textContent === "Load more",
+          status: document.querySelector("[aria-live=polite]")?.textContent,
+        }
+      })
+
+    await page.getByLabel("Card name").focus()
+    let enteredGrid = false
+    let reachedLoadMore = false
+    // 2 links per tile, 60 tiles, plus the filter controls before the grid.
+    for (let press = 0; press < 200 && !reachedLoadMore; press++) {
+      await page.keyboard.press("Tab")
+      const now = await where()
+      expect(now.lost).toBe(false)
+      if (now.inGrid) enteredGrid = true
+      if (enteredGrid && !now.loadMore) {
+        expect(now.inGrid).toBe(true)
+        // Scroll loading stays paused while tabbing, though the list's end is
+        // repeatedly scrolled into view.
+        expect(now.status).toBe("60 of 66 cards loaded")
+      }
+      reachedLoadMore = now.loadMore
+    }
+    expect(enteredGrid).toBe(true)
+    expect(reachedLoadMore).toBe(true)
+
+    await page.keyboard.press("Tab")
+    await expect(
+      page.getByRole("contentinfo").getByRole("link").first()
+    ).toBeFocused()
   })
 })

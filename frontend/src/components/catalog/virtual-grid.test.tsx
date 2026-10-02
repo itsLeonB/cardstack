@@ -41,6 +41,10 @@ function queueFrames() {
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((run) =>
     frames.push(run)
   )
+  // A frame's id is its 1-based position; cancelling turns it into a no-op.
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+    if (frames[id - 1]) frames[id - 1] = () => {}
+  })
   return frames
 }
 
@@ -150,7 +154,16 @@ describe("VirtualGrid", () => {
 
   it("re-anchors on the card at the top when the column count changes", () => {
     const frames = queueFrames()
-    renderGrid(2000, false)
+    // Fresh keys: measured row heights are remembered across mounts by key.
+    render(
+      <VirtualGrid
+        items={items(2000, "anchor")}
+        getKey={(item) => item}
+        renderItem={(item) => <button type="button">{item}</button>}
+        canLoadMore={false}
+        onLoadMore={vi.fn()}
+      />
+    )
     // 416px per row: row 9 (cards 45 to 49) is at the top at 4000px.
     act(() => layout.scrollTo(4000))
     const scrollTo = vi.mocked(window.scrollTo)
@@ -166,6 +179,19 @@ describe("VirtualGrid", () => {
     expect(scrollTo).toHaveBeenCalledWith(
       expect.objectContaining({ top: 15 * 431 - 56 })
     )
+  })
+
+  it("scrolls once when the columns change twice within a frame", () => {
+    const frames = queueFrames()
+    renderGrid(2000, false)
+    act(() => layout.scrollTo(4000))
+    vi.mocked(window.scrollTo).mockClear()
+
+    act(() => layout.resize(600))
+    act(() => layout.resize(800))
+    act(() => frames.splice(0).forEach((run) => run(0)))
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1)
   })
 
   it("does not scroll on the first column settle when still at the top", () => {
@@ -214,5 +240,74 @@ describe("VirtualGrid", () => {
 
     expect(rowTiles(0)).toHaveLength(5)
     expect(screen.getByRole("button", { name: "item-0" })).toBeTruthy()
+  })
+
+  it("resumes scroll loading when the focused tile is replaced without a blur", async () => {
+    const onLoadMore = vi.fn()
+    const grid = (prefix: string, canLoadMore: boolean) => (
+      <VirtualGrid
+        items={items(20, prefix)}
+        getKey={(item) => item}
+        renderItem={(item) => <button type="button">{item}</button>}
+        canLoadMore={canLoadMore}
+        onLoadMore={onLoadMore}
+      />
+    )
+    const { rerender } = render(grid("old", false))
+    await userEvent.tab()
+    expect(document.activeElement?.textContent).toBe("old-0")
+    rerender(grid("old", true))
+    expect(onLoadMore).not.toHaveBeenCalled()
+
+    // A filter change replaces every tile; the focused one just disappears.
+    rerender(grid("new", true))
+
+    expect(screen.queryByText("old-0")).toBeNull()
+    expect(onLoadMore).toHaveBeenCalled()
+  })
+
+  it("does not re-pin a stale row when the old column count returns", async () => {
+    layout.resize(600)
+    renderGrid(2000, false)
+    act(() => layout.scrollTo(10_000))
+    const focused = screen.getAllByRole("button")[0]!
+    const name = focused.textContent ?? ""
+    await userEvent.click(focused)
+
+    // The wider layout remounts every tile, so the focused one goes away
+    // without a blur; coming back to 3 columns must not bring its row back.
+    act(() => layout.resize(1000))
+    act(() => layout.resize(600))
+    act(() => layout.scrollTo(0))
+
+    expect(screen.queryByRole("button", { name })).toBeNull()
+  })
+
+  it("starts from remembered row heights when the list is mounted again", () => {
+    const grid = (prefix: string) => (
+      <VirtualGrid
+        items={items(2000, prefix)}
+        getKey={(item) => item}
+        renderItem={(item) => <button type="button">{item}</button>}
+        canLoadMore={false}
+        onLoadMore={vi.fn()}
+      />
+    )
+    const height = () =>
+      parseInt(document.querySelector<HTMLElement>("[role=list]")!.style.height)
+
+    const untouched = render(grid("untouched"))
+    const estimated = height()
+    untouched.unmount()
+
+    // A tall window renders, and so measures, more rows than a normal one.
+    vi.stubGlobal("innerHeight", 3000)
+    render(grid("remembered")).unmount()
+    vi.unstubAllGlobals()
+    stubGridLayout()
+
+    render(grid("remembered"))
+    // Rows measured at 400px beat the 412px estimate for the same rows.
+    expect(height()).toBeLessThan(estimated)
   })
 })

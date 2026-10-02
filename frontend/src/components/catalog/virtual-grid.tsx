@@ -25,6 +25,15 @@ const OVERSCAN = 3
 // The sticky site header (h-14) covers the top of the window; keep a scrolled-to row below it.
 const HEADER_HEIGHT = 56
 
+// Row heights measured so far, by row key (column count plus first card),
+// saved when a grid unmounts. Kept across mounts so that coming back to a list
+// (browser back) starts from real heights: with the estimate alone, tall rows
+// make the document shorter than it was and the router's one-shot scroll
+// restoration lands a row or more away from where the user left.
+// ponytail: grows with every row ever rendered (tens of bytes each); cap or
+// clear it if sessions ever render hundreds of thousands of rows.
+const measuredRowHeights = new Map<string, number>()
+
 interface VirtualGridProps<T> {
   items: T[]
   getKey: (item: T) => string
@@ -114,7 +123,9 @@ export function VirtualGrid<T>({
 
   const virtualizer = useWindowVirtualizer({
     count: rows.length,
-    estimateSize: () => estimateRowHeight(layout.width, columns),
+    estimateSize: (index) =>
+      measuredRowHeights.get(getItemKey(index)) ??
+      estimateRowHeight(layout.width, columns),
     getItemKey,
     gap: GRID_GAP,
     overscan: OVERSCAN,
@@ -150,22 +161,45 @@ export function VirtualGrid<T>({
   // got shorter. Skipped at the first card, which also covers the initial
   // 2-to-n columns settle on mount (it must not fight scroll restoration).
   const anchor = useRef({ columns, card: 0 })
-  const frame = useRef(0)
+  const anchorFrame = useRef(0)
+  // No dependency array on purpose: while the columns are stable this tracks
+  // the top card after every render (scrolls included).
   useEffect(() => {
-    const current = anchor.current
-    if (current.columns === columns) {
-      current.card = firstVisibleRow * columns
+    const tracked = anchor.current
+    if (tracked.columns === columns) {
+      tracked.card = firstVisibleRow * columns
       return
     }
-    current.columns = columns
-    if (current.card === 0) return
-    const target = Math.floor(current.card / columns)
-    frame.current = requestAnimationFrame(() =>
+    tracked.columns = columns
+    if (tracked.card === 0) return
+    const target = Math.floor(tracked.card / columns)
+    // Two column changes within a frame must end in one scroll.
+    cancelAnimationFrame(anchorFrame.current)
+    anchorFrame.current = requestAnimationFrame(() =>
       // Never smooth: no animation, whatever the reduced-motion setting.
       virtualizer.scrollToIndex(target, { align: "start", behavior: "instant" })
     )
   })
-  useEffect(() => () => cancelAnimationFrame(frame.current), [])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(anchorFrame.current)
+      for (const [key, size] of virtualizer.itemSizeCache) {
+        measuredRowHeights.set(String(key), size)
+      }
+    },
+    // The virtualizer instance is stable for the component's life.
+    [virtualizer]
+  )
+
+  // Browsers don't reliably fire blur when the focused tile unmounts (column
+  // change, filter change), which would leave a stale pin and a stuck
+  // keyboard pause: drop the focus state once focus is no longer in the list.
+  // No dependency array: it must check after every render.
+  useEffect(() => {
+    if (focusState && !listRef.current?.contains(document.activeElement)) {
+      setFocus(null)
+    }
+  })
 
   return (
     <div
