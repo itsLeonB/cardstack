@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/31-frontend-refresh-token-on-401.md
+  s_37985146033ed9::t_02be20af8c1b1a 13,27,42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c653639968c778d524e381e932201087095729f1",
+  "prompts": {},
+  "sessions": {
+    "s_37985146033ed9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_37985146033ed9",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
