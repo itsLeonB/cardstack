@@ -30,6 +30,8 @@ export function getRouter() {
     createAuthLostHandler(queryClient, () => {
       const { pathname, searchStr } = router.state.location
       const attempted = pathname + searchStr
+      // `navigate` rather than `history.push` (the convention for string-URL
+      // redirects): the typed `search` object carries the redirect param.
       void router.navigate({
         to: "/auth/login",
         search: {

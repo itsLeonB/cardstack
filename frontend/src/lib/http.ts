@@ -121,18 +121,18 @@ function notifyAuthLost(): void {
 // while one is in flight waits on the same promise.
 let inFlightRefresh: Promise<boolean> | null = null
 
-function refreshAccessToken(url: string): Promise<boolean> {
-  inFlightRefresh ??= performRefresh(url).finally(() => {
+function refreshAccessToken(requestUrl: string): Promise<boolean> {
+  inFlightRefresh ??= performRefresh(requestUrl).finally(() => {
     inFlightRefresh = null
   })
   return inFlightRefresh
 }
 
-async function performRefresh(url: string): Promise<boolean> {
+async function performRefresh(requestUrl: string): Promise<boolean> {
   const headers = new Headers()
   applyCsrfToken(headers, "POST")
 
-  const res = await fetch(refreshUrlFor(url), {
+  const res = await fetch(refreshUrlFor(requestUrl), {
     method: "POST",
     headers,
     credentials: "include",

@@ -18,6 +18,9 @@ describe("createAuthLostHandler", () => {
     const queryClient = new QueryClient()
     queryClient.setQueryData(COLLECTIONS_KEY, { status: 200 })
     setCsrfToken("csrf-token")
+    // Pin the token down before the handler runs, so the null assertions
+    // below can't pass vacuously if `CSRF_STORAGE_KEY` is ever renamed.
+    expect(sessionStorage.getItem(CSRF_STORAGE_KEY)).toBe("csrf-token")
     const errorToast = vi.spyOn(toast, "error")
     const resetSpy = vi.spyOn(queryClient, "resetQueries")
     const redirectToLogin = vi.fn(() => {
