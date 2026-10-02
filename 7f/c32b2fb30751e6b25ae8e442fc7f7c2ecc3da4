@@ -1,0 +1,29 @@
+frontend/src/components/catalog/collection-card-results.tsx
+  s_611bc514bcd49c::t_cd79a660f1280b 55,73
+frontend/src/components/catalog/infinite-card-results.test.tsx
+  s_611bc514bcd49c::t_e91bed9b6e3f2f 93-119
+frontend/src/components/catalog/infinite-card-results.tsx
+  s_611bc514bcd49c::t_dec6f9e9ad69f1 49-52,54,66-67,72-75,81,84-92,94-102,107-108,110,115
+frontend/src/components/catalog/virtual-grid.tsx
+  s_611bc514bcd49c::t_1a84598d658cbf 111
+frontend/src/lib/infinite-catalog-cards.ts
+  s_611bc514bcd49c::t_4e1e383295b388 44,46,71,76-77,81-84
+frontend/src/routes/catalog/search.tsx
+  s_611bc514bcd49c::t_03178ddf5613f3 98-108,141-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7fc32b2fb30751e6b25ae8e442fc7f7c2ecc3da4",
+  "prompts": {},
+  "sessions": {
+    "s_611bc514bcd49c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_611bc514bcd49c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
