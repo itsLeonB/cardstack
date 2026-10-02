@@ -7,10 +7,9 @@ import {
 import type { ExpansionSetSummary } from "@/generated/models"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ExpansionSetTile } from "@/components/catalog/expansion-set-tile"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { formatReleaseDate } from "@/lib/date"
 
 export const Route = createFileRoute("/catalog/")({
   head: () =>
@@ -113,28 +112,11 @@ function ExpansionSetList({
 }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2">
-      {expansionSets.map((expansionSet) => {
-        const releaseDate = formatReleaseDate(expansionSet.releaseDate)
-        return (
-          <li key={expansionSet.id}>
-            <Link
-              to="/catalog/sets/$expansionSetId"
-              params={{ expansionSetId: expansionSet.id }}
-              className="block rounded-4xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-            >
-              <Card className="h-full transition-colors hover:bg-muted/50">
-                <CardHeader>
-                  <CardTitle>{expansionSet.name}</CardTitle>
-                  <CardDescription>
-                    {expansionSet.code}
-                    {releaseDate && ` · Released ${releaseDate}`}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-          </li>
-        )
-      })}
+      {expansionSets.map((expansionSet) => (
+        <li key={expansionSet.id}>
+          <ExpansionSetTile expansionSet={expansionSet} />
+        </li>
+      ))}
     </ul>
   )
 }
