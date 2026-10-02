@@ -3,7 +3,7 @@
 # 31: Frontend never refreshes the access token, so sessions die after 15 minutes
 
 **Category:** bug
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** None (can start immediately)
 
@@ -35,14 +35,14 @@
 - Calls `refreshToken` from the generated client, or `fetch` directly if importing it from `http.ts` creates a circular import. Either way, the refresh request itself must skip the retry logic.
 
 **Acceptance criteria:**
-- [ ] A request that gets 401 triggers exactly one `POST /auth/refresh`, then one retry; the caller receives the retry's response
-- [ ] Several concurrent 401s result in a single `POST /auth/refresh` call
-- [ ] A 401 from `/auth/login`, `/auth/register`, `/auth/logout` and `/auth/refresh` is never retried and never triggers refresh
-- [ ] After a successful refresh the new CSRF token is used for the retry and for later mutating requests
-- [ ] A failed refresh returns the original 401, clears the session cache and stored CSRF token, shows the "session expired" toast, and redirects to `/auth/login` with the current URL as `redirect`
-- [ ] A visitor who was never logged in (`/auth/me` 401, refresh fails) sees no toast and is redirected only by the existing route guard
-- [ ] Unit tests in `frontend/src/lib/http.test.ts` cover retry-once, single-flight, the no-retry list, CSRF update, and the auth-lost callback firing once
-- [ ] Frontend build, lint and tests pass
+- [x] A request that gets 401 triggers exactly one `POST /auth/refresh`, then one retry; the caller receives the retry's response
+- [x] Several concurrent 401s result in a single `POST /auth/refresh` call
+- [x] A 401 from `/auth/login`, `/auth/register`, `/auth/logout` and `/auth/refresh` is never retried and never triggers refresh
+- [x] After a successful refresh the new CSRF token is used for the retry and for later mutating requests
+- [x] A failed refresh returns the original 401, clears the session cache and stored CSRF token, shows the "session expired" toast, and redirects to `/auth/login` with the current URL as `redirect`
+- [x] A visitor who was never logged in (`/auth/me` 401, refresh fails) sees no toast and is redirected only by the existing route guard
+- [x] Unit tests in `frontend/src/lib/http.test.ts` cover retry-once, single-flight, the no-retry list, CSRF update, and the auth-lost callback firing once
+- [x] Frontend build, lint and tests pass
 - [ ] Manual check in a browser: shorten `JWT_DURATION` locally (for example 30s), stay logged in past it, and confirm requests keep working; then delete the refresh cookie and confirm toast plus redirect. State explicitly if this was not run.
 
 **Out of scope:**
@@ -54,3 +54,9 @@
 ## Comments
 
 The frontend-visual-identity effort (ticket 05) also adds the shadcn `sonner` toast and mounts its toaster in the root. Whichever ticket runs first installs it; if it is already installed and mounted, skip that step and proceed with the rest as written. This ticket still owns the session-expired toast and the refresh logic.
+
+## Resolution
+
+Merged in PR #28 (`fix/frontend-session-refresh`): refresh-on-401 single-flight in `customFetch`, auth-lost callback in `frontend/src/lib/auth-lost.ts` registered from the router, `sonner` toaster mounted in `__root.tsx`.
+
+Not run: the manual browser check with a shortened `JWT_DURATION`.
