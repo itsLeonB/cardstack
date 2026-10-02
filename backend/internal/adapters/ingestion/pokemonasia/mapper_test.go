@@ -25,6 +25,7 @@ const expansionListFixture = `
 <ul class="expansionList">
   <li class="expansion">
     <a class="expansionLink" href="/id/card-search/list/?expansionCodes=MA6">
+      <div class="leftColumn"><div class="imageContainer"><img src="https://asia.pokemon-card.com/id/products/idn_ma6_pkg.png"></div></div>
       <div class="rightColumn">
         <div class="seriesBlock"><span class="series">Evolusi Mega</span></div>
         <div class="titleBlock">
@@ -70,8 +71,10 @@ func TestParseExpansionListings(t *testing.T) {
 		Code:        "MA6",
 		Name:        `Booster Pack "30th CELEBRATION"`,
 		ReleaseDate: time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC),
+		ImageURL:    "https://asia.pokemon-card.com/id/products/idn_ma6_pkg.png",
 	}, got[0])
 	assert.Equal(t, "TW1", got[1].Code, "out-of-scope Series listings are still parsed; filtering happens in ingest.go")
+	assert.Empty(t, got[1].ImageURL, "a listing with no image element yields an empty string, not a skip")
 }
 
 const resultsPageFixture = `

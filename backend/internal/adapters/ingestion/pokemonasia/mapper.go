@@ -69,11 +69,14 @@ func parseExpansionListings(doc *goquery.Document) []expansionListing {
 			return
 		}
 
+		imageURL, _ := s.Find("a.expansionLink div.leftColumn div.imageContainer img").First().Attr("src")
+
 		out = append(out, expansionListing{
 			Series:      strings.TrimSpace(s.Find("span.series").Text()),
 			Code:        code,
 			Name:        strings.TrimSpace(s.Find("h3.expansionTitle").Text()),
 			ReleaseDate: releaseDate,
+			ImageURL:    strings.TrimSpace(imageURL),
 		})
 	})
 	return out

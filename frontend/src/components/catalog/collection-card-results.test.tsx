@@ -42,7 +42,7 @@ const card: CardSummary = {
   tags: [],
   illustrator: "someone",
   imageUrl: "",
-  expansionSet: { id: "set-1", code: "SCE", name: "Starter" },
+  expansionSet: { id: "set-1", code: "SCE", name: "Starter", imageUrl: "" },
   rarity: { id: "r-1", code: "RR", name: "Double Rare" },
 }
 

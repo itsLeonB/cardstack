@@ -42,6 +42,7 @@ export const ListCollectionEntriesResponse = zod.object({
   "expansionSet": zod.object({
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional()
 }),
@@ -179,6 +180,7 @@ export const ListCollectionFacetsResponse = zod.object({
   "available": zod.boolean(),
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional(),
   "seriesId": zod.string().optional()
@@ -227,6 +229,7 @@ export const ListMasterInventoryResponse = zod.object({
   "expansionSet": zod.object({
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional()
 }),
@@ -273,6 +276,7 @@ export const ListMasterInventoryFacetsResponse = zod.object({
   "available": zod.boolean(),
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional(),
   "seriesId": zod.string().optional()
