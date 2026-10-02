@@ -14,7 +14,7 @@ export function CardHoldings({ cardId }: { cardId: string }) {
   } else if (!isAuthenticated) {
     body = (
       <p className="text-sm text-muted-foreground">
-        <Link to="/login" className="text-primary underline-offset-2 hover:underline">
+        <Link to="/auth/login" className="text-primary underline-offset-2 hover:underline">
           Sign in
         </Link>{" "}
         to see which of your Collections hold this Card.

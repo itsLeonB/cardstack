@@ -33,6 +33,8 @@ async function stubApi(page: Page, { signedIn }: { signedIn: boolean }) {
     )
   )
   await page.route("**/auth/login", (route) => {
+    // The page itself lives at /auth/login; only the API call is stubbed.
+    if (route.request().resourceType() !== "fetch") return route.fallback()
     session = true
     return route.fulfill(fulfillJson(route, 200, { data: { csrfToken: "t" } }))
   })
@@ -47,7 +49,7 @@ test.describe("Auth redirects", () => {
     await stubApi(page, { signedIn: false })
     await page.goto("/collections?q=binder")
 
-    await expect(page).toHaveURL(/\/login\?redirect=%2Fcollections%3Fq%3Dbinder$/)
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Fcollections%3Fq%3Dbinder$/)
     await page.getByLabel("Email").fill("ada@example.com")
     await page.getByLabel("Password", { exact: true }).fill("correct horse")
     await page.getByRole("button", { name: "Log in" }).click()
@@ -58,7 +60,7 @@ test.describe("Auth redirects", () => {
 
   test("ignores an external redirect target after login", async ({ page }) => {
     await stubApi(page, { signedIn: false })
-    await page.goto("/login?redirect=https://evil.example/")
+    await page.goto("/auth/login?redirect=https://evil.example/")
 
     await page.getByLabel("Email").fill("ada@example.com")
     await page.getByLabel("Password", { exact: true }).fill("correct horse")
@@ -67,7 +69,7 @@ test.describe("Auth redirects", () => {
     await expect(page).toHaveURL(/localhost:\d+\/account$/)
   })
 
-  for (const path of ["/login", "/register"]) {
+  for (const path of ["/auth/login", "/auth/register"]) {
     test(`sends a signed-in user from ${path} to /`, async ({ page }) => {
       await stubApi(page, { signedIn: true })
       await page.goto(path)
@@ -79,11 +81,11 @@ test.describe("Auth redirects", () => {
 
   test("lets a guest reach login and register and switch between them", async ({ page }) => {
     await stubApi(page, { signedIn: false })
-    await page.goto("/login")
+    await page.goto("/auth/login")
     await expect(page.getByRole("heading", { level: 1, name: "Log in" })).toBeVisible()
 
     await page.getByRole("main").getByRole("link", { name: "Register" }).click()
-    await expect(page).toHaveURL(/\/register$/)
+    await expect(page).toHaveURL(/\/auth\/register$/)
     await expect(page.getByRole("heading", { level: 1, name: "Create an account" })).toBeVisible()
   })
 })
@@ -94,8 +96,8 @@ test.describe("Auth forms", () => {
   })
 
   for (const [path, heading] of [
-    ["/login", "Log in"],
-    ["/register", "Create an account"],
+    ["/auth/login", "Log in"],
+    ["/auth/register", "Create an account"],
   ] as const) {
     test(`passes axe on ${path}`, async ({ page }) => {
       await page.goto(path)
@@ -105,8 +107,27 @@ test.describe("Auth forms", () => {
     })
   }
 
+  for (const path of ["/auth/login", "/auth/register"]) {
+    test(`${path} uses the minimal auth shell, not the site shell`, async ({ page }) => {
+      await page.goto(path)
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+      await expect(page.getByRole("main")).toHaveCount(1)
+      await expect(page.getByRole("navigation")).toHaveCount(0)
+      await expect(page.getByRole("contentinfo")).toHaveCount(0)
+      await expect(page.getByRole("link", { name: "Cardstack" })).toHaveAttribute("href", "/")
+      await expect(page.getByRole("button", { name: "Theme" })).toBeVisible()
+    })
+  }
+
+  test("a normal page keeps the site header and footer", async ({ page }) => {
+    await page.goto("/catalog")
+    await expect(page.getByRole("banner")).toBeVisible()
+    await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible()
+    await expect(page.getByRole("contentinfo")).toBeVisible()
+  })
+
   test("passes axe with field errors showing", async ({ page }) => {
-    await page.goto("/register")
+    await page.goto("/auth/register")
     await page.getByRole("button", { name: "Create account" }).click()
     await expect(page.getByText("Enter a valid email address.")).toBeVisible()
     const results = await new AxeBuilder({ page }).analyze()
@@ -114,7 +135,7 @@ test.describe("Auth forms", () => {
   })
 
   test("toggles password visibility", async ({ page }) => {
-    await page.goto("/login")
+    await page.goto("/auth/login")
     const password = page.getByLabel("Password", { exact: true })
     await expect(password).toHaveAttribute("type", "password")
     await page.getByRole("button", { name: "Show password" }).click()

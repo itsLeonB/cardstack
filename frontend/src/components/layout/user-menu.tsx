@@ -17,7 +17,7 @@ export function UserMenu() {
   function handleLogout() {
     logoutMutation.mutate(undefined, {
       onSuccess: (response) => {
-        if (response.status === 204) void navigate({ to: "/login" })
+        if (response.status === 204) void navigate({ to: "/auth/login" })
       },
     })
   }

@@ -19,7 +19,7 @@ describe("requireAuth", () => {
     expect(result).toEqual({ user: { id: "1", email: "a@b.com" } })
   })
 
-  it("redirects to /login, preserving the attempted URL, when unauthenticated", async () => {
+  it("redirects to /auth/login, preserving the attempted URL, when unauthenticated", async () => {
     const queryClient = new QueryClient()
     vi.spyOn(queryClient, "ensureQueryData").mockResolvedValue({
       status: 401,
@@ -35,7 +35,7 @@ describe("requireAuth", () => {
     } catch (err) {
       if (!isRedirect(err)) throw err
       expect(err.options).toMatchObject({
-        to: "/login",
+        to: "/auth/login",
         search: { redirect: "/account" },
       })
     }

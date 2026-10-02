@@ -33,7 +33,7 @@ export function GuestLanding() {
           }
         />
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button size="lg" render={<Link to="/register" />}>
+          <Button size="lg" render={<Link to="/auth/register" />}>
             Create account
           </Button>
           <Button size="lg" variant="outline" render={<Link to="/catalog" />}>
@@ -72,7 +72,7 @@ export function GuestLanding() {
           <p className="text-sm">
             Create a free account and start your first Collection.
           </p>
-          <Button size="lg" render={<Link to="/register" />}>
+          <Button size="lg" render={<Link to="/auth/register" />}>
             Create account
           </Button>
         </CardContent>

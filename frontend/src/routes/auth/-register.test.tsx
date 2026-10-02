@@ -24,7 +24,7 @@ vi.mock("@/generated/endpoints/auth/auth", async () => {
 
 afterEach(cleanup)
 
-// Mounts the real register route plus a stub /login that renders its search,
+// Mounts the real register route plus a stub /auth/login that renders its search,
 // so the post-register navigation can be read back off the router.
 async function renderRegister(url: string) {
   // SAFETY: partial mutation result covering only what RegisterPage reads.
@@ -35,18 +35,16 @@ async function renderRegister(url: string) {
   } as any)
 
   const queryClient = new QueryClient()
-  queryClient.setQueryData(["/auth/me"], { status: 401, data: {} })
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()()
   const register = createRoute({
     getParentRoute: () => root,
-    path: "/register",
+    path: "/auth/register",
     validateSearch: RegisterRoute.options.validateSearch,
-    beforeLoad: RegisterRoute.options.beforeLoad,
     component: RegisterRoute.options.component,
   })
   const login = createRoute({
     getParentRoute: () => root,
-    path: "/login",
+    path: "/auth/login",
     validateSearch: LoginRoute.options.validateSearch,
     component: () => <h1>Login stub</h1>,
   })
@@ -66,19 +64,19 @@ async function renderRegister(url: string) {
 
 describe("register redirect", () => {
   it("carries the redirect through the Log in link", async () => {
-    await renderRegister("/register?redirect=%2Fcollections%3Fq%3Dbinder")
+    await renderRegister("/auth/register?redirect=%2Fcollections%3Fq%3Dbinder")
     expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe(
-      "/login?redirect=%2Fcollections%3Fq%3Dbinder"
+      "/auth/login?redirect=%2Fcollections%3Fq%3Dbinder"
     )
   })
 
   it("drops an external redirect from the Log in link", async () => {
-    await renderRegister(`/register?redirect=${encodeURIComponent("https://evil.example/")}`)
-    expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login")
+    await renderRegister(`/auth/register?redirect=${encodeURIComponent("https://evil.example/")}`)
+    expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/auth/login")
   })
 
   it("passes the redirect to login after a successful registration", async () => {
-    const router = await renderRegister("/register?redirect=%2Fcollections%3Fq%3Dbinder")
+    const router = await renderRegister("/auth/register?redirect=%2Fcollections%3Fq%3Dbinder")
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } })
     fireEvent.change(screen.getByLabelText("Password", { selector: "input" }), {
       target: { value: "correct horse" },
@@ -88,7 +86,7 @@ describe("register redirect", () => {
     })
     fireEvent.click(screen.getByRole("button", { name: "Create account" }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/login"))
+    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"))
     expect(router.state.location.search).toEqual({
       registered: true,
       redirect: "/collections?q=binder",

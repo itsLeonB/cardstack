@@ -50,7 +50,7 @@ export const redirectSchema = z
 /**
  * Reusable `beforeLoad` guard for protected routes. Probes `GET /auth/me`
  * through the router's queryClient (so it shares the cache with
- * `useSession()`) and redirects to `/login` when the session isn't
+ * `useSession()`) and redirects to `/auth/login` when the session isn't
  * authenticated, preserving the attempted path and query string as a
  * relative `redirect` search param (`location.href` can be absolute, which
  * the login page's same-origin check rejects).
@@ -63,7 +63,7 @@ export async function requireAuth({ context, location }: RequireAuthArgs) {
 
   if (response.status !== 200) {
     throw redirect({
-      to: "/login",
+      to: "/auth/login",
       search: { redirect: location.pathname + location.searchStr },
     })
   }

@@ -78,7 +78,7 @@ function dashboardData(collections: { id: string; title: string }[], total: numb
 async function renderHome() {
   const root = createRootRoute()
   const routeTree = root.addChildren(
-    ["/", "/register", "/catalog", "/catalog/search", "/inventory", "/collections", "/collections/new", "/collections/$collectionId"].map(
+    ["/", "/auth/register", "/catalog", "/catalog/search", "/inventory", "/collections", "/collections/new", "/collections/$collectionId"].map(
       (path) =>
         createRoute({
           getParentRoute: () => root,
@@ -128,7 +128,7 @@ describe("guest landing", () => {
       (await screen.findAllByRole("link", { name: "Create account" })).map((a) =>
         a.getAttribute("href")
       )
-    ).toEqual(["/register", "/register"])
+    ).toEqual(["/auth/register", "/auth/register"])
     expect(
       screen.getByRole("link", { name: "Browse the catalog" }).getAttribute("href")
     ).toBe("/catalog")

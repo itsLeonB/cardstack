@@ -17,7 +17,7 @@
 
 ## Outcome
 
-Login and register use a shared `AuthPage`/`AuthField` card (narrow layout, `BrandMark`, show/hide password, field errors tied to inputs, pending state). `requireGuest` redirects signed-in users from `/login` and `/register` to `/`. `requireAuth` preserves path plus query string, and a shared `redirectSchema` plus `isSameOriginPath` rejects external targets (an invalid `?redirect=` is dropped and login falls back to `/account`). The login and register cross-links carry the validated `redirect`. Session cache is now reset (not just invalidated) and awaited after login and logout so the guards never read a stale session.
+Login and register use a shared `AuthPage`/`AuthField` card (narrow layout, `BrandMark`, show/hide password, field errors tied to inputs, pending state). `requireGuest` redirects signed-in users from `/auth/login` and `/auth/register` to `/`. `requireAuth` preserves path plus query string, and a shared `redirectSchema` plus `isSameOriginPath` rejects external targets (an invalid `?redirect=` is dropped and login falls back to `/account`). Login and register later moved to `/auth/login` and `/auth/register` under a guest-only layout with its own minimal shell. The login and register cross-links carry the validated `redirect`. Session cache is now reset (not just invalidated) and awaited after login and logout so the guards never read a stale session.
 
 Not verified in a real browser: visual pass of the card (spacing, brand mark, dark mode) and login against the real backend; Playwright specs run with the API stubbed. Three pre-existing e2e failures in `breadcrumbs.spec.ts` and `app-shell.spec.ts` need a seeded catalog and were not rerun on the baseline.
 
