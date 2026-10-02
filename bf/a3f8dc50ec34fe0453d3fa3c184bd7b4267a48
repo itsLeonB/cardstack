@@ -1,0 +1,25 @@
+docs/agents/conventions/frontend.md
+  s_a4222d47982f6a::t_2e2a75be108e26 41
+frontend/e2e/catalog-browse.spec.ts
+  s_a4222d47982f6a::t_35de092cce1773 27,54
+frontend/e2e/catalog-infinite-scroll.spec.ts
+  s_a4222d47982f6a::t_0c35f426cfc6b9 414-485
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_a4222d47982f6a::t_8dbb32cf8a38e5 1-2,4,10-13,16-26,28-31,41-49,77,87,89,91-94,96-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "bfa3f8dc50ec34fe0453d3fa3c184bd7b4267a48",
+  "prompts": {},
+  "sessions": {
+    "s_a4222d47982f6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a4222d47982f6a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
