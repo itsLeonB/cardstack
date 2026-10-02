@@ -6,6 +6,7 @@
  */
 
 export interface CollectionSummary {
+  cardCount: number;
   description: string;
   id: string;
   maxCardCount: number;

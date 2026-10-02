@@ -16,6 +16,7 @@ import type {
   deleteCollectionResponse,
 } from "@/generated/endpoints/collections/collections"
 import {
+  invalidateCollectionCounts,
   useCreateCollectionMutation,
   useUpdateCollectionMutation,
   useDeleteCollectionMutation,
@@ -72,7 +73,7 @@ describe("useCreateCollectionMutation", () => {
 
     capturedOnSuccess?.({
       status: 201,
-      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0 } },
+      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0, cardCount: 0 } },
       headers: new Headers(),
     })
 
@@ -146,7 +147,7 @@ describe("useUpdateCollectionMutation", () => {
 
     capturedOnSuccess?.({
       status: 200,
-      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0 } },
+      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0, cardCount: 0 } },
       headers: new Headers(),
     }, { id: "1" })
 
@@ -269,5 +270,17 @@ describe("useDeleteCollectionMutation", () => {
 
     expect(invalidateSpy).not.toHaveBeenCalled()
     expect(removeSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe("invalidateCollectionCounts", () => {
+  it("refetches the list and the single Collection, including inactive queries", () => {
+    const invalidateQueries = vi.fn()
+    // SAFETY: only invalidateQueries is used.
+    invalidateCollectionCounts({ invalidateQueries } as any, "col-1")
+    expect(invalidateQueries.mock.calls.map(([arg]) => arg)).toEqual([
+      { queryKey: getListCollectionsQueryKey(), refetchType: "all" },
+      { queryKey: getGetCollectionQueryKey("col-1"), refetchType: "all" },
+    ])
   })
 })

@@ -12,6 +12,7 @@ import * as zod from 'zod';
  */
 export const ListCollectionsResponse = zod.object({
   "data": zod.array(zod.object({
+  "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
@@ -36,6 +37,7 @@ export const CreateCollectionBody = zod.object({
 
 export const CreateCollectionResponse = zod.object({
   "data": zod.object({
+  "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
@@ -61,6 +63,7 @@ export const GetCollectionParams = zod.object({
 
 export const GetCollectionResponse = zod.object({
   "data": zod.object({
+  "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
@@ -89,6 +92,7 @@ export const UpdateCollectionBody = zod.object({
 
 export const UpdateCollectionResponse = zod.object({
   "data": zod.object({
+  "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
