@@ -3,7 +3,7 @@
 # 19: Collections list: show card count and make the whole card clickable
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done — implemented (backend `670a6a4`, `8f29a60`; frontend `461e0a1`, `c3a175a`, `6b89562`) on `feat/collections-card-count-clickable-card`, merged to `main` via PR #26 (`0064b59`), verified.
 
 **Blocked by:** None (can start immediately)
 
