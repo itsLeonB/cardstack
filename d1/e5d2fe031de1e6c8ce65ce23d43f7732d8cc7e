@@ -1,0 +1,69 @@
+.scratch/frontend-visual-identity/issues/04-login-register-polish-and-auth-redirects.md
+  s_26c68ba889470d::t_07ba2208012ceb 20
+docs/agents/conventions/frontend.md
+  s_26c68ba889470d::t_dfdb414a1355e2 27,29
+frontend/e2e/app-shell.spec.ts
+  s_26c68ba889470d::t_6853cf510b6ef1 66,70,72-73,76-85,187,190
+frontend/e2e/auth.spec.ts
+  s_26c68ba889470d::t_544733fa471857 36-37,52,63,72,84,88,99-100,110-128,130,138
+frontend/src/components/auth/auth-page.tsx
+  s_26c68ba889470d::t_5fa360ba6b6dda 5,18
+frontend/src/components/auth/auth-shell.tsx
+  s_26c68ba889470d::t_c9e0de8da52bda 1-19
+frontend/src/components/catalog/card-holdings.tsx
+  s_26c68ba889470d::t_949318ae2836f3 17
+frontend/src/components/catalog/collection-picker.tsx
+  s_26c68ba889470d::t_28127593cadc90 80
+frontend/src/components/home/guest-landing.tsx
+  s_26c68ba889470d::t_c3dd9325cfc0ce 36,75
+frontend/src/components/home/home-page.test.tsx
+  s_26c68ba889470d::t_626ba3412484d7 81,131
+frontend/src/components/layout/app-shell.tsx
+  s_26c68ba889470d::t_7e229dade74e60 3,8
+frontend/src/components/layout/nav-links.ts
+  s_26c68ba889470d::t_e1cc5fadd5331b 4,28-29
+frontend/src/components/layout/site-header.test.tsx
+  s_26c68ba889470d::t_8f3cf4f5b850c2 63
+frontend/src/components/layout/skip-link.tsx
+  s_26c68ba889470d::t_510238cad362d8 1-10
+frontend/src/components/layout/user-menu.tsx
+  s_26c68ba889470d::t_f5c6350aee5e58 20
+frontend/src/lib/route-guard.test.ts
+  s_26c68ba889470d::t_28b3785ae8593f 22,38
+frontend/src/lib/route-guard.ts
+  s_26c68ba889470d::t_68b6a5c8d58a28 53,66
+frontend/src/routeTree.gen.ts
+  s_26c68ba889470d::t_cb9e02832a412c 14,18-19,38-42,58-67,117,121-122,134,138-139,152,157-158,172,176-177,189,193-194,206,211-212,225,250-256,278-291,351-364,391
+frontend/src/routes/__root.tsx
+  s_26c68ba889470d::t_7f3580cdf2b939 6,69-80,84-85
+frontend/src/routes/_authenticated/account.tsx
+  s_26c68ba889470d::t_77ebe62f2efb3d 22
+frontend/src/routes/auth/-login.test.tsx
+  s_26c68ba889470d::t_0c3b0fd0d0a603 49,78,84,93,100,102,109,114,125
+frontend/src/routes/auth/-register.test.tsx
+  s_26c68ba889470d::t_7977fdd7279083 27,41,47,67,69,74-75,79,89
+frontend/src/routes/auth/-route.test.tsx
+  s_26c68ba889470d::t_9ff7ad0ce22a05 1-79
+frontend/src/routes/auth/login.tsx
+  s_26c68ba889470d::t_23b0813f37a659 8,14,21,80
+frontend/src/routes/auth/register.tsx
+  s_26c68ba889470d::t_4df0d0cb97eda3 8,15,58,77
+frontend/src/routes/auth/route.tsx
+  s_26c68ba889470d::t_ce2f46814a93f8 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d1e5d2fe031de1e6c8ce65ce23d43f7732d8cc7e",
+  "prompts": {},
+  "sessions": {
+    "s_26c68ba889470d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_26c68ba889470d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
