@@ -63,12 +63,9 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 		return nil, err
 	}
 
-	summaries := make([]dto.CollectionSummary, len(collections))
-	for i, c := range collections {
-		summaries[i] = mapper.ToCollectionSummary(c, counts[c.ID])
-	}
-
-	return summaries, nil
+	return ezutil.MapSlice(collections, func(c entity.Collection) dto.CollectionSummary {
+		return mapper.ToCollectionSummary(c, counts[c.ID])
+	}), nil
 }
 
 func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
