@@ -1,0 +1,27 @@
+.scratch/frontend-visual-identity/issues/06-metadata-seo-and-indexing.md
+  s_cb6234981d719c::t_7d541568c0ef81 16-21
+docs/agents/conventions/frontend.md
+  s_cb6234981d719c::t_d944a1b5a24350 37
+frontend/public/robots.txt
+  s_cb6234981d719c::t_d66388cf5667bd 1
+frontend/src/routes/__root.tsx
+  s_cb6234981d719c::t_58a7b800a4d7b0 35
+frontend/tools/seo-files.ts
+  s_cb6234981d719c::t_46cdb27d10ea3d 6-7,21-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "18b9c4bf04feba74e543a90ca8f853e7930c8ce0",
+  "prompts": {},
+  "sessions": {
+    "s_cb6234981d719c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cb6234981d719c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
