@@ -3,7 +3,7 @@
 # 33: Infinite, virtualized catalog search
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** None (can start immediately)
 
@@ -32,13 +32,13 @@ The catalog search is offset based (`page`, `limit`, `meta.total`) and the front
 - Keep the grid component generic enough that tickets 35 and 36 can reuse it.
 
 **Acceptance criteria:**
-- [ ] Scrolling the catalog search to the bottom loads further pages until `total` is reached, with no duplicate tiles
-- [ ] The DOM holds only a window of rows (verify with a seeded list of about 2,000 tiles that scrolling stays smooth and the rendered tile count stays bounded)
-- [ ] Columns follow container width and the grid stays correct on resize
-- [ ] Changing a filter resets the list to the top and the results match the new filters; the URL contains no `page`
-- [ ] The "Load more" button works with the keyboard and loads the next page; the status line is announced politely
-- [ ] Unit tests (virtualizer layout needs jsdom stubs; IntersectionObserver stubbed if used) and a Playwright e2e for scroll loading and filter reset
-- [ ] Both verification scripts pass
+- [x] Scrolling the catalog search to the bottom loads further pages until `total` is reached, with no duplicate tiles
+- [x] The DOM holds only a window of rows (verify with a seeded list of about 2,000 tiles that scrolling stays smooth and the rendered tile count stays bounded)
+- [x] Columns follow container width and the grid stays correct on resize
+- [x] Changing a filter resets the list to the top and the results match the new filters; the URL contains no `page`
+- [x] The "Load more" button works with the keyboard and loads the next page; the status line is announced politely
+- [x] Unit tests (virtualizer layout needs jsdom stubs; IntersectionObserver stubbed if used) and a Playwright e2e for scroll loading and filter reset
+- [x] Both verification scripts pass
 
 **Out of scope:**
 - Accessibility refinements (list semantics, focus retention, column-change re-anchor, scroll restoration): ticket 34

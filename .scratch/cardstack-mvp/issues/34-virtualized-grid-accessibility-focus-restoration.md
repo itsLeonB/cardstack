@@ -3,7 +3,7 @@
 # 34: Virtualized grid accessibility, focus and scroll restoration
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** 33
 
@@ -29,12 +29,12 @@ After ticket 33 the grid virtualizes, which unmounts offscreen tiles. That break
 - The router's scroll restoration and the default query cache lifetime for the catalog query.
 
 **Acceptance criteria:**
-- [ ] A screen reader (or the accessibility tree in Playwright) reports each tile's position and the total
-- [ ] Keyboard: Tab through tiles never loses focus when rows unmount; the button after the list and then the footer are reachable (Playwright)
-- [ ] Resizing across a column breakpoint keeps the same card in view
-- [ ] Opening a card and going back restores the scroll position and the loaded list (Playwright)
-- [ ] An axe check on the results passes
-- [ ] Both verification scripts pass
+- [x] A screen reader (or the accessibility tree in Playwright) reports each tile's position and the total
+- [x] Keyboard: Tab through tiles never loses focus when rows unmount; the button after the list and then the footer are reachable (Playwright)
+- [x] Resizing across a column breakpoint keeps the same card in view
+- [x] Opening a card and going back restores the scroll position and the loaded list (Playwright)
+- [x] An axe check on the results passes
+- [x] Both verification scripts pass
 
 **Out of scope:**
 - Expansion Set page, Collection entries and Master Inventory: tickets 35 and 36
