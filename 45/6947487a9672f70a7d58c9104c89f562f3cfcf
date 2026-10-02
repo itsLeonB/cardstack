@@ -1,0 +1,25 @@
+docs/agents/conventions/frontend.md
+  s_f3eaf152800ee6::t_0a0d6b70e2596b 45
+frontend/e2e/catalog-infinite-scroll.spec.ts
+  s_f3eaf152800ee6::t_185b574ae5b36f 255,267-268,277
+frontend/src/components/catalog/infinite-card-results.test.tsx
+  s_f3eaf152800ee6::t_ec5d7e95314675 137-143,148
+frontend/src/components/catalog/infinite-card-results.tsx
+  s_f3eaf152800ee6::t_ca48134db4813a 103-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "456947487a9672f70a7d58c9104c89f562f3cfcf",
+  "prompts": {},
+  "sessions": {
+    "s_f3eaf152800ee6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f3eaf152800ee6",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
