@@ -3,7 +3,7 @@
 # 30: Auth errors leak authkit internals to the client
 
 **Category:** bug
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** None (can start immediately)
 
@@ -28,12 +28,12 @@
 - `mapAuthError` only. Frontend needs no change: `login.tsx` and `register.tsx` already render `detail`, and the login fallback "Invalid email or password." matches the new message.
 
 **Acceptance criteria:**
-- [ ] Login with a wrong password and with an unknown email both return 401 with the same generic `detail`, containing no "authkit"
-- [ ] Every sentinel in `mapAuthError` maps to a message with no "authkit" text, with unchanged HTTP status
-- [ ] `TestAuthHandler_Login_InvalidCredentials` (currently asserts `authkit.ErrInvalidCredentials.Error()` as the detail) asserts the new generic message instead
-- [ ] `TestMapAuthError_KnownStatuses` also asserts the message does not contain "authkit"
-- [ ] `TestMapAuthError_UnknownIsLeftForTheGlobalSeam` still passes
-- [ ] Backend build, vet and tests pass
+- [x] Login with a wrong password and with an unknown email both return 401 with the same generic `detail`, containing no "authkit"
+- [x] Every sentinel in `mapAuthError` maps to a message with no "authkit" text, with unchanged HTTP status
+- [x] `TestAuthHandler_Login_InvalidCredentials` (currently asserts `authkit.ErrInvalidCredentials.Error()` as the detail) asserts the new generic message instead
+- [x] `TestMapAuthError_KnownStatuses` also asserts the message does not contain "authkit"
+- [x] `TestMapAuthError_UnknownIsLeftForTheGlobalSeam` still passes
+- [x] Backend build, vet and tests pass
 
 **Out of scope:**
 - Frontend changes
