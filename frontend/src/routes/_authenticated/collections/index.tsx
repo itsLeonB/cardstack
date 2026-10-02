@@ -32,7 +32,9 @@ function CollectionsPage() {
       <PageHeader
         title="Collections"
         actions={
-          <Button render={<Link to="/collections/new" />}>New Collection</Button>
+          <Button render={<Link to="/collections/new" />}>
+            New Collection
+          </Button>
         }
       />
 

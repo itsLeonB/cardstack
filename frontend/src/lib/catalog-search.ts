@@ -28,10 +28,10 @@ export function toFacetParams({ page: _page, ...filters }: CatalogSearch) {
 export function hasActiveFilters(search: CatalogSearch) {
   return Boolean(
     search.name ||
-      search.localId ||
-      search.expansionSetId?.length ||
-      search.rarityId?.length ||
-      search.category?.length ||
-      search.tag?.length
+    search.localId ||
+    search.expansionSetId?.length ||
+    search.rarityId?.length ||
+    search.category?.length ||
+    search.tag?.length
   )
 }

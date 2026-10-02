@@ -49,8 +49,7 @@ describe("useCreateCollectionMutation", () => {
 
   it("invalidates the collections list once creation succeeds (201)", () => {
     let capturedOnSuccess:
-      | ((response: createCollectionResponse) => void)
-      | undefined
+      ((response: createCollectionResponse) => void) | undefined
     mockUseCreateCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
       capturedOnSuccess = options?.mutation?.onSuccess as never
@@ -73,7 +72,15 @@ describe("useCreateCollectionMutation", () => {
 
     capturedOnSuccess?.({
       status: 201,
-      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0, cardCount: 0 } },
+      data: {
+        data: {
+          id: "1",
+          title: "Binder",
+          description: "",
+          maxCardCount: 0,
+          cardCount: 0,
+        },
+      },
       headers: new Headers(),
     })
 
@@ -84,8 +91,7 @@ describe("useCreateCollectionMutation", () => {
 
   it("does not invalidate on a failed create", () => {
     let capturedOnSuccess:
-      | ((response: createCollectionResponse) => void)
-      | undefined
+      ((response: createCollectionResponse) => void) | undefined
     mockUseCreateCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
       capturedOnSuccess = options?.mutation?.onSuccess as never
@@ -123,7 +129,10 @@ describe("useUpdateCollectionMutation", () => {
 
   it("invalidates the collections list once the update succeeds (200)", () => {
     let capturedOnSuccess:
-      | ((response: updateCollectionResponse, variables: { id: string }) => void)
+      | ((
+          response: updateCollectionResponse,
+          variables: { id: string }
+        ) => void)
       | undefined
     mockUseUpdateCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -145,11 +154,22 @@ describe("useUpdateCollectionMutation", () => {
 
     renderHook(() => useUpdateCollectionMutation(), { wrapper: Wrapper })
 
-    capturedOnSuccess?.({
-      status: 200,
-      data: { data: { id: "1", title: "Binder", description: "", maxCardCount: 0, cardCount: 0 } },
-      headers: new Headers(),
-    }, { id: "1" })
+    capturedOnSuccess?.(
+      {
+        status: 200,
+        data: {
+          data: {
+            id: "1",
+            title: "Binder",
+            description: "",
+            maxCardCount: 0,
+            cardCount: 0,
+          },
+        },
+        headers: new Headers(),
+      },
+      { id: "1" }
+    )
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: getListCollectionsQueryKey(),
@@ -161,7 +181,10 @@ describe("useUpdateCollectionMutation", () => {
 
   it("does not invalidate on a failed update", () => {
     let capturedOnSuccess:
-      | ((response: updateCollectionResponse, variables: { id: string }) => void)
+      | ((
+          response: updateCollectionResponse,
+          variables: { id: string }
+        ) => void)
       | undefined
     mockUseUpdateCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -183,11 +206,14 @@ describe("useUpdateCollectionMutation", () => {
 
     renderHook(() => useUpdateCollectionMutation(), { wrapper: Wrapper })
 
-    capturedOnSuccess?.({
-      status: 404,
-      data: { detail: "Not found" },
-      headers: new Headers(),
-    }, { id: "1" })
+    capturedOnSuccess?.(
+      {
+        status: 404,
+        data: { detail: "Not found" },
+        headers: new Headers(),
+      },
+      { id: "1" }
+    )
 
     expect(invalidateSpy).not.toHaveBeenCalled()
   })
@@ -200,7 +226,10 @@ describe("useDeleteCollectionMutation", () => {
 
   it("invalidates the collections list once the delete succeeds (204)", () => {
     let capturedOnSuccess:
-      | ((response: deleteCollectionResponse, variables: { id: string }) => void)
+      | ((
+          response: deleteCollectionResponse,
+          variables: { id: string }
+        ) => void)
       | undefined
     mockUseDeleteCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -223,11 +252,14 @@ describe("useDeleteCollectionMutation", () => {
 
     renderHook(() => useDeleteCollectionMutation(), { wrapper: Wrapper })
 
-    capturedOnSuccess?.({
-      status: 204,
-      data: undefined,
-      headers: new Headers(),
-    }, { id: "1" })
+    capturedOnSuccess?.(
+      {
+        status: 204,
+        data: undefined,
+        headers: new Headers(),
+      },
+      { id: "1" }
+    )
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: getListCollectionsQueryKey(),
@@ -239,7 +271,10 @@ describe("useDeleteCollectionMutation", () => {
 
   it("does not invalidate on a failed delete", () => {
     let capturedOnSuccess:
-      | ((response: deleteCollectionResponse, variables: { id: string }) => void)
+      | ((
+          response: deleteCollectionResponse,
+          variables: { id: string }
+        ) => void)
       | undefined
     mockUseDeleteCollection.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is the only field this wrapper reads.
@@ -262,11 +297,14 @@ describe("useDeleteCollectionMutation", () => {
 
     renderHook(() => useDeleteCollectionMutation(), { wrapper: Wrapper })
 
-    capturedOnSuccess?.({
-      status: 404,
-      data: { detail: "Not found" },
-      headers: new Headers(),
-    }, { id: "1" })
+    capturedOnSuccess?.(
+      {
+        status: 404,
+        data: { detail: "Not found" },
+        headers: new Headers(),
+      },
+      { id: "1" }
+    )
 
     expect(invalidateSpy).not.toHaveBeenCalled()
     expect(removeSpy).not.toHaveBeenCalled()

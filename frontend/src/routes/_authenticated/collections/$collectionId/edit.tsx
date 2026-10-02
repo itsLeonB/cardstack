@@ -28,7 +28,8 @@ export const Route = createFileRoute(
     if (response.status === 404) throw notFoundResource("Collection")
     return response.status === 200 ? response.data.data.title : undefined
   },
-  head: ({ loaderData }) => pageHead(loaderData ? `Edit ${loaderData}` : "Edit Collection"),
+  head: ({ loaderData }) =>
+    pageHead(loaderData ? `Edit ${loaderData}` : "Edit Collection"),
   component: EditCollectionPage,
 })
 
@@ -38,7 +39,8 @@ function EditCollectionPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const query = useGetCollection(collectionId)
-  const collection = query.data?.status === 200 ? query.data.data.data : undefined
+  const collection =
+    query.data?.status === 200 ? query.data.data.data : undefined
   const collectionTitle = collection?.title ?? "Collection"
   const loadErrorMessage = errorDetail(
     query.data,
@@ -54,7 +56,10 @@ function EditCollectionPage() {
           { label: "Collections", link: { to: "/collections" } },
           {
             label: collectionTitle,
-            link: { to: "/collections/$collectionId", params: { collectionId } },
+            link: {
+              to: "/collections/$collectionId",
+              params: { collectionId },
+            },
           },
           { label: "Edit" },
         ]}
@@ -80,7 +85,8 @@ function EditCollectionPage() {
 
           {(query.isError || loadErrorMessage) && (
             <p role="alert" className="text-sm text-destructive">
-              {loadErrorMessage ?? "Could not reach the backend. Please try again."}
+              {loadErrorMessage ??
+                "Could not reach the backend. Please try again."}
             </p>
           )}
 
@@ -89,7 +95,10 @@ function EditCollectionPage() {
               initialValues={{
                 title: collection.title,
                 description: collection.description,
-                maxCardCount: collection.maxCardCount > 0 ? collection.maxCardCount.toString() : "",
+                maxCardCount:
+                  collection.maxCardCount > 0
+                    ? collection.maxCardCount.toString()
+                    : "",
               }}
               submitLabel="Save changes"
               pendingLabel="Saving..."

@@ -60,7 +60,9 @@ function LoginPage() {
             // so a post-login redirect is never sent off-site even if
             // validateSearch's own enforcement ever changes. `history.push`
             // (not `navigate({ to })`) because the target carries a query string.
-            router.history.push(isSameOriginPath(redirect) ? redirect : "/account")
+            router.history.push(
+              isSameOriginPath(redirect) ? redirect : "/account"
+            )
             return
           }
           setFormError(response.data.detail ?? "Invalid email or password.")
@@ -79,16 +81,27 @@ function LoginPage() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link to="/auth/register" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
+          <Link
+            to="/auth/register"
+            search={{ redirect }}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
             Register
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} noValidate aria-busy={loginMutation.isPending}>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        aria-busy={loginMutation.isPending}
+      >
         <FieldGroup>
           {registered && (
-            <p role="status" className="rounded-2xl bg-muted px-4 py-3 text-sm text-foreground">
+            <p
+              role="status"
+              className="rounded-2xl bg-muted px-4 py-3 text-sm text-foreground"
+            >
               Account created. Log in below.
             </p>
           )}

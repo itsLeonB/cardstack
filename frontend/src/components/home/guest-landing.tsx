@@ -55,7 +55,9 @@ export function GuestLanding() {
               >
                 {index + 1}
               </span>
-              <h3 className="font-heading text-base font-medium">{step.title}</h3>
+              <h3 className="font-heading text-base font-medium">
+                {step.title}
+              </h3>
               <p className="text-sm">{step.body}</p>
             </li>
           ))}

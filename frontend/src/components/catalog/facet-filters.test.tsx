@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import { FacetFilters } from "./facet-filters"
 import type { FacetSelection } from "./facet-filters"
 import type { CatalogFacets } from "@/generated/models"
@@ -26,14 +32,26 @@ const facets: CatalogFacets = {
   tags: [{ value: "V", available: true }],
 }
 const series = [{ id: "series-1", name: "Scarlet" }]
-const none: FacetSelection = { expansionSetId: [], rarityId: [], category: [], tag: [] }
+const none: FacetSelection = {
+  expansionSetId: [],
+  rarityId: [],
+  category: [],
+  tag: [],
+}
 
 function open(name: RegExp | string) {
   fireEvent.click(screen.getByRole("button", { name }))
 }
 
 function renderFilters(selected = none, onChange = vi.fn()) {
-  render(<FacetFilters facets={facets} series={series} selected={selected} onChange={onChange} />)
+  render(
+    <FacetFilters
+      facets={facets}
+      series={series}
+      selected={selected}
+      onChange={onChange}
+    />
+  )
   return onChange
 }
 
@@ -42,7 +60,9 @@ describe("FacetFilters", () => {
     renderFilters({ ...none, rarityId: ["r1", "r2"] })
 
     expect(screen.queryByRole("checkbox")).toBeNull()
-    expect(screen.getByRole("button", { name: /^Rarity\s*selected\s*2$/ })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: /^Rarity\s*selected\s*2$/ })
+    ).toBeTruthy()
     expect(screen.getByRole("button", { name: "Tag" })).toBeTruthy()
   })
 
@@ -53,7 +73,9 @@ describe("FacetFilters", () => {
     const scarlet = screen.getByRole("group", { name: "Scarlet" })
     expect(scarlet.textContent).toContain("Set One")
     expect(scarlet.textContent).not.toContain("Set Two")
-    expect(screen.getByRole("group", { name: "Ungrouped" }).textContent).toContain("Set Two")
+    expect(
+      screen.getByRole("group", { name: "Ungrouped" }).textContent
+    ).toContain("Set Two")
   })
 
   it("adds a value to the existing selection and stays open", () => {
@@ -69,7 +91,9 @@ describe("FacetFilters", () => {
     renderFilters()
     open("Expansion Set")
 
-    fireEvent.change(screen.getByLabelText("Search Expansion Set"), { target: { value: "two" } })
+    fireEvent.change(screen.getByLabelText("Search Expansion Set"), {
+      target: { value: "two" },
+    })
     expect(screen.queryByLabelText(/Set One/)).toBeNull()
     expect(screen.getByLabelText(/Set Two/)).toBeTruthy()
     expect(screen.queryByRole("group", { name: "Scarlet" })).toBeNull()
@@ -79,15 +103,22 @@ describe("FacetFilters", () => {
     renderFilters({ ...none, expansionSetId: ["s1"] })
     open(/^Expansion Set/)
 
-    fireEvent.change(screen.getByLabelText("Search Expansion Set"), { target: { value: "two" } })
-    expect(screen.getByRole("checkbox", { name: /Set One/ })).toHaveProperty("checked", true)
+    fireEvent.change(screen.getByLabelText("Search Expansion Set"), {
+      target: { value: "two" },
+    })
+    expect(screen.getByRole("checkbox", { name: /Set One/ })).toHaveProperty(
+      "checked",
+      true
+    )
   })
 
   it("says so when the search matches nothing", () => {
     renderFilters()
     open("Expansion Set")
 
-    fireEvent.change(screen.getByLabelText("Search Expansion Set"), { target: { value: "zzz" } })
+    fireEvent.change(screen.getByLabelText("Search Expansion Set"), {
+      target: { value: "zzz" },
+    })
     expect(screen.getByText("No matches")).toBeTruthy()
   })
 
@@ -99,7 +130,11 @@ describe("FacetFilters", () => {
   })
 
   it("shows selected values as chips across filters and removes one on click", () => {
-    const onChange = renderFilters({ ...none, rarityId: ["r1", "r2"], tag: ["V"] })
+    const onChange = renderFilters({
+      ...none,
+      rarityId: ["r1", "r2"],
+      tag: ["V"],
+    })
 
     const chips = within(screen.getByRole("group", { name: "Active filters" }))
     expect(chips.getAllByRole("button")).toHaveLength(3)
@@ -129,13 +164,18 @@ describe("FacetFilters", () => {
     )
 
     open(/^Expansion Set/)
-    expect(screen.getByRole("checkbox", { name: "s1" })).toHaveProperty("checked", true)
+    expect(screen.getByRole("checkbox", { name: "s1" })).toHaveProperty(
+      "checked",
+      true
+    )
   })
 
   it("flags unavailable options for screen readers", () => {
     renderFilters()
     open("Rarity")
 
-    expect(screen.getByRole("checkbox", { name: /Special Art\s*\(unavailable\)/ })).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", { name: /Special Art\s*\(unavailable\)/ })
+    ).toBeTruthy()
   })
 })

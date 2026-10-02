@@ -18,7 +18,10 @@ async function signIn(page: Page) {
         "access-control-allow-origin": route.request().headers().origin ?? "",
         "access-control-allow-credentials": "true",
       },
-      body: JSON.stringify({ data: [], meta: { total: 0, page: 1, limit: 24 } }),
+      body: JSON.stringify({
+        data: [],
+        meta: { total: 0, page: 1, limit: 24 },
+      }),
     })
   })
   await page.route("**/auth/me", (route) =>
@@ -39,7 +42,11 @@ async function signIn(page: Page) {
 async function openMenu(page: Page, name: string, item: string) {
   await expect(async () => {
     await page.getByRole("button", { name }).click()
-    await expect(page.getByRole(item === "Account" ? "menuitem" : "menuitemradio", { name: item })).toBeVisible({ timeout: 1000 })
+    await expect(
+      page.getByRole(item === "Account" ? "menuitem" : "menuitemradio", {
+        name: item,
+      })
+    ).toBeVisible({ timeout: 1000 })
   }).toPass()
 }
 
@@ -51,19 +58,27 @@ test.describe("App shell: guest", () => {
     await expect(header.getByRole("link", { name: "Catalog" })).toBeVisible()
     await expect(header.getByRole("link", { name: "Log in" })).toBeVisible()
     await expect(header.getByRole("link", { name: "Register" })).toBeVisible()
-    await expect(header.getByRole("link", { name: "Collections" })).toHaveCount(0)
+    await expect(header.getByRole("link", { name: "Collections" })).toHaveCount(
+      0
+    )
     await expect(page.getByRole("main")).toHaveCount(1)
     await expect(page.getByRole("contentinfo")).toContainText("personal MVP")
-    await expect(page).toHaveTitle("Track every Pokémon card you own · Cardstack")
+    await expect(page).toHaveTitle(
+      "Track every Pokémon card you own · Cardstack"
+    )
   })
 
   test("skip link is the first focusable element", async ({ page }) => {
     await page.goto("/")
     await page.keyboard.press("Tab")
-    await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused()
+    await expect(
+      page.getByRole("link", { name: "Skip to content" })
+    ).toBeFocused()
   })
 
-  test("Log in leads to the auth page, which drops the site nav", async ({ page }) => {
+  test("Log in leads to the auth page, which drops the site nav", async ({
+    page,
+  }) => {
     await page.goto("/")
     const header = page.getByRole("banner")
 
@@ -91,10 +106,16 @@ test.describe("App shell: signed in", () => {
     await page.goto("/")
 
     const header = page.getByRole("banner")
-    await expect(header.getByRole("link", { name: "Collections" })).toBeVisible()
-    await expect(header.getByRole("link", { name: "Master Inventory" })).toBeVisible()
+    await expect(
+      header.getByRole("link", { name: "Collections" })
+    ).toBeVisible()
+    await expect(
+      header.getByRole("link", { name: "Master Inventory" })
+    ).toBeVisible()
     await expect(header.getByRole("link", { name: "Log in" })).toHaveCount(0)
-    await expect(header.getByRole("link", { name: "Inventory", exact: true })).toHaveCount(0)
+    await expect(
+      header.getByRole("link", { name: "Inventory", exact: true })
+    ).toHaveCount(0)
 
     await openMenu(page, "User menu", "Account")
     await expect(page.getByRole("menuitem", { name: "Log out" })).toBeVisible()
@@ -104,7 +125,9 @@ test.describe("App shell: signed in", () => {
   test("passes axe on the signed-in shell", async ({ page }) => {
     await signIn(page)
     await page.goto("/")
-    await expect(page.getByRole("link", { name: "Collections" }).first()).toBeVisible()
+    await expect(
+      page.getByRole("link", { name: "Collections" }).first()
+    ).toBeVisible()
     const results = await new AxeBuilder({ page })
       .disableRules(["page-has-heading-one"])
       .analyze()
@@ -126,10 +149,9 @@ test.describe("App shell: signed in", () => {
 
     await header.getByRole("link", { name: "Collections" }).click()
     await expect(page).toHaveURL(/\/collections$/)
-    await expect(header.getByRole("link", { name: "Collections" })).toHaveAttribute(
-      "aria-current",
-      "page"
-    )
+    await expect(
+      header.getByRole("link", { name: "Collections" })
+    ).toHaveAttribute("aria-current", "page")
 
     await openMenu(page, "User menu", "Account")
     await page.getByRole("menuitem", { name: "Account" }).click()
@@ -166,7 +188,9 @@ test.describe("App shell: theme", () => {
 test.describe("App shell: mobile", () => {
   test.use({ viewport: { width: 375, height: 700 } })
 
-  test("collapses navigation into a menu that opens and closes", async ({ page }) => {
+  test("collapses navigation into a menu that opens and closes", async ({
+    page,
+  }) => {
     await page.goto("/")
     const header = page.getByRole("banner")
     const toggle = header.getByRole("button", { name: "Menu" })
@@ -174,7 +198,9 @@ test.describe("App shell: mobile", () => {
     await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
     await expect(async () => {
       await toggle.click()
-      await expect(toggle).toHaveAttribute("aria-expanded", "true", { timeout: 1000 })
+      await expect(toggle).toHaveAttribute("aria-expanded", "true", {
+        timeout: 1000,
+      })
     }).toPass()
     await expect(header.getByRole("link", { name: "Log in" })).toBeVisible()
 

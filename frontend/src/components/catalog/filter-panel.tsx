@@ -3,7 +3,12 @@ import { RiSearchLine } from "@remixicon/react"
 import { FacetFilters } from "@/components/catalog/facet-filters"
 import type { FacetKey } from "@/components/catalog/facet-filters"
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import type { CatalogFacets } from "@/generated/models"
 import { hasActiveFilters } from "@/lib/catalog-search"
@@ -19,11 +24,20 @@ interface CatalogFilterPanelProps {
 }
 
 /** Name and card-number search plus the faceted filters, shared by the catalog and Collection pages. */
-export function CatalogFilterPanel({ search, facets, series, onChange, onClear }: CatalogFilterPanelProps) {
+export function CatalogFilterPanel({
+  search,
+  facets,
+  series,
+  onChange,
+  onClear,
+}: CatalogFilterPanelProps) {
   const [nameInput, setNameInput] = useState(search.name ?? "")
   const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
   // Browser back/forward changes the URL from outside; resync so Search can't write stale text back.
-  const [synced, setSynced] = useState({ name: search.name, localId: search.localId })
+  const [synced, setSynced] = useState({
+    name: search.name,
+    localId: search.localId,
+  })
   if (synced.name !== search.name || synced.localId !== search.localId) {
     setSynced({ name: search.name, localId: search.localId })
     setNameInput(search.name ?? "")
@@ -53,14 +67,18 @@ export function CatalogFilterPanel({ search, facets, series, onChange, onClear }
             />
           </Field>
           <Field className="sm:w-40">
-            <FieldLabel htmlFor="catalog-search-local-id">Card number</FieldLabel>
+            <FieldLabel htmlFor="catalog-search-local-id">
+              Card number
+            </FieldLabel>
             <Input
               id="catalog-search-local-id"
               placeholder="e.g. 048"
               value={localIdInput}
               onChange={(event) => setLocalIdInput(event.target.value)}
             />
-            <FieldDescription>Pairs with an Expansion Set below.</FieldDescription>
+            <FieldDescription>
+              Pairs with an Expansion Set below.
+            </FieldDescription>
           </Field>
         </div>
 

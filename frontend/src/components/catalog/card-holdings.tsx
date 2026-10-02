@@ -6,34 +6,51 @@ import { useSession } from "@/lib/session"
 /** "Your collections": which of the signed-in user's Collections hold this Card, and how many. */
 export function CardHoldings({ cardId }: { cardId: string }) {
   const { isAuthenticated, isLoading } = useSession()
-  const query = useListCardHoldings(cardId, { query: { enabled: isAuthenticated } })
+  const query = useListCardHoldings(cardId, {
+    query: { enabled: isAuthenticated },
+  })
 
   let body
   if (isLoading || (isAuthenticated && query.isPending)) {
-    body = <Skeleton className="h-10 w-full" aria-label="Loading your collections" />
+    body = (
+      <Skeleton className="h-10 w-full" aria-label="Loading your collections" />
+    )
   } else if (!isAuthenticated) {
     body = (
       <p className="text-sm text-muted-foreground">
-        <Link to="/auth/login" className="font-medium text-foreground underline underline-offset-4">
+        <Link
+          to="/auth/login"
+          className="font-medium text-foreground underline underline-offset-4"
+        >
           Sign in
         </Link>{" "}
         to see which of your Collections hold this Card.
       </p>
     )
   } else if (query.isError || query.data?.status !== 200) {
-    const detail = query.data && query.data.status !== 200 ? query.data.data.detail : undefined
+    const detail =
+      query.data && query.data.status !== 200
+        ? query.data.data.detail
+        : undefined
     body = (
       <p role="alert" className="text-sm text-destructive">
         {detail ?? "Could not load your collections. Please try again."}
       </p>
     )
   } else if (!query.data.data.data?.length) {
-    body = <p className="text-sm text-muted-foreground">Not in any of your Collections</p>
+    body = (
+      <p className="text-sm text-muted-foreground">
+        Not in any of your Collections
+      </p>
+    )
   } else {
     body = (
       <ul className="flex flex-col divide-y rounded-lg border">
         {query.data.data.data?.map(({ collection, quantity }) => (
-          <li key={collection.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+          <li
+            key={collection.id}
+            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+          >
             <Link
               to="/collections/$collectionId"
               params={{ collectionId: collection.id }}

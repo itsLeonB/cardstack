@@ -11,7 +11,11 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <Wordmark />
         <ThemeToggle />
       </header>
-      <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col justify-center pb-16 outline-none">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex flex-1 flex-col justify-center pb-16 outline-none"
+      >
         {children}
       </main>
     </div>

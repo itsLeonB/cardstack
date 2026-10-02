@@ -39,15 +39,24 @@ export const Route = createRootRouteWithContext<{
       // URL shares these (SPA mode; per-route Open Graph isn't attempted).
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: SITE_NAME },
-      { property: "og:title", content: "Cardstack: track every Pokémon card you own" },
+      {
+        property: "og:title",
+        content: "Cardstack: track every Pokémon card you own",
+      },
       { property: "og:description", content: DESCRIPTION },
-      { name: "twitter:card", content: SITE_URL ? "summary_large_image" : "summary" },
+      {
+        name: "twitter:card",
+        content: SITE_URL ? "summary_large_image" : "summary",
+      },
       ...(SITE_URL
         ? [
             { property: "og:image", content: `${SITE_URL}/og-image.png` },
             { property: "og:image:width", content: "1200" },
             { property: "og:image:height", content: "630" },
-            { property: "og:image:alt", content: "Cardstack: track every card you own" },
+            {
+              property: "og:image:alt",
+              content: "Cardstack: track every card you own",
+            },
             { name: "twitter:image", content: `${SITE_URL}/og-image.png` },
           ]
         : []),

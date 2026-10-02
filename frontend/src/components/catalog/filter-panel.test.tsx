@@ -7,7 +7,8 @@ afterEach(() => cleanup())
 
 function value(label: string) {
   const input = screen.getByLabelText(label)
-  if (!(input instanceof HTMLInputElement)) throw new Error(`${label} is not an input`)
+  if (!(input instanceof HTMLInputElement))
+    throw new Error(`${label} is not an input`)
   return input.value
 }
 
@@ -25,7 +26,9 @@ function panel(search: CatalogSearch) {
 
 describe("CatalogFilterPanel", () => {
   it("resyncs the text inputs when the URL changes from outside the panel", () => {
-    const { rerender } = render(panel({ page: 1, name: "Pika", localId: "001" }))
+    const { rerender } = render(
+      panel({ page: 1, name: "Pika", localId: "001" })
+    )
     expect(value("Card name")).toBe("Pika")
 
     rerender(panel({ page: 1, name: "Char" }))

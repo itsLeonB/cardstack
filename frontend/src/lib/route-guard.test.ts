@@ -104,9 +104,12 @@ describe("requireGuest", () => {
 })
 
 describe("isSameOriginPath", () => {
-  it.each(["/collections", "/collections?sort=name", "/"])("accepts %s", (path) => {
-    expect(isSameOriginPath(path)).toBe(true)
-  })
+  it.each(["/collections", "/collections?sort=name", "/"])(
+    "accepts %s",
+    (path) => {
+      expect(isSameOriginPath(path)).toBe(true)
+    }
+  )
 
   it.each([
     undefined,

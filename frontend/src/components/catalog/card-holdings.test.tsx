@@ -6,7 +6,9 @@ import { useListCardHoldings } from "@/generated/endpoints/inventory/inventory"
 import { useSession } from "@/lib/session"
 
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/inventory/inventory", () => ({ useListCardHoldings: vi.fn() }))
+vi.mock("@/generated/endpoints/inventory/inventory", () => ({
+  useListCardHoldings: vi.fn(),
+}))
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/lib/session", () => ({ useSession: vi.fn() }))
 // oxlint-disable-next-line anti-slop/no-module-mocking
@@ -15,7 +17,10 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   return {
     ...actual,
     Link: ({ children, params, to, ...props }: any) => (
-      <a href={to.replace("$collectionId", params?.collectionId ?? "")} {...props}>
+      <a
+        href={to.replace("$collectionId", params?.collectionId ?? "")}
+        {...props}
+      >
         {children}
       </a>
     ),
@@ -37,7 +42,11 @@ function setup(session: { isAuthenticated: boolean }, holdings: HoldingsState) {
   vi.mocked(useListCardHoldings).mockReturnValue(holdings as any)
   render(<CardHoldings cardId="card-1" />)
 }
-const ok = (data: unknown[]): HoldingsState => ({ isPending: false, isError: false, data: { status: 200, data: { data } } })
+const ok = (data: unknown[]): HoldingsState => ({
+  isPending: false,
+  isError: false,
+  data: { status: 200, data: { data } },
+})
 
 describe("CardHoldings", () => {
   it("lists each Collection with its quantity, linking to the Collection", () => {
@@ -48,7 +57,9 @@ describe("CardHoldings", () => {
         { collection: { id: "c2", name: "Binder B" }, quantity: 1 },
       ])
     )
-    expect(screen.getByRole("link", { name: "Binder A" }).getAttribute("href")).toBe("/collections/c1")
+    expect(
+      screen.getByRole("link", { name: "Binder A" }).getAttribute("href")
+    ).toBe("/collections/c1")
     expect(screen.getByText("×3")).toBeTruthy()
     expect(screen.getByRole("link", { name: "Binder B" })).toBeTruthy()
   })
@@ -60,26 +71,43 @@ describe("CardHoldings", () => {
   })
 
   it("shows an error when the request fails", () => {
-    setup({ isAuthenticated: true }, { isPending: false, isError: true, data: undefined })
-    expect(screen.getByRole("alert").textContent).toContain("Could not load your collections")
+    setup(
+      { isAuthenticated: true },
+      { isPending: false, isError: true, data: undefined }
+    )
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Could not load your collections"
+    )
   })
 
   it("shows the API error detail for a non-200 response", () => {
     setup(
       { isAuthenticated: true },
-      { isPending: false, isError: false, data: { status: 500, data: { detail: "boom" } } }
+      {
+        isPending: false,
+        isError: false,
+        data: { status: 500, data: { detail: "boom" } },
+      }
     )
     expect(screen.getByRole("alert").textContent).toBe("boom")
   })
 
   it("shows a loading state while pending", () => {
-    setup({ isAuthenticated: true }, { isPending: true, isError: false, data: undefined })
+    setup(
+      { isAuthenticated: true },
+      { isPending: true, isError: false, data: undefined }
+    )
     expect(screen.getByLabelText("Loading your collections")).toBeTruthy()
   })
 
   it("prompts sign-in and does not enable the holdings query when signed out", () => {
-    setup({ isAuthenticated: false }, { isPending: true, isError: false, data: undefined })
+    setup(
+      { isAuthenticated: false },
+      { isPending: true, isError: false, data: undefined }
+    )
     expect(screen.getByRole("link", { name: "Sign in" })).toBeTruthy()
-    expect(vi.mocked(useListCardHoldings).mock.lastCall?.[1]?.query?.enabled).toBe(false)
+    expect(
+      vi.mocked(useListCardHoldings).mock.lastCall?.[1]?.query?.enabled
+    ).toBe(false)
   })
 })

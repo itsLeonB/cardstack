@@ -63,7 +63,9 @@ export function CollectionForm({
     if (rawMaxCardCount) {
       const parsed = Number(rawMaxCardCount)
       if (!Number.isInteger(parsed) || parsed < 0) {
-        setValidationError("Max card count must be a non-negative whole number.")
+        setValidationError(
+          "Max card count must be a non-negative whole number."
+        )
         return
       }
       if (parsed > MAX_CARD_COUNT) {

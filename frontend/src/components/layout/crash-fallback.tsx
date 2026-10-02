@@ -12,7 +12,9 @@ export function CrashFallback() {
       <PageHeader
         title="Something went wrong"
         description="An unexpected error stopped this page from loading. Reloading usually fixes it."
-        actions={<Button onClick={() => window.location.reload()}>Reload</Button>}
+        actions={
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+        }
       />
     </PageContainer>
   )

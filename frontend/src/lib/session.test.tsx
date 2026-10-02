@@ -9,7 +9,10 @@ import {
   useLogout,
   getGetCurrentUserQueryKey,
 } from "@/generated/endpoints/auth/auth"
-import type { loginResponse, logoutResponse } from "@/generated/endpoints/auth/auth"
+import type {
+  loginResponse,
+  logoutResponse,
+} from "@/generated/endpoints/auth/auth"
 import { useLoginMutation, useLogoutMutation, useSession } from "./session"
 
 // The auth endpoints are generated orval/TanStack Query hooks with no
@@ -17,8 +20,9 @@ import { useLoginMutation, useLogoutMutation, useSession } from "./session"
 // to isolate these wrappers from it in tests.
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual =
-    await vi.importActual<typeof AuthModule>("@/generated/endpoints/auth/auth")
+  const actual = await vi.importActual<typeof AuthModule>(
+    "@/generated/endpoints/auth/auth"
+  )
   return {
     ...actual,
     useGetCurrentUser: vi.fn(),
@@ -35,9 +39,7 @@ function createWrapper() {
   const queryClient = new QueryClient()
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
   }
 }
@@ -88,7 +90,7 @@ describe("useSession", () => {
     expect(mockUseGetCurrentUser).toHaveBeenCalledWith(
       expect.objectContaining({
         query: expect.objectContaining({ retry: false }),
-      }),
+      })
     )
   })
 })
@@ -193,7 +195,11 @@ describe("useLogoutMutation", () => {
 
     renderHook(() => useLogoutMutation(), { wrapper: Wrapper })
 
-    capturedOnSuccess?.({ status: 204, data: undefined, headers: new Headers() })
+    capturedOnSuccess?.({
+      status: 204,
+      data: undefined,
+      headers: new Headers(),
+    })
 
     expect(resetSpy).toHaveBeenCalledWith({
       queryKey: getGetCurrentUserQueryKey(),
@@ -214,9 +220,12 @@ describe("cache reset across users", () => {
       // SAFETY: partial mock; only mutation.onSuccess is exercised here.
       return {} as any
     })
-    return { queryClient, fire: (response: loginResponse | logoutResponse) =>
+    return {
+      queryClient,
+      fire: (response: loginResponse | logoutResponse) =>
         // SAFETY: setup() is given the mock whose onSuccess matches the response.
-        onSuccess?.(response as never) }
+        onSuccess?.(response as never),
+    }
   }
 
   function wrapperFor(queryClient: QueryClient) {
@@ -229,7 +238,11 @@ describe("cache reset across users", () => {
     const { queryClient, fire } = setup(mockUseLogin)
     renderHook(() => useLoginMutation(), { wrapper: wrapperFor(queryClient) })
 
-    fire({ status: 200, data: { data: { message: "ok" } }, headers: new Headers() })
+    fire({
+      status: 200,
+      data: { data: { message: "ok" } },
+      headers: new Headers(),
+    })
 
     expect(queryClient.getQueryData(collectionsKey)).toBeUndefined()
   })

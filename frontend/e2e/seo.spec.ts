@@ -22,17 +22,25 @@ async function signIn(page: Page) {
 const robotsMeta = (page: Page) => page.locator('head meta[name="robots"]')
 
 test.describe("Titles and indexing", () => {
-  test("the landing is indexable and has a descriptive title and static Open Graph tags", async ({ page }) => {
+  test("the landing is indexable and has a descriptive title and static Open Graph tags", async ({
+    page,
+  }) => {
     await page.goto("/")
 
-    await expect(page).toHaveTitle("Track every Pokémon card you own · Cardstack")
+    await expect(page).toHaveTitle(
+      "Track every Pokémon card you own · Cardstack"
+    )
     await expect(robotsMeta(page)).toHaveCount(0)
     await expect(page.locator('head meta[property="og:title"]')).toHaveCount(1)
-    await expect(page.locator('head meta[property="og:description"]')).toHaveCount(1)
+    await expect(
+      page.locator('head meta[property="og:description"]')
+    ).toHaveCount(1)
     await expect(page.locator('head meta[name="description"]')).toHaveCount(1)
   })
 
-  test("the public Catalog is indexable and has its own title and description", async ({ page }) => {
+  test("the public Catalog is indexable and has its own title and description", async ({
+    page,
+  }) => {
     await page.route(/\/catalog\/series/, (route) => {
       if (route.request().resourceType() !== "fetch") return route.fallback()
       return route.fulfill({
@@ -47,7 +55,10 @@ test.describe("Titles and indexing", () => {
     await expect(page).toHaveTitle("Catalog · Cardstack")
     await expect(robotsMeta(page)).toHaveCount(0)
     await expect(page.locator('head meta[name="description"]')).toHaveCount(1)
-    await expect(page.locator('head meta[name="description"]')).toHaveAttribute("content", /Browse every Pokémon TCG series/)
+    await expect(page.locator('head meta[name="description"]')).toHaveAttribute(
+      "content",
+      /Browse every Pokémon TCG series/
+    )
   })
 
   // The next two reach their page by client-side navigation: the dev server
@@ -57,7 +68,10 @@ test.describe("Titles and indexing", () => {
   test("login and register are noindex", async ({ page }) => {
     await page.goto("/")
     await expect(async () => {
-      await page.getByRole("banner").getByRole("link", { name: "Log in" }).click()
+      await page
+        .getByRole("banner")
+        .getByRole("link", { name: "Log in" })
+        .click()
       await expect(page).toHaveURL(/\/auth\/login/, { timeout: 1000 })
     }).toPass()
     await expect(page).toHaveTitle("Log in · Cardstack")
@@ -74,7 +88,9 @@ test.describe("Titles and indexing", () => {
     await page.goto("/")
     await expect(async () => {
       await page.getByRole("button", { name: "User menu" }).click()
-      await page.getByRole("menuitem", { name: "Account" }).click({ timeout: 1000 })
+      await page
+        .getByRole("menuitem", { name: "Account" })
+        .click({ timeout: 1000 })
     }).toPass()
 
     await expect(page).toHaveTitle("Account · Cardstack")

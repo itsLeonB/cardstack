@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   RouterProvider,
@@ -16,8 +22,9 @@ import { Route as LoginRoute } from "./login"
 // inject (same approach as lib/session.test.tsx).
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual =
-    await vi.importActual<typeof AuthModule>("@/generated/endpoints/auth/auth")
+  const actual = await vi.importActual<typeof AuthModule>(
+    "@/generated/endpoints/auth/auth"
+  )
   return { ...actual, useLogin: vi.fn() }
 })
 
@@ -38,8 +45,10 @@ async function renderLogin(url: string, loginStatus = 200) {
   // SAFETY: partial mutation result covering only what LoginPage reads.
   vi.mocked(useLogin).mockReturnValue({
     isPending: false,
-    mutate: (_vars: { data: { email: string; password: string } }, options: { onSuccess: (r: LoginResponse) => void }) =>
-      options.onSuccess(response),
+    mutate: (
+      _vars: { data: { email: string; password: string } },
+      options: { onSuccess: (r: LoginResponse) => void }
+    ) => options.onSuccess(response),
   } as any)
 
   const queryClient = new QueryClient()
@@ -66,7 +75,9 @@ async function renderLogin(url: string, loginStatus = 200) {
 }
 
 function submit() {
-  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } })
+  fireEvent.change(screen.getByLabelText("Email"), {
+    target: { value: "ada@example.com" },
+  })
   fireEvent.change(screen.getByLabelText("Password", { selector: "input" }), {
     target: { value: "correct horse" },
   })
@@ -75,9 +86,13 @@ function submit() {
 
 describe("login redirect", () => {
   it("sends the user back to the attempted path, query string included", async () => {
-    const { push } = await renderLogin("/auth/login?redirect=%2Fcollections%3Fq%3Dbinder")
+    const { push } = await renderLogin(
+      "/auth/login?redirect=%2Fcollections%3Fq%3Dbinder"
+    )
     submit()
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/collections?q=binder"))
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/collections?q=binder")
+    )
   })
 
   it("falls back to /account without a redirect", async () => {
@@ -98,16 +113,18 @@ describe("login redirect", () => {
 
   it("carries the redirect through the Register link", async () => {
     await renderLogin("/auth/login?redirect=%2Fcollections%3Fq%3Dbinder")
-    expect(screen.getByRole("link", { name: "Register" }).getAttribute("href")).toBe(
-      "/auth/register?redirect=%2Fcollections%3Fq%3Dbinder"
-    )
+    expect(
+      screen.getByRole("link", { name: "Register" }).getAttribute("href")
+    ).toBe("/auth/register?redirect=%2Fcollections%3Fq%3Dbinder")
   })
 })
 
 describe("login form", () => {
   it("shows the account-created notice", async () => {
     await renderLogin("/auth/login?registered=true")
-    expect(screen.getByRole("status").textContent).toBe("Account created. Log in below.")
+    expect(screen.getByRole("status").textContent).toBe(
+      "Account created. Log in below."
+    )
   })
 
   it("shows field errors tied to their inputs without calling the API", async () => {
@@ -117,13 +134,17 @@ describe("login form", () => {
     const email = screen.getByLabelText("Email")
     expect(email.getAttribute("aria-invalid")).toBe("true")
     const errorId = email.getAttribute("aria-describedby") ?? ""
-    expect(document.getElementById(errorId)?.textContent).toBe("Enter a valid email address.")
+    expect(document.getElementById(errorId)?.textContent).toBe(
+      "Enter a valid email address."
+    )
     expect(push).not.toHaveBeenCalled()
   })
 
   it("shows a rejected login inline", async () => {
     await renderLogin("/auth/login", 401)
     submit()
-    expect((await screen.findByRole("alert")).textContent).toBe("Invalid credentials.")
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Invalid credentials."
+    )
   })
 })

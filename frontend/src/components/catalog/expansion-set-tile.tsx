@@ -2,10 +2,19 @@ import { useState } from "react"
 import { cn } from "cn"
 import { Link } from "@tanstack/react-router"
 import type { ExpansionSetSummary } from "@/generated/models"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { formatReleaseDate } from "@/lib/date"
 
-export function ExpansionSetTile({ expansionSet }: { expansionSet: ExpansionSetSummary }) {
+export function ExpansionSetTile({
+  expansionSet,
+}: {
+  expansionSet: ExpansionSetSummary
+}) {
   const [imageFailed, setImageFailed] = useState(false)
   const releaseDate = formatReleaseDate(expansionSet.releaseDate)
   const showImage = Boolean(expansionSet.imageUrl) && !imageFailed
@@ -14,7 +23,7 @@ export function ExpansionSetTile({ expansionSet }: { expansionSet: ExpansionSetS
     <Link
       to="/catalog/sets/$expansionSetId"
       params={{ expansionSetId: expansionSet.id }}
-      className="block rounded-4xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+      className="block rounded-4xl focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
     >
       <Card
         className={cn(

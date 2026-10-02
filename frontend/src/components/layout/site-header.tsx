@@ -39,7 +39,10 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
         <Wordmark />
-        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 md:flex">
+        <nav
+          aria-label="Main"
+          className="ml-4 hidden items-center gap-1 md:flex"
+        >
           {links.map((link) => (
             <NavLinkItem key={link.to} link={link} />
           ))}

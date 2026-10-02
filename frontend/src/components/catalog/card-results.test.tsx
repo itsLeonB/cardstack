@@ -33,7 +33,12 @@ const card: CardSummary = {
   tags: ["V"],
   illustrator: "someone",
   imageUrl: "https://example.com/pikachu-v.png",
-  expansionSet: { id: "set-1", code: "SCE", name: "V Starter Deck Kebangkitan", imageUrl: "" },
+  expansionSet: {
+    id: "set-1",
+    code: "SCE",
+    name: "V Starter Deck Kebangkitan",
+    imageUrl: "",
+  },
   rarity: { id: "rarity-1", code: "RR", name: "Double Rare" },
 }
 
@@ -70,7 +75,9 @@ describe("CardResults", () => {
       />
     )
 
-    expect(screen.getByRole("alert").textContent).toBe("Could not reach the backend.")
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Could not reach the backend."
+    )
   })
 
   it("renders the empty message when there are no results", () => {
@@ -166,9 +173,13 @@ describe("CardResults", () => {
         isError={false}
         emptyMessage="No cards"
         onPageChange={vi.fn()}
-        renderControl={(c) => <button type="button">Control for {c.name}</button>}
+        renderControl={(c) => (
+          <button type="button">Control for {c.name}</button>
+        )}
       />
     )
-    expect(screen.getByRole("button", { name: "Control for Pikachu V" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Control for Pikachu V" })
+    ).toBeTruthy()
   })
 })

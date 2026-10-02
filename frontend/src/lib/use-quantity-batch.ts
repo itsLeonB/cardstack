@@ -26,7 +26,8 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   const inFlight = useRef(new Set<string>())
   // Bumped on every edit; a batch only acts on a card while its revision is still the latest.
   const revisions = useRef(new Map<string, number>())
-  const isLatest = (cardId: string, revision: number) => revisions.current.get(cardId) === revision
+  const isLatest = (cardId: string, revision: number) =>
+    revisions.current.get(cardId) === revision
   // The debouncer may hold an older closure; always run the latest flush.
   const latestFlush = useRef<() => Promise<void>>(() => Promise.resolve())
   // Leaving the page must not drop edits still waiting on the debounce.
@@ -37,7 +38,12 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   // Serializes requests so a later batch can't overtake an earlier one.
   const queue = useRef<Promise<void>>(Promise.resolve())
 
-  function revert(cardId: string, revision: number, quantity: number, message: string) {
+  function revert(
+    cardId: string,
+    revision: number,
+    quantity: number,
+    message: string
+  ) {
     // A newer edit for the same card (pending or already sent) supersedes this outcome, error included.
     if (!isLatest(cardId, revision)) return
     setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
@@ -45,14 +51,18 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   }
 
   async function send(items: [string, number, number][]) {
-    const revisionOf = new Map(items.map(([cardId, , revision]) => [cardId, revision]))
+    const revisionOf = new Map(
+      items.map(([cardId, , revision]) => [cardId, revision])
+    )
     try {
       const response = await bulkUpdateCollectionEntries(collectionId, {
         items: items.map(([cardId, quantity]) => ({ cardId, quantity })),
       })
       if (response.status !== 200) {
-        const message = response.data.detail ?? "Could not update these quantities."
-        for (const [cardId, , revision] of items) revert(cardId, revision, confirmed.current[cardId], message)
+        const message =
+          response.data.detail ?? "Could not update these quantities."
+        for (const [cardId, , revision] of items)
+          revert(cardId, revision, confirmed.current[cardId], message)
         return
       }
       onSaved?.()
@@ -68,22 +78,26 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
         }
       }
     } catch {
-      for (const [cardId, , revision] of items) revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
+      for (const [cardId, , revision] of items)
+        revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
       // The write may have committed with only the response lost, so cached server data can be stale.
       onSaved?.()
     } finally {
       // A newer batch for the card keeps its protection until that batch settles.
-      for (const [cardId, , revision] of items) if (isLatest(cardId, revision)) inFlight.current.delete(cardId)
+      for (const [cardId, , revision] of items)
+        if (isLatest(cardId, revision)) inFlight.current.delete(cardId)
     }
   }
 
   function flush() {
     debouncer.cancel()
-    const items = [...pending.current].map(([cardId, quantity]): [string, number, number] => [
-      cardId,
-      quantity,
-      revisions.current.get(cardId) ?? 0,
-    ])
+    const items = [...pending.current].map(
+      ([cardId, quantity]): [string, number, number] => [
+        cardId,
+        quantity,
+        revisions.current.get(cardId) ?? 0,
+      ]
+    )
     pending.current.clear()
     for (const [cardId] of items) inFlight.current.add(cardId)
     if (items.length > 0) queue.current = queue.current.then(() => send(items))
@@ -108,17 +122,24 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
    * successful batch, which is what keeps a card at 0 on screen until reload.
    */
   function prune() {
-    const settled = (cardId: string) => !pending.current.has(cardId) && !inFlight.current.has(cardId)
+    const settled = (cardId: string) =>
+      !pending.current.has(cardId) && !inFlight.current.has(cardId)
     for (const cardId of Object.keys(confirmed.current)) {
       if (settled(cardId)) delete confirmed.current[cardId]
     }
-    const keep = <T,>(record: Record<string, T>) =>
-      Object.fromEntries(Object.entries(record).filter(([cardId]) => !settled(cardId)))
+    const keep = <T>(record: Record<string, T>) =>
+      Object.fromEntries(
+        Object.entries(record).filter(([cardId]) => !settled(cardId))
+      )
     setQuantities(keep)
     setErrors(keep)
   }
 
-  function setQuantity(cardId: string, quantity: number, serverQuantity: number) {
+  function setQuantity(
+    cardId: string,
+    quantity: number,
+    serverQuantity: number
+  ) {
     confirmed.current[cardId] ??= serverQuantity
     revisions.current.set(cardId, (revisions.current.get(cardId) ?? 0) + 1)
     pending.current.delete(cardId)

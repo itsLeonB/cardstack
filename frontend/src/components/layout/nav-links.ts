@@ -1,7 +1,12 @@
 import { useSession } from "@/lib/session"
 
 export type NavLink = {
-  to: "/catalog" | "/collections" | "/inventory" | "/auth/login" | "/auth/register"
+  to:
+    | "/catalog"
+    | "/collections"
+    | "/inventory"
+    | "/auth/login"
+    | "/auth/register"
   label: string
   primary?: boolean
 }

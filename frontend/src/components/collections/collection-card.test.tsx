@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
@@ -26,7 +32,9 @@ async function renderCard(overrides: Partial<typeof collection> = {}) {
   const list = createRoute({
     getParentRoute: () => root,
     path: "/",
-    component: () => <CollectionCard collection={{ ...collection, ...overrides }} />,
+    component: () => (
+      <CollectionCard collection={{ ...collection, ...overrides }} />
+    ),
   })
   const detail = createRoute({
     getParentRoute: () => root,
@@ -78,33 +86,45 @@ describe("CollectionCard", () => {
   it("navigates to the detail page when the title link is activated", async () => {
     const router = await renderCard()
     fireEvent.click(screen.getByRole("link", { name: "Vintage binder" }))
-    await waitFor(() => expect(router.state.location.pathname).toBe("/collections/col-1"))
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/collections/col-1")
+    )
   })
 
   it("is reachable by keyboard and activates on Enter", async () => {
     const router = await renderCard()
     await userEvent.tab()
-    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Vintage binder" }))
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: "Vintage binder" })
+    )
     await userEvent.keyboard("{Enter}")
-    await waitFor(() => expect(router.state.location.pathname).toBe("/collections/col-1"))
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/collections/col-1")
+    )
   })
 
   it("keeps the edit action independent of the detail link", async () => {
     const router = await renderCard()
     fireEvent.click(screen.getByRole("link", { name: "Edit" }))
-    await waitFor(() => expect(router.state.location.pathname).toBe("/collections/col-1/edit"))
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/collections/col-1/edit")
+    )
   })
 
   it("does not navigate when the delete trigger is clicked", async () => {
     const router = await renderCard()
-    fireEvent.click(screen.getByRole("button", { name: "Delete Vintage binder" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Vintage binder" })
+    )
     await screen.findByRole("alertdialog")
     expect(router.state.location.pathname).toBe("/")
   })
 
   it("lifts the actions above the stretched overlay", async () => {
     await renderCard()
-    const actions = screen.getByRole("link", { name: "Edit" }).closest("[data-slot=card-action]")
+    const actions = screen
+      .getByRole("link", { name: "Edit" })
+      .closest("[data-slot=card-action]")
     expect(actions?.className).toContain("z-10")
   })
 })

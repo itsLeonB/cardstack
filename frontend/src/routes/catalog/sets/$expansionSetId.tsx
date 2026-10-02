@@ -26,7 +26,9 @@ export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
         page: deps.page,
       })
     )
-    return response.status === 200 ? response.data.data?.[0]?.expansionSet.name : undefined
+    return response.status === 200
+      ? response.data.data?.[0]?.expansionSet.name
+      : undefined
   },
   head: ({ loaderData }) => pageHead(loaderData ?? "Expansion Set"),
   component: ExpansionSetCardsPage,
@@ -58,7 +60,10 @@ function ExpansionSetCardsPage() {
   return (
     <PageContainer>
       <Breadcrumbs
-        crumbs={[{ label: "Catalog", link: { to: "/catalog" } }, { label: setName }]}
+        crumbs={[
+          { label: "Catalog", link: { to: "/catalog" } },
+          { label: setName },
+        ]}
       />
       {firstCard || !query.isPending ? (
         <PageHeader

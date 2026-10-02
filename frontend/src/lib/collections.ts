@@ -14,9 +14,18 @@ import {
  * loader serves cached data, so refetch inactive queries now instead of
  * letting the next visit flash the old count.
  */
-export function invalidateCollectionCounts(queryClient: QueryClient, collectionId: string) {
-  void queryClient.invalidateQueries({ queryKey: getListCollectionsQueryKey(), refetchType: "all" })
-  void queryClient.invalidateQueries({ queryKey: getGetCollectionQueryKey(collectionId), refetchType: "all" })
+export function invalidateCollectionCounts(
+  queryClient: QueryClient,
+  collectionId: string
+) {
+  void queryClient.invalidateQueries({
+    queryKey: getListCollectionsQueryKey(),
+    refetchType: "all",
+  })
+  void queryClient.invalidateQueries({
+    queryKey: getGetCollectionQueryKey(collectionId),
+    refetchType: "all",
+  })
 }
 
 export function useCreateCollectionMutation() {

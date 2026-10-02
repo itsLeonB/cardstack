@@ -26,7 +26,8 @@ function CatalogSeriesPage() {
   const { data, isPending, isError } = useListCatalogSeries()
   const seriesBrowseResult = data?.status === 200 ? data.data.data : undefined
   const series = seriesBrowseResult?.series ?? []
-  const ungroupedExpansionSets = seriesBrowseResult?.ungroupedExpansionSets ?? []
+  const ungroupedExpansionSets =
+    seriesBrowseResult?.ungroupedExpansionSets ?? []
   const errorMessage =
     data && data.status !== 200
       ? (data.data.detail ?? "Could not load the catalog.")
@@ -48,7 +49,11 @@ function CatalogSeriesPage() {
       />
 
       {isPending && (
-        <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading catalog">
+        <div
+          className="flex flex-col gap-4"
+          aria-busy="true"
+          aria-label="Loading catalog"
+        >
           {Array.from({ length: 3 }).map((_, index) => (
             // oxlint-disable-next-line no-array-index-key -- fixed-size skeleton placeholders, never reordered
             <Skeleton key={index} className="h-24 w-full" />
@@ -93,7 +98,10 @@ function CatalogSeriesPage() {
             aria-labelledby="series-ungrouped"
             className="flex flex-col gap-3"
           >
-            <h2 id="series-ungrouped" className="font-heading text-lg font-medium">
+            <h2
+              id="series-ungrouped"
+              className="font-heading text-lg font-medium"
+            >
               Ungrouped Expansion Sets
             </h2>
             <Separator />

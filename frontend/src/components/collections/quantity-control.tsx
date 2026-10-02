@@ -19,12 +19,20 @@ export function QuantityControl({
 }) {
   const [draft, setDraft] = useState<string | null>(null)
   // A reverted value must win over stale typed text.
-  const shown = draft !== null && (draft === "" || Number(draft) === value) ? draft : value.toString()
+  const shown =
+    draft !== null && (draft === "" || Number(draft) === value)
+      ? draft
+      : value.toString()
 
   function handleType(text: string) {
     setDraft(text)
     const quantity = Number(text)
-    if (text !== "" && Number.isInteger(quantity) && quantity >= 0 && quantity <= MAX_QUANTITY) {
+    if (
+      text !== "" &&
+      Number.isInteger(quantity) &&
+      quantity >= 0 &&
+      quantity <= MAX_QUANTITY
+    ) {
       onChange(quantity)
     }
   }
@@ -51,7 +59,7 @@ export function QuantityControl({
           max={MAX_QUANTITY}
           step={1}
           inputMode="numeric"
-          className="text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="[appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-label={`Quantity of ${cardName}`}
           value={shown}
           onChange={(event) => handleType(event.target.value)}

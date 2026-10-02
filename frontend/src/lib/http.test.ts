@@ -13,7 +13,9 @@ describe("customFetch CSRF header", () => {
 
   it("sends X-CSRF-Token from the in-memory token on a mutating request", async () => {
     setCsrfToken("in-memory-token")
-    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)
 
     await customFetch("https://api.example.com/auth/logout", { method: "POST" })
@@ -27,7 +29,9 @@ describe("customFetch CSRF header", () => {
 
   it("does not set X-CSRF-Token on a GET request", async () => {
     setCsrfToken("in-memory-token")
-    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)
 
     await customFetch("https://api.example.com/auth/me", { method: "GET" })
@@ -49,7 +53,9 @@ describe("customFetch CSRF header", () => {
     vi.resetModules()
     const { customFetch: freshCustomFetch } = await import("./http")
 
-    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)
 
     await freshCustomFetch("https://api.example.com/auth/logout", {

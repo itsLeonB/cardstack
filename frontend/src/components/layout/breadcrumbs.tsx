@@ -10,11 +10,17 @@ export type Crumb = { label: string; link?: LinkProps }
  */
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
   return (
-    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 text-sm">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex flex-wrap items-center gap-x-2 text-sm"
+    >
       {crumbs.map(({ label, link }, index) => {
         const isCurrent = index === crumbs.length - 1
         return (
-          <span key={`${index}-${label}`} className="flex min-w-0 items-center gap-x-2">
+          <span
+            key={`${index}-${label}`}
+            className="flex min-w-0 items-center gap-x-2"
+          >
             {index > 0 && (
               <span aria-hidden="true" className="text-muted-foreground">
                 /
@@ -30,7 +36,10 @@ export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
                 {label}
               </Link>
             ) : (
-              <span aria-current={isCurrent ? "page" : undefined} className="truncate font-medium">
+              <span
+                aria-current={isCurrent ? "page" : undefined}
+                className="truncate font-medium"
+              >
                 {label}
               </span>
             )}

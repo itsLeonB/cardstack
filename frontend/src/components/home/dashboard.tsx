@@ -50,10 +50,12 @@ function MasterInventorySummary() {
     { page: 1, limit: 1 },
     { query: { refetchOnMount: "always" } }
   )
-  const total = query.data?.status === 200 ? query.data.data.meta.total : undefined
+  const total =
+    query.data?.status === 200 ? query.data.data.meta.total : undefined
   const failed =
     query.isError ||
-    errorDetail(query.data, "Could not load your Master Inventory.") !== undefined
+    errorDetail(query.data, "Could not load your Master Inventory.") !==
+      undefined
 
   return (
     <Card>
@@ -89,7 +91,13 @@ function MasterInventorySummary() {
 }
 
 /** Inline page-data failure: message plus a Retry that refetches the query. */
-function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+function LoadError({
+  message,
+  onRetry,
+}: {
+  message: string
+  onRetry: () => void
+}) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <p role="alert" className="text-sm text-destructive">
@@ -111,9 +119,15 @@ function CollectionsSummary() {
     errorDetail(query.data, "Could not load your Collections.") !== undefined
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="collections-summary">
+    <section
+      className="flex flex-col gap-3"
+      aria-labelledby="collections-summary"
+    >
       <div className="flex items-center justify-between gap-3">
-        <h2 id="collections-summary" className="font-heading text-lg font-medium">
+        <h2
+          id="collections-summary"
+          className="font-heading text-lg font-medium"
+        >
           Your Collections
         </h2>
         <Button size="sm" render={<Link to="/collections/new" />}>
@@ -161,7 +175,10 @@ function CollectionsSummary() {
         </ul>
       )}
       {collections.length > MAX_COLLECTIONS && (
-        <Link to="/collections" className="w-fit text-sm text-primary underline">
+        <Link
+          to="/collections"
+          className="w-fit text-sm text-primary underline"
+        >
           View all Collections
         </Link>
       )}

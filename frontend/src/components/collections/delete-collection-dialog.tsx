@@ -36,7 +36,9 @@ export function DeleteCollectionDialog({
             setOpen(false)
             return
           }
-          setErrorMessage(response.data.detail ?? "Could not delete this Collection.")
+          setErrorMessage(
+            response.data.detail ?? "Could not delete this Collection."
+          )
         },
         onError: () => {
           setErrorMessage("Could not reach the server. Please try again.")
@@ -61,7 +63,9 @@ export function DeleteCollectionDialog({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete &ldquo;{collectionTitle}&rdquo;?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Delete &ldquo;{collectionTitle}&rdquo;?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             This permanently deletes the Collection. This cannot be undone.
           </AlertDialogDescription>

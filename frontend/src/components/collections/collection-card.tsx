@@ -19,7 +19,11 @@ export function cardCountLabel(count: number) {
  * anywhere navigates while the card keeps one accessible name (the title).
  * Actions sit above the overlay (`relative z-10`) so they stay independent.
  */
-export function CollectionCard({ collection }: { collection: CollectionSummary }) {
+export function CollectionCard({
+  collection,
+}: {
+  collection: CollectionSummary
+}) {
   return (
     <Card className="relative transition-shadow hover:shadow-lg">
       <CardHeader>
@@ -27,7 +31,7 @@ export function CollectionCard({ collection }: { collection: CollectionSummary }
           <Link
             to="/collections/$collectionId"
             params={{ collectionId: collection.id }}
-            className="outline-none after:absolute after:inset-0 after:rounded-4xl focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
+            className="outline-none after:absolute after:inset-0 after:rounded-4xl focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
           >
             {collection.title}
           </Link>
@@ -35,9 +39,13 @@ export function CollectionCard({ collection }: { collection: CollectionSummary }
         {collection.description && (
           <CardDescription>{collection.description}</CardDescription>
         )}
-        <CardDescription>{cardCountLabel(collection.cardCount)}</CardDescription>
+        <CardDescription>
+          {cardCountLabel(collection.cardCount)}
+        </CardDescription>
         {collection.maxCardCount > 0 && (
-          <CardDescription>Limit: {collection.maxCardCount} cards</CardDescription>
+          <CardDescription>
+            Limit: {collection.maxCardCount} cards
+          </CardDescription>
         )}
         <CardAction className="relative z-10 flex items-center gap-2">
           <Button

@@ -23,14 +23,20 @@ describe("CrashFallback", () => {
     const root = createRootRoute()
     const router = createRouter({
       routeTree: root.addChildren([
-        createRoute({ getParentRoute: () => root, path: "/", component: Exploder }),
+        createRoute({
+          getParentRoute: () => root,
+          path: "/",
+          component: Exploder,
+        }),
       ]),
       history: createMemoryHistory({ initialEntries: ["/"] }),
       defaultErrorComponent: CrashFallback,
     })
     render(<RouterProvider router={router} />)
 
-    expect(await screen.findByRole("heading", { name: "Something went wrong" })).toBeTruthy()
+    expect(
+      await screen.findByRole("heading", { name: "Something went wrong" })
+    ).toBeTruthy()
     expect(screen.getByRole("button", { name: "Reload" })).toBeTruthy()
     expect(document.body.textContent).not.toContain(SECRET)
     expect(document.body.textContent).not.toContain("Error:")
