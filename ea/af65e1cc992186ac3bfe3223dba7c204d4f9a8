@@ -1,0 +1,27 @@
+frontend/e2e/home.spec.ts
+  s_47b18bc5ab38d4::t_b642483c69d4af 41,45
+frontend/src/components/home/dashboard.tsx
+  s_47b18bc5ab38d4::t_073946dba69626 7,55-56,59-101,110-111,124-131,134-137
+frontend/src/components/home/guest-landing.tsx
+  s_47b18bc5ab38d4::t_a97648e1fd6d01 5,65-79
+frontend/src/components/home/home-page.test.tsx
+  s_47b18bc5ab38d4::t_d457d796c4708b 2,172-237
+frontend/src/routes/_authenticated/account.tsx
+  s_47b18bc5ab38d4::t_18d0d2e836ab39 5,32-44,46-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "eaaf65e1cc992186ac3bfe3223dba7c204d4f9a8",
+  "prompts": {},
+  "sessions": {
+    "s_47b18bc5ab38d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_47b18bc5ab38d4",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
