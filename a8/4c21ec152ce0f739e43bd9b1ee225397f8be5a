@@ -1,0 +1,185 @@
+frontend/.prettierignore
+  s_b2efe2a9578535::t_5956ca09f5104c 5-6
+frontend/e2e/app-shell.spec.ts
+  s_b2efe2a9578535::t_91e6d5639764e8 21-24,45-49,61-63,66-68,74-76,79-81,109-114,116-118,128-130,152-154,191-193,201-203
+frontend/e2e/auth.spec.ts
+  s_b2efe2a9578535::t_a2a5fec9bb514b 31-33,45-50,55-57,61-63,69-71,91-93,97-99,102-104,108-110,125-127,134-136,142-144,152-154,158-160,185-187
+frontend/e2e/breadcrumbs.spec.ts
+  s_b2efe2a9578535::t_f9d7692c8f5cbf 8-10,16-19,24-29,33-38
+frontend/e2e/catalog-browse.spec.ts
+  s_b2efe2a9578535::t_f184245667a1b1 8-10,24-26,36-38
+frontend/e2e/catalog-search.spec.ts
+  s_b2efe2a9578535::t_1d5b51c703508f 109-114,117-122
+frontend/e2e/home.spec.ts
+  s_b2efe2a9578535::t_150f76e407e27f 27-31,45-47,51-54,71-73,75-77,80-82,88-90,96-98,104-106,111-113,132-134,137-139
+frontend/e2e/seo.spec.ts
+  s_b2efe2a9578535::t_96f361279cd0fb 25-27,30-32,35-37,41-43,58-61,71-74,91-93
+frontend/orval.config.ts
+  s_b2efe2a9578535::t_998cbc98757024 15-18,45-47
+frontend/src/components/auth/auth-field.tsx
+  s_b2efe2a9578535::t_ce768a3d276af2 53-57
+frontend/src/components/auth/auth-shell.tsx
+  s_b2efe2a9578535::t_6b036a06e6bef6 14-18
+frontend/src/components/catalog/card-holdings.test.tsx
+  s_b2efe2a9578535::t_30b0ca7fac10fb 9-11,20-23,45-49,60-62,74-80,86-90,96-99,104-107,109-111
+frontend/src/components/catalog/card-holdings.tsx
+  s_b2efe2a9578535::t_925733c40074e5 9-11,15-17,21-24,31-34,41-45,50-53
+frontend/src/components/catalog/card-results.test.tsx
+  s_b2efe2a9578535::t_a29faf0c2a8bdc 36-41,78-80,176-178,181-183
+frontend/src/components/catalog/card-tile.tsx
+  s_b2efe2a9578535::t_2d3ce9e3473bef 9-15,38-41,64-68
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_b2efe2a9578535::t_9763e8263845ea 28-30,58-61,84-85,107-113,123-125,150-152,155-157,167-175,179-181
+frontend/src/components/catalog/collection-card-results.tsx
+  s_b2efe2a9578535::t_7356d26ed8de49 26-31,42-48,51-53,75-77
+frontend/src/components/catalog/collection-picker.test.tsx
+  s_b2efe2a9578535::t_95c89f3aa3a5a2 2-8,16-18,27-29,42-47,56-59,65-72,74-76,81-89,95-105
+frontend/src/components/catalog/collection-picker.tsx
+  s_b2efe2a9578535::t_f4bdb257c1a37e 29-32
+frontend/src/components/catalog/expansion-set-tile.test.tsx
+  s_b2efe2a9578535::t_c740201cb39eb1 31-33,35-37,46-48,53-55
+frontend/src/components/catalog/expansion-set-tile.tsx
+  s_b2efe2a9578535::t_0498106a99c5a2 5-10,13-17,26
+frontend/src/components/catalog/facet-filters.test.tsx
+  s_b2efe2a9578535::t_ec8405e810bc68 2-8,35-40,47-54,63-65,76-78,94-96,106-112,119-121,133-137,167-170,177-179
+frontend/src/components/catalog/facet-filters.tsx
+  s_b2efe2a9578535::t_920bb93cb56183 3-6,14-16,41-46,64-66,73-84,90-94,100,105,112-114,133-137,144-147,150,153
+frontend/src/components/catalog/filter-panel.test.tsx
+  s_b2efe2a9578535::t_1ebc1fb4587792 10-11,29-31
+frontend/src/components/catalog/filter-panel.tsx
+  s_b2efe2a9578535::t_1f7289bc5408b6 6-11,27-33,37-40,70-72,79-81
+frontend/src/components/collections/add-cards-link.test.tsx
+  s_b2efe2a9578535::t_2e0c33f1372687 12-20
+frontend/src/components/collections/add-cards-link.tsx
+  s_b2efe2a9578535::t_d56aec436d9804 6-10
+frontend/src/components/collections/collection-card.test.tsx
+  s_b2efe2a9578535::t_a52334d1321d2f 2-8,35-37,89-91,97-99,101-103,109-111,116-118,125-127
+frontend/src/components/collections/collection-card.tsx
+  s_b2efe2a9578535::t_06fce12fca4e56 22-26,34,42-44,46-48
+frontend/src/components/collections/collection-entries.test.tsx
+  s_b2efe2a9578535::t_245da1d243cc50 12-15,41-43,67-70,86-90,96-97,125-127,177-178,185-187,202-203,207-211,214-216,218-220,237-239,241-243,251-253,266-268,271-273,276-278,290-296,320-322,343-350,353-355,389-392
+frontend/src/components/collections/collection-entries.tsx
+  s_b2efe2a9578535::t_dfbed0f10dd4ea 24-28,46-52,57-65,104-106,123-125,133-135
+frontend/src/components/collections/collection-form.tsx
+  s_b2efe2a9578535::t_247f4719220421 66-68
+frontend/src/components/collections/delete-collection-dialog.test.tsx
+  s_b2efe2a9578535::t_2e94f04d77fca0 32-35,38-40,48-51,54-56,68-71,74-76
+frontend/src/components/collections/delete-collection-dialog.tsx
+  s_b2efe2a9578535::t_b169de6d2bef0b 39-41,66-68
+frontend/src/components/collections/quantity-control.tsx
+  s_b2efe2a9578535::t_4440d39ed963f5 22-25,30-35,62
+frontend/src/components/home/dashboard.tsx
+  s_b2efe2a9578535::t_9688c0c10caae0 53-54,57-58,94-100,122-125,127-130,178-181
+frontend/src/components/home/guest-landing.tsx
+  s_b2efe2a9578535::t_8fc1f0c081d103 58-60
+frontend/src/components/home/home-page.test.tsx
+  s_b2efe2a9578535::t_d643d54314fae9 2-8,29-31,61-64,73-76,85-88,97-111,141-143,154-155,159-161,164-166,181-186,200-202,223-225,250-254,256-260,263-268,274-277,285-287
+frontend/src/components/inventory/master-inventory.test.tsx
+  s_b2efe2a9578535::t_a870681fddae1a 5-8,19-21,29-34,58-61,76-78,99-101,112-113,115-118,122-126,131-134,141-147
+frontend/src/components/inventory/master-inventory.tsx
+  s_b2efe2a9578535::t_b618c7b1e31eb9 20-23,26-30,40-45,49-52,75-77
+frontend/src/components/layout/breadcrumbs.test.tsx
+  s_b2efe2a9578535::t_b35c8f7d77c726 47-49,53-55
+frontend/src/components/layout/breadcrumbs.tsx
+  s_b2efe2a9578535::t_dd4a4cfd56fae5 13-16,20-23,39-42
+frontend/src/components/layout/crash-fallback.test.tsx
+  s_b2efe2a9578535::t_57ca47c4ca457a 26-30,37-39
+frontend/src/components/layout/crash-fallback.tsx
+  s_b2efe2a9578535::t_1c472f3177001c 15-17
+frontend/src/components/layout/nav-links.ts
+  s_b2efe2a9578535::t_ef810497718746 4-9
+frontend/src/components/layout/not-found.test.tsx
+  s_b2efe2a9578535::t_2a3324318f84ce 42-50,56-58
+frontend/src/components/layout/page-header.tsx
+  s_b2efe2a9578535::t_fe6735edb7b085 14-19
+frontend/src/components/layout/site-header.test.tsx
+  s_b2efe2a9578535::t_eb8e546ca8c745 22-24,47-50,67-75,105-107,119-121,128-130,140-142
+frontend/src/components/layout/site-header.tsx
+  s_b2efe2a9578535::t_644997325b6db8 42-45
+frontend/src/components/layout/user-menu.test.tsx
+  s_b2efe2a9578535::t_9a5e0a63d0cbaf 2-8,28-30,41-44,55-58,88-90,93-95,103-105,113-115
+frontend/src/components/layout/user-menu.tsx
+  s_b2efe2a9578535::t_57321c9595f977 36-38
+frontend/src/components/layout/wordmark.tsx
+  s_b2efe2a9578535::t_0fc3330fb401d9 6-31
+frontend/src/components/ui/dropdown-menu.tsx
+  s_b2efe2a9578535::t_b40ff0a6684709 41-44,138-141,176,216
+frontend/src/components/ui/multi-select.tsx
+  s_b2efe2a9578535::t_1e535a9d6fe6ef 5-9,47-52,57,65-68,82-84,89-92,94-98,118-120
+frontend/src/components/ui/select.tsx
+  s_b2efe2a9578535::t_01292002dedfbe 83-86,168,186
+frontend/src/lib/catalog-search.test.ts
+  s_b2efe2a9578535::t_c61f85a9b96ee8 1-4,30-33
+frontend/src/lib/catalog-search.ts
+  s_b2efe2a9578535::t_b3e1386ebc8cc5 31-35
+frontend/src/lib/collections.test.tsx
+  s_b2efe2a9578535::t_6ea794cecac672 52,75-83,94,132-135,157-172,184-187,209-216,229-232,255-262,274-277,300-307
+frontend/src/lib/collections.ts
+  s_b2efe2a9578535::t_eb0695cb4af786 17-28
+frontend/src/lib/http.test.ts
+  s_b2efe2a9578535::t_afdecc429148ee 16-18,32-34,56-58
+frontend/src/lib/master-inventory.test.ts
+  s_b2efe2a9578535::t_fa4a27a1b673b2 13-16
+frontend/src/lib/master-inventory.ts
+  s_b2efe2a9578535::t_80ab18a467126f 9-14
+frontend/src/lib/route-guard.test.ts
+  s_b2efe2a9578535::t_3f80d17d3eda6a 107-112
+frontend/src/lib/session.test.tsx
+  s_b2efe2a9578535::t_d8574e0987b420 12-15,23-25,42,93,198-202,223-225,227-228,241-245
+frontend/src/lib/use-quantity-batch.test.ts
+  s_b2efe2a9578535::t_16bbd6a86d75d6 14-21,67-72,139-144
+frontend/src/lib/use-quantity-batch.ts
+  s_b2efe2a9578535::t_06208e62d81249 29-30,41-46,54-56,62-65,81-82,87-88,94-100,125-126,130-133,138-142
+frontend/src/routes/__root.tsx
+  s_b2efe2a9578535::t_ac5c19e6b5b02f 42-45,47-50,56-59
+frontend/src/routes/_authenticated/account.tsx
+  s_b2efe2a9578535::t_0d757f14d59d34 32-35
+frontend/src/routes/_authenticated/collections/$collectionId/edit.tsx
+  s_b2efe2a9578535::t_c9912ed24c6f46 31-32,42-43,59-62,88-89,98-101
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_b2efe2a9578535::t_30fa97dd52659f 16-18,38-39,62-64
+frontend/src/routes/_authenticated/collections/index.tsx
+  s_b2efe2a9578535::t_81768afb913fbd 35-37
+frontend/src/routes/_authenticated/inventory.tsx
+  s_b2efe2a9578535::t_70da53fba6e3ec 21-24
+frontend/src/routes/auth/-login.test.tsx
+  s_b2efe2a9578535::t_4aaf77803c5f26 2-8,25-27,48-51,78-80,89-91,93-95,116-118,125-127,137-139,146-148
+frontend/src/routes/auth/-register.test.tsx
+  s_b2efe2a9578535::t_c28852c16d519d 2-8,26-28,40-43,77-79,83-88,92-96,98,101-106,109-111
+frontend/src/routes/auth/-route.test.tsx
+  s_b2efe2a9578535::t_f42aa5fafdd9eb 26-29,52-56,73-77,79-81,90-94,103-111
+frontend/src/routes/auth/login.tsx
+  s_b2efe2a9578535::t_28c2d7e31f7917 63-65,84-88,94-98,101-104
+frontend/src/routes/auth/register.tsx
+  s_b2efe2a9578535::t_b6ec2325270274 60-63,82-86,92-96,133-135
+frontend/src/routes/catalog/cards.$expansionSetId.$localId.tsx
+  s_b2efe2a9578535::t_3d28d207a42c1d 22-37,42-43,46-47,56-60,67-70,76-78
+frontend/src/routes/catalog/index.tsx
+  s_b2efe2a9578535::t_60a7776a51a139 29-30,52-56,101-104
+frontend/src/routes/catalog/search.tsx
+  s_b2efe2a9578535::t_c48c6a2bd29792 2-6,23-26,32-34,39-40,47-49,62-65,77-82,84-85,116-119,144-148
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_b2efe2a9578535::t_640d4d00ace05c 29-31,63-66
+frontend/tools/seo-files.test.ts
+  s_b2efe2a9578535::t_f191b3712c32d8 6-8,10-13,17-20,22-24
+frontend/tools/seo-files.ts
+  s_b2efe2a9578535::t_73ad561a3b3c4e 11-13,28-30,34-37
+frontend/tools/vercel-config.test.ts
+  s_b2efe2a9578535::t_e224979b83217e 16-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a84c21ec152ce0f739e43bd9b1ee225397f8be5a",
+  "prompts": {},
+  "sessions": {
+    "s_b2efe2a9578535": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b2efe2a9578535",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
