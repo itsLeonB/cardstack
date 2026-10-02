@@ -43,6 +43,31 @@ describe("customFetch CSRF header", () => {
     expect(headers.get("X-CSRF-Token")).toBeNull()
   })
 
+  it("prefers the readable cookie over a token left stale by another tab", async () => {
+    // A refresh in another tab rotated the cookie, so this tab's
+    // in-memory/sessionStorage copy is stale; sending it gets a 403 that a
+    // reload cannot clear, because the reload re-reads the same stale copy.
+    setCsrfToken("stale-from-another-tab")
+    document.cookie = "csrf_token=cookie-token"
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    try {
+      await customFetch("https://api.example.com/auth/logout", {
+        method: "POST",
+      })
+
+      // SAFETY: fetchMock is called exactly once per customFetch call above,
+      // with (url, init) — asserted implicitly by indexing call 0.
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("cookie-token")
+    } finally {
+      document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    }
+  })
+
   it("recovers the CSRF token from sessionStorage after a page reload", async () => {
     setCsrfToken("stored-token")
 

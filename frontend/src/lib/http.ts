@@ -36,19 +36,22 @@ function refreshUrlFor(url: string): string {
   return new URL("/auth/refresh", url).toString()
 }
 
-// Cross-origin (Vercel frontend, Railway backend), document.cookie can't
-// see the backend-origin csrf_token cookie at all — the browser still sends
-// it TO the backend automatically, but this page's JS has no read access to
-// a cookie scoped to a different site. So the login/refresh response body
-// (which already echoes csrfToken, see AuthHandler.cookieResponse) is the
-// real source for the header; session.ts calls setCsrfToken() once it has
-// that value. readCookie stays as the same-origin/local-dev fallback, where
-// the cookie is readable.
+// The csrf_token cookie is the value the backend's CSRFGuard compares the
+// header against, so whenever this page can read it, it is the only
+// trustworthy source: every login and every refresh mints a *new* token, and
+// a rotation in one tab leaves the copies held by the others stale — sending
+// one of those is a 403 a reload can't clear, because the reload re-reads
+// the same stale copy. Cross-origin (Vercel frontend, Railway backend) the
+// cookie is scoped to a different site, so document.cookie can't see it at
+// all: the browser still sends it TO the backend, but this page's JS has no
+// read access. There the login/refresh response body (which echoes
+// csrfToken, see AuthHandler.cookieResponse) is the only source, which is
+// why session.ts hands it to setCsrfToken().
 //
-// Also persisted to sessionStorage: the in-memory value alone is lost on a
-// page reload or a new tab, and since it's the *only* source in the
-// cross-origin deployment (the cookie fallback never applies there), losing
-// it would silently break logout/refresh for the rest of that session.
+// sessionStorage persists those body-issued tokens: the in-memory value alone
+// is lost on a page reload or a new tab, and in the cross-origin deployment
+// (where the cookie can't be read at all) losing it would silently break
+// logout and refresh for the rest of that session.
 const CSRF_STORAGE_KEY = "csrf_token"
 let inMemoryCsrfToken: string | null = null
 
@@ -178,8 +181,10 @@ function canRefreshSession(): boolean {
 function applyCsrfToken(headers: Headers, method: string): void {
   if (!MUTATING_METHODS.has(method)) return
 
+  // Cookie first: it is the value the backend compares against. The stored
+  // copies are the fallback for cross-origin, where it cannot be read at all.
   const csrfToken =
-    inMemoryCsrfToken ?? storedCsrfToken() ?? readCookie("csrf_token")
+    readCookie("csrf_token") ?? inMemoryCsrfToken ?? storedCsrfToken()
   if (csrfToken) headers.set("X-CSRF-Token", csrfToken)
 }
 
