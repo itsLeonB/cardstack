@@ -10,7 +10,7 @@
 ## Agent Brief
 
 **Category:** bug
-**Summary:** The backend already rotates sessions via `POST /auth/refresh` (access cookie 15 min, refresh cookie 7 days), but the frontend never calls it. After 15 minutes every API call returns 401 and the user is effectively logged out despite a valid refresh token. Make the fetch layer refresh transparently on 401, and when refresh fails, redirect to `/login` with a "session expired" toast.
+**Summary:** The backend already rotates sessions via `POST /auth/refresh` (access cookie 15 min, refresh cookie 7 days), but the frontend never calls it. After 15 minutes every API call returns 401 and the user is effectively logged out despite a valid refresh token. Make the fetch layer refresh transparently on 401, and when refresh fails, redirect to `/auth/login` with a "session expired" toast.
 
 **Current behavior:**
 - `customFetch` in `frontend/src/lib/http.ts` passes every response through, including 401s. Orval already generates `refreshToken` in `frontend/src/generated/endpoints/auth/auth.ts`, but nothing outside `generated/` uses it.
@@ -24,7 +24,7 @@
 - Never refresh-and-retry for `/auth/login`, `/auth/register`, `/auth/logout`, `/auth/refresh` or `/auth/me`. A 401 on `/auth/me` is the normal "not logged in" signal and must not trigger a toast or redirect for a visitor who was never logged in. (Exception to consider: `/auth/me` may still try a refresh first, since an expired access token with a valid refresh token should read as authenticated. If included, a failed refresh there must not toast or redirect, because the guard handles that case.)
 - On a successful refresh, call `setCsrfToken` with the new `csrfToken` from the response body (`data.data.csrfToken`). In the cross-origin deployment that body is the only source for it.
 - On a failed refresh (non-200), `customFetch` returns the original 401 and fires a registered "auth lost" callback (`setOnAuthLost(cb)` or equivalent, registered once at app setup, since `http.ts` has no `queryClient` or router).
-- The callback does three things, in order: clear the session query and user-scoped cache (reuse `resetCache` logic in `session.ts`), call `setCsrfToken(null)`, show a toast "Your session has expired. Please log in again.", and navigate to `/login` with `redirect` set to the current location (same shape `requireAuth` uses; keep the same-origin-path validation `login.tsx` already applies).
+- The callback does three things, in order: clear the session query and user-scoped cache (reuse `resetCache` logic in `session.ts`), call `setCsrfToken(null)`, show a toast "Your session has expired. Please log in again.", and navigate to `/auth/login` with `redirect` set to the current location (same shape `requireAuth` uses; keep the same-origin-path validation `auth/login.tsx` already applies).
 - The callback fires at most once per expiry, not once per concurrent failed request.
 - Reactive only: no proactive timer that refreshes before expiry.
 
@@ -39,7 +39,7 @@
 - [ ] Several concurrent 401s result in a single `POST /auth/refresh` call
 - [ ] A 401 from `/auth/login`, `/auth/register`, `/auth/logout` and `/auth/refresh` is never retried and never triggers refresh
 - [ ] After a successful refresh the new CSRF token is used for the retry and for later mutating requests
-- [ ] A failed refresh returns the original 401, clears the session cache and stored CSRF token, shows the "session expired" toast, and redirects to `/login` with the current URL as `redirect`
+- [ ] A failed refresh returns the original 401, clears the session cache and stored CSRF token, shows the "session expired" toast, and redirects to `/auth/login` with the current URL as `redirect`
 - [ ] A visitor who was never logged in (`/auth/me` 401, refresh fails) sees no toast and is redirected only by the existing route guard
 - [ ] Unit tests in `frontend/src/lib/http.test.ts` cover retry-once, single-flight, the no-retry list, CSRF update, and the auth-lost callback firing once
 - [ ] Frontend build, lint and tests pass
