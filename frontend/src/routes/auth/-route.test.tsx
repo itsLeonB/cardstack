@@ -74,7 +74,7 @@ describe("auth layout", () => {
 
   it("shows an unknown /auth path as not-found inside the auth shell", async () => {
     await renderAuth({ status: 401, data: {} }, "/auth/nope")
-    await screen.findByRole("heading", { level: 1, name: "404" }, { timeout: 5000 })
+    await screen.findByRole("heading", { level: 1, name: "Page not found" }, { timeout: 5000 })
 
     expect(screen.getByRole("link", { name: "Cardstack" })).toBeTruthy()
     expect(screen.getAllByRole("main")).toHaveLength(1)

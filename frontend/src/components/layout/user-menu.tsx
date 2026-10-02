@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { RiUserLine } from "@remixicon/react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -8,6 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useLogoutMutation, useSession } from "@/lib/session"
+
+const LOGOUT_FAILED = "Could not log out. You are still signed in."
 
 export function UserMenu() {
   const { user } = useSession()
@@ -18,7 +21,9 @@ export function UserMenu() {
     logoutMutation.mutate(undefined, {
       onSuccess: (response) => {
         if (response.status === 204) void navigate({ to: "/auth/login" })
+        else toast.error(LOGOUT_FAILED)
       },
+      onError: () => toast.error(LOGOUT_FAILED),
     })
   }
 

@@ -5,6 +5,7 @@ import {
   useGetCollection,
 } from "@/generated/endpoints/collections/collections"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { notFoundResource } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,10 +20,12 @@ import {
 export const Route = createFileRoute(
   "/_authenticated/collections/$collectionId/edit"
 )({
-  loader: ({ context: { queryClient }, params }) =>
-    queryClient.ensureQueryData(
+  loader: async ({ context: { queryClient }, params }) => {
+    const response = await queryClient.ensureQueryData(
       getGetCollectionQueryOptions(params.collectionId)
-    ),
+    )
+    if (response.status === 404) throw notFoundResource("Collection")
+  },
   component: EditCollectionPage,
 })
 

@@ -4,6 +4,7 @@ import {
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { notFoundResource } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { CardHoldings } from "@/components/catalog/card-holdings"
@@ -18,10 +19,12 @@ const cardParams = (expansionSetId: string, localId: string) => ({
 })
 
 export const Route = createFileRoute("/catalog/cards/$expansionSetId/$localId")({
-  loader: ({ context: { queryClient }, params }) =>
-    queryClient.ensureQueryData(
+  loader: async ({ context: { queryClient }, params }) => {
+    const response = await queryClient.ensureQueryData(
       getSearchCatalogCardsQueryOptions(cardParams(params.expansionSetId, params.localId))
-    ),
+    )
+    if (response.status === 200 && !response.data.data?.[0]) throw notFoundResource("Card")
+  },
   component: CardDetailPage,
 })
 
