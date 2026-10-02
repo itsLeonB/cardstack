@@ -1,0 +1,21 @@
+frontend/e2e/catalog-infinite-scroll.spec.ts
+  s_a7ea788a929ae0::t_a66b0b0eedef48 51,75-76,78-83
+frontend/src/components/catalog/virtual-grid.tsx
+  s_a7ea788a929ae0::t_b650d45778852d 47-48,64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "dc78e88d259eee609bae66245bef6675bd1d3523",
+  "prompts": {},
+  "sessions": {
+    "s_a7ea788a929ae0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a7ea788a929ae0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
