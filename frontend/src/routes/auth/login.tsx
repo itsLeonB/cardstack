@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import { z } from "zod"
 import { AuthField } from "@/components/auth/auth-field"
 import { AuthPage } from "@/components/auth/auth-page"
@@ -19,6 +20,7 @@ const loginSearchSchema = z.object({
 })
 
 export const Route = createFileRoute("/auth/login")({
+  head: () => pageHead("Log in"),
   validateSearch: loginSearchSchema,
   component: LoginPage,
 })

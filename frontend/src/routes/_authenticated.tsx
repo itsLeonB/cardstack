@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router"
+import { NOINDEX_META } from "@/lib/site"
 import { requireAuth } from "@/lib/route-guard"
 
 /**
@@ -8,5 +9,6 @@ import { requireAuth } from "@/lib/route-guard"
  */
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: requireAuth,
+  head: () => ({ meta: [NOINDEX_META] }),
   component: () => <Outlet />,
 })

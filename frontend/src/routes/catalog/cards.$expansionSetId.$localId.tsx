@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import {
   getSearchCatalogCardsQueryOptions,
   useSearchCatalogCards,
@@ -23,8 +24,11 @@ export const Route = createFileRoute("/catalog/cards/$expansionSetId/$localId")(
     const response = await queryClient.ensureQueryData(
       getSearchCatalogCardsQueryOptions(cardParams(params.expansionSetId, params.localId))
     )
-    if (response.status === 200 && !response.data.data?.[0]) throw notFoundResource("Card")
+    const card = response.status === 200 ? response.data.data?.[0] : undefined
+    if (response.status === 200 && !card) throw notFoundResource("Card")
+    return card?.name
   },
+  head: ({ loaderData }) => pageHead(loaderData ?? "Card"),
   component: CardDetailPage,
 })
 

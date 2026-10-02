@@ -54,7 +54,7 @@ test.describe("App shell: guest", () => {
     await expect(header.getByRole("link", { name: "Collections" })).toHaveCount(0)
     await expect(page.getByRole("main")).toHaveCount(1)
     await expect(page.getByRole("contentinfo")).toContainText("personal MVP")
-    await expect(page).toHaveTitle("Cardstack")
+    await expect(page).toHaveTitle("Track every Pokémon card you own · Cardstack")
   })
 
   test("skip link is the first focusable element", async ({ page }) => {

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import {
   getListCatalogSeriesQueryOptions,
   useListCatalogSeries,
@@ -12,6 +13,11 @@ import { Separator } from "@/components/ui/separator"
 import { formatReleaseDate } from "@/lib/date"
 
 export const Route = createFileRoute("/catalog/")({
+  head: () =>
+    pageHead(
+      "Catalog",
+      "Browse every Pokémon TCG series and set in the Cardstack catalog. No account needed."
+    ),
   loader: ({ context: { queryClient } }) =>
     queryClient.ensureQueryData(getListCatalogSeriesQueryOptions()),
   component: CatalogSeriesPage,

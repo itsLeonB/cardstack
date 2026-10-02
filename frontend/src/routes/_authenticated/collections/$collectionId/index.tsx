@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { notFoundResource } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
@@ -21,7 +22,9 @@ export const Route = createFileRoute("/_authenticated/collections/$collectionId/
       getGetCollectionQueryOptions(params.collectionId)
     )
     if (response.status === 404) throw notFoundResource("Collection")
+    return response.status === 200 ? response.data.data.title : undefined
   },
+  head: ({ loaderData }) => pageHead(loaderData ?? "Collection"),
   component: CollectionPage,
 })
 

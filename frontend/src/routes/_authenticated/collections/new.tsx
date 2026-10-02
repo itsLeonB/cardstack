@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
@@ -11,6 +12,7 @@ import {
 } from "@/lib/collections"
 
 export const Route = createFileRoute("/_authenticated/collections/new")({
+  head: () => pageHead("New Collection"),
   component: NewCollectionPage,
 })
 

@@ -1,3 +1,5 @@
-# https://www.robotstxt.org/robotstxt.html
+# Authenticated areas only; keep in step with PUBLIC_PATHS in tools/seo-files.ts. /auth/* is left crawlable on purpose so its noindex tag can be read.
 User-agent: *
-Disallow:
+Disallow: /collections
+Disallow: /inventory
+Disallow: /account

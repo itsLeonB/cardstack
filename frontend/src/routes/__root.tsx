@@ -13,7 +13,11 @@ import { AppShell } from "@/components/layout/app-shell"
 import { NotFound } from "@/components/layout/not-found"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { SITE_NAME, SITE_URL } from "@/lib/site"
 import appCss from "../styles.css?url"
+
+const DESCRIPTION =
+  "Track every card you own, across every binder. Browse the Pokémon TCG catalog and organize your Collections."
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -28,13 +32,25 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Cardstack",
+        title: SITE_NAME,
       },
-      {
-        name: "description",
-        content:
-          "Track every card you own, across every binder. Browse the Pokémon TCG catalog and organize your Collections.",
-      },
+      { name: "description", content: DESCRIPTION },
+      // Static on purpose: link-preview crawlers don't run scripts, so every
+      // URL shares these (SPA mode; per-route Open Graph isn't attempted).
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:title", content: "Cardstack: track every Pokémon card you own" },
+      { property: "og:description", content: DESCRIPTION },
+      { name: "twitter:card", content: SITE_URL ? "summary_large_image" : "summary" },
+      ...(SITE_URL
+        ? [
+            { property: "og:image", content: `${SITE_URL}/og-image.png` },
+            { property: "og:image:width", content: "1200" },
+            { property: "og:image:height", content: "630" },
+            { property: "og:image:alt", content: "Cardstack: track every card you own" },
+            { name: "twitter:image", content: `${SITE_URL}/og-image.png` },
+          ]
+        : []),
       {
         name: "theme-color",
         content: "#fbbf24",
