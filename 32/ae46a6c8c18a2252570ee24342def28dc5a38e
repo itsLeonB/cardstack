@@ -1,0 +1,39 @@
+docs/agents/conventions/frontend.md
+  s_d7982390d7bcad::t_7ecabe63fe3e8a 27-31
+frontend/e2e/auth.spec.ts
+  s_d7982390d7bcad::t_0bb7803ec1ac12 1-150
+frontend/src/components/auth/auth-field.tsx
+  s_d7982390d7bcad::t_e51d4296847582 1-62
+frontend/src/components/auth/auth-page.tsx
+  s_d7982390d7bcad::t_d741e97f80f950 1-30
+frontend/src/components/layout/wordmark.tsx
+  s_d7982390d7bcad::t_50b959a119d0e6 3-12,19
+frontend/src/lib/route-guard.test.ts
+  s_d7982390d7bcad::t_37d459d5cc55ce 4,16,32,44-121
+frontend/src/lib/route-guard.ts
+  s_d7982390d7bcad::t_c6ca00edcaf156 2,6-20,22-39,46-48,54,59,65-77
+frontend/src/lib/session.ts
+  s_d7982390d7bcad::t_92be137949a8f4 48-52,58,74,95
+frontend/src/routes/-login.test.tsx
+  s_d7982390d7bcad::t_30f666d35c2173 1-123
+frontend/src/routes/login.tsx
+  s_d7982390d7bcad::t_714a22e9762984 2,4-5,7-8,12-13,17-18,24,28-32,35,38,46-53,61-63,76-123
+frontend/src/routes/register.tsx
+  s_d7982390d7bcad::t_5408c9fdd84364 3-5,7-8,12,16-21,27,35-41,43,45-46,66-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "32ae46a6c8c18a2252570ee24342def28dc5a38e",
+  "prompts": {},
+  "sessions": {
+    "s_d7982390d7bcad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d7982390d7bcad",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
