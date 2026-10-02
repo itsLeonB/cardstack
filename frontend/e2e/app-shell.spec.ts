@@ -63,37 +63,26 @@ test.describe("App shell: guest", () => {
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused()
   })
 
-  test("navigates between public areas and marks the current page", async ({ page }) => {
+  test("Log in leads to the auth page, which drops the site nav", async ({ page }) => {
     await page.goto("/")
     const header = page.getByRole("banner")
 
+    // Auth pages swap in their own shell, so the site nav is gone there.
     await header.getByRole("link", { name: "Log in" }).click()
-    await expect(page).toHaveURL(/\/login$/)
-    await expect(header.getByRole("link", { name: "Log in" })).toHaveAttribute(
-      "aria-current",
-      "page"
-    )
-
-    await header.getByRole("link", { name: "Register" }).click()
-    await expect(page).toHaveURL(/\/register$/)
-    await expect(header.getByRole("link", { name: "Log in" })).not.toHaveAttribute(
-      "aria-current",
-      "page"
-    )
+    await expect(page).toHaveURL(/\/auth\/login$/)
+    await expect(page.getByRole("navigation")).toHaveCount(0)
   })
 
-  for (const path of ["/", "/login"]) {
-    test(`passes axe on the shell at ${path}`, async ({ page }) => {
-      await page.goto(path)
-      await expect(page.getByRole("banner")).toBeVisible()
-      // Headings belong to page content (the landing and auth-page tickets),
-      // not the shell, so the h1 rule is out of scope here.
-      const results = await new AxeBuilder({ page })
-        .disableRules(["page-has-heading-one"])
-        .analyze()
-      expect(results.violations).toEqual([])
-    })
-  }
+  test("passes axe on the shell at /", async ({ page }) => {
+    await page.goto("/")
+    await expect(page.getByRole("banner")).toBeVisible()
+    // Headings belong to page content, not the shell, so the h1 rule is out of
+    // scope here. The auth shell has its own axe checks in auth.spec.ts.
+    const results = await new AxeBuilder({ page })
+      .disableRules(["page-has-heading-one"])
+      .analyze()
+    expect(results.violations).toEqual([])
+  })
 })
 
 test.describe("App shell: signed in", () => {
@@ -195,10 +184,10 @@ test.describe("App shell: mobile", () => {
     await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
   })
 
-  for (const path of ["/", "/login", "/register"]) {
+  for (const path of ["/", "/auth/login", "/auth/register"]) {
     test(`no horizontal scroll on ${path}`, async ({ page }) => {
       await page.goto(path)
-      await expect(page.getByRole("banner")).toBeVisible()
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth
       )

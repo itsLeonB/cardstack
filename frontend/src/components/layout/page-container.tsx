@@ -7,8 +7,8 @@ const widths = {
 }
 
 /**
- * Page body wrapper. A `div`, never `main`: `AppShell` owns the single `main`
- * landmark. `min-w-0` lets long titles truncate/wrap instead of scrolling.
+ * Page body wrapper. A `div`, never `main`: each shell (`AppShell`, `AuthShell`)
+ * owns its single `main` landmark. `min-w-0` lets long titles truncate/wrap instead of scrolling.
  */
 export function PageContainer({
   variant = "default",

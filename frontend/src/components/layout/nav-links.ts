@@ -1,7 +1,7 @@
 import { useSession } from "@/lib/session"
 
 export type NavLink = {
-  to: "/catalog" | "/collections" | "/inventory" | "/login" | "/register"
+  to: "/catalog" | "/collections" | "/inventory" | "/auth/login" | "/auth/register"
   label: string
   primary?: boolean
 }
@@ -25,7 +25,7 @@ export function useNavLinks(): NavLink[] {
   }
   return [
     catalog,
-    { to: "/login", label: "Log in" },
-    { to: "/register", label: "Register", primary: true },
+    { to: "/auth/login", label: "Log in" },
+    { to: "/auth/register", label: "Register", primary: true },
   ]
 }

@@ -60,7 +60,7 @@ async function renderShell(path = "/") {
     ),
   })
   const routeTree = root.addChildren(
-    ["/", "/catalog", "/collections", "/inventory", "/login", "/register", "/account"].map(
+    ["/", "/catalog", "/collections", "/inventory", "/auth/login", "/auth/register", "/account"].map(
       (p) => createRoute({ getParentRoute: () => root, path: p })
     )
   )

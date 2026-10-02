@@ -35,3 +35,5 @@
 ## Comments
 
 Absorbed into `.scratch/frontend-visual-identity/issues/04-login-register-polish-and-auth-redirects.md` (the login/register restyle edits the same files). The brief above stays the reference for current vs desired behavior.
+
+Outcome: delivered in `.scratch/frontend-visual-identity/issues/04-login-register-polish-and-auth-redirects.md` (see its Outcome section).

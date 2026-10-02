@@ -19,7 +19,7 @@ function AccountPage() {
     logoutMutation.mutate(undefined, {
       onSuccess: (response) => {
         if (response.status === 204) {
-          void navigate({ to: "/login" })
+          void navigate({ to: "/auth/login" })
         }
       },
     })
