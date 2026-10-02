@@ -13,9 +13,10 @@ const facets: CatalogFacets = {
       code: "SV1",
       name: "Set One",
       seriesId: "series-1",
+      imageUrl: "",
       available: true,
     },
-    { id: "s2", code: "SV2", name: "Set Two", available: true },
+    { id: "s2", code: "SV2", name: "Set Two", imageUrl: "", available: true },
   ],
   rarities: [
     { id: "r1", code: "C", name: "Common", available: true },

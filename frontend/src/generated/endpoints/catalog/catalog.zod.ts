@@ -34,6 +34,7 @@ export const SearchCatalogCardsResponse = zod.object({
   "expansionSet": zod.object({
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional()
 }),
@@ -85,6 +86,7 @@ export const ListCatalogFacetsResponse = zod.object({
   "available": zod.boolean(),
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional(),
   "seriesId": zod.string().optional()
@@ -123,6 +125,7 @@ export const ListCatalogSeriesResponse = zod.object({
   "expansionSets": zod.array(zod.object({
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional()
 })).nullable(),
@@ -132,6 +135,7 @@ export const ListCatalogSeriesResponse = zod.object({
   "ungroupedExpansionSets": zod.array(zod.object({
   "code": zod.string(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string(),
   "releaseDate": zod.iso.datetime({"offset":true}).optional()
 })).nullable()

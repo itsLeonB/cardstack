@@ -9,6 +9,7 @@ export interface ExpansionSetFacetOption {
   available: boolean;
   code: string;
   id: string;
+  imageUrl: string;
   name: string;
   releaseDate?: string;
   seriesId?: string;

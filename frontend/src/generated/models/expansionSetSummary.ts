@@ -8,6 +8,7 @@
 export interface ExpansionSetSummary {
   code: string;
   id: string;
+  imageUrl: string;
   name: string;
   releaseDate?: string;
 }

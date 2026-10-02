@@ -33,7 +33,7 @@ const card: CardSummary = {
   tags: ["V"],
   illustrator: "someone",
   imageUrl: "https://example.com/pikachu-v.png",
-  expansionSet: { id: "set-1", code: "SCE", name: "V Starter Deck Kebangkitan" },
+  expansionSet: { id: "set-1", code: "SCE", name: "V Starter Deck Kebangkitan", imageUrl: "" },
   rarity: { id: "rarity-1", code: "RR", name: "Double Rare" },
 }
 
