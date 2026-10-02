@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Page, Route } from "playwright/test"
 
@@ -33,7 +34,8 @@ function json(route: Route, body: StubBody) {
   })
 }
 
-async function stubCatalog(page: Page) {
+// `tagsPerCard` makes tiles taller than the grid's estimate, as real tagged cards are.
+async function stubCatalog(page: Page, tagsPerCard = 0) {
   const requests: URL[] = []
   await page.route("**/auth/me", (route) =>
     route.fulfill({
@@ -61,11 +63,19 @@ async function stubCatalog(page: Page) {
     const name = (url.searchParams.get("name") ?? "").toLowerCase()
     const pageNumber = Number(url.searchParams.get("page") ?? 1)
     const limit = Number(url.searchParams.get("limit") ?? 24)
-    const matches = CARDS.filter((card) =>
-      card.name.toLowerCase().includes(name)
+    const localId = url.searchParams.get("localId")
+    const matches = CARDS.filter(
+      (card) =>
+        card.name.toLowerCase().includes(name) &&
+        (!localId || card.localId === localId)
     )
     return json(route, {
-      data: matches.slice((pageNumber - 1) * limit, pageNumber * limit),
+      data: matches
+        .slice((pageNumber - 1) * limit, pageNumber * limit)
+        .map((card) => ({
+          ...card,
+          tags: Array.from({ length: tagsPerCard }, (_, tag) => `Tag ${tag}`),
+        })),
       meta: { total: matches.length, page: pageNumber, limit },
     })
   })
@@ -165,5 +175,148 @@ test.describe("Catalog search infinite scroll", () => {
     const last = requests.at(-1)!
     expect(last.searchParams.get("name")).toBe("Alpha")
     expect(last.searchParams.get("page")).toBe("1")
+  })
+})
+
+// The accessibility and place-keeping behaviour of the virtualized grid.
+test.describe("Catalog search grid", () => {
+  const loadedCount = async (page: Page) => {
+    const text = await page.getByText(/ of 300 cards loaded/).textContent()
+    return Number(text?.split(" ")[0])
+  }
+
+  test("exposes each tile's position and the total", async ({ page }) => {
+    await stubCatalog(page)
+    await openSearch(page)
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+
+    const first = page.getByRole("listitem").first()
+    await expect(first).toHaveAttribute("aria-posinset", "1")
+    await expect(first).toHaveAttribute("aria-setsize", "300")
+
+    await scrollToBottom(page)
+    await expect(page.getByText("120 of 300 cards loaded")).toBeVisible()
+    // A tile deep in the list reports its place in the whole set, not its row.
+    await expect(page.getByTitle("Alpha 58")).toBeVisible()
+    await expect(
+      page.getByRole("listitem").filter({ has: page.getByTitle("Alpha 58") })
+    ).toHaveAttribute("aria-posinset", "59")
+  })
+
+  test("passes axe", async ({ page }) => {
+    await stubCatalog(page)
+    await openSearch(page)
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(results.violations).toEqual([])
+  })
+
+  test("keeps keyboard focus when its row scrolls out, and tabs on to Load more and the footer", async ({
+    page,
+  }) => {
+    await stubCatalog(page)
+    await openSearch(page)
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+
+    const firstLink = page.getByRole("link", { name: "Alpha 0" }).first()
+    await firstLink.focus()
+    await scrollToBottom(page)
+    await expect(page.getByText("120 of 300 cards loaded")).toBeVisible()
+    await expect(firstLink).toBeFocused()
+    // With every page loaded, the last tile is the end of the list: Tab goes to
+    // Load more (inert but focusable), and the next Tab to the footer.
+    await expect
+      .poll(async () => {
+        await scrollToBottom(page)
+        return page.getByText("300 of 300 cards loaded").count()
+      })
+      .toBe(1)
+    await expect(page.getByTitle("Beta 299")).toBeVisible()
+    await page.getByRole("listitem").last().getByRole("link").last().focus()
+    await page.keyboard.press("Tab")
+    await expect(page.getByRole("button", { name: "Load more" })).toBeFocused()
+    await page.keyboard.press("Tab")
+    await expect(
+      page.getByRole("contentinfo").getByRole("link").first()
+    ).toBeFocused()
+  })
+
+  test("keeps the same card in view when resizing across a column breakpoint", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await stubCatalog(page)
+    await openSearch(page)
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+    await page.evaluate(() => window.scrollTo(0, 3000))
+
+    // The first tile of the top visible row is the one the grid anchors on.
+    // Poll: the grid renders the new window a frame after the scroll.
+    let anchor: string | null = null
+    await expect
+      .poll(async () => {
+        anchor = await page.evaluate(() => {
+          const tiles = [...document.querySelectorAll("[role=listitem]")]
+          const top = tiles.find(
+            (tile) => tile.getBoundingClientRect().bottom > 80
+          )
+          return top?.getAttribute("aria-posinset") ?? null
+        })
+        return anchor
+      })
+      .not.toBeNull()
+
+    await page.setViewportSize({ width: 700, height: 800 })
+
+    const tile = page.locator(`[role=listitem][aria-posinset="${anchor}"]`)
+    await expect(tile).toBeInViewport()
+    expect(
+      await tile.evaluate((node) => node.getBoundingClientRect().top)
+    ).toBeLessThan(400)
+  })
+
+  test("returns to the same place with the loaded pages when navigating back", async ({
+    page,
+  }) => {
+    await stubCatalog(page, 6)
+    await openSearch(page)
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollBy(0, 2500))
+        return loadedCount(page)
+      })
+      .toBeGreaterThanOrEqual(120)
+    // Let the scroll position settle before leaving.
+    await page.waitForTimeout(300)
+    const before = await page.evaluate(() => window.scrollY)
+    const loaded = await loadedCount(page)
+
+    // A link well inside the viewport, so clicking it does not scroll first.
+    const href = await page.evaluate(() => {
+      const links = [
+        ...document.querySelectorAll<HTMLAnchorElement>(
+          "[role=listitem] a[href^='/catalog/cards/']"
+        ),
+      ]
+      return links
+        .find((link) => {
+          const { top, bottom } = link.getBoundingClientRect()
+          return top > 150 && bottom < 650
+        })
+        ?.getAttribute("href")
+    })
+    expect(href).toBeTruthy()
+    await page.locator(`a[href="${href}"]`).click()
+    await expect(page).toHaveURL(/\/catalog\/cards\//)
+    await page.goBack()
+
+    await expect(page.getByText(`${loaded} of 300 cards loaded`)).toBeVisible()
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(before - 300)
+    expect(await page.evaluate(() => window.scrollY)).toBeLessThan(before + 300)
   })
 })

@@ -7,19 +7,30 @@ import {
   useState,
 } from "react"
 import type { ReactNode } from "react"
-import { useWindowVirtualizer } from "@tanstack/react-virtual"
+import {
+  defaultRangeExtractor,
+  useWindowVirtualizer,
+} from "@tanstack/react-virtual"
+import type { Range } from "@tanstack/react-virtual"
 import {
   GRID_GAP,
   chunkRows,
   columnsForWidth,
   estimateRowHeight,
   shouldLoadMore,
+  withPinnedRow,
 } from "@/lib/grid-layout"
+
+const OVERSCAN = 3
+// The sticky site header (h-14) covers the top of the window; keep a scrolled-to row below it.
+const HEADER_HEIGHT = 56
 
 interface VirtualGridProps<T> {
   items: T[]
   getKey: (item: T) => string
   renderItem: (item: T) => ReactNode
+  /** Size of the whole set, for `aria-setsize`, when more is still to load. Defaults to `items.length`. */
+  totalCount?: number
   /** Whether scrolling to the end may start a load: more to fetch, nothing in flight, no error. */
   canLoadMore: boolean
   onLoadMore: () => void
@@ -28,12 +39,21 @@ interface VirtualGridProps<T> {
 /**
  * Window-scrolled grid that renders only the rows near the viewport. Columns
  * follow the container width; rows are measured because tile height varies.
- * Row `<ul>`s keep each tile an `li`.
+ *
+ * Markup: a `role="list"` whose presentational row wrappers hold
+ * `role="listitem"` tiles with `aria-posinset` / `aria-setsize` (a `ul` of
+ * rows is invalid HTML and `ul > div` fails axe). The row holding focus stays
+ * rendered, and when the column count changes the viewport is re-anchored on
+ * the card that was at the top.
+ *
+ * Known limitation of virtualizing: browser find-in-page (Ctrl+F) only sees
+ * the rendered rows, so it cannot find a loaded card that is scrolled out.
  */
 export function VirtualGrid<T>({
   items,
   getKey,
   renderItem,
+  totalCount = items.length,
   canLoadMore,
   onLoadMore,
 }: VirtualGridProps<T>) {
@@ -71,38 +91,96 @@ export function VirtualGrid<T>({
     [columns, getKey, rows]
   )
 
+  // The row holding focus. `keyboard` is true when it was reached by keyboard
+  // (`:focus-visible`), which pauses scroll-triggered loading below.
+  const [focus, setFocus] = useState<{
+    row: number
+    keyboard: boolean
+  } | null>(null)
+  const focusedRow = focus?.row ?? null
+  const rangeExtractor = useCallback(
+    (range: Range) => withPinnedRow(defaultRangeExtractor(range), focusedRow),
+    [focusedRow]
+  )
+
   const virtualizer = useWindowVirtualizer({
     count: rows.length,
     estimateSize: () => estimateRowHeight(layout.width, columns),
     getItemKey,
     gap: GRID_GAP,
-    overscan: 3,
+    overscan: OVERSCAN,
+    rangeExtractor,
     scrollMargin: layout.offsetTop,
+    scrollPaddingStart: HEADER_HEIGHT,
   })
 
   const virtualRows = virtualizer.getVirtualItems()
-  const lastRenderedRow = virtualRows.at(-1)?.index
+  // From the visible range, not the last rendered row: a pinned focused row
+  // far below the window must not look like "scrolled to the end".
+  const firstVisibleRow = virtualizer.range?.startIndex ?? 0
+  const lastRenderedRow = virtualizer.range
+    ? Math.min(virtualizer.range.endIndex + OVERSCAN, rows.length - 1)
+    : undefined
   useEffect(() => {
     if (
       shouldLoadMore({
         lastRenderedRow,
         rowCount: rows.length,
-        canLoad: canLoadMore,
+        // While tabbing through tiles, scrolling a new page in would push the
+        // end of the list away from the keyboard user; "Load more" is theirs.
+        canLoad: canLoadMore && !focus?.keyboard,
       })
     ) {
       onLoadMore()
     }
-  }, [lastRenderedRow, rows.length, canLoadMore, onLoadMore])
+  }, [lastRenderedRow, rows.length, canLoadMore, focus?.keyboard, onLoadMore])
+
+  // Remember the card at the top of the viewport; when the column count
+  // changes, put its row back at the top. Deferred one frame: scrolling in
+  // the same commit as the layout change landed ~15 rows off when the document
+  // got shorter. Skipped at the first card, which also covers the initial
+  // 2-to-n columns settle on mount (it must not fight scroll restoration).
+  const anchor = useRef({ columns, card: 0 })
+  const frame = useRef(0)
+  useEffect(() => {
+    const current = anchor.current
+    if (current.columns === columns) {
+      current.card = firstVisibleRow * columns
+      return
+    }
+    current.columns = columns
+    if (current.card === 0) return
+    const target = Math.floor(current.card / columns)
+    frame.current = requestAnimationFrame(() =>
+      // Never smooth: no animation, whatever the reduced-motion setting.
+      virtualizer.scrollToIndex(target, { align: "start", behavior: "auto" })
+    )
+  })
+  useEffect(() => () => cancelAnimationFrame(frame.current), [])
 
   return (
     <div
       ref={listRef}
+      role="list"
       className="relative"
       style={{ height: virtualizer.getTotalSize() }}
+      onFocus={(event) => {
+        const row = event.target.closest<HTMLElement>("[data-index]")
+        if (row) {
+          setFocus({
+            row: Number(row.dataset.index),
+            keyboard: event.target.matches(":focus-visible"),
+          })
+        }
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocus(null)
+      }}
     >
       {virtualRows.map((row) => (
-        <ul
+        <div
           key={row.key}
+          role="presentation"
           ref={virtualizer.measureElement}
           data-index={row.index}
           className="absolute top-0 left-0 grid w-full gap-4"
@@ -111,10 +189,17 @@ export function VirtualGrid<T>({
             transform: `translateY(${row.start - layout.offsetTop}px)`,
           }}
         >
-          {rows[row.index]!.map((item) => (
-            <li key={getKey(item)}>{renderItem(item)}</li>
+          {rows[row.index]!.map((item, column) => (
+            <div
+              key={getKey(item)}
+              role="listitem"
+              aria-posinset={row.index * columns + column + 1}
+              aria-setsize={totalCount}
+            >
+              {renderItem(item)}
+            </div>
           ))}
-        </ul>
+        </div>
       ))}
     </div>
   )

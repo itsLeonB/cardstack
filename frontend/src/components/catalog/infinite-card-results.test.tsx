@@ -84,6 +84,13 @@ describe("InfiniteCardResults", () => {
     expect(screen.getByRole("button", { name: "Load more" })).toBeTruthy()
   })
 
+  it("reports each tile's place in the whole result set, not just the loaded part", () => {
+    renderResults()
+    const tile = screen.getAllByRole("listitem")[0]!
+    expect(tile.getAttribute("aria-posinset")).toBe("1")
+    expect(tile.getAttribute("aria-setsize")).toBe("500")
+  })
+
   it("announces how many cards are loaded politely", () => {
     renderResults()
     const status = screen.getByText("200 of 500 cards loaded")

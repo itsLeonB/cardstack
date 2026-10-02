@@ -45,3 +45,9 @@ export function estimateRowHeight(width: number, columns: number) {
   const tileWidth = (width - GRID_GAP * (columns - 1)) / columns
   return Math.round((tileWidth * 7) / 5) + 150
 }
+
+/** Add the focused row to the rendered rows so unmounting never drops keyboard focus. */
+export function withPinnedRow(indexes: number[], pinned: number | null) {
+  if (pinned === null || indexes.includes(pinned)) return indexes
+  return [...indexes, pinned].sort((a, b) => a - b)
+}
