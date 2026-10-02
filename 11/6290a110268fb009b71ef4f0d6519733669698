@@ -1,0 +1,53 @@
+docs/agents/conventions/frontend.md
+  s_d46cd772e58045::t_0093c1f795bbff 20-21
+frontend/e2e/breadcrumbs.spec.ts
+  s_d46cd772e58045::t_70ea57e26d4075 1-37
+frontend/src/components/layout/breadcrumbs.test.tsx
+  s_d46cd772e58045::t_f9ad33ccd6cd86 1-44
+frontend/src/components/layout/breadcrumbs.tsx
+  s_d46cd772e58045::t_b98b52226dca56 1-42
+frontend/src/components/layout/page-container.tsx
+  s_d46cd772e58045::t_22f7f96509f2f0 1-28
+frontend/src/components/layout/page-header.tsx
+  s_d46cd772e58045::t_edd477b0cd5d37 1-20
+frontend/src/routes/_authenticated/account.tsx
+  s_d46cd772e58045::t_59870d216d2d80 2-3,32-33,49
+frontend/src/routes/_authenticated/collections/$collectionId/edit.tsx
+  s_d46cd772e58045::t_b186a12c677087 2,7-10,44-58,60,107
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_d46cd772e58045::t_c09f2dba5d751c 1-4,32-38,46-55,63
+frontend/src/routes/_authenticated/collections/index.tsx
+  s_d46cd772e58045::t_3253985880f190 13-14,36-42,117
+frontend/src/routes/_authenticated/collections/new.tsx
+  s_d46cd772e58045::t_fdbf61eff5223a 2-6,23-33,35,57
+frontend/src/routes/_authenticated/inventory.tsx
+  s_d46cd772e58045::t_0d800bf26c3801 1-3,17-18,20
+frontend/src/routes/catalog/cards.$expansionSetId.$localId.tsx
+  s_d46cd772e58045::t_e1cee5a18279d1 1,6-8,35-46,61
+frontend/src/routes/catalog/index.tsx
+  s_d46cd772e58045::t_1e78b0d2227de1 7-8,31-43,99
+frontend/src/routes/catalog/search.tsx
+  s_d46cd772e58045::t_0f7ebe87a4d285 13-15,92-99,123
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_d46cd772e58045::t_2e3967b4b2ea30 8-10,43,54-64,87
+frontend/src/routes/login.tsx
+  s_d46cd772e58045::t_22262710887b65 4,75,129
+frontend/src/routes/register.tsx
+  s_d46cd772e58045::t_d6e2a40eeee9a7 3,60,129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "116290a110268fb009b71ef4f0d6519733669698",
+  "prompts": {},
+  "sessions": {
+    "s_d46cd772e58045": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d46cd772e58045",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
