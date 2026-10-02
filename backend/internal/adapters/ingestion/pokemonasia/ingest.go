@@ -146,12 +146,8 @@ func (in *Ingester) Run(ctx context.Context, seriesFilter, setFilter string) (Su
 	return in.run(ctx, seriesFilter, setFilter, true)
 }
 
-// SyncExpansionSets is Run's opt-in lightweight subset: the same listing
-// enumeration and Series/Expansion Set upserts, but it never crawls cards
-// (no ingestSet, so no card-list, card-detail or rarity requests and no
-// Card/Rarity writes). Use it to backfill listing-derived Expansion Set
-// fields (e.g. ImageURL) without re-crawling every card. Filters behave as in
-// Run; Summary.Sets is the number of Expansion Sets touched.
+// SyncExpansionSets is Run with card crawling disabled, so it can backfill
+// listing-derived Expansion Set fields without re-crawling every card.
 func (in *Ingester) SyncExpansionSets(ctx context.Context, seriesFilter, setFilter string) (Summary, error) {
 	return in.run(ctx, seriesFilter, setFilter, false)
 }
