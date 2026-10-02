@@ -9,27 +9,29 @@ import { keepPreviousData } from "@tanstack/react-query"
 import {
   getListCatalogFacetsQueryOptions,
   getListCatalogSeriesQueryOptions,
-  getSearchCatalogCardsQueryOptions,
   useListCatalogFacets,
   useListCatalogSeries,
-  useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
 import { z } from "zod"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
-import { CardResults } from "@/components/catalog/card-results"
+import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { CollectionCardResults } from "@/components/catalog/collection-card-results"
 import {
   CollectionPicker,
   useCatalogCollection,
 } from "@/components/catalog/collection-picker"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
-import { catalogSearchSchema, toFacetParams } from "@/lib/catalog-search"
-import type { CatalogSearch } from "@/lib/catalog-search"
+import { catalogFilterSchema } from "@/lib/catalog-search"
+import type { CatalogFilters } from "@/lib/catalog-search"
+import {
+  catalogInfiniteQueryOptions,
+  useInfiniteCatalogCards,
+} from "@/lib/infinite-catalog-cards"
 
 // `collectionId` is page state only; it is split off before any catalog query.
-const searchSchema = catalogSearchSchema.extend({
+const searchSchema = catalogFilterSchema.extend({
   collectionId: z.string().optional(),
 })
 
@@ -38,17 +40,23 @@ export const Route = createFileRoute("/catalog/search")({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { collectionId: _collectionId, ...filters } }) =>
     filters,
-  // Only the card search itself is required for this route to render:
-  // series names and facets just populate the filters, so a transport-level
-  // failure on either degrades the filters instead of blocking the results.
+  // Page 1 of the card search is prefetched; later pages load on scroll.
+  // Series names and facets just populate the filters, so a transport-level
+  // failure on any of the three degrades to the page's inline error or an
+  // empty filter instead of crashing the route.
   loader: ({ context: { queryClient }, deps }) =>
     Promise.all([
-      queryClient.ensureQueryData(getSearchCatalogCardsQueryOptions(deps)),
+      queryClient
+        .infiniteQuery({
+          ...catalogInfiniteQueryOptions(deps),
+          staleTime: "static",
+        })
+        .catch(() => undefined),
       queryClient
         .ensureQueryData(getListCatalogSeriesQueryOptions())
         .catch(() => undefined),
       queryClient
-        .ensureQueryData(getListCatalogFacetsQueryOptions(toFacetParams(deps)))
+        .ensureQueryData(getListCatalogFacetsQueryOptions(deps))
         .catch(() => undefined),
     ]),
   component: CatalogSearchPage,
@@ -69,10 +77,16 @@ function CatalogSearchPage() {
   const collection = useCatalogCollection(collectionId, selectCollection)
 
   const seriesQuery = useListCatalogSeries()
-  const facetsQuery = useListCatalogFacets(toFacetParams(search), {
+  const facetsQuery = useListCatalogFacets(search, {
     query: { placeholderData: keepPreviousData },
   })
-  const cardsQuery = useSearchCatalogCards(search)
+  const cardsQuery = useInfiniteCatalogCards(search)
+  const { fetchNextPage } = cardsQuery
+  // cancelRefetch: false, or a call during a background refetch cancels it.
+  const loadMore = useCallback(
+    () => void fetchNextPage({ cancelRefetch: false }),
+    [fetchNextPage]
+  )
 
   const series =
     seriesQuery.data?.status === 200
@@ -81,33 +95,21 @@ function CatalogSearchPage() {
   const facets =
     facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
 
-  const result =
-    cardsQuery.data?.status === 200 ? cardsQuery.data.data : undefined
-  const cardsErrorMessage =
-    cardsQuery.data && cardsQuery.data.status !== 200
-      ? (cardsQuery.data.data.detail ?? "Could not search the catalog.")
-      : undefined
-
-  function updateSearch(patch: Partial<CatalogSearch>) {
-    void navigate({
-      search: (prev) => ({ ...prev, ...patch, page: 1 }),
-    })
-  }
-
-  function handlePageChange(nextPage: number) {
-    void navigate({ search: (prev) => ({ ...prev, page: nextPage }) })
+  function updateSearch(patch: Partial<CatalogFilters>) {
+    void navigate({ search: (prev) => ({ ...prev, ...patch }) })
   }
 
   const resultsProps = {
-    cards: result?.data ?? [],
-    total: result?.meta.total ?? 0,
-    page: search.page,
-    limit: result?.meta.limit ?? 24,
+    cards: cardsQuery.data?.cards ?? [],
+    total: cardsQuery.data?.total ?? 0,
     isPending: cardsQuery.isPending,
-    isError: cardsQuery.isError || Boolean(cardsErrorMessage),
-    errorMessage: cardsErrorMessage,
+    isError: cardsQuery.isError,
+    errorMessage:
+      cardsQuery.error instanceof Error ? cardsQuery.error.message : undefined,
     emptyMessage: "No cards match these filters.",
-    onPageChange: handlePageChange,
+    hasNextPage: cardsQuery.hasNextPage,
+    isFetching: cardsQuery.isFetching,
+    onLoadMore: loadMore,
   }
 
   return (
@@ -147,7 +149,7 @@ function CatalogSearchPage() {
           {...resultsProps}
         />
       ) : (
-        <CardResults {...resultsProps} />
+        <InfiniteCardResults {...resultsProps} />
       )}
     </PageContainer>
   )

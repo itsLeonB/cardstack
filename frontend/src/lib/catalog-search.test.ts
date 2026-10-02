@@ -3,7 +3,7 @@ import {
   defaultStringifySearch,
 } from "@tanstack/react-router"
 import { describe, expect, it } from "vitest"
-import { catalogSearchSchema } from "./catalog-search"
+import { catalogFilterSchema, catalogSearchSchema } from "./catalog-search"
 
 describe("catalogSearchSchema", () => {
   it("wraps a legacy single value into an array", () => {
@@ -31,5 +31,12 @@ describe("catalogSearchSchema", () => {
       "007",
       "V",
     ])
+  })
+})
+
+describe("catalogFilterSchema", () => {
+  it("strips a legacy page param so an old link opens the first page", () => {
+    const parsed = catalogFilterSchema.parse({ page: 3, name: "Pika" })
+    expect(parsed).toEqual({ name: "Pika" })
   })
 })

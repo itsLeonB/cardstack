@@ -5,16 +5,21 @@
  * OpenAPI spec version: 1.0
  */
 import {
+  useInfiniteQuery,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
+  DefinedUseInfiniteQueryResult,
   DefinedUseQueryResult,
+  InfiniteData,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseInfiniteQueryOptions,
+  UseInfiniteQueryResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -119,11 +124,84 @@ export const searchCatalogCards = async (params?: SearchCatalogCardsParams, opti
 
 
 
+export const getSearchCatalogCardsInfiniteQueryKey = (params?: SearchCatalogCardsParams,) => {
+    return [
+    'infinite', `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/catalog/cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
 export const getSearchCatalogCardsQueryKey = (params?: SearchCatalogCardsParams,) => {
     return [
     `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/catalog/cards`, ...(params ? [params] : [])
     ] as const;
     }
+
+
+export const getSearchCatalogCardsInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof searchCatalogCards>>, SearchCatalogCardsParams['page']>, TError = ErrorModel>(params?: SearchCatalogCardsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData, QueryKey, SearchCatalogCardsParams['page']>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchCatalogCardsInfiniteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchCatalogCards>>, QueryKey, SearchCatalogCardsParams['page']> = ({ signal, pageParam }) => searchCatalogCards({...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData, QueryKey, SearchCatalogCardsParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SearchCatalogCardsInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof searchCatalogCards>>>
+export type SearchCatalogCardsInfiniteQueryError = ErrorModel
+
+
+export function useSearchCatalogCardsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof searchCatalogCards>>, SearchCatalogCardsParams['page']>, TError = ErrorModel>(
+ params: undefined |  SearchCatalogCardsParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData, QueryKey, SearchCatalogCardsParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchCatalogCards>>,
+          TError,
+          Awaited<ReturnType<typeof searchCatalogCards>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchCatalogCardsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof searchCatalogCards>>, SearchCatalogCardsParams['page']>, TError = ErrorModel>(
+ params?: SearchCatalogCardsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData, QueryKey, SearchCatalogCardsParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchCatalogCards>>,
+          TError,
+          Awaited<ReturnType<typeof searchCatalogCards>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchCatalogCardsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof searchCatalogCards>>, SearchCatalogCardsParams['page']>, TError = ErrorModel>(
+ params?: SearchCatalogCardsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData, QueryKey, SearchCatalogCardsParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag
+ */
+
+export function useSearchCatalogCardsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof searchCatalogCards>>, SearchCatalogCardsParams['page']>, TError = ErrorModel>(
+ params?: SearchCatalogCardsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData, QueryKey, SearchCatalogCardsParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSearchCatalogCardsInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
 
 
 export const getSearchCatalogCardsQueryOptions = <TData = Awaited<ReturnType<typeof searchCatalogCards>>, TError = ErrorModel>(params?: SearchCatalogCardsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogCards>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}

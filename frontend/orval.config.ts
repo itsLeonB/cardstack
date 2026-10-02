@@ -69,6 +69,13 @@ export default defineConfig({
           path: "./src/lib/http.ts",
           name: "customFetch",
         },
+        operations: {
+          // Only the catalog search needs an infinite hook for now; the
+          // others join as their lists move off the numbered pager.
+          "search-catalog-cards": {
+            query: { useInfinite: true, useInfiniteQueryParam: "page" },
+          },
+        },
       },
     },
   },
