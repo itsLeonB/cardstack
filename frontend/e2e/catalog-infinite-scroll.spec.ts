@@ -48,7 +48,7 @@ async function stubCatalog(page: Page) {
     })
   )
   await page.route("**/catalog/series", (route) =>
-    json(route, { data: { series: [], ungrouped: [] } })
+    json(route, { data: { series: [], ungroupedExpansionSets: [] } })
   )
   await page.route("**/catalog/facets*", (route) =>
     json(route, {
@@ -72,8 +72,15 @@ async function stubCatalog(page: Page) {
   return requests
 }
 
+// Reached by client navigation: a direct load runs the route loader on the dev
+// server, where these browser-level stubs don't apply.
 async function openSearch(page: Page) {
-  await page.goto("/catalog/search")
+  await page.goto("/")
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "Browse the catalog" })
+    .click()
+  await page.getByRole("link", { name: "search the catalog" }).click()
   await expect(
     page.getByRole("heading", { name: "Search the catalog", level: 1 })
   ).toBeVisible()

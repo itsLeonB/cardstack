@@ -44,8 +44,8 @@ export function VirtualGrid<T>({
   const [layout, setLayout] = useState({ width: 0, offsetTop: 0 })
 
   // The list's offset from the document top (header plus filters above it) is
-  // the virtualizer's scroll margin; re-read it when the container, or the
-  // page around it, changes size.
+  // the virtualizer's scroll margin; re-read it when the container changes
+  // size, or when the page (`main`) does, since content above can grow.
   useLayoutEffect(() => {
     const list = listRef.current
     if (!list) return
@@ -61,7 +61,8 @@ export function VirtualGrid<T>({
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(list)
-    if (list.parentElement) observer.observe(list.parentElement)
+    const page = list.closest("main") ?? list.parentElement
+    if (page) observer.observe(page)
     return () => observer.disconnect()
   }, [])
 
