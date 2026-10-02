@@ -289,22 +289,35 @@ func (h *AuthHandler) Routes() []endpoint.Registrable {
 	}
 }
 
+// Fixed client-facing messages: authkit's sentinel text must never reach the
+// response, and wrong password / unknown email must read identically so the
+// endpoint cannot be used to enumerate accounts.
+const (
+	msgUserExists         = "An account with this email already exists."
+	msgInvalidCredentials = "Invalid email or password."
+	msgSessionInvalid     = "Session expired or invalid. Please log in again."
+	msgUserNotFound       = "User not found."
+	msgNotVerified        = "Email address is not verified."
+	msgTooManyRequests    = "Too many requests. Please try again later."
+)
+
 func mapAuthError(err error) error {
 	switch {
 	case errors.Is(err, authkit.ErrUserExists):
-		return ungerr.ConflictError(err.Error())
-	case errors.Is(err, authkit.ErrInvalidCredentials),
-		errors.Is(err, authkit.ErrSessionNotFound),
+		return ungerr.ConflictError(msgUserExists)
+	case errors.Is(err, authkit.ErrInvalidCredentials):
+		return ungerr.UnauthorizedError(msgInvalidCredentials)
+	case errors.Is(err, authkit.ErrSessionNotFound),
 		errors.Is(err, authkit.ErrTokenInvalid),
 		errors.Is(err, authkit.ErrTokenExpired),
 		errors.Is(err, authkit.ErrTokenNotFound):
-		return ungerr.UnauthorizedError(err.Error())
+		return ungerr.UnauthorizedError(msgSessionInvalid)
 	case errors.Is(err, authkit.ErrUserNotFound):
-		return ungerr.NotFoundError(err.Error())
+		return ungerr.NotFoundError(msgUserNotFound)
 	case errors.Is(err, authkit.ErrNotVerified):
-		return ungerr.ForbiddenError(err.Error())
+		return ungerr.ForbiddenError(msgNotVerified)
 	case errors.Is(err, authkit.ErrTooManyRequests):
-		return ungerr.TooManyRequestsError(err.Error())
+		return ungerr.TooManyRequestsError(msgTooManyRequests)
 	default:
 		return err
 	}

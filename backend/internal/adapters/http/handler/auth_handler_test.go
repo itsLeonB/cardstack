@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/humatest"
@@ -13,6 +14,7 @@ import (
 	authkit "github.com/itsLeonB/go-authkit"
 	"github.com/itsLeonB/go-authkit/authkittest"
 	"github.com/itsLeonB/ungerr"
+	"github.com/stretchr/testify/assert"
 )
 
 // withImmediateVerification mirrors this project's production config (empty
@@ -107,9 +109,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	if err := json.Unmarshal(resp.Body.Bytes(), &problem); err != nil {
 		t.Fatalf("decoding error body: %v", err)
 	}
-	if problem.Detail != authkit.ErrInvalidCredentials.Error() {
-		t.Fatalf("expected detail %q, got %q", authkit.ErrInvalidCredentials.Error(), problem.Detail)
-	}
+	assert.Equal(t, "Invalid email or password.", problem.Detail)
 }
 
 func TestAuthHandler_Login_UnknownEmail(t *testing.T) {
@@ -153,6 +153,8 @@ func TestMapAuthError_KnownStatuses(t *testing.T) {
 		var appErr ungerr.AppError
 		if !errors.As(mapAuthError(in), &appErr) || appErr.HttpStatus() != want {
 			t.Errorf("%v: want status %d, got %v", in, want, mapAuthError(in))
+			continue
 		}
+		assert.NotContains(t, strings.ToLower(appErr.Error()), "authkit", "%v leaks authkit text", in)
 	}
 }
