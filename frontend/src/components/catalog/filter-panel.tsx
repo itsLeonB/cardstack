@@ -12,14 +12,14 @@ import {
 import { Input } from "@/components/ui/input"
 import type { CatalogFacets } from "@/generated/models"
 import { hasActiveFilters } from "@/lib/catalog-search"
-import type { CatalogSearch } from "@/lib/catalog-search"
+import type { CatalogFilters } from "@/lib/catalog-search"
 
 interface CatalogFilterPanelProps {
-  search: CatalogSearch
+  search: CatalogFilters
   facets: CatalogFacets | undefined
   series: { id: string; name: string }[]
   /** Called with the changed filters; the caller resets the page. */
-  onChange: (patch: Partial<CatalogSearch>) => void
+  onChange: (patch: Partial<CatalogFilters>) => void
   onClear: () => void
 }
 

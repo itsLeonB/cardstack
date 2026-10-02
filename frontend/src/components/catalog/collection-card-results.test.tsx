@@ -69,12 +69,12 @@ function renderResults(cards: CardSummary[] = [card]) {
         collectionId="col-1"
         cards={cards}
         total={cards.length}
-        page={1}
-        limit={24}
         isPending={false}
         isError={false}
         emptyMessage="none"
-        onPageChange={vi.fn()}
+        hasNextPage={false}
+        isFetching={false}
+        onLoadMore={vi.fn()}
       />
     </QueryClientProvider>
   )
@@ -112,6 +112,19 @@ describe("CollectionCardResults", () => {
         }),
       })
     )
+  })
+
+  it("caps the lookup at the endpoint's 100-id limit", () => {
+    setEntries([])
+    renderResults(
+      Array.from({ length: 120 }, (_, index) => ({
+        ...card,
+        id: `card-${index}`,
+      }))
+    )
+    const [, params] = entries.mock.calls[0]!
+    expect(params?.cardId).toHaveLength(100)
+    expect(params?.limit).toBe(100)
   })
 
   it("never fires the lookup with an empty card list", () => {
