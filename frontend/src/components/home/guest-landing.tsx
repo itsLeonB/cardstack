@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const steps = [
   {
@@ -61,17 +62,21 @@ export function GuestLanding() {
         </ol>
       </section>
 
-      <section className="flex flex-col items-start gap-4 rounded-4xl bg-card p-6 ring-1 ring-foreground/5 sm:p-8">
-        <h2 className="font-heading text-xl font-medium">
-          Ready to count your cards?
-        </h2>
-        <p className="text-sm">
-          Create a free account and start your first Collection.
-        </p>
-        <Button size="lg" render={<Link to="/register" />}>
-          Create account
-        </Button>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-xl">Ready to count your cards?</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-start gap-4">
+          <p className="text-sm">
+            Create a free account and start your first Collection.
+          </p>
+          <Button size="lg" render={<Link to="/register" />}>
+            Create account
+          </Button>
+        </CardContent>
+      </Card>
     </PageContainer>
   )
 }

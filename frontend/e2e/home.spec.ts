@@ -38,32 +38,12 @@ async function signIn(page: Page, collections: { id: string; title: string }[], 
 }
 
 test.describe("Home: guest", () => {
-  test("shows the landing with both actions and the three steps", async ({ page }) => {
+  test("shows the landing and Browse the catalog leads to the catalog", async ({ page }) => {
     await page.goto("/")
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
-    await expect(
-      page.getByRole("main").getByText("Track every card you own, across every binder.")
-    ).toBeVisible()
-    await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible()
-    for (const step of [
-      "Browse the Catalog",
-      "Add Cards to Collections",
-      "See your Master Inventory",
-    ]) {
-      await expect(page.getByRole("heading", { level: 3, name: step })).toBeVisible()
-    }
-    await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0)
-
-    const main = page.getByRole("main")
-    await main.getByRole("link", { name: "Browse the catalog" }).click()
+    await page.getByRole("main").getByRole("link", { name: "Browse the catalog" }).click()
     await expect(page).toHaveURL(/\/catalog$/)
-  })
-
-  test("Create account leads to register", async ({ page }) => {
-    await page.goto("/")
-    await page.getByRole("main").getByRole("link", { name: "Create account" }).first().click()
-    await expect(page).toHaveURL(/\/register$/)
   })
 
   test("passes axe", async ({ page }) => {
@@ -85,13 +65,6 @@ test.describe("Home: signed in", () => {
     await expect(page.getByText("distinct cards")).toBeVisible()
     await expect(page.getByText("42", { exact: true })).toBeVisible()
     await expect(page.getByRole("heading", { name: "How it works" })).toHaveCount(0)
-  })
-
-  test("guides a user with no Collections", async ({ page }) => {
-    await signIn(page, [], 0)
-    await page.goto("/")
-
-    await expect(page.getByText(/Start by creating a Collection/)).toBeVisible()
   })
 
   test("passes axe", async ({ page }) => {

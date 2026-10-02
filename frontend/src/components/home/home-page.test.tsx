@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   RouterProvider,
@@ -167,5 +167,71 @@ describe("signed-in dashboard", () => {
 
     expect(await screen.findByText(/Start by creating a Collection/)).toBeTruthy()
     expect(screen.getByRole("link", { name: "New collection" })).toBeTruthy()
+  })
+})
+
+describe("signed-in dashboard load failures", () => {
+  const failedQuery = (refetch: () => void) => ({
+    data: undefined,
+    isPending: false,
+    isError: true,
+    refetch,
+  })
+
+  it("shows an alert with a working Retry when Collections fail to load", async () => {
+    session("signed-in")
+    dashboardData([], 3)
+    const refetch = vi.fn()
+    // SAFETY: partial hook result, see session().
+    mockCollections.mockReturnValue(failedQuery(refetch) as any)
+    await renderHome()
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Could not load your Collections.")
+    expect(screen.queryByText(/Start by creating a Collection/)).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows an alert with a working Retry when the Master Inventory total fails to load", async () => {
+    session("signed-in")
+    dashboardData([{ id: "c1", title: "Trade binder" }], 0)
+    const refetch = vi.fn()
+    // SAFETY: partial hook result, see session().
+    mockInventory.mockReturnValue(failedQuery(refetch) as any)
+    await renderHome()
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Could not load your Master Inventory total."
+    )
+    expect(screen.queryByText("distinct cards")).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it("labels the loading states", async () => {
+    session("signed-in")
+    // SAFETY: partial hook results, see session().
+    mockCollections.mockReturnValue({ data: undefined, isPending: true, isError: false } as any)
+    // SAFETY: partial hook results, see session().
+    mockInventory.mockReturnValue({ data: undefined, isPending: true, isError: false } as any)
+    await renderHome()
+
+    expect(await screen.findByRole("status", { name: "Loading Collections" })).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Loading Master Inventory total" })).toBeTruthy()
+  })
+
+  it("lists five Collections and links to the rest", async () => {
+    session("signed-in")
+    dashboardData(
+      Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, title: `Binder ${i}` })),
+      1
+    )
+    await renderHome()
+
+    expect(await screen.findByRole("link", { name: "Binder 4" })).toBeTruthy()
+    expect(screen.queryByRole("link", { name: "Binder 5" })).toBeNull()
+    expect(
+      screen.getByRole("link", { name: "View all Collections" }).getAttribute("href")
+    ).toBe("/collections")
   })
 })

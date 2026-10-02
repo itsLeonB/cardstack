@@ -4,6 +4,7 @@ import { useListMasterInventory } from "@/generated/endpoints/inventory/inventor
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { errorDetail } from "@/lib/collections"
 import { useSession } from "@/lib/session"
@@ -51,29 +52,53 @@ function MasterInventorySummary() {
   )
   const total = query.data?.status === 200 ? query.data.data.meta.total : undefined
   const failed =
-    query.isError || errorDetail(query.data, "Could not load your Master Inventory.")
+    query.isError ||
+    errorDetail(query.data, "Could not load your Master Inventory.") !== undefined
 
   return (
-    <section
-      className="flex flex-col gap-1 rounded-4xl bg-card p-6 ring-1 ring-foreground/5"
-      aria-labelledby="inventory-summary"
-    >
-      <h2 id="inventory-summary" className="font-heading text-lg font-medium">
-        Master Inventory
-      </h2>
-      {query.isPending && <Skeleton className="h-9 w-24" aria-hidden="true" />}
-      {total !== undefined && (
-        <p>
-          <span className="font-heading text-3xl font-medium">{total}</span>{" "}
-          <span className="text-sm">distinct cards</span>
-        </p>
-      )}
-      {failed && (
-        <p role="alert" className="text-sm text-destructive">
-          Could not load your Master Inventory total.
-        </p>
-      )}
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h2>Master Inventory</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {query.isPending && (
+          <Skeleton
+            className="h-9 w-24"
+            role="status"
+            aria-busy="true"
+            aria-label="Loading Master Inventory total"
+          />
+        )}
+        {total !== undefined && (
+          <p>
+            <span className="font-heading text-3xl font-medium">{total}</span>{" "}
+            <span className="text-sm">distinct cards</span>
+          </p>
+        )}
+        {failed && (
+          <LoadError
+            message="Could not load your Master Inventory total."
+            onRetry={() => void query.refetch()}
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Inline page-data failure: message plus a Retry that refetches the query. */
+function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <p role="alert" className="text-sm text-destructive">
+        {message}
+      </p>
+      <Button size="sm" variant="outline" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
   )
 }
 
@@ -82,7 +107,8 @@ function CollectionsSummary() {
   const collections =
     query.data?.status === 200 ? (query.data.data.data ?? []) : []
   const failed =
-    query.isError || errorDetail(query.data, "Could not load your Collections.")
+    query.isError ||
+    errorDetail(query.data, "Could not load your Collections.") !== undefined
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="collections-summary">
@@ -95,12 +121,20 @@ function CollectionsSummary() {
         </Button>
       </div>
 
-      {query.isPending && <Skeleton className="h-16 w-full" aria-hidden="true" />}
+      {query.isPending && (
+        <Skeleton
+          className="h-16 w-full"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading Collections"
+        />
+      )}
 
       {failed && (
-        <p role="alert" className="text-sm text-destructive">
-          Could not load your Collections.
-        </p>
+        <LoadError
+          message="Could not load your Collections."
+          onRetry={() => void query.refetch()}
+        />
       )}
 
       {!query.isPending && !failed && collections.length === 0 && (
