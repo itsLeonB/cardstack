@@ -1,0 +1,19 @@
+frontend/src/lib/use-quantity-batch.ts
+  s_d2312505f342c2::t_e09ff29f044916 72-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6b895628ad805fee267d00cff74a0fc01c42fd57",
+  "prompts": {},
+  "sessions": {
+    "s_d2312505f342c2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d2312505f342c2",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
