@@ -100,7 +100,8 @@ export function InfiniteCardResults({
       >
         {showList ? `${cards.length} of ${total} cards loaded` : ""}
       </p>
-      {showList && (
+      {/* Hidden once the last page is loaded; while fetching it stays, inert, so focus isn't lost. */}
+      {showList && hasNextPage && (
         <Button
           type="button"
           variant="outline"

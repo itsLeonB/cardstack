@@ -252,7 +252,7 @@ test.describe("Catalog search grid", () => {
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   })
 
-  test("keeps keyboard focus when its row scrolls out, and tabs on to Load more and the footer", async ({
+  test("keeps keyboard focus when its row scrolls out, and tabs on to the footer once Load more is gone", async ({
     page,
   }) => {
     await stubCatalog(page)
@@ -264,8 +264,8 @@ test.describe("Catalog search grid", () => {
     await scrollToBottom(page)
     await expect(page.getByText("120 of 300 cards loaded")).toBeVisible()
     await expect(firstLink).toBeFocused()
-    // With every page loaded, the last tile is the end of the list: Tab goes to
-    // Load more (inert but focusable), and the next Tab to the footer.
+    // With every page loaded, Load more is gone: Tab from the last tile goes
+    // straight to the footer.
     await expect
       .poll(async () => {
         await scrollToBottom(page)
@@ -274,8 +274,7 @@ test.describe("Catalog search grid", () => {
       .toBe(1)
     await expect(page.getByTitle("Beta 299")).toBeVisible()
     await page.getByRole("listitem").last().getByRole("link").last().focus()
-    await page.keyboard.press("Tab")
-    await expect(page.getByRole("button", { name: "Load more" })).toBeFocused()
+    await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0)
     await page.keyboard.press("Tab")
     await expect(
       page.getByRole("contentinfo").getByRole("link").first()

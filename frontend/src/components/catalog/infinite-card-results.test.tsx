@@ -134,21 +134,18 @@ describe("InfiniteCardResults", () => {
     expect(onLoadMore).toHaveBeenCalledTimes(1)
   })
 
-  it("keeps the button focusable but inert when there is nothing to load", async () => {
-    const onLoadMore = renderResults({ hasNextPage: false, total: 200 })
+  it("hides the button once every page is loaded", () => {
+    renderResults({ hasNextPage: false, total: 200 })
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull()
+  })
+
+  it("keeps the button, focusable but inert, while a fetch is in flight", async () => {
+    const onLoadMore = renderResults({ isFetching: true })
     const button = screen.getByRole("button", { name: "Load more" })
     expect(button.getAttribute("aria-disabled")).toBe("true")
     expect(button.hasAttribute("disabled")).toBe(false)
 
-    button.focus()
-    await userEvent.keyboard("{Enter}")
-    expect(document.activeElement).toBe(button)
-    expect(onLoadMore).not.toHaveBeenCalled()
-  })
-
-  it("is inert while a fetch is in flight", async () => {
-    const onLoadMore = renderResults({ isFetching: true })
-    await userEvent.click(screen.getByRole("button", { name: "Load more" }))
+    await userEvent.click(button)
     expect(onLoadMore).not.toHaveBeenCalled()
   })
 })
