@@ -1,0 +1,43 @@
+backend/cmd/ingest-pokemon-asia/main.go
+  s_075e7871d362cf::t_105339a2b7d251 30-34,85-89
+backend/internal/adapters/db/postgres/migrations/20261003000000_expansion_sets_image_url.sql
+  s_075e7871d362cf::t_239e7411fb0b25 1-5
+backend/internal/adapters/ingestion/pokemonasia/ingest.go
+  s_075e7871d362cf::t_7b6ee3a2840130 146-160,204-208,532,540
+backend/internal/adapters/ingestion/pokemonasia/ingest_test.go
+  s_075e7871d362cf::t_099bab2573b7ba 8,96,101,108,113,776-830
+backend/internal/adapters/ingestion/pokemonasia/mapper.go
+  s_075e7871d362cf::t_f6c6dd474d41d0 72-73,79
+backend/internal/adapters/ingestion/pokemonasia/mapper_test.go
+  s_075e7871d362cf::t_b186d1da51935f 28,74,77
+backend/internal/adapters/ingestion/pokemonasia/types.go
+  s_075e7871d362cf::t_0d93a161d91d1f 13-15
+backend/internal/domain/dto/catalog_dto.go
+  s_075e7871d362cf::t_4f7ba725f226c3 16
+backend/internal/domain/entity/expansion_set.go
+  s_075e7871d362cf::t_8979c404a17c98 16-18,27
+backend/internal/domain/mapper/catalog_mapper.go
+  s_075e7871d362cf::t_9bf33ecd6cf248 18,44
+backend/internal/domain/mapper/catalog_mapper_test.go
+  s_075e7871d362cf::t_1f8eb64322818b 1-14
+backend/internal/domain/repository/catalog_repository.go
+  s_075e7871d362cf::t_5ac2d308d6e614 260,278-279
+backend/openapi.json
+  s_075e7871d362cf::t_8e2ae933832da8 549-551,567-568,581-583,595-596
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e11bcdb28208baf3c81ce76698cca497c73bc1b2",
+  "prompts": {},
+  "sessions": {
+    "s_075e7871d362cf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_075e7871d362cf",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
