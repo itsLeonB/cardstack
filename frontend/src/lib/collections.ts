@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
+import type { QueryClient } from "@tanstack/react-query"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 import {
   getGetCollectionQueryKey,
@@ -7,6 +8,25 @@ import {
   useDeleteCollection,
   useUpdateCollection,
 } from "@/generated/endpoints/collections/collections"
+
+/**
+ * Inventory Entry changes move a Collection's `cardCount`. The list route's
+ * loader serves cached data, so refetch inactive queries now instead of
+ * letting the next visit flash the old count.
+ */
+export function invalidateCollectionCounts(
+  queryClient: QueryClient,
+  collectionId: string
+) {
+  void queryClient.invalidateQueries({
+    queryKey: getListCollectionsQueryKey(),
+    refetchType: "all",
+  })
+  void queryClient.invalidateQueries({
+    queryKey: getGetCollectionQueryKey(collectionId),
+    refetchType: "all",
+  })
+}
 
 export function useCreateCollectionMutation() {
   const queryClient = useQueryClient()

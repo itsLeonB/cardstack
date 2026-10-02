@@ -9,7 +9,10 @@ import {
   useListCollectionEntries,
   useListCollectionFacets,
 } from "@/generated/endpoints/inventory/inventory"
-import { useListCatalogSeries, useSearchCatalogCards } from "@/generated/endpoints/catalog/catalog"
+import {
+  useListCatalogSeries,
+  useSearchCatalogCards,
+} from "@/generated/endpoints/catalog/catalog"
 import type { CardSummary } from "@/generated/models"
 import type { CatalogSearch } from "@/lib/catalog-search"
 
@@ -35,7 +38,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof TanStackRouter>()
   return {
     ...actual,
-    Link: ({ children, params: _params, to: _to, ...props }: any) => <a {...props}>{children}</a>,
+    Link: ({ children, params: _params, to: _to, ...props }: any) => (
+      <a {...props}>{children}</a>
+    ),
   }
 })
 
@@ -59,7 +64,10 @@ const card: CardSummary = {
 const onSearchChange = vi.fn()
 const bulk = vi.mocked(bulkUpdateCollectionEntries)
 
-function setList(items: { card: CardSummary; quantity: number }[], total = items.length) {
+function setList(
+  items: { card: CardSummary; quantity: number }[],
+  total = items.length
+) {
   // SAFETY: partial mock; the component reads only status/data and isPending/isError.
   vi.mocked(useListCollectionEntries).mockReturnValue({
     isPending: false,
@@ -75,13 +83,18 @@ function setList(items: { card: CardSummary; quantity: number }[], total = items
 function renderEntries(search: CatalogSearch = { page: 1 }) {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <CollectionEntries collectionId="col-1" search={search} onSearchChange={onSearchChange} />
+      <CollectionEntries
+        collectionId="col-1"
+        search={search}
+        onSearchChange={onSearchChange}
+      />
     </QueryClientProvider>
   )
 }
 
 // SAFETY: the labelled control is an <input>.
-const quantityInput = () => screen.getByLabelText("Quantity of Pikachu V") as HTMLInputElement
+const quantityInput = () =>
+  screen.getByLabelText("Quantity of Pikachu V") as HTMLInputElement
 
 async function advance(ms: number) {
   await act(async () => {
@@ -109,7 +122,9 @@ describe("CollectionEntries", () => {
         data: {
           data: {
             expansionSets: [],
-            rarities: [{ id: "r-1", code: "RR", name: "Double Rare", available: true }],
+            rarities: [
+              { id: "r-1", code: "RR", name: "Double Rare", available: true },
+            ],
             categories: [],
             tags: [],
           },
@@ -159,14 +174,17 @@ describe("CollectionEntries", () => {
     const calls = vi.mocked(useListCollectionEntries).mock.calls
     const shouldRefetch = () => {
       // SAFETY: the component passes a function; the test calls it like TanStack Query would.
-      const option = calls.at(-1)?.[2]?.query?.refetchOnWindowFocus as () => boolean
+      const option = calls.at(-1)?.[2]?.query
+        ?.refetchOnWindowFocus as () => boolean
       return option()
     }
 
     expect(shouldRefetch()).toBe(true)
 
     bulk.mockReturnValue(new Promise(() => {}))
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     expect(shouldRefetch()).toBe(false)
 
     await advance(QUANTITY_DEBOUNCE_MS)
@@ -181,16 +199,25 @@ describe("CollectionEntries", () => {
     const calls = vi.mocked(useListCollectionEntries).mock.calls
     const shouldRefetch = () => {
       // SAFETY: the component passes a function; the test calls it like TanStack Query would.
-      const option = calls.at(-1)?.[2]?.query?.refetchOnWindowFocus as () => boolean
+      const option = calls.at(-1)?.[2]?.query
+        ?.refetchOnWindowFocus as () => boolean
       return option()
     }
     let failFirst: () => void = () => {}
-    bulk.mockReturnValueOnce(new Promise((_, reject) => (failFirst = () => reject(new Error("offline")))))
+    bulk.mockReturnValueOnce(
+      new Promise(
+        (_, reject) => (failFirst = () => reject(new Error("offline")))
+      )
+    )
     bulk.mockReturnValueOnce(new Promise(() => {}))
 
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     await advance(QUANTITY_DEBOUNCE_MS)
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     await advance(QUANTITY_DEBOUNCE_MS)
     expect(bulk).toHaveBeenCalledTimes(1)
 
@@ -207,9 +234,13 @@ describe("CollectionEntries", () => {
     setList([{ card, quantity: 3 }])
     renderEntries()
 
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     expect(quantityInput().value).toBe("4")
-    fireEvent.click(screen.getByRole("button", { name: "Decrease quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Decrease quantity of Pikachu V" })
+    )
     fireEvent.change(quantityInput(), { target: { value: "7" } })
     expect(quantityInput().value).toBe("7")
 
@@ -217,7 +248,9 @@ describe("CollectionEntries", () => {
     expect(bulk).not.toHaveBeenCalled()
     await advance(1)
     expect(bulk).toHaveBeenCalledTimes(1)
-    expect(bulk).toHaveBeenCalledWith("col-1", { items: [{ cardId: "card-1", quantity: 7 }] })
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 7 }],
+    })
   })
 
   it("keeps the tile visible at 0 after the removal is saved", async () => {
@@ -230,13 +263,19 @@ describe("CollectionEntries", () => {
     } as any)
     renderEntries()
 
-    fireEvent.click(screen.getByRole("button", { name: "Decrease quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Decrease quantity of Pikachu V" })
+    )
     await advance(QUANTITY_DEBOUNCE_MS)
 
-    expect(bulk).toHaveBeenCalledWith("col-1", { items: [{ cardId: "card-1", quantity: 0 }] })
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 0 }],
+    })
     expect(screen.getAllByText("Pikachu V").length).toBeGreaterThan(0)
     expect(quantityInput().value).toBe("0")
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     expect(quantityInput().value).toBe("1")
   })
 
@@ -248,7 +287,13 @@ describe("CollectionEntries", () => {
       status: 200,
       data: {
         data: [
-          { cardId: "card-1", quantity: 3, status: "declined", reason: "capacity_exceeded", message: "Capacity exceeded" },
+          {
+            cardId: "card-1",
+            quantity: 3,
+            status: "declined",
+            reason: "capacity_exceeded",
+            message: "Capacity exceeded",
+          },
         ],
       },
     } as any)
@@ -272,7 +317,9 @@ describe("CollectionEntries", () => {
 
     // The batch goes out without waiting for the debounce, and navigation follows it.
     await advance(0)
-    expect(bulk).toHaveBeenCalledWith("col-1", { items: [{ cardId: "card-1", quantity: 5 }] })
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 5 }],
+    })
     expect(onSearchChange).toHaveBeenCalledWith({ page: 1, rarityId: ["r-1"] })
   })
 
@@ -293,11 +340,19 @@ describe("CollectionEntries", () => {
     vi.useFakeTimers()
     setList([{ card, quantity: 0 }])
     renderEntries()
-    expect(screen.getByRole("button", { name: "Decrease quantity of Pikachu V" }).hasAttribute("disabled")).toBe(true)
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    expect(
+      screen
+        .getByRole("button", { name: "Decrease quantity of Pikachu V" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     expect(quantityInput().value).toBe("1")
     await advance(QUANTITY_DEBOUNCE_MS)
-    expect(bulk).toHaveBeenCalledWith("col-1", { items: [{ cardId: "card-1", quantity: 1 }] })
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 1 }],
+    })
   })
 
   it("keeps both filter clicks made while a flush is pending", async () => {
@@ -331,6 +386,9 @@ describe("CollectionEntries", () => {
     await advance(0)
 
     expect(onSearchChange).toHaveBeenCalledTimes(1)
-    expect(onSearchChange).toHaveBeenCalledWith({ page: 1, rarityId: ["r-1", "r-2"] })
+    expect(onSearchChange).toHaveBeenCalledWith({
+      page: 1,
+      rarityId: ["r-1", "r-2"],
+    })
   })
 })

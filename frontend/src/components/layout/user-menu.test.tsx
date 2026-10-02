@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import { toast } from "sonner"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
@@ -19,8 +25,9 @@ import { UserMenu } from "./user-menu"
 // through the real generated hook with `fetch` stubbed.
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual =
-    await vi.importActual<typeof AuthModule>("@/generated/endpoints/auth/auth")
+  const actual = await vi.importActual<typeof AuthModule>(
+    "@/generated/endpoints/auth/auth"
+  )
   return { ...actual, useGetCurrentUser: vi.fn() }
 })
 
@@ -31,7 +38,10 @@ afterEach(() => {
 })
 
 function stubFetch(respond: () => Response | Promise<Response>) {
-  vi.stubGlobal("fetch", vi.fn(async () => respond()))
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => respond())
+  )
   vi.stubGlobal("matchMedia", () => ({
     matches: false,
     addEventListener: () => {},
@@ -42,7 +52,10 @@ function stubFetch(respond: () => Response | Promise<Response>) {
 async function openAndLogOut() {
   // SAFETY: partial mock covering only the fields useSession reads.
   vi.mocked(useGetCurrentUser).mockReturnValue({
-    data: { status: 200, data: { data: { id: "1", email: "ada@example.com" } } },
+    data: {
+      status: 200,
+      data: { data: { id: "1", email: "ada@example.com" } },
+    },
     isPending: false,
   } as any)
   const root = createRootRoute({
@@ -72,10 +85,14 @@ async function openAndLogOut() {
 
 describe("UserMenu logout", () => {
   it("shows a toast and stays put when the server rejects the logout", async () => {
-    stubFetch(() => new Response(JSON.stringify({ detail: "nope" }), { status: 500 }))
+    stubFetch(
+      () => new Response(JSON.stringify({ detail: "nope" }), { status: 500 })
+    )
     const router = await openAndLogOut()
 
-    expect(await screen.findByText("Could not log out. You are still signed in.")).toBeTruthy()
+    expect(
+      await screen.findByText("Could not log out. You are still signed in.")
+    ).toBeTruthy()
     expect(router.state.location.pathname).toBe("/")
   })
 
@@ -83,7 +100,9 @@ describe("UserMenu logout", () => {
     stubFetch(() => Promise.reject(new TypeError("Failed to fetch")))
     await openAndLogOut()
 
-    expect(await screen.findByText("Could not log out. You are still signed in.")).toBeTruthy()
+    expect(
+      await screen.findByText("Could not log out. You are still signed in.")
+    ).toBeTruthy()
   })
 
   it("navigates to login without a toast on success", async () => {
@@ -91,7 +110,9 @@ describe("UserMenu logout", () => {
     const error = vi.spyOn(toast, "error")
     const router = await openAndLogOut()
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"))
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/auth/login")
+    )
     expect(error).not.toHaveBeenCalled()
   })
 })

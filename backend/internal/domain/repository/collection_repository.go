@@ -23,6 +23,12 @@ type CollectionRepository interface {
 	// zero value with a nil error. forUpdate row-locks the match; use it
 	// inside crud.Transactor.WithinTransaction with the callback's ctx.
 	GetOwnedCollection(ctx context.Context, profileID, collectionID uuid.UUID, forUpdate bool) (entity.Collection, error)
+	// SumQuantities returns each Collection's summed Inventory Entry quantity
+	// in one grouped query. Collections with no entries are absent from the
+	// map, so a lookup yields 0. go-crud has no aggregate, hence raw GORM.
+	// It must count quantity the same way InventoryRepository.SumQuantity
+	// does, or the displayed count disagrees with the capacity check.
+	SumQuantities(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error)
 }
 
 type collectionRepository struct {
@@ -53,4 +59,36 @@ func (r *collectionRepository) GetOwnedCollection(ctx context.Context, profileID
 	}
 
 	return c, nil
+}
+
+func (r *collectionRepository) SumQuantities(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	sums := make(map[uuid.UUID]int, len(collectionIDs))
+	if len(collectionIDs) == 0 {
+		return sums, nil
+	}
+
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []struct {
+		CollectionID uuid.UUID
+		Total        int
+	}
+	err = db.Model(&entity.InventoryEntry{}).
+		Select("collection_id, SUM(quantity) AS total").
+		Where("collection_id IN ?", collectionIDs).
+		Group("collection_id").
+		Scan(&rows).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "summing collection quantities")
+	}
+
+	for _, row := range rows {
+		sums[row.CollectionID] = row.Total
+	}
+
+	return sums, nil
 }

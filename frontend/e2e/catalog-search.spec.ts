@@ -106,12 +106,20 @@ test.describe("Catalog search", () => {
 
     await page.getByRole("button", { name: /^Expansion Set/ }).click()
     await page.getByLabel("Search Expansion Set").fill("Ungrouped")
-    await expect(page.getByRole("checkbox", { name: /Test Set Alpha/ })).toHaveCount(0)
-    await page.getByRole("checkbox", { name: "Ungrouped Test Set (TSU)" }).click()
+    await expect(
+      page.getByRole("checkbox", { name: /Test Set Alpha/ })
+    ).toHaveCount(0)
+    await page
+      .getByRole("checkbox", { name: "Ungrouped Test Set (TSU)" })
+      .click()
     await page.keyboard.press("Escape")
 
-    await expect(page.getByRole("listitem").filter({ hasText: "E2E Orphan Card" })).toHaveCount(1)
-    await page.getByRole("button", { name: "Remove Ungrouped Test Set (TSU)" }).click()
+    await expect(
+      page.getByRole("listitem").filter({ hasText: "E2E Orphan Card" })
+    ).toHaveCount(1)
+    await page
+      .getByRole("button", { name: "Remove Ungrouped Test Set (TSU)" })
+      .click()
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0)
   })
 })

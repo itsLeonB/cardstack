@@ -19,8 +19,9 @@ import { SiteHeader } from "./site-header"
 // service layer to inject (same approach as lib/session.test.tsx).
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual =
-    await vi.importActual<typeof AuthModule>("@/generated/endpoints/auth/auth")
+  const actual = await vi.importActual<typeof AuthModule>(
+    "@/generated/endpoints/auth/auth"
+  )
   return { ...actual, useGetCurrentUser: vi.fn() }
 })
 
@@ -43,7 +44,10 @@ function mockSession(session: "guest" | "signed-in" | "loading") {
       : session === "guest"
         ? ({ data: { status: 401 }, isPending: false } as any)
         : ({
-            data: { status: 200, data: { data: { id: "1", email: "ada@example.com" } } },
+            data: {
+              status: 200,
+              data: { data: { id: "1", email: "ada@example.com" } },
+            },
             isPending: false,
           } as any)
   )
@@ -60,9 +64,15 @@ async function renderShell(path = "/") {
     ),
   })
   const routeTree = root.addChildren(
-    ["/", "/catalog", "/collections", "/inventory", "/auth/login", "/auth/register", "/account"].map(
-      (p) => createRoute({ getParentRoute: () => root, path: p })
-    )
+    [
+      "/",
+      "/catalog",
+      "/collections",
+      "/inventory",
+      "/auth/login",
+      "/auth/register",
+      "/account",
+    ].map((p) => createRoute({ getParentRoute: () => root, path: p }))
   )
   const router = createRouter({
     routeTree,
@@ -92,7 +102,9 @@ describe("SiteHeader", () => {
       "Log in",
       "Register",
     ])
-    expect(within(header).queryByRole("button", { name: "User menu" })).toBeNull()
+    expect(
+      within(header).queryByRole("button", { name: "User menu" })
+    ).toBeNull()
   })
 
   it("shows Catalog, Collections and Master Inventory plus a user menu when signed in", async () => {
@@ -104,14 +116,18 @@ describe("SiteHeader", () => {
       "Collections",
       "Master Inventory",
     ])
-    expect(within(header).getByRole("button", { name: "User menu" })).toBeTruthy()
+    expect(
+      within(header).getByRole("button", { name: "User menu" })
+    ).toBeTruthy()
   })
 
   it("shows only Catalog while the session is loading", async () => {
     mockSession("loading")
     const header = await renderShell()
 
-    expect(linkNames(within(header).getByRole("navigation"))).toEqual(["Catalog"])
+    expect(linkNames(within(header).getByRole("navigation"))).toEqual([
+      "Catalog",
+    ])
   })
 
   it("marks the current section as the current page", async () => {
@@ -121,7 +137,9 @@ describe("SiteHeader", () => {
     const current = within(header).getByRole("link", { name: "Collections" })
     expect(current.getAttribute("aria-current")).toBe("page")
     expect(
-      within(header).getByRole("link", { name: "Catalog" }).getAttribute("aria-current")
+      within(header)
+        .getByRole("link", { name: "Catalog" })
+        .getAttribute("aria-current")
     ).toBeNull()
   })
 

@@ -5,7 +5,9 @@ import { test, expect } from "playwright/test"
 // Series/Expansion Set and a series-less ("ungrouped") Expansion Set.
 
 test.describe("Catalog browse", () => {
-  test("lists a Series with its Expansion Set and drills into its cards", async ({ page }) => {
+  test("lists a Series with its Expansion Set and drills into its cards", async ({
+    page,
+  }) => {
     await page.goto("/catalog")
 
     await expect(
@@ -19,7 +21,9 @@ test.describe("Catalog browse", () => {
     await setLink.click()
 
     await expect(page).toHaveURL(/\/catalog\/sets\//)
-    await expect(page.getByRole("heading", { name: "Test Set Alpha", level: 1 })).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "Test Set Alpha", level: 1 })
+    ).toBeVisible()
     await expect(page.getByText("3 cards", { exact: true })).toBeVisible()
 
     const cards = page.getByRole("listitem")
@@ -29,7 +33,9 @@ test.describe("Catalog browse", () => {
     await expect(cards.filter({ hasText: "E2E Trainer Card" })).toHaveCount(1)
   })
 
-  test("lists an Ungrouped Expansion Set and drills into its card", async ({ page }) => {
+  test("lists an Ungrouped Expansion Set and drills into its card", async ({
+    page,
+  }) => {
     await page.goto("/catalog")
 
     await expect(

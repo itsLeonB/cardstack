@@ -10,5 +10,8 @@ it("invalidates both the Master Inventory list and its facets", () => {
   // SAFETY: only invalidateQueries is used.
   invalidateMasterInventory({ invalidateQueries } as any)
   const keys = invalidateQueries.mock.calls.map(([arg]) => arg.queryKey)
-  expect(keys).toEqual([getListMasterInventoryQueryKey(), getListMasterInventoryFacetsQueryKey()])
+  expect(keys).toEqual([
+    getListMasterInventoryQueryKey(),
+    getListMasterInventoryFacetsQueryKey(),
+  ])
 })

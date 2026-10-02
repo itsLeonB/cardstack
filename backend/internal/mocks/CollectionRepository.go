@@ -530,6 +530,65 @@ func (_c *MockCollectionRepository_SaveMany_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// SumQuantities provides a mock function with given fields: ctx, collectionIDs
+func (_m *MockCollectionRepository) SumQuantities(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	ret := _m.Called(ctx, collectionIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SumQuantities")
+	}
+
+	var r0 map[uuid.UUID]int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]int, error)); ok {
+		return rf(ctx, collectionIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]int); ok {
+		r0 = rf(ctx, collectionIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID]int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = rf(ctx, collectionIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCollectionRepository_SumQuantities_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SumQuantities'
+type MockCollectionRepository_SumQuantities_Call struct {
+	*mock.Call
+}
+
+// SumQuantities is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionIDs []uuid.UUID
+func (_e *MockCollectionRepository_Expecter) SumQuantities(ctx interface{}, collectionIDs interface{}) *MockCollectionRepository_SumQuantities_Call {
+	return &MockCollectionRepository_SumQuantities_Call{Call: _e.mock.On("SumQuantities", ctx, collectionIDs)}
+}
+
+func (_c *MockCollectionRepository_SumQuantities_Call) Run(run func(ctx context.Context, collectionIDs []uuid.UUID)) *MockCollectionRepository_SumQuantities_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockCollectionRepository_SumQuantities_Call) Return(_a0 map[uuid.UUID]int, _a1 error) *MockCollectionRepository_SumQuantities_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCollectionRepository_SumQuantities_Call) RunAndReturn(run func(context.Context, []uuid.UUID) (map[uuid.UUID]int, error)) *MockCollectionRepository_SumQuantities_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function with given fields: ctx, model
 func (_m *MockCollectionRepository) Update(ctx context.Context, model entity.Collection) (entity.Collection, error) {
 	ret := _m.Called(ctx, model)

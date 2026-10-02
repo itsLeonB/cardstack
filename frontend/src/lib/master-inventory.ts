@@ -6,6 +6,10 @@ import {
 
 /** Refreshes the Master Inventory list and its facets (different key roots, so both are needed). */
 export function invalidateMasterInventory(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: getListMasterInventoryQueryKey() })
-  void queryClient.invalidateQueries({ queryKey: getListMasterInventoryFacetsQueryKey() })
+  void queryClient.invalidateQueries({
+    queryKey: getListMasterInventoryQueryKey(),
+  })
+  void queryClient.invalidateQueries({
+    queryKey: getListMasterInventoryFacetsQueryKey(),
+  })
 }

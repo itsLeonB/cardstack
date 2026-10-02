@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
 /** One Card in a browse/search results grid: art, name, set/number, rarity, category, and tags. */
-export function CardTile({ card, control }: { card: CardSummary; control?: ReactNode }) {
+export function CardTile({
+  card,
+  control,
+}: {
+  card: CardSummary
+  control?: ReactNode
+}) {
   const [imageFailed, setImageFailed] = useState(false)
   const tags = card.tags ?? []
 
@@ -29,7 +35,10 @@ export function CardTile({ card, control }: { card: CardSummary; control?: React
         <p className="truncate text-sm font-medium" title={card.name}>
           <Link
             to="/catalog/cards/$expansionSetId/$localId"
-            params={{ expansionSetId: card.expansionSet.id, localId: card.localId }}
+            params={{
+              expansionSetId: card.expansionSet.id,
+              localId: card.localId,
+            }}
             className="underline-offset-2 hover:underline"
           >
             {card.name}
@@ -52,7 +61,11 @@ export function CardTile({ card, control }: { card: CardSummary; control?: React
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5">
             {tags.map((tag) => (
-              <Badge key={tag} variant="outline" className="text-muted-foreground">
+              <Badge
+                key={tag}
+                variant="outline"
+                className="text-muted-foreground"
+              >
                 {tag}
               </Badge>
             ))}

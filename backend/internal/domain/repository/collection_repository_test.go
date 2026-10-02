@@ -90,3 +90,37 @@ func TestCollectionRepository_GetOwnedCollection_ForUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+// TestCollectionRepository_SumQuantities: summed quantity (not distinct
+// cards) per Collection in one query; an empty Collection is absent (reads 0)
+// and another Collection's entries don't leak in.
+func TestCollectionRepository_SumQuantities(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewCollectionRepository(crud.NewRepository[entity.Collection](db))
+	fixture := newCatalogFixture(t, db)
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	card1 := fixture.newCard(t, db, set.ID, nil)
+	card2 := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "002" })
+
+	full := newTestCollection(t, db)
+	empty := newTestCollection(t, db)
+	other := newTestCollection(t, db)
+	for _, e := range []entity.InventoryEntry{
+		{CollectionID: full.ID, CardID: card1.ID, Quantity: 2},
+		{CollectionID: full.ID, CardID: card2.ID, Quantity: 3},
+		{CollectionID: other.ID, CardID: card1.ID, Quantity: 9},
+	} {
+		require.NoError(t, db.Create(&e).Error)
+	}
+
+	got, err := repo.SumQuantities(ctx, []uuid.UUID{full.ID, empty.ID})
+	require.NoError(t, err)
+	assert.Equal(t, 5, got[full.ID])
+	assert.Zero(t, got[empty.ID])
+	assert.NotContains(t, got, other.ID)
+
+	got, err = repo.SumQuantities(ctx, nil)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}

@@ -44,11 +44,15 @@ describe("Breadcrumbs", () => {
 
   it("renders crumbs that share a label without key collisions", async () => {
     const errors: unknown[][] = []
-    const spy = vi.spyOn(console, "error").mockImplementation((...args) => void errors.push(args))
+    const spy = vi
+      .spyOn(console, "error")
+      .mockImplementation((...args) => void errors.push(args))
     await renderCrumbs(["Edit", "Edit"])
 
     await screen.findByRole("navigation", { name: "Breadcrumb" })
-    expect(errors.filter((args) => String(args[0]).includes("same key"))).toEqual([])
+    expect(
+      errors.filter((args) => String(args[0]).includes("same key"))
+    ).toEqual([])
     spy.mockRestore()
   })
 })

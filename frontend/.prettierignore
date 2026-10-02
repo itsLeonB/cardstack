@@ -3,3 +3,4 @@ pnpm-lock.yaml
 yarn.lock
 src/generated
 src/routeTree.gen.ts
+tools/oxlint/anti-slop

@@ -4,12 +4,15 @@ import "github.com/google/uuid"
 
 // CollectionSummary is one Collection as returned to its owner.
 // MaxCardCount is the optional hard cap on the collection's summed
-// Inventory Entry quantities; 0 means no limit.
+// Inventory Entry quantities; 0 means no limit. CardCount is the summed
+// quantity of the collection's Inventory Entries (the same measure the limit
+// caps, not distinct cards); 0 when empty.
 type CollectionSummary struct {
 	ID           uuid.UUID `json:"id"`
 	Title        string    `json:"title"`
 	Description  string    `json:"description"`
 	MaxCardCount int       `json:"maxCardCount"`
+	CardCount    int       `json:"cardCount"`
 }
 
 // CollectionRequest is the request to create or edit a Collection. ID is set

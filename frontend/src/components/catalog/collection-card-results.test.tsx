@@ -25,7 +25,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof TanStackRouter>()
   return {
     ...actual,
-    Link: ({ children, params: _params, to: _to, ...props }: any) => <a {...props}>{children}</a>,
+    Link: ({ children, params: _params, to: _to, ...props }: any) => (
+      <a {...props}>{children}</a>
+    ),
   }
 })
 
@@ -53,7 +55,10 @@ function setEntries(items: { card: CardSummary; quantity: number }[]) {
   // SAFETY: partial mock; the component reads only status/data and isError.
   entries.mockReturnValue({
     isError: false,
-    data: { status: 200, data: { data: items, meta: { total: items.length, page: 1, limit: 24 } } },
+    data: {
+      status: 200,
+      data: { data: items, meta: { total: items.length, page: 1, limit: 24 } },
+    },
   } as any)
 }
 
@@ -76,7 +81,8 @@ function renderResults(cards: CardSummary[] = [card]) {
 }
 
 // SAFETY: the labelled control is an <input>.
-const quantityInput = () => screen.getByLabelText("Quantity of Pikachu V") as HTMLInputElement
+const quantityInput = () =>
+  screen.getByLabelText("Quantity of Pikachu V") as HTMLInputElement
 
 async function advance(ms: number) {
   await act(async () => {
@@ -98,7 +104,13 @@ describe("CollectionCardResults", () => {
     expect(entries).toHaveBeenCalledWith(
       "col-1",
       { cardId: ["card-1"], limit: 1 },
-      expect.objectContaining({ query: expect.objectContaining({ enabled: true, gcTime: 0, refetchOnMount: "always" }) })
+      expect.objectContaining({
+        query: expect.objectContaining({
+          enabled: true,
+          gcTime: 0,
+          refetchOnMount: "always",
+        }),
+      })
     )
   })
 
@@ -108,7 +120,9 @@ describe("CollectionCardResults", () => {
     expect(entries).toHaveBeenCalledWith(
       "col-1",
       expect.anything(),
-      expect.objectContaining({ query: expect.objectContaining({ enabled: false }) })
+      expect.objectContaining({
+        query: expect.objectContaining({ enabled: false }),
+      })
     )
   })
 
@@ -133,10 +147,14 @@ describe("CollectionCardResults", () => {
     vi.useFakeTimers()
     setEntries([])
     renderResults()
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     expect(quantityInput().value).toBe("1")
     await advance(QUANTITY_DEBOUNCE_MS)
-    expect(bulk).toHaveBeenCalledWith("col-1", { items: [{ cardId: "card-1", quantity: 1 }] })
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 1 }],
+    })
   })
 
   it("reverts a capacity-declined addition with an error", async () => {
@@ -146,11 +164,21 @@ describe("CollectionCardResults", () => {
     bulk.mockResolvedValue({
       status: 200,
       data: {
-        data: [{ cardId: "card-1", quantity: 0, status: "declined", reason: "capacity_exceeded", message: "Capacity exceeded" }],
+        data: [
+          {
+            cardId: "card-1",
+            quantity: 0,
+            status: "declined",
+            reason: "capacity_exceeded",
+            message: "Capacity exceeded",
+          },
+        ],
       },
     } as any)
     renderResults()
-    fireEvent.click(screen.getByRole("button", { name: "Increase quantity of Pikachu V" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
+    )
     await advance(QUANTITY_DEBOUNCE_MS)
     expect(screen.getByRole("alert").textContent).toBe("Capacity exceeded")
     expect(quantityInput().value).toBe("0")

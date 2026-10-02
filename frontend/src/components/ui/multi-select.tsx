@@ -2,7 +2,11 @@ import { useState } from "react"
 import { RiArrowDownSLine } from "@remixicon/react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { cn } from "cn"
 
 export interface MultiSelectOption {
@@ -40,15 +44,17 @@ export function MultiSelect({
   const needle = query.trim().toLowerCase()
   // Selected options always stay listed so they can be unchecked.
   const visible = (option: MultiSelectOption) =>
-    selected.includes(option.value) || option.label.toLowerCase().includes(needle)
-  const shown = groups.map((group) => ({ ...group, options: group.options.filter(visible) }))
+    selected.includes(option.value) ||
+    option.label.toLowerCase().includes(needle)
+  const shown = groups.map((group) => ({
+    ...group,
+    options: group.options.filter(visible),
+  }))
   const noMatches = shown.every((group) => group.options.length === 0)
 
   return (
     <Popover onOpenChange={() => setQuery("")}>
-      <PopoverTrigger
-        className="inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 sm:w-fit"
-      >
+      <PopoverTrigger className="inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 sm:w-fit">
         {label}
         {selected.length > 0 && (
           <Badge>
@@ -56,7 +62,10 @@ export function MultiSelect({
             {selected.length}
           </Badge>
         )}
-        <RiArrowDownSLine aria-hidden className="size-4 text-muted-foreground" />
+        <RiArrowDownSLine
+          aria-hidden
+          className="size-4 text-muted-foreground"
+        />
       </PopoverTrigger>
       <PopoverContent>
         {searchable && (
@@ -70,14 +79,23 @@ export function MultiSelect({
           />
         )}
         <div className="flex flex-col gap-3">
-          {noMatches && <p className="text-sm text-muted-foreground">No matches</p>}
+          {noMatches && (
+            <p className="text-sm text-muted-foreground">No matches</p>
+          )}
           {shown.map((group) => {
             const options = group.options
             if (options.length === 0) return null
             return (
-              <fieldset key={group.label ?? ""} className="flex min-w-0 flex-col gap-1.5">
+              <fieldset
+                key={group.label ?? ""}
+                className="flex min-w-0 flex-col gap-1.5"
+              >
                 <legend
-                  className={group.label ? "mb-1 text-xs text-muted-foreground" : "sr-only"}
+                  className={
+                    group.label
+                      ? "mb-1 text-xs text-muted-foreground"
+                      : "sr-only"
+                  }
                 >
                   {group.label ?? label}
                 </legend>
@@ -97,7 +115,9 @@ export function MultiSelect({
                         onChange={() =>
                           onChange(
                             checked
-                              ? selected.filter((value) => value !== option.value)
+                              ? selected.filter(
+                                  (value) => value !== option.value
+                                )
                               : [...selected, option.value]
                           )
                         }

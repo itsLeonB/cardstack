@@ -29,7 +29,10 @@ function AccountPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Account" description="Your sign-in details and session." />
+      <PageHeader
+        title="Account"
+        description="Your sign-in details and session."
+      />
 
       <Card>
         <CardHeader>

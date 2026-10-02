@@ -29,10 +29,15 @@ describe("DeleteCollectionDialog", () => {
 
   it("does not fire the DELETE mutation when only the trigger is clicked", () => {
     render(
-      <DeleteCollectionDialog collectionId="col-1" collectionTitle="Vintage binder" />
+      <DeleteCollectionDialog
+        collectionId="col-1"
+        collectionTitle="Vintage binder"
+      />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Vintage binder" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Vintage binder" })
+    )
 
     screen.getByRole("alertdialog")
     expect(mutate).not.toHaveBeenCalled()
@@ -40,10 +45,15 @@ describe("DeleteCollectionDialog", () => {
 
   it("fires the DELETE mutation only after the confirm action is clicked", () => {
     render(
-      <DeleteCollectionDialog collectionId="col-1" collectionTitle="Vintage binder" />
+      <DeleteCollectionDialog
+        collectionId="col-1"
+        collectionTitle="Vintage binder"
+      />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Vintage binder" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Vintage binder" })
+    )
     fireEvent.click(screen.getByRole("button", { name: "Delete" }))
 
     expect(mutate).toHaveBeenCalledTimes(1)
@@ -55,10 +65,15 @@ describe("DeleteCollectionDialog", () => {
 
   it("does not fire the DELETE mutation when cancel is clicked", () => {
     render(
-      <DeleteCollectionDialog collectionId="col-1" collectionTitle="Vintage binder" />
+      <DeleteCollectionDialog
+        collectionId="col-1"
+        collectionTitle="Vintage binder"
+      />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Vintage binder" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Vintage binder" })
+    )
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
 
     expect(mutate).not.toHaveBeenCalled()

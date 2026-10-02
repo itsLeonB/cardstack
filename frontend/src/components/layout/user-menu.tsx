@@ -33,7 +33,9 @@ export function UserMenu() {
         render={<Button variant="ghost" aria-label="User menu" />}
       >
         <RiUserLine />
-        <span className="hidden max-w-40 truncate sm:inline">{user?.email}</span>
+        <span className="hidden max-w-40 truncate sm:inline">
+          {user?.email}
+        </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <div className="px-2 py-1.5 text-sm text-muted-foreground">

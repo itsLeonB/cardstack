@@ -26,7 +26,10 @@ export function useCatalogCollection(
   const denied = (status?: number) => status === 401 || status === 403
   const invalid =
     selectedId !== undefined &&
-    (denied(sessionStatus) || denied(listStatus) || listStatus === 404 || (loaded && !known))
+    (denied(sessionStatus) ||
+      denied(listStatus) ||
+      listStatus === 404 ||
+      (loaded && !known))
   useEffect(() => {
     if (invalid) onSelect(undefined)
   }, [invalid, onSelect])

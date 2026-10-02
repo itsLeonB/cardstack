@@ -12,7 +12,10 @@ interface OpParam {
   schema?: { type?: string | string[] }
 }
 interface OpenApiSpec {
-  paths?: Record<string, Record<string, { parameters?: OpParam[] } | undefined> | undefined>
+  paths?: Record<
+    string,
+    Record<string, { parameters?: OpParam[] } | undefined> | undefined
+  >
 }
 
 const repeatable = ["expansionSetId", "rarityId", "category", "tag"]
@@ -39,7 +42,9 @@ const input = {
       // Fail loudly if Huma's output changes, else arrays silently go back to comma-joined.
       const missing = repeatable.filter((name) => !rewritten.has(name))
       if (missing.length > 0) {
-        throw new Error(`orval transformer rewrote no array type for: ${missing.join(", ")}`)
+        throw new Error(
+          `orval transformer rewrote no array type for: ${missing.join(", ")}`
+        )
       }
       return spec
     },

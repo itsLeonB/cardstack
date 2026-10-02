@@ -18,7 +18,10 @@ function InventoryPage() {
   return (
     <PageContainer variant="wide">
       <PageHeader title="Master Inventory" />
-      <MasterInventory search={search} onSearchChange={(next) => void navigate({ search: next })} />
+      <MasterInventory
+        search={search}
+        onSearchChange={(next) => void navigate({ search: next })}
+      />
     </PageContainer>
   )
 }

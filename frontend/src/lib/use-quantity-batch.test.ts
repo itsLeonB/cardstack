@@ -11,7 +11,14 @@ vi.mock("@/generated/endpoints/inventory/inventory", () => ({
 
 const bulk = vi.mocked(bulkUpdateCollectionEntries)
 
-function respond(results: { cardId: string; quantity: number; status: string; message?: string }[]) {
+function respond(
+  results: {
+    cardId: string
+    quantity: number
+    status: string
+    message?: string
+  }[]
+) {
   // SAFETY: partial response; the hook reads only status and data.data.
   bulk.mockResolvedValue({ status: 200, data: { data: results } } as any)
 }
@@ -57,7 +64,12 @@ describe("useQuantityBatch", () => {
   it("reverts only the declined card, with its error, and keeps the others", async () => {
     respond([
       { cardId: "a", quantity: 1, status: "applied" },
-      { cardId: "b", quantity: 4, status: "declined", message: "Capacity exceeded" },
+      {
+        cardId: "b",
+        quantity: 4,
+        status: "declined",
+        message: "Capacity exceeded",
+      },
     ])
     const { result } = renderHook(() => useQuantityBatch("col-1"))
 
@@ -124,7 +136,12 @@ describe("useQuantityBatch", () => {
     let release: () => void = () => {}
     // SAFETY: partial response; the hook reads only status and data.data.
     bulk.mockImplementationOnce(
-      () => new Promise((resolve) => (release = () => resolve({ status: 200, data: { data: [] } } as any)))
+      () =>
+        new Promise(
+          (resolve) =>
+            (release = () =>
+              resolve({ status: 200, data: { data: [] } } as any))
+        )
     )
     respond([])
     const { result } = renderHook(() => useQuantityBatch("col-1"))

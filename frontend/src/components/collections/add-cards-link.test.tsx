@@ -9,7 +9,15 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof TanStackRouter>()
   return {
     ...actual,
-    Link: ({ children, to, search }: { children: string; to: string; search: unknown }) => (
+    Link: ({
+      children,
+      to,
+      search,
+    }: {
+      children: string
+      to: string
+      search: unknown
+    }) => (
       <a href={to} data-search={JSON.stringify(search)}>
         {children}
       </a>

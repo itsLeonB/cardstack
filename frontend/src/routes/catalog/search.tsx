@@ -1,5 +1,9 @@
 import { useCallback } from "react"
-import { createFileRoute, useLocation, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { keepPreviousData } from "@tanstack/react-query"
 import {
@@ -16,25 +20,33 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { CardResults } from "@/components/catalog/card-results"
 import { CollectionCardResults } from "@/components/catalog/collection-card-results"
-import { CollectionPicker, useCatalogCollection } from "@/components/catalog/collection-picker"
+import {
+  CollectionPicker,
+  useCatalogCollection,
+} from "@/components/catalog/collection-picker"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import { catalogSearchSchema, toFacetParams } from "@/lib/catalog-search"
 import type { CatalogSearch } from "@/lib/catalog-search"
 
 // `collectionId` is page state only; it is split off before any catalog query.
-const searchSchema = catalogSearchSchema.extend({ collectionId: z.string().optional() })
+const searchSchema = catalogSearchSchema.extend({
+  collectionId: z.string().optional(),
+})
 
 export const Route = createFileRoute("/catalog/search")({
   head: () => pageHead("Search the catalog"),
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { collectionId: _collectionId, ...filters } }) => filters,
+  loaderDeps: ({ search: { collectionId: _collectionId, ...filters } }) =>
+    filters,
   // Only the card search itself is required for this route to render:
   // series names and facets just populate the filters, so a transport-level
   // failure on either degrades the filters instead of blocking the results.
   loader: ({ context: { queryClient }, deps }) =>
     Promise.all([
       queryClient.ensureQueryData(getSearchCatalogCardsQueryOptions(deps)),
-      queryClient.ensureQueryData(getListCatalogSeriesQueryOptions()).catch(() => undefined),
+      queryClient
+        .ensureQueryData(getListCatalogSeriesQueryOptions())
+        .catch(() => undefined),
       queryClient
         .ensureQueryData(getListCatalogFacetsQueryOptions(toFacetParams(deps)))
         .catch(() => undefined),
@@ -47,7 +59,10 @@ function CatalogSearchPage() {
   const navigate = useNavigate({ from: Route.fullPath })
   const selectCollection = useCallback(
     (id: string | undefined) =>
-      void navigate({ search: (prev) => ({ ...prev, collectionId: id }), replace: true }),
+      void navigate({
+        search: (prev) => ({ ...prev, collectionId: id }),
+        replace: true,
+      }),
     [navigate]
   )
   const href = useLocation({ select: (location) => location.href })
@@ -59,10 +74,15 @@ function CatalogSearchPage() {
   })
   const cardsQuery = useSearchCatalogCards(search)
 
-  const series = seriesQuery.data?.status === 200 ? (seriesQuery.data.data.data?.series ?? []) : []
-  const facets = facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
+  const series =
+    seriesQuery.data?.status === 200
+      ? (seriesQuery.data.data.data?.series ?? [])
+      : []
+  const facets =
+    facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
 
-  const result = cardsQuery.data?.status === 200 ? cardsQuery.data.data : undefined
+  const result =
+    cardsQuery.data?.status === 200 ? cardsQuery.data.data : undefined
   const cardsErrorMessage =
     cardsQuery.data && cardsQuery.data.status !== 200
       ? (cardsQuery.data.data.detail ?? "Could not search the catalog.")
@@ -93,7 +113,10 @@ function CatalogSearchPage() {
   return (
     <PageContainer variant="wide">
       <Breadcrumbs
-        crumbs={[{ label: "Catalog", link: { to: "/catalog" } }, { label: "Search" }]}
+        crumbs={[
+          { label: "Catalog", link: { to: "/catalog" } },
+          { label: "Search" },
+        ]}
       />
       <PageHeader
         title="Search the catalog"
@@ -118,7 +141,11 @@ function CatalogSearchPage() {
       />
 
       {collection.selected ? (
-        <CollectionCardResults key={collection.selected} collectionId={collection.selected} {...resultsProps} />
+        <CollectionCardResults
+          key={collection.selected}
+          collectionId={collection.selected}
+          {...resultsProps}
+        />
       ) : (
         <CardResults {...resultsProps} />
       )}

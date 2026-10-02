@@ -4,19 +4,12 @@ import {
   getListCollectionsQueryOptions,
   useListCollections,
 } from "@/generated/endpoints/collections/collections"
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { errorDetail } from "@/lib/collections"
-import { DeleteCollectionDialog } from "@/components/collections/delete-collection-dialog"
+import { CollectionCard } from "@/components/collections/collection-card"
 
 export const Route = createFileRoute("/_authenticated/collections/")({
   head: () => pageHead("Collections"),
@@ -39,7 +32,9 @@ function CollectionsPage() {
       <PageHeader
         title="Collections"
         actions={
-          <Button render={<Link to="/collections/new" />}>New Collection</Button>
+          <Button render={<Link to="/collections/new" />}>
+            New Collection
+          </Button>
         }
       />
 
@@ -74,45 +69,7 @@ function CollectionsPage() {
       <ul className="flex flex-col gap-3">
         {collections.map((collection) => (
           <li key={collection.id}>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <Link
-                    to="/collections/$collectionId"
-                    params={{ collectionId: collection.id }}
-                    className="underline-offset-2 hover:underline"
-                  >
-                    {collection.title}
-                  </Link>
-                </CardTitle>
-                {collection.description && (
-                  <CardDescription>{collection.description}</CardDescription>
-                )}
-                {collection.maxCardCount > 0 && (
-                  <CardDescription>
-                    Limit: {collection.maxCardCount} cards
-                  </CardDescription>
-                )}
-                <CardAction className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    render={
-                      <Link
-                        to="/collections/$collectionId/edit"
-                        params={{ collectionId: collection.id }}
-                      />
-                    }
-                  >
-                    Edit
-                  </Button>
-                  <DeleteCollectionDialog
-                    collectionId={collection.id}
-                    collectionTitle={collection.title}
-                  />
-                </CardAction>
-              </CardHeader>
-            </Card>
+            <CollectionCard collection={collection} />
           </li>
         ))}
       </ul>

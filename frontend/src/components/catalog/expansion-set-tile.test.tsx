@@ -28,9 +28,13 @@ const expansionSet: ExpansionSetSummary = {
 
 describe("ExpansionSetTile", () => {
   it("renders the cover image when imageUrl is set", () => {
-    const { container } = render(<ExpansionSetTile expansionSet={expansionSet} />)
+    const { container } = render(
+      <ExpansionSetTile expansionSet={expansionSet} />
+    )
 
-    expect(container.querySelector("img")?.getAttribute("src")).toBe(expansionSet.imageUrl)
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      expansionSet.imageUrl
+    )
   })
 
   it("renders a text-only tile when imageUrl is empty", () => {
@@ -39,12 +43,16 @@ describe("ExpansionSetTile", () => {
     )
 
     expect(container.querySelector("img")).toBeNull()
-    expect(container.querySelector("[data-slot=card]")?.className).not.toContain("flex-row")
+    expect(
+      container.querySelector("[data-slot=card]")?.className
+    ).not.toContain("flex-row")
     expect(screen.getByText("Inferno X")).toBeTruthy()
   })
 
   it("falls back to the text-only tile when the image fails to load", () => {
-    const { container } = render(<ExpansionSetTile expansionSet={expansionSet} />)
+    const { container } = render(
+      <ExpansionSetTile expansionSet={expansionSet} />
+    )
 
     fireEvent.error(container.querySelector("img")!)
 

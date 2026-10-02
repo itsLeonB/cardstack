@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type * as TanStackRouter from "@tanstack/react-router"
 import { MasterInventory } from "./master-inventory"
-import { useListMasterInventory, useListMasterInventoryFacets } from "@/generated/endpoints/inventory/inventory"
+import {
+  useListMasterInventory,
+  useListMasterInventoryFacets,
+} from "@/generated/endpoints/inventory/inventory"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import type { CatalogSearch } from "@/lib/catalog-search"
 import type { CardSummary } from "@/generated/models"
@@ -13,7 +16,9 @@ vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   useListMasterInventoryFacets: vi.fn(),
 }))
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/catalog/catalog", () => ({ useListCatalogSeries: vi.fn() }))
+vi.mock("@/generated/endpoints/catalog/catalog", () => ({
+  useListCatalogSeries: vi.fn(),
+}))
 // CardTile links via TanStack Router's `Link`, which needs a router in the tree.
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@tanstack/react-router", async (importOriginal) => {
@@ -21,7 +26,12 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   return {
     ...actual,
     Link: ({ children, params, to, ...props }: any) => (
-      <a href={to.replace("$expansionSetId", params?.expansionSetId).replace("$localId", params?.localId)} {...props}>
+      <a
+        href={to
+          .replace("$expansionSetId", params?.expansionSetId)
+          .replace("$localId", params?.localId)}
+        {...props}
+      >
         {children}
       </a>
     ),
@@ -45,7 +55,10 @@ const card: CardSummary = {
 interface InventoryState {
   isPending: boolean
   isError: boolean
-  data?: { status: number; data: { data?: unknown[]; meta?: unknown; detail?: string } }
+  data?: {
+    status: number
+    data: { data?: unknown[]; meta?: unknown; detail?: string }
+  }
 }
 
 function setup(state: InventoryState, search: CatalogSearch = { page: 1 }) {
@@ -60,7 +73,9 @@ function setup(state: InventoryState, search: CatalogSearch = { page: 1 }) {
       data: {
         data: {
           expansionSets: [],
-          rarities: [{ id: "r-1", code: "RR", name: "Double Rare", available: true }],
+          rarities: [
+            { id: "r-1", code: "RR", name: "Double Rare", available: true },
+          ],
           categories: [],
           tags: [],
         },
@@ -81,7 +96,9 @@ describe("MasterInventory", () => {
   it("shows each owned Card with its total quantity, linking to the card detail page", () => {
     setup(ok([{ card, quantity: 5 }]))
     expect(screen.getByText("×5")).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Pikachu V" }).getAttribute("href")).toBe("/catalog/cards/set-1/048")
+    expect(
+      screen.getByRole("link", { name: "Pikachu V" }).getAttribute("href")
+    ).toBe("/catalog/cards/set-1/048")
     expect(screen.queryByLabelText("Quantity of Pikachu V")).toBeNull()
   })
 
@@ -92,26 +109,42 @@ describe("MasterInventory", () => {
 
   it("always refetches and never keeps the list cached, so Collection changes show up", () => {
     setup(ok([]), { page: 2 })
-    const [params, options] = vi.mocked(useListMasterInventory).mock.lastCall ?? []
+    const [params, options] =
+      vi.mocked(useListMasterInventory).mock.lastCall ?? []
     expect(params).toEqual({ page: 2 })
-    expect(options?.query).toMatchObject({ gcTime: 0, refetchOnMount: "always" })
+    expect(options?.query).toMatchObject({
+      gcTime: 0,
+      refetchOnMount: "always",
+    })
   })
 
   it("shows the API error detail for a non-200 response", () => {
-    setup({ isPending: false, isError: false, data: { status: 500, data: { detail: "boom" } } })
+    setup({
+      isPending: false,
+      isError: false,
+      data: { status: 500, data: { detail: "boom" } },
+    })
     expect(screen.getByRole("alert").textContent).toBe("boom")
   })
 
   it("pages through the inventory", () => {
-    const onSearchChange = setup(ok([{ card, quantity: 1 }], 50), { page: 1, name: "pika" })
+    const onSearchChange = setup(ok([{ card, quantity: 1 }], 50), {
+      page: 1,
+      name: "pika",
+    })
     fireEvent.click(screen.getByRole("button", { name: /Next/ }))
     expect(onSearchChange).toHaveBeenCalledWith({ page: 2, name: "pika" })
   })
 
   it("queries the list and the facets with the URL filters (facets without the page)", () => {
     setup(ok([]), { page: 3, rarityId: ["r-1"] })
-    expect(vi.mocked(useListMasterInventory).mock.lastCall?.[0]).toEqual({ page: 3, rarityId: ["r-1"] })
-    expect(vi.mocked(useListMasterInventoryFacets).mock.lastCall?.[0]).toEqual({ rarityId: ["r-1"] })
+    expect(vi.mocked(useListMasterInventory).mock.lastCall?.[0]).toEqual({
+      page: 3,
+      rarityId: ["r-1"],
+    })
+    expect(vi.mocked(useListMasterInventoryFacets).mock.lastCall?.[0]).toEqual({
+      rarityId: ["r-1"],
+    })
   })
 
   it("uses the facets for the filter options and resets to page 1 when a filter changes", () => {

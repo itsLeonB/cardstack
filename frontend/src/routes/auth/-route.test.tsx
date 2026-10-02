@@ -23,7 +23,10 @@ vi.stubGlobal("matchMedia", () => ({
 }))
 
 // Mounts the real auth layout (guard + shell) over a stub child and a stub `/`.
-async function renderAuth(session: { status: number; data: unknown }, url = "/auth/child") {
+async function renderAuth(
+  session: { status: number; data: unknown },
+  url = "/auth/child"
+) {
   const queryClient = new QueryClient()
   queryClient.setQueryData(getGetCurrentUserQueryKey(), session)
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -46,7 +49,11 @@ async function renderAuth(session: { status: number; data: unknown }, url = "/au
     path: "/child",
     component: () => <h1>Child page</h1>,
   })
-  const home = createRoute({ getParentRoute: () => root, path: "/", component: () => <h1>Home</h1> })
+  const home = createRoute({
+    getParentRoute: () => root,
+    path: "/",
+    component: () => <h1>Home</h1>,
+  })
   const router = createRouter({
     routeTree: root.addChildren([layout.addChildren([child]), home]),
     history: createMemoryHistory({ initialEntries: [url] }),
@@ -63,9 +70,15 @@ async function renderAuth(session: { status: number; data: unknown }, url = "/au
 describe("auth layout", () => {
   it("renders a minimal shell: wordmark and theme toggle, one main, no nav or footer", async () => {
     await renderAuth({ status: 401, data: {} })
-    await screen.findByRole("heading", { level: 1, name: "Child page" }, { timeout: 5000 })
+    await screen.findByRole(
+      "heading",
+      { level: 1, name: "Child page" },
+      { timeout: 5000 }
+    )
 
-    expect(screen.getByRole("link", { name: "Cardstack" }).getAttribute("href")).toBe("/")
+    expect(
+      screen.getByRole("link", { name: "Cardstack" }).getAttribute("href")
+    ).toBe("/")
     expect(screen.getByRole("button", { name: "Theme" })).toBeTruthy()
     expect(screen.getAllByRole("main")).toHaveLength(1)
     expect(screen.queryByRole("navigation")).toBeNull()
@@ -74,7 +87,11 @@ describe("auth layout", () => {
 
   it("shows an unknown /auth path as not-found inside the auth shell", async () => {
     await renderAuth({ status: 401, data: {} }, "/auth/nope")
-    await screen.findByRole("heading", { level: 1, name: "Page not found" }, { timeout: 5000 })
+    await screen.findByRole(
+      "heading",
+      { level: 1, name: "Page not found" },
+      { timeout: 5000 }
+    )
 
     expect(screen.getByRole("link", { name: "Cardstack" })).toBeTruthy()
     expect(screen.getAllByRole("main")).toHaveLength(1)
@@ -83,8 +100,15 @@ describe("auth layout", () => {
   })
 
   it("sends a signed-in user to /", async () => {
-    const router = await renderAuth({ status: 200, data: { data: { id: "1", email: "a@b.com" } } })
-    await screen.findByRole("heading", { level: 1, name: "Home" }, { timeout: 5000 })
+    const router = await renderAuth({
+      status: 200,
+      data: { data: { id: "1", email: "a@b.com" } },
+    })
+    await screen.findByRole(
+      "heading",
+      { level: 1, name: "Home" },
+      { timeout: 5000 }
+    )
     expect(router.state.location.pathname).toBe("/")
   })
 })

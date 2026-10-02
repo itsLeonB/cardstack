@@ -50,7 +50,11 @@ export function AuthField({
             aria-pressed={revealed}
             onClick={() => setRevealed((value) => !value)}
           >
-            {revealed ? <RiEyeOffLine aria-hidden="true" /> : <RiEyeLine aria-hidden="true" />}
+            {revealed ? (
+              <RiEyeOffLine aria-hidden="true" />
+            ) : (
+              <RiEyeLine aria-hidden="true" />
+            )}
           </Button>
         </div>
       ) : (

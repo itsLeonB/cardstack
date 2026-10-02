@@ -17,10 +17,17 @@ interface MasterInventoryProps {
 }
 
 /** The user's Cards with the total quantity owned across all their Collections (read-only). */
-export function MasterInventory({ search, onSearchChange }: MasterInventoryProps) {
+export function MasterInventory({
+  search,
+  onSearchChange,
+}: MasterInventoryProps) {
   // gcTime 0 + refetchOnMount: no cached page can show totals from before a Collection change.
   const query = useListMasterInventory(search, {
-    query: { gcTime: 0, refetchOnMount: "always", placeholderData: keepPreviousData },
+    query: {
+      gcTime: 0,
+      refetchOnMount: "always",
+      placeholderData: keepPreviousData,
+    },
   })
   const facetsQuery = useListMasterInventoryFacets(toFacetParams(search), {
     query: { placeholderData: keepPreviousData },
@@ -30,12 +37,19 @@ export function MasterInventory({ search, onSearchChange }: MasterInventoryProps
   const result = query.data?.status === 200 ? query.data.data : undefined
   const items = result?.data ?? []
   const quantities = new Map(items.map((item) => [item.card.id, item.quantity]))
-  const facets = facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
-  const series = seriesQuery.data?.status === 200 ? (seriesQuery.data.data.data?.series ?? []) : []
+  const facets =
+    facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
+  const series =
+    seriesQuery.data?.status === 200
+      ? (seriesQuery.data.data.data?.series ?? [])
+      : []
   const loadError = errorDetail(query.data, "Could not load your inventory.")
 
   return (
-    <section className="flex flex-col gap-6" aria-label="Master Inventory contents">
+    <section
+      className="flex flex-col gap-6"
+      aria-label="Master Inventory contents"
+    >
       <CatalogFilterPanel
         search={search}
         facets={facets}
@@ -58,7 +72,9 @@ export function MasterInventory({ search, onSearchChange }: MasterInventoryProps
         }
         onPageChange={(page) => onSearchChange({ ...search, page })}
         renderControl={(card) => (
-          <p className="text-sm font-medium text-muted-foreground">×{quantities.get(card.id) ?? 0}</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            ×{quantities.get(card.id) ?? 0}
+          </p>
         )}
       />
     </section>

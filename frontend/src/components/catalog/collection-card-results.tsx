@@ -8,6 +8,7 @@ import {
 import { CardResults } from "@/components/catalog/card-results"
 import type { CardResultsProps } from "@/components/catalog/card-results"
 import { QuantityControl } from "@/components/collections/quantity-control"
+import { invalidateCollectionCounts } from "@/lib/collections"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
@@ -22,9 +23,14 @@ export function CollectionCardResults({
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, () => {
     // Collection detail refetches entries on mount; facets are cached, so refresh them.
-    void queryClient.invalidateQueries({ queryKey: getListCollectionEntriesQueryKey(collectionId) })
-    void queryClient.invalidateQueries({ queryKey: getListCollectionFacetsQueryKey(collectionId) })
+    void queryClient.invalidateQueries({
+      queryKey: getListCollectionEntriesQueryKey(collectionId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: getListCollectionFacetsQueryKey(collectionId),
+    })
     invalidateMasterInventory(queryClient)
+    invalidateCollectionCounts(queryClient, collectionId)
   })
 
   // An empty cardId list means "no restriction" to the API, so never ask with one.
@@ -33,10 +39,18 @@ export function CollectionCardResults({
     collectionId,
     { cardId: cardIds, limit: cardIds.length },
     // gcTime 0 + refetchOnMount: no cached page can show (or seed a revert with) a quantity from before an edit.
-    { query: { enabled: cardIds.length > 0, gcTime: 0, refetchOnMount: "always" } }
+    {
+      query: {
+        enabled: cardIds.length > 0,
+        gcTime: 0,
+        refetchOnMount: "always",
+      },
+    }
   )
   const response = query.data?.status === 200 ? query.data.data : undefined
-  const serverQuantities = new Map((response?.data ?? []).map((item) => [item.card.id, item.quantity]))
+  const serverQuantities = new Map(
+    (response?.data ?? []).map((item) => [item.card.id, item.quantity])
+  )
 
   // Fresh server data replaces optimistic values.
   useEffect(() => batch.prune(), [query.data])
@@ -58,7 +72,9 @@ export function CollectionCardResults({
               cardName={card.name}
               value={batch.quantities[card.id] ?? server}
               error={batch.errors[card.id]}
-              onChange={(quantity) => batch.setQuantity(card.id, quantity, server)}
+              onChange={(quantity) =>
+                batch.setQuantity(card.id, quantity, server)
+              }
             />
           )
         }}

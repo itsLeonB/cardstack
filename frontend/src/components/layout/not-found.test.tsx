@@ -39,15 +39,23 @@ describe("NotFound", () => {
   it("offers Home and Catalog for an unknown URL", async () => {
     renderAt("/nope")
 
-    expect(await screen.findByRole("heading", { name: "Page not found" })).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/")
-    expect(screen.getByRole("link", { name: "Catalog" }).getAttribute("href")).toBe("/catalog")
+    expect(
+      await screen.findByRole("heading", { name: "Page not found" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "Home" }).getAttribute("href")
+    ).toBe("/")
+    expect(
+      screen.getByRole("link", { name: "Catalog" }).getAttribute("href")
+    ).toBe("/catalog")
   })
 
   it("names the missing entity when a loader throws notFoundResource", async () => {
     renderAt("/collections/abc")
 
-    expect(await screen.findByRole("heading", { name: "Collection not found" })).toBeTruthy()
+    expect(
+      await screen.findByRole("heading", { name: "Collection not found" })
+    ).toBeTruthy()
     expect(screen.getByRole("link", { name: "Home" })).toBeTruthy()
   })
 })

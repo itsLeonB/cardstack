@@ -57,7 +57,10 @@ function RegisterPage() {
       {
         onSuccess: (response) => {
           if (response.status === 201) {
-            void navigate({ to: "/auth/login", search: { registered: true, redirect } })
+            void navigate({
+              to: "/auth/login",
+              search: { registered: true, redirect },
+            })
             return
           }
           setFormError(response.data.detail ?? "Could not create account.")
@@ -76,13 +79,21 @@ function RegisterPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/auth/login" search={{ redirect }} className="font-medium text-foreground underline underline-offset-4">
+          <Link
+            to="/auth/login"
+            search={{ redirect }}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
             Log in
           </Link>
         </>
       }
     >
-      <form onSubmit={handleSubmit} noValidate aria-busy={registerMutation.isPending}>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        aria-busy={registerMutation.isPending}
+      >
         <FieldGroup>
           <AuthField
             id="email"
@@ -119,7 +130,9 @@ function RegisterPage() {
           {formError && <FieldError>{formError}</FieldError>}
           <Field>
             <Button type="submit" disabled={registerMutation.isPending}>
-              {registerMutation.isPending ? "Creating account..." : "Create account"}
+              {registerMutation.isPending
+                ? "Creating account..."
+                : "Create account"}
             </Button>
           </Field>
         </FieldGroup>

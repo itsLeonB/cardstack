@@ -10,6 +10,7 @@ import { CardResults } from "@/components/catalog/card-results"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import type { CatalogSearch } from "@/lib/catalog-search"
 import { hasActiveFilters, toFacetParams } from "@/lib/catalog-search"
+import { invalidateCollectionCounts } from "@/lib/collections"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
 
@@ -20,10 +21,15 @@ interface CollectionEntriesProps {
   onSearchChange: (next: CatalogSearch) => void
 }
 
-export function CollectionEntries({ collectionId, search, onSearchChange }: CollectionEntriesProps) {
+export function CollectionEntries({
+  collectionId,
+  search,
+  onSearchChange,
+}: CollectionEntriesProps) {
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, () => {
     invalidateMasterInventory(queryClient)
+    invalidateCollectionCounts(queryClient, collectionId)
   })
 
   // Always refetch and never keep the entry list around after leaving: a card
@@ -37,16 +43,26 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
       placeholderData: keepPreviousData,
     },
   })
-  const facetsQuery = useListCollectionFacets(collectionId, toFacetParams(search), {
-    query: { placeholderData: keepPreviousData },
-  })
+  const facetsQuery = useListCollectionFacets(
+    collectionId,
+    toFacetParams(search),
+    {
+      query: { placeholderData: keepPreviousData },
+    }
+  )
   const seriesQuery = useListCatalogSeries()
 
   const result = query.data?.status === 200 ? query.data.data : undefined
   const items = result?.data ?? []
-  const serverQuantities = new Map(items.map((item) => [item.card.id, item.quantity]))
-  const facets = facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
-  const series = seriesQuery.data?.status === 200 ? (seriesQuery.data.data.data?.series ?? []) : []
+  const serverQuantities = new Map(
+    items.map((item) => [item.card.id, item.quantity])
+  )
+  const facets =
+    facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
+  const series =
+    seriesQuery.data?.status === 200
+      ? (seriesQuery.data.data.data?.series ?? [])
+      : []
   const loadError =
     query.data && query.data.status !== 200
       ? (query.data.data.detail ?? "Could not load this Collection's Cards.")
@@ -85,7 +101,9 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
         search={pendingSearch ?? search}
         facets={facets}
         series={series}
-        onChange={(patch) => changeSearch((current) => ({ ...current, ...patch, page: 1 }))}
+        onChange={(patch) =>
+          changeSearch((current) => ({ ...current, ...patch, page: 1 }))
+        }
         onClear={() => changeSearch(() => ({ page: 1 }))}
       />
 
@@ -102,7 +120,9 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
             ? "No Cards in this Collection match these filters."
             : "This Collection has no Cards yet. Add some from the catalog."
         }
-        onPageChange={(page) => changeSearch((current) => ({ ...current, page }))}
+        onPageChange={(page) =>
+          changeSearch((current) => ({ ...current, page }))
+        }
         renderControl={(card) => {
           const server = serverQuantities.get(card.id) ?? 0
           return (
@@ -110,7 +130,9 @@ export function CollectionEntries({ collectionId, search, onSearchChange }: Coll
               cardName={card.name}
               value={batch.quantities[card.id] ?? server}
               error={batch.errors[card.id]}
-              onChange={(quantity) => batch.setQuantity(card.id, quantity, server)}
+              onChange={(quantity) =>
+                batch.setQuantity(card.id, quantity, server)
+              }
             />
           )
         }}

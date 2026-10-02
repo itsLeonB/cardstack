@@ -13,6 +13,9 @@ describe("vercel.json", () => {
 
     const rule = config.headers.find((entry) => entry.source === "/auth/:path*")
 
-    expect(rule?.headers).toContainEqual({ key: "X-Robots-Tag", value: "noindex" })
+    expect(rule?.headers).toContainEqual({
+      key: "X-Robots-Tag",
+      value: "noindex",
+    })
   })
 })

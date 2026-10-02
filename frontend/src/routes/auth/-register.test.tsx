@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   RouterProvider,
@@ -17,8 +23,9 @@ import { Route as RegisterRoute } from "./register"
 // to inject (same approach as -login.test.tsx).
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual =
-    await vi.importActual<typeof AuthModule>("@/generated/endpoints/auth/auth")
+  const actual = await vi.importActual<typeof AuthModule>(
+    "@/generated/endpoints/auth/auth"
+  )
   return { ...actual, useRegister: vi.fn() }
 })
 
@@ -30,8 +37,10 @@ async function renderRegister(url: string) {
   // SAFETY: partial mutation result covering only what RegisterPage reads.
   vi.mocked(useRegister).mockReturnValue({
     isPending: false,
-    mutate: (_vars: { data: { email: string; password: string } }, options: { onSuccess: (r: { status: number }) => void }) =>
-      options.onSuccess({ status: 201 }),
+    mutate: (
+      _vars: { data: { email: string; password: string } },
+      options: { onSuccess: (r: { status: number }) => void }
+    ) => options.onSuccess({ status: 201 }),
   } as any)
 
   const queryClient = new QueryClient()
@@ -65,28 +74,41 @@ async function renderRegister(url: string) {
 describe("register redirect", () => {
   it("carries the redirect through the Log in link", async () => {
     await renderRegister("/auth/register?redirect=%2Fcollections%3Fq%3Dbinder")
-    expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe(
-      "/auth/login?redirect=%2Fcollections%3Fq%3Dbinder"
-    )
+    expect(
+      screen.getByRole("link", { name: "Log in" }).getAttribute("href")
+    ).toBe("/auth/login?redirect=%2Fcollections%3Fq%3Dbinder")
   })
 
   it("drops an external redirect from the Log in link", async () => {
-    await renderRegister(`/auth/register?redirect=${encodeURIComponent("https://evil.example/")}`)
-    expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/auth/login")
+    await renderRegister(
+      `/auth/register?redirect=${encodeURIComponent("https://evil.example/")}`
+    )
+    expect(
+      screen.getByRole("link", { name: "Log in" }).getAttribute("href")
+    ).toBe("/auth/login")
   })
 
   it("passes the redirect to login after a successful registration", async () => {
-    const router = await renderRegister("/auth/register?redirect=%2Fcollections%3Fq%3Dbinder")
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } })
+    const router = await renderRegister(
+      "/auth/register?redirect=%2Fcollections%3Fq%3Dbinder"
+    )
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "ada@example.com" },
+    })
     fireEvent.change(screen.getByLabelText("Password", { selector: "input" }), {
       target: { value: "correct horse" },
     })
-    fireEvent.change(screen.getByLabelText("Confirm password", { selector: "input" }), {
-      target: { value: "correct horse" },
-    })
+    fireEvent.change(
+      screen.getByLabelText("Confirm password", { selector: "input" }),
+      {
+        target: { value: "correct horse" },
+      }
+    )
     fireEvent.click(screen.getByRole("button", { name: "Create account" }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"))
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/auth/login")
+    )
     expect(router.state.location.search).toEqual({
       registered: true,
       redirect: "/collections?q=binder",
