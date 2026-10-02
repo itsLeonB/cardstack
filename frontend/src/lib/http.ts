@@ -122,16 +122,21 @@ function notifyAuthLost(): void {
 // The backend rotates the refresh token on every call, so two parallel
 // refreshes would invalidate each other's cookie: every 401 that arrives
 // while one is in flight waits on the same promise.
-let inFlightRefresh: Promise<boolean> | null = null
+let inFlightRefresh: Promise<RefreshOutcome> | null = null
 
-function refreshAccessToken(requestUrl: string): Promise<boolean> {
+// `expired` is the backend saying the refresh token itself is gone. Anything
+// else means the refresh *request* never got an answer, which is not the same
+// thing as a dead session.
+type RefreshOutcome = "refreshed" | "expired" | "unavailable"
+
+function refreshAccessToken(requestUrl: string): Promise<RefreshOutcome> {
   inFlightRefresh ??= performRefresh(requestUrl).finally(() => {
     inFlightRefresh = null
   })
   return inFlightRefresh
 }
 
-async function performRefresh(requestUrl: string): Promise<boolean> {
+async function performRefresh(requestUrl: string): Promise<RefreshOutcome> {
   const headers = new Headers()
   applyCsrfToken(headers, "POST")
 
@@ -140,7 +145,13 @@ async function performRefresh(requestUrl: string): Promise<boolean> {
     headers,
     credentials: "include",
   })
-  if (res.status !== 200) return false
+
+  // Only a 401 says the refresh token is dead. A 403 from the CSRF guard, a
+  // 5xx during a deploy, or a network/CORS failure leaves a live session
+  // untouched: announcing "session expired" there would clear the cache and
+  // the CSRF token and bounce a signed-in user to login.
+  if (res.status === 401) return "expired"
+  if (res.status !== 200) return "unavailable"
 
   const body = await res.text()
   // The csrf_token cookie sits on the backend's origin, so in the
@@ -151,7 +162,7 @@ async function performRefresh(requestUrl: string): Promise<boolean> {
   // (the same envelope a successful `login` returns).
   const { data } = (body ? JSON.parse(body) : {}) as EnvelopeAuthMessage
   setCsrfToken(data.csrfToken ?? null)
-  return true
+  return "refreshed"
 }
 
 /**
@@ -221,11 +232,16 @@ export const customFetch = async <T>(
     return asResponse<T>(response)
   }
 
-  // A refresh that never completed (network/CORS failure) counts as a
-  // failed one: the caller gets the 401 it would have gotten without this
-  // wrapper, and a session nobody could renew is lost either way.
-  if (!(await refreshAccessToken(url).catch(() => false))) {
-    if (pathname !== SESSION_PATH) notifyAuthLost()
+  // `unavailable` (network/CORS failure, 5xx, or the CSRF guard's 403) is
+  // not a lost session: the caller gets the 401 it would have gotten without
+  // this wrapper, and nothing is cleared or announced. Only `expired` — the
+  // backend's own 401 on the refresh — means the refresh token is gone.
+  const outcome = await refreshAccessToken(url).catch(
+    () => "unavailable" as const
+  )
+
+  if (outcome !== "refreshed") {
+    if (outcome === "expired" && pathname !== SESSION_PATH) notifyAuthLost()
     return asResponse<T>(response)
   }
 

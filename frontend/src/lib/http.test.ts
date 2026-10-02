@@ -234,7 +234,7 @@ describe("customFetch refresh on 401", () => {
     expect(onAuthLost).toHaveBeenCalledTimes(1)
   })
 
-  it("reports a lost session when the refresh request itself fails", async () => {
+  it("stays silent when the refresh request itself fails (network/CORS)", async () => {
     const onAuthLost = vi.fn()
     setOnAuthLost(onAuthLost)
     stubFetch((url) => {
@@ -246,8 +246,25 @@ describe("customFetch refresh on 401", () => {
       method: "GET",
     })
 
+    // A refresh the network couldn't deliver is not a dead session: the
+    // caller still gets its 401, but nothing is cleared or announced.
     expect(response.status).toBe(401)
-    expect(onAuthLost).toHaveBeenCalledTimes(1)
+    expect(onAuthLost).not.toHaveBeenCalled()
+  })
+
+  it("stays silent when the refresh fails with a server error", async () => {
+    const onAuthLost = vi.fn()
+    setOnAuthLost(onAuthLost)
+    stubFetch((url) =>
+      url === REFRESH_URL ? new Response(null, { status: 503 }) : unauthorized()
+    )
+
+    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
+      method: "GET",
+    })
+
+    expect(response.status).toBe(401)
+    expect(onAuthLost).not.toHaveBeenCalled()
   })
 
   it("reports a lost session once for concurrent failed refreshes", async () => {
