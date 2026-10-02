@@ -71,7 +71,10 @@ func NewCatalogRepository(base crud.Repository[entity.Card]) CatalogRepository {
 	return &catalogRepository{Repository: base}
 }
 
-// ListSeries returns every Series, ordered by name.
+// ListSeries returns every Series, most recently released first. A Series has
+// no release date of its own: it is ordered by the earliest release date among
+// its own Expansion Sets, derived at query time. A Series with no known date
+// (all its sets undated, or no sets) sorts last; ties break by name.
 func (r *catalogRepository) ListSeries(ctx context.Context) ([]entity.Series, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
@@ -79,15 +82,20 @@ func (r *catalogRepository) ListSeries(ctx context.Context) ([]entity.Series, er
 	}
 
 	var series []entity.Series
-	err = db.Order("name ASC").Find(&series).Error
+	err = db.
+		Select("series.*").
+		Joins("LEFT JOIN (SELECT series_id, MIN(release_date) AS release_date FROM expansion_sets GROUP BY series_id) AS set_dates ON set_dates.series_id = series.id").
+		Order("set_dates.release_date DESC NULLS LAST, series.name ASC").
+		Find(&series).
+		Error
 	return series, err
 }
 
 // ListExpansionSets returns every Expansion Set whose SeriesID is in
-// seriesIDs, ordered by release date (sets with an unknown release date
-// sort last) then name. An empty seriesIDs returns no rows rather than
-// every Expansion Set, since the only caller (ListSeries's nesting) always
-// passes the Series it actually found.
+// seriesIDs, ordered by release date, most recent first (sets with an unknown
+// release date sort last), then name. An empty seriesIDs returns no rows
+// rather than every Expansion Set, since the only caller (ListSeries's
+// nesting) always passes the Series it actually found.
 func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error) {
 	if len(seriesIDs) == 0 {
 		return nil, nil
@@ -101,7 +109,7 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 	var sets []entity.ExpansionSet
 	err = db.
 		Where("series_id IN ?", seriesIDs).
-		Order("release_date ASC NULLS LAST, name ASC").
+		Order("release_date DESC NULLS LAST, name ASC").
 		Find(&sets).
 		Error
 	return sets, err
@@ -109,10 +117,11 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 
 // ListUngroupedExpansionSets returns every Expansion Set whose SeriesID is
 // nil, ordered the same way ListExpansionSets orders each Series's sets: by
-// release date (sets with an unknown release date sort last) then name. A
-// series-less Expansion Set is a legitimate domain state (see CONTEXT.md's
-// Series entry), not an edge case to special-case away - this is how it's
-// surfaced through GET /catalog/series alongside the grouped Series.
+// release date, most recent first (sets with an unknown release date sort
+// last), then name. A series-less Expansion Set is a legitimate domain state
+// (see CONTEXT.md's Series entry), not an edge case to special-case away -
+// this is how it's surfaced through GET /catalog/series alongside the grouped
+// Series.
 func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
@@ -122,7 +131,7 @@ func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]e
 	var sets []entity.ExpansionSet
 	err = db.
 		Where("series_id IS NULL").
-		Order("release_date ASC NULLS LAST, name ASC").
+		Order("release_date DESC NULLS LAST, name ASC").
 		Find(&sets).
 		Error
 	return sets, err
@@ -354,7 +363,7 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 	var results []CardResult
 	err = base.Session(&gorm.Session{}).
 		Select(columns).
-		Order("expansion_sets.release_date ASC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
+		Order("expansion_sets.release_date DESC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Find(&results).

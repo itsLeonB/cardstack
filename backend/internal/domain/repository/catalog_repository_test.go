@@ -126,6 +126,64 @@ func TestCatalogRepository_ListSeries(t *testing.T) {
 	}
 }
 
+// TestCatalogRepository_ListSeries_OrdersByEarliestSetReleaseDateDesc pins
+// that a Series's ordering date is the earliest release date among its own
+// Expansion Sets, most recent first, with unknown dates last and name as the
+// ascending tie-breaker.
+func TestCatalogRepository_ListSeries_OrdersByEarliestSetReleaseDateDesc(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+
+	d := func(year int) *time.Time {
+		v := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &v
+	}
+
+	// Earliest set 2024 beats the Series whose earliest set is 2022, even
+	// though the latter has a set released in 2025.
+	newest := fixture.newSeries(t, db)
+	fixture.newExpansionSet(t, db, &newest.ID, d(2024))
+	fixture.newExpansionSet(t, db, &newest.ID, d(2026))
+
+	oldest := fixture.newSeries(t, db)
+	fixture.newExpansionSet(t, db, &oldest.ID, d(2022))
+	fixture.newExpansionSet(t, db, &oldest.ID, d(2025))
+
+	// A NULL-dated set must not drag MIN down to "unknown".
+	partlyKnown := fixture.newSeries(t, db)
+	fixture.newExpansionSet(t, db, &partlyKnown.ID, nil)
+	fixture.newExpansionSet(t, db, &partlyKnown.ID, d(2023))
+
+	allUnknown := fixture.newSeries(t, db)
+	fixture.newExpansionSet(t, db, &allUnknown.ID, nil)
+
+	noSets := fixture.newSeries(t, db)
+
+	// Unknown-last ties break by name ascending.
+	allUnknown.Name, noSets.Name = "Catalog Test Series zzz-b", "Catalog Test Series zzz-a"
+	require.NoError(t, db.Save(&allUnknown).Error)
+	require.NoError(t, db.Save(&noSets).Error)
+
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+	all, err := repo.ListSeries(context.Background())
+	require.NoError(t, err)
+
+	// The table is shared with other tests and never truncated, so keep
+	// only this test's rows before asserting on order.
+	want := []uuid.UUID{newest.ID, partlyKnown.ID, oldest.ID, noSets.ID, allUnknown.ID}
+	wantSet := make(map[uuid.UUID]bool, len(want))
+	for _, id := range want {
+		wantSet[id] = true
+	}
+	var got []uuid.UUID
+	for _, s := range all {
+		if wantSet[s.ID] {
+			got = append(got, s.ID)
+		}
+	}
+	assert.Equal(t, want, got)
+}
+
 func TestCatalogRepository_ListExpansionSets(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
@@ -151,9 +209,9 @@ func TestCatalogRepository_ListExpansionSets(t *testing.T) {
 		t.Fatalf("expected 3 expansion sets for series %s, got %d: %+v", series.ID, len(sets), sets)
 	}
 
-	// Ordered by release date ascending, with a nil release date sorting
+	// Ordered by release date descending, with a nil release date sorting
 	// last.
-	wantOrder := []uuid.UUID{setEarlier.ID, setLater.ID, setNoDate.ID}
+	wantOrder := []uuid.UUID{setLater.ID, setEarlier.ID, setNoDate.ID}
 	for i, want := range wantOrder {
 		if sets[i].ID != want {
 			t.Fatalf("expected sets[%d].ID = %s, got %s (full order: %v)", i, want, sets[i].ID, idsOf(sets))
@@ -184,7 +242,7 @@ func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
 	// This table is shared with other tests and never truncated (see
 	// catalogFixture's doc comment), so filter the results down to just
 	// this test's own fixture rows before asserting on order.
-	want := []uuid.UUID{ungroupedEarlier.ID, ungroupedLater.ID, ungroupedNoDate.ID}
+	want := []uuid.UUID{ungroupedLater.ID, ungroupedEarlier.ID, ungroupedNoDate.ID}
 	wantSet := make(map[uuid.UUID]bool, len(want))
 	for _, id := range want {
 		wantSet[id] = true
@@ -361,6 +419,32 @@ func TestCatalogRepository_SearchCards_StablePaginationAcrossTiedOrderKeys(t *te
 			t.Fatalf("expected card %s to appear exactly once across all pages, appeared %d times", id, seen[id])
 		}
 	}
+}
+
+func TestCatalogRepository_SearchCards_OrdersByReleaseDateDescNullsLast(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	series := fixture.newSeries(t, db)
+
+	later := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	earlier := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	setNoDate := fixture.newExpansionSet(t, db, &series.ID, nil)
+	setEarlier := fixture.newExpansionSet(t, db, &series.ID, &earlier)
+	setLater := fixture.newExpansionSet(t, db, &series.ID, &later)
+
+	cardNoDate := fixture.newCard(t, db, setNoDate.ID, nil)
+	cardEarlier := fixture.newCard(t, db, setEarlier.ID, nil)
+	cardLater := fixture.newCard(t, db, setLater.ID, nil)
+
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+	results, _, err := repo.SearchCards(context.Background(), CardFilter{RarityIDs: []uuid.UUID{fixture.rarity.ID}, Limit: 10})
+	require.NoError(t, err)
+
+	got := make([]uuid.UUID, len(results))
+	for i, r := range results {
+		got[i] = r.ID
+	}
+	assert.Equal(t, []uuid.UUID{cardLater.ID, cardEarlier.ID, cardNoDate.ID}, got)
 }
 
 func containsString(haystack []string, needle string) bool {

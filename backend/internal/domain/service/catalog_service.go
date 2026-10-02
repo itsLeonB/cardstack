@@ -28,11 +28,11 @@ const (
 // results always include Cards the caller doesn't own.
 type CatalogService interface {
 	// ListSeries returns every Series with its Expansion Sets nested
-	// (ordered by Series name then Expansion Set release date), plus every
-	// Expansion Set that belongs to no Series at all - a series-less
-	// Expansion Set is a legitimate domain state, not a special case, and
-	// this is its only way to be reachable through the catalog browse
-	// surface.
+	// (Series and Expansion Sets both ordered most recently released first),
+	// plus every Expansion Set that belongs to no Series at all - a
+	// series-less Expansion Set is a legitimate domain state, not a special
+	// case, and this is its only way to be reachable through the catalog
+	// browse surface.
 	ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error)
 	// ListRarities returns every Rarity across all Games, ordered by name.
 	ListRarities(ctx context.Context) ([]dto.RaritySummary, error)
