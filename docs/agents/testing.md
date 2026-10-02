@@ -62,4 +62,6 @@ Ticket 04's full ingestion (`go run ./cmd/ingest-pokemon-asia`, no flags) scrape
 go run ./cmd/ingest-pokemon-asia -set SVAL
 ```
 
+To backfill listing-derived Expansion Set fields (e.g. `image_url`) on existing rows without crawling any cards, use `go run ./cmd/ingest-pokemon-asia -sync-expansion-sets` (optionally with `-set`/`-series`).
+
 `SVAL` is a small set (~23 cards) — fast enough for quick iteration. Reserve the full multi-series scrape for when a ticket's acceptance criteria actually require verifying against the complete four-Series dataset.

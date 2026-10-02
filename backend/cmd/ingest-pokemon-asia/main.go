@@ -30,7 +30,7 @@ func main() {
 	syncExpansionSets := flag.Bool(
 		"sync-expansion-sets",
 		false,
-		"lightweight opt-in: enumerate listings and upsert only Series/Expansion Sets (e.g. to backfill expansion_sets.image_url), skipping every card/rarity crawl. Honors -series/-set.",
+		"lightweight opt-in: enumerate listings and upsert only Series/Expansion Sets (e.g. to backfill expansion_sets.image_url), skipping every card/rarity crawl. Honors -series/-set. Ignored if -cleanup-stale-rarities is also passed.",
 	)
 	flag.Parse()
 
