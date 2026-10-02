@@ -1,0 +1,21 @@
+frontend/src/lib/route-guard.test.ts
+  s_082a98e06de7cf::t_05a3d0ba6bc7fd 118-121
+frontend/src/lib/route-guard.ts
+  s_082a98e06de7cf::t_c20f80bc0474ce 39-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f54bc4ad590952da23972bfd33b1cb7894df1f83",
+  "prompts": {},
+  "sessions": {
+    "s_082a98e06de7cf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_082a98e06de7cf",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
