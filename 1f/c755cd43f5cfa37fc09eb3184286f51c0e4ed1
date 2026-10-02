@@ -1,0 +1,21 @@
+frontend/src/components/catalog/virtual-grid.test.tsx
+  s_b7c709b7f573f0::t_7b75404c6a5637 204-217
+frontend/src/components/catalog/virtual-grid.tsx
+  s_b7c709b7f573f0::t_42d093e920f9c2 96,99,101-102,105-111,165,182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1fc755cd43f5cfa37fc09eb3184286f51c0e4ed1",
+  "prompts": {},
+  "sessions": {
+    "s_b7c709b7f573f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b7c709b7f573f0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
