@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import { z } from "zod"
 import { AuthField } from "@/components/auth/auth-field"
 import { AuthPage } from "@/components/auth/auth-page"
@@ -13,6 +14,7 @@ import { useRegisterMutation } from "@/lib/session"
 const registerSearchSchema = z.object({ redirect: redirectSchema })
 
 export const Route = createFileRoute("/auth/register")({
+  head: () => pageHead("Create an account"),
   validateSearch: registerSearchSchema,
   component: RegisterPage,
 })

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import {
   getListCollectionsQueryOptions,
   useListCollections,
@@ -18,6 +19,7 @@ import { errorDetail } from "@/lib/collections"
 import { DeleteCollectionDialog } from "@/components/collections/delete-collection-dialog"
 
 export const Route = createFileRoute("/_authenticated/collections/")({
+  head: () => pageHead("Collections"),
   loader: ({ context: { queryClient } }) =>
     queryClient.ensureQueryData(getListCollectionsQueryOptions()),
   component: CollectionsPage,

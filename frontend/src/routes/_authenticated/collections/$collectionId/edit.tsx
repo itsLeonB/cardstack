@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import {
   getGetCollectionQueryOptions,
   useGetCollection,
@@ -25,7 +26,9 @@ export const Route = createFileRoute(
       getGetCollectionQueryOptions(params.collectionId)
     )
     if (response.status === 404) throw notFoundResource("Collection")
+    return response.status === 200 ? response.data.data.title : undefined
   },
+  head: ({ loaderData }) => pageHead(loaderData ? `Edit ${loaderData}` : "Edit Collection"),
   component: EditCollectionPage,
 })
 

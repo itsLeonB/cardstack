@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import { z } from "zod"
 import {
   getSearchCatalogCardsQueryOptions,
@@ -18,13 +19,16 @@ const expansionSetSearchSchema = z.object({
 export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
   validateSearch: expansionSetSearchSchema,
   loaderDeps: ({ search }) => ({ page: search.page }),
-  loader: ({ context: { queryClient }, params, deps }) =>
-    queryClient.ensureQueryData(
+  loader: async ({ context: { queryClient }, params, deps }) => {
+    const response = await queryClient.ensureQueryData(
       getSearchCatalogCardsQueryOptions({
         expansionSetId: [params.expansionSetId],
         page: deps.page,
       })
-    ),
+    )
+    return response.status === 200 ? response.data.data?.[0]?.expansionSet.name : undefined
+  },
+  head: ({ loaderData }) => pageHead(loaderData ?? "Expansion Set"),
   component: ExpansionSetCardsPage,
 })
 

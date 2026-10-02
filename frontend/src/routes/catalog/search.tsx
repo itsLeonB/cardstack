@@ -1,5 +1,6 @@
 import { useCallback } from "react"
 import { createFileRoute, useLocation, useNavigate } from "@tanstack/react-router"
+import { pageHead } from "@/lib/site"
 import { keepPreviousData } from "@tanstack/react-query"
 import {
   getListCatalogFacetsQueryOptions,
@@ -24,6 +25,7 @@ import type { CatalogSearch } from "@/lib/catalog-search"
 const searchSchema = catalogSearchSchema.extend({ collectionId: z.string().optional() })
 
 export const Route = createFileRoute("/catalog/search")({
+  head: () => pageHead("Search the catalog"),
   validateSearch: searchSchema,
   loaderDeps: ({ search: { collectionId: _collectionId, ...filters } }) => filters,
   // Only the card search itself is required for this route to render:
