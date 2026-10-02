@@ -15,6 +15,7 @@ import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
+import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
@@ -54,6 +55,11 @@ const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRouteRoute,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/login',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/catalog/search': typeof CatalogSearchRoute
+  '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
@@ -131,13 +138,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRouteRouteWithChildren
   '/health': typeof HealthRoute
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/catalog/search': typeof CatalogSearchRoute
+  '/auth': typeof AuthIndexRoute
   '/catalog': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
@@ -157,6 +164,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/catalog/search': typeof CatalogSearchRoute
+  '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/_authenticated/collections/new': typeof AuthenticatedCollectionsNewRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
@@ -176,6 +184,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/register'
     | '/catalog/search'
+    | '/auth/'
     | '/catalog/'
     | '/collections/new'
     | '/catalog/sets/$expansionSetId'
@@ -186,13 +195,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
     | '/health'
     | '/account'
     | '/inventory'
     | '/auth/login'
     | '/auth/register'
     | '/catalog/search'
+    | '/auth'
     | '/catalog'
     | '/collections/new'
     | '/catalog/sets/$expansionSetId'
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/register'
     | '/catalog/search'
+    | '/auth/'
     | '/catalog/'
     | '/_authenticated/collections/new'
     | '/catalog/sets/$expansionSetId'
@@ -274,6 +284,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/inventory'
       preLoaderRoute: typeof AuthenticatedInventoryRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/auth/login': {
       id: '/auth/login'
@@ -351,11 +368,13 @@ declare module '@tanstack/react-router' {
 interface AuthRouteRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
+  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteRouteChildren: AuthRouteRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
+  AuthIndexRoute: AuthIndexRoute,
 }
 
 const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(

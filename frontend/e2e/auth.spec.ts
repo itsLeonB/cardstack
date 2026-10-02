@@ -69,7 +69,7 @@ test.describe("Auth redirects", () => {
     await expect(page).toHaveURL(/localhost:\d+\/account$/)
   })
 
-  for (const path of ["/auth/login", "/auth/register"]) {
+  for (const path of ["/auth/login", "/auth/register", "/auth/foo", "/auth"]) {
     test(`sends a signed-in user from ${path} to /`, async ({ page }) => {
       await stubApi(page, { signedIn: true })
       await page.goto(path)
@@ -116,6 +116,17 @@ test.describe("Auth forms", () => {
       await expect(page.getByRole("contentinfo")).toHaveCount(0)
       await expect(page.getByRole("link", { name: "Cardstack" })).toHaveAttribute("href", "/")
       await expect(page.getByRole("button", { name: "Theme" })).toBeVisible()
+    })
+  }
+
+  for (const path of ["/auth/foo", "/auth"]) {
+    test(`${path} shows not-found inside the auth shell`, async ({ page }) => {
+      await page.goto(path)
+      await expect(page.getByRole("heading", { level: 1, name: "404" })).toBeVisible()
+      await expect(page.getByRole("main")).toHaveCount(1)
+      await expect(page.getByRole("navigation")).toHaveCount(0)
+      await expect(page.getByRole("contentinfo")).toHaveCount(0)
+      await expect(page.getByRole("link", { name: "Cardstack" })).toHaveAttribute("href", "/")
     })
   }
 

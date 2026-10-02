@@ -10,6 +10,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools"
 import type { QueryClient } from "@tanstack/react-query"
 
 import { AppShell } from "@/components/layout/app-shell"
+import { NotFound } from "@/components/layout/not-found"
 import { ThemeProvider } from "@/components/theme-provider"
 import appCss from "../styles.css?url"
 
@@ -60,12 +61,7 @@ export const Route = createRootRouteWithContext<{
       },
     ],
   }),
-  notFoundComponent: () => (
-    <div className="container mx-auto p-4 pt-16">
-      <h1>404</h1>
-      <p>The requested page could not be found.</p>
-    </div>
-  ),
+  notFoundComponent: NotFound,
   component: RootLayout,
   shellComponent: RootDocument,
 })

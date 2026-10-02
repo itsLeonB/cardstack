@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { AuthShell } from "@/components/auth/auth-shell"
+import { NotFound } from "@/components/layout/not-found"
 import { requireGuest } from "@/lib/route-guard"
 
 /**
@@ -9,6 +10,8 @@ import { requireGuest } from "@/lib/route-guard"
  */
 export const Route = createFileRoute("/auth")({
   beforeLoad: requireGuest,
+  // Unknown `/auth/*` paths stay inside `AuthShell` instead of bubbling to the root.
+  notFoundComponent: NotFound,
   component: () => (
     <AuthShell>
       <Outlet />
