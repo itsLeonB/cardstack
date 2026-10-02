@@ -1,4 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { MasterInventory } from "@/components/inventory/master-inventory"
 import { catalogSearchSchema } from "@/lib/catalog-search"
 
@@ -12,15 +14,9 @@ function InventoryPage() {
   const navigate = useNavigate({ from: Route.fullPath })
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
-      <Link
-        to="/account"
-        className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← Back to Account
-      </Link>
-      <h1 className="font-heading text-2xl font-medium">Master Inventory</h1>
+    <PageContainer variant="wide">
+      <PageHeader title="Master Inventory" />
       <MasterInventory search={search} onSearchChange={(next) => void navigate({ search: next })} />
-    </div>
+    </PageContainer>
   )
 }

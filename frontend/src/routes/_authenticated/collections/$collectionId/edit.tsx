@@ -1,16 +1,13 @@
 import { useState } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import {
   getGetCollectionQueryOptions,
   useGetCollection,
 } from "@/generated/endpoints/collections/collections"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CollectionForm } from "@/components/collections/collection-form"
 import {
@@ -36,6 +33,7 @@ function EditCollectionPage() {
 
   const query = useGetCollection(collectionId)
   const collection = query.data?.status === 200 ? query.data.data.data : undefined
+  const collectionTitle = collection?.title ?? "Collection"
   const loadErrorMessage = errorDetail(
     query.data,
     "Could not load this Collection."
@@ -44,23 +42,23 @@ function EditCollectionPage() {
   const updateMutation = useUpdateCollectionMutation()
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6 p-6">
-      <Link
-        to="/collections"
-        className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← Back to Collections
-      </Link>
+    <PageContainer>
+      <Breadcrumbs
+        crumbs={[
+          { label: "Collections", link: { to: "/collections" } },
+          {
+            label: collectionTitle,
+            link: { to: "/collections/$collectionId", params: { collectionId } },
+          },
+          { label: "Edit" },
+        ]}
+      />
+      <PageHeader
+        title={collection ? `Edit “${collectionTitle}”` : "Edit Collection"}
+        description="Update the title, description, or card-count limit."
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {collection ? `Edit “${collection.title}”` : "Edit Collection"}
-          </CardTitle>
-          <CardDescription>
-            Update the title, description, or card-count limit.
-          </CardDescription>
-        </CardHeader>
+      <Card className="max-w-lg">
         <CardContent>
           {query.isPending && (
             <div
@@ -107,6 +105,6 @@ function EditCollectionPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }

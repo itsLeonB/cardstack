@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { errorDetail } from "@/lib/collections"
@@ -31,13 +33,13 @@ function CollectionsPage() {
   )
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-2xl font-medium">Collections</h1>
-        <Button render={<Link to="/collections/new" />}>
-          New Collection
-        </Button>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Collections"
+        actions={
+          <Button render={<Link to="/collections/new" />}>New Collection</Button>
+        }
+      />
 
       {query.isPending && (
         <div
@@ -112,6 +114,6 @@ function CollectionsPage() {
           </li>
         ))}
       </ul>
-    </div>
+    </PageContainer>
   )
 }

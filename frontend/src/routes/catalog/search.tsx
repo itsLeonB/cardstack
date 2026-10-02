@@ -10,6 +10,9 @@ import {
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
 import { z } from "zod"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { CardResults } from "@/components/catalog/card-results"
 import { CollectionCardResults } from "@/components/catalog/collection-card-results"
 import { CollectionPicker, useCatalogCollection } from "@/components/catalog/collection-picker"
@@ -86,14 +89,14 @@ function CatalogSearchPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-2xl font-medium">Search the catalog</h1>
-        <p className="text-sm text-muted-foreground">
-          Search by name, or filter by Expansion Set and card number, rarity,
-          category, and tag.
-        </p>
-      </header>
+    <PageContainer variant="wide">
+      <Breadcrumbs
+        crumbs={[{ label: "Catalog", link: { to: "/catalog" } }, { label: "Search" }]}
+      />
+      <PageHeader
+        title="Search the catalog"
+        description="Search by name, or filter by Expansion Set and card number, rarity, category, and tag."
+      />
 
       <CatalogFilterPanel
         search={search}
@@ -117,6 +120,6 @@ function CatalogSearchPage() {
       ) : (
         <CardResults {...resultsProps} />
       )}
-    </div>
+    </PageContainer>
   )
 }

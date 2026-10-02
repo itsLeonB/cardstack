@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { useLogoutMutation, useSession } from "@/lib/session"
 
@@ -27,8 +29,8 @@ function AccountPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <h1 className="font-medium">Account</h1>
+    <PageContainer className="gap-4">
+      <PageHeader title="Account" />
       {user && <p>Logged in as {user.email}</p>}
       <Link to="/collections" className="w-fit text-sm text-primary underline">
         My Collections
@@ -44,6 +46,6 @@ function AccountPage() {
       >
         {logoutMutation.isPending ? "Logging out..." : "Log out"}
       </Button>
-    </div>
+    </PageContainer>
   )
 }

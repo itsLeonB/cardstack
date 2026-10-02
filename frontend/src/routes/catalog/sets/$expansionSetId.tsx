@@ -5,6 +5,9 @@ import {
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
 import { CardResults } from "@/components/catalog/card-results"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatReleaseDate } from "@/lib/date"
 
@@ -38,6 +41,7 @@ function ExpansionSetCardsPage() {
   const cards = result?.data ?? []
   const firstCard = cards[0]
   const releaseDate = formatReleaseDate(firstCard?.expansionSet.releaseDate)
+  const setName = firstCard?.expansionSet.name ?? "Expansion Set"
   const errorMessage =
     query.data && query.data.status !== 200
       ? (query.data.data.detail ?? "Could not load this Expansion Set.")
@@ -48,34 +52,24 @@ function ExpansionSetCardsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
-      <Link
-        to="/catalog"
-        className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← All Series
-      </Link>
-
-      <header className="flex flex-col gap-1">
-        {firstCard ? (
-          <>
-            <h1 className="font-heading text-2xl font-medium">
-              {firstCard.expansionSet.name}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {firstCard.expansionSet.code}
-              {releaseDate && ` · Released ${releaseDate}`}
-            </p>
-          </>
-        ) : query.isPending ? (
-          <>
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-40" />
-          </>
-        ) : (
-          <h1 className="font-heading text-2xl font-medium">Expansion Set</h1>
-        )}
-      </header>
+    <PageContainer>
+      <Breadcrumbs
+        crumbs={[{ label: "Catalog", link: { to: "/catalog" } }, { label: setName }]}
+      />
+      {firstCard || !query.isPending ? (
+        <PageHeader
+          title={setName}
+          description={
+            firstCard &&
+            `${firstCard.expansionSet.code}${releaseDate ? ` · Released ${releaseDate}` : ""}`
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+      )}
 
       {result && result.meta.total > 0 && (
         <Link
@@ -98,6 +92,6 @@ function ExpansionSetCardsPage() {
         emptyMessage="This Expansion Set has no cards yet."
         onPageChange={handlePageChange}
       />
-    </div>
+    </PageContainer>
   )
 }
