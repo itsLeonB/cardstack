@@ -93,13 +93,22 @@ export function VirtualGrid<T>({
 
   // The row holding focus. `keyboard` is true when it was reached by keyboard
   // (`:focus-visible`), which pauses scroll-triggered loading below.
-  const [focus, setFocus] = useState<{
+  const [focusState, setFocus] = useState<{
     row: number
     keyboard: boolean
+    columns: number
   } | null>(null)
+  // A row index means nothing under another column count (its tiles remount).
+  const focus = focusState?.columns === columns ? focusState : null
   const focusedRow = focus?.row ?? null
   const rangeExtractor = useCallback(
-    (range: Range) => withPinnedRow(defaultRangeExtractor(range), focusedRow),
+    (range: Range) => {
+      const indexes = defaultRangeExtractor(range)
+      // Never pin a row that no longer exists (list shortened or re-chunked).
+      return focusedRow !== null && focusedRow < range.count
+        ? withPinnedRow(indexes, focusedRow)
+        : indexes
+    },
     [focusedRow]
   )
 
@@ -153,7 +162,7 @@ export function VirtualGrid<T>({
     const target = Math.floor(current.card / columns)
     frame.current = requestAnimationFrame(() =>
       // Never smooth: no animation, whatever the reduced-motion setting.
-      virtualizer.scrollToIndex(target, { align: "start", behavior: "auto" })
+      virtualizer.scrollToIndex(target, { align: "start", behavior: "instant" })
     )
   })
   useEffect(() => () => cancelAnimationFrame(frame.current), [])
@@ -170,6 +179,7 @@ export function VirtualGrid<T>({
           setFocus({
             row: Number(row.dataset.index),
             keyboard: event.target.matches(":focus-visible"),
+            columns,
           })
         }
       }}

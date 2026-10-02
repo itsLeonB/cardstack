@@ -201,4 +201,18 @@ describe("VirtualGrid", () => {
     act(() => blurActive())
     expect(onLoadMore).toHaveBeenCalledTimes(1)
   })
+
+  it("survives a column change while a late row has focus", async () => {
+    vi.stubGlobal("innerHeight", 5000)
+    layout.resize(600)
+    renderGrid(30, false)
+    expect(rowTiles(0)).toHaveLength(3)
+    await userEvent.click(screen.getByRole("button", { name: "item-29" }))
+
+    // 10 rows of 3 become 6 of 5: the pinned row 9 no longer exists.
+    expect(() => act(() => layout.resize(1000))).not.toThrow()
+
+    expect(rowTiles(0)).toHaveLength(5)
+    expect(screen.getByRole("button", { name: "item-0" })).toBeTruthy()
+  })
 })
