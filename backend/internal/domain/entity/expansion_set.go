@@ -13,7 +13,9 @@ import (
 // "SV1V"); LocaleID is descriptive source metadata, not part of the natural
 // key, which is (GameID, Code). SeriesID optionally groups this set under a
 // Series (docs/adr/0008); ReleaseDate is the upstream source's own sale date
-// for the set, when known.
+// for the set, when known. ImageURL is the source listing's cover image,
+// stored verbatim ("" when the listing has none), same convention as
+// Card.ImageURL.
 type ExpansionSet struct {
 	crud.BaseEntity
 	GameID      uuid.UUID  `gorm:"type:uuid;not null;index"`
@@ -22,6 +24,7 @@ type ExpansionSet struct {
 	LocaleID    uuid.UUID  `gorm:"type:uuid;not null;index"`
 	SeriesID    *uuid.UUID `gorm:"type:uuid;index"`
 	ReleaseDate *time.Time
+	ImageURL    string `gorm:"not null;default:''"`
 }
 
 func (ExpansionSet) TableName() string { return "expansion_sets" }

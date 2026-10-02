@@ -15,6 +15,7 @@ func ToExpansionSetSummary(set entity.ExpansionSet) dto.ExpansionSetSummary {
 		Code:        set.Code,
 		Name:        set.Name,
 		ReleaseDate: set.ReleaseDate,
+		ImageURL:    set.ImageURL,
 	}
 }
 
@@ -40,6 +41,7 @@ func ToCardSummary(r repository.CardResult) dto.CardSummary {
 			Code:        r.ExpansionSetCode,
 			Name:        r.ExpansionSetName,
 			ReleaseDate: r.ExpansionSetReleaseDate,
+			ImageURL:    r.ExpansionSetImageURL,
 		},
 		LocalID:  r.LocalID,
 		Name:     r.Name,

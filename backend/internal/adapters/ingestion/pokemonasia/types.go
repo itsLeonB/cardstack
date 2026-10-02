@@ -10,6 +10,9 @@ type expansionListing struct {
 	Code        string
 	Name        string
 	ReleaseDate time.Time
+	// ImageURL is the listing's cover image src, verbatim ("" when absent):
+	// filenames aren't a constructible pattern across sets.
+	ImageURL string
 }
 
 // cardDetail is the parsed content of one GET /card-search/detail/{id}/

@@ -546,6 +546,9 @@
           "id": {
             "type": "string"
           },
+          "imageUrl": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -561,7 +564,8 @@
           "available",
           "id",
           "code",
-          "name"
+          "name",
+          "imageUrl"
         ],
         "type": "object"
       },
@@ -572,6 +576,9 @@
             "type": "string"
           },
           "id": {
+            "type": "string"
+          },
+          "imageUrl": {
             "type": "string"
           },
           "name": {
@@ -585,7 +592,8 @@
         "required": [
           "id",
           "code",
-          "name"
+          "name",
+          "imageUrl"
         ],
         "type": "object"
       },
