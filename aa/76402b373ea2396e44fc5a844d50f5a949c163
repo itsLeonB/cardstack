@@ -1,0 +1,19 @@
+docs/agents/conventions/frontend.md
+  s_e5eb20ac2f6bb3::t_11e5bafa9e98fb 44-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "aa76402b373ea2396e44fc5a844d50f5a949c163",
+  "prompts": {},
+  "sessions": {
+    "s_e5eb20ac2f6bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e5eb20ac2f6bb3",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
