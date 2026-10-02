@@ -1,0 +1,23 @@
+.scratch/cardstack-mvp/issues/14-expansion-set-image-url.md
+  s_d5631b681e93fd::t_5e9be0a2ab2ba4 6,35-41
+backend/cmd/ingest-pokemon-asia/main.go
+  s_d5631b681e93fd::t_b51fcb8f5eeb5d 33
+docs/agents/testing.md
+  s_d5631b681e93fd::t_f8b8f8b5e9d673 65-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "173ecc3b1c7bf3255f1e1d027370ea9d19f51762",
+  "prompts": {},
+  "sessions": {
+    "s_d5631b681e93fd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d5631b681e93fd",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
