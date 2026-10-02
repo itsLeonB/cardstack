@@ -45,12 +45,17 @@ export function useSession() {
 // Routes read via ensureQueryData, so any user-scoped entry left in the cache
 // would be served to the next user who signs in without a page reload. Drop
 // everything except the session query, which is refetched instead.
+//
+// Returned so a mutation's `onSuccess` can await it: the caller's own
+// `onSuccess` then runs against a settled session, and a `requireAuth` guard
+// triggered by an immediate redirect (login -> the page the user wanted) can't
+// read the stale pre-login 401 from the cache.
 function resetCache(queryClient: QueryClient) {
   const sessionKey = getGetCurrentUserQueryKey()
   queryClient.removeQueries({
     predicate: (query) => query.queryKey[0] !== sessionKey[0],
   })
-  queryClient.invalidateQueries({ queryKey: sessionKey })
+  return queryClient.invalidateQueries({ queryKey: sessionKey })
 }
 
 /** Login mutation that refreshes the session query once cookies are set. */
@@ -66,7 +71,7 @@ export function useLoginMutation() {
           // Railway) — the response body is the only place this page can
           // actually get it from. See http.ts's setCsrfToken doc comment.
           setCsrfToken(response.data.data.csrfToken ?? null)
-          resetCache(queryClient)
+          return resetCache(queryClient)
         }
       },
     },
@@ -87,7 +92,7 @@ export function useLogoutMutation() {
       onSuccess: (response) => {
         if (response.status === 204) {
           setCsrfToken(null)
-          resetCache(queryClient)
+          return resetCache(queryClient)
         }
       },
     },
