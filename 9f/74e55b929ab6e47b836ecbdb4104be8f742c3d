@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/19-collections-list-card-count-and-clickable-card.md
+  s_0b6aea06fcb9d1::t_8cec65e548fd9f 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9f74e55b929ab6e47b836ecbdb4104be8f742c3d",
+  "prompts": {},
+  "sessions": {
+    "s_0b6aea06fcb9d1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_0b6aea06fcb9d1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
