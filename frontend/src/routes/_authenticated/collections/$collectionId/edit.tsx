@@ -33,6 +33,7 @@ function EditCollectionPage() {
 
   const query = useGetCollection(collectionId)
   const collection = query.data?.status === 200 ? query.data.data.data : undefined
+  const collectionTitle = collection?.title ?? "Collection"
   const loadErrorMessage = errorDetail(
     query.data,
     "Could not load this Collection."
@@ -46,14 +47,14 @@ function EditCollectionPage() {
         crumbs={[
           { label: "Collections", link: { to: "/collections" } },
           {
-            label: collection?.title ?? "Collection",
+            label: collectionTitle,
             link: { to: "/collections/$collectionId", params: { collectionId } },
           },
           { label: "Edit" },
         ]}
       />
       <PageHeader
-        title={collection ? `Edit “${collection.title}”` : "Edit Collection"}
+        title={collection ? `Edit “${collectionTitle}”` : "Edit Collection"}
         description="Update the title, description, or card-count limit."
       />
 

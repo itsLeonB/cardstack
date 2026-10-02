@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
 import {
   RouterProvider,
@@ -10,13 +10,13 @@ import { Breadcrumbs } from "./breadcrumbs"
 
 afterEach(cleanup)
 
-async function renderCrumbs() {
+async function renderCrumbs(labels = ["Catalog", "Search"]) {
   const root = createRootRoute({
     component: () => (
       <Breadcrumbs
         crumbs={[
-          { label: "Catalog", link: { to: "/catalog" } },
-          { label: "Search" },
+          { label: labels[0]!, link: { to: "/catalog" } },
+          { label: labels[1]! },
         ]}
       />
     ),
@@ -40,5 +40,15 @@ describe("Breadcrumbs", () => {
     expect(screen.queryByRole("link", { name: "Search" })).toBeNull()
     expect(screen.getByText("Search").getAttribute("aria-current")).toBe("page")
     expect(screen.queryByRole("listitem")).toBeNull()
+  })
+
+  it("renders crumbs that share a label without key collisions", async () => {
+    const errors: unknown[][] = []
+    const spy = vi.spyOn(console, "error").mockImplementation((...args) => void errors.push(args))
+    await renderCrumbs(["Edit", "Edit"])
+
+    await screen.findByRole("navigation", { name: "Breadcrumb" })
+    expect(errors.filter((args) => String(args[0]).includes("same key"))).toEqual([])
+    spy.mockRestore()
   })
 })

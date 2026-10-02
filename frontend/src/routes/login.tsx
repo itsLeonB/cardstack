@@ -73,7 +73,7 @@ function LoginPage() {
 
   return (
     <PageContainer variant="narrow" className="min-h-[70svh] items-center justify-center gap-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Log in</CardTitle>
           <CardDescription>

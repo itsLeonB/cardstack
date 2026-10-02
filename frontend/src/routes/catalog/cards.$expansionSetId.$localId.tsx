@@ -29,6 +29,8 @@ function CardDetailPage() {
   const { expansionSetId, localId } = Route.useParams()
   const query = useSearchCatalogCards(cardParams(expansionSetId, localId))
   const card = query.data?.status === 200 ? query.data.data.data?.[0] : undefined
+  const cardName = card?.name ?? "Card"
+  const setName = card?.expansionSet.name ?? "Expansion Set"
   const failed = query.isError || (query.data !== undefined && query.data.status !== 200)
 
   return (
@@ -37,13 +39,13 @@ function CardDetailPage() {
         crumbs={[
           { label: "Catalog", link: { to: "/catalog" } },
           {
-            label: card?.expansionSet.name ?? "Expansion Set",
+            label: setName,
             link: { to: "/catalog/sets/$expansionSetId", params: { expansionSetId }, search: { page: 1 } },
           },
-          { label: card?.name ?? "Card" },
+          { label: cardName },
         ]}
       />
-      <PageHeader title={card?.name ?? "Card"} />
+      <PageHeader title={cardName} />
       {query.isPending ? (
         <Skeleton className="aspect-[5/7] w-full max-w-xs rounded-4xl" aria-label="Loading card" />
       ) : failed ? (

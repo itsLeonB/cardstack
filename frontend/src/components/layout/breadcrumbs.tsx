@@ -14,7 +14,7 @@ export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
       {crumbs.map(({ label, link }, index) => {
         const isCurrent = index === crumbs.length - 1
         return (
-          <span key={label} className="flex min-w-0 items-center gap-x-2">
+          <span key={`${index}-${label}`} className="flex min-w-0 items-center gap-x-2">
             {index > 0 && (
               <span aria-hidden="true" className="text-muted-foreground">
                 /

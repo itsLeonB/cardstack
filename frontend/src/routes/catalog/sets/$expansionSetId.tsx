@@ -8,6 +8,7 @@ import { CardResults } from "@/components/catalog/card-results"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
 import { formatReleaseDate } from "@/lib/date"
 
 const expansionSetSearchSchema = z.object({
@@ -55,13 +56,20 @@ function ExpansionSetCardsPage() {
       <Breadcrumbs
         crumbs={[{ label: "Catalog", link: { to: "/catalog" } }, { label: setName }]}
       />
-      <PageHeader
-        title={setName}
-        description={
-          firstCard &&
-          `${firstCard.expansionSet.code}${releaseDate ? ` · Released ${releaseDate}` : ""}`
-        }
-      />
+      {firstCard || !query.isPending ? (
+        <PageHeader
+          title={setName}
+          description={
+            firstCard &&
+            `${firstCard.expansionSet.code}${releaseDate ? ` · Released ${releaseDate}` : ""}`
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+      )}
 
       {result && result.meta.total > 0 && (
         <Link

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils"
 
 const widths = {
-  narrow: "max-w-md",
+  narrow: "max-w-sm",
   default: "max-w-4xl",
   wide: "max-w-6xl",
 }
