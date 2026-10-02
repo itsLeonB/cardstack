@@ -14,7 +14,7 @@ import { useLoginMutation, useLogoutMutation, useSession } from "./session"
 
 // The auth endpoints are generated orval/TanStack Query hooks with no
 // service layer to inject; mocking the generated module is the standard way
-// to isolate these wrappers from it in tests (see health-check.test.tsx).
+// to isolate these wrappers from it in tests.
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/auth/auth", async () => {
   const actual =
