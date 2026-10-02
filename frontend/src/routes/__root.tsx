@@ -32,7 +32,7 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Cardstack",
+        title: SITE_NAME,
       },
       { name: "description", content: DESCRIPTION },
       // Static on purpose: link-preview crawlers don't run scripts, so every

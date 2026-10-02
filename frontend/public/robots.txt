@@ -1,4 +1,4 @@
-# Authenticated areas only. /auth/* is left crawlable on purpose so its noindex tag can be read.
+# Authenticated areas only; keep in step with PUBLIC_PATHS in tools/seo-files.ts. /auth/* is left crawlable on purpose so its noindex tag can be read.
 User-agent: *
 Disallow: /collections
 Disallow: /inventory

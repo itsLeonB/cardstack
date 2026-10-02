@@ -3,7 +3,8 @@
 import { readFileSync, writeFileSync } from "node:fs"
 
 // The sitemap assumes the Catalog index stays public. If guest catalog locking
-// (ticket 24) changes that, drop "/catalog" here and disallow it in public/robots.txt.
+// (ticket 24) changes that, drop "/catalog" here and disallow it in public/robots.txt,
+// which holds the matching list of private paths.
 const PUBLIC_PATHS = ["/", "/catalog"]
 
 export function buildSitemap(origin: string) {
@@ -17,7 +18,11 @@ export function buildRobots(rules: string, origin: string) {
 
 if (process.argv[1]?.endsWith("seo-files.ts")) {
   const origin = process.env.VITE_SITE_URL?.replace(/\/$/, "")
-  if (!origin) {
+  if (!origin && process.env.VERCEL_ENV === "production") {
+    // A production build without it would silently ship no preview image or sitemap.
+    console.error("[seo-files] VITE_SITE_URL must be set for production builds")
+    process.exit(1)
+  } else if (!origin) {
     console.warn("[seo-files] VITE_SITE_URL is unset: skipping sitemap.xml and the robots.txt Sitemap line")
   } else {
     const out = "dist/client"
