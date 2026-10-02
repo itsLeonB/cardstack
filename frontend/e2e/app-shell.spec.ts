@@ -15,7 +15,7 @@ async function signIn(page: Page) {
       status: 200,
       contentType: "application/json",
       headers: {
-        "access-control-allow-origin": "http://localhost:3000",
+        "access-control-allow-origin": route.request().headers().origin ?? "",
         "access-control-allow-credentials": "true",
       },
       body: JSON.stringify({ data: [], meta: { total: 0, page: 1, limit: 24 } }),
@@ -26,7 +26,7 @@ async function signIn(page: Page) {
       status: 200,
       contentType: "application/json",
       headers: {
-        "access-control-allow-origin": "http://localhost:3000",
+        "access-control-allow-origin": route.request().headers().origin ?? "",
         "access-control-allow-credentials": "true",
       },
       body: JSON.stringify({ data: { id: "u1", email: "ada@example.com" } }),
