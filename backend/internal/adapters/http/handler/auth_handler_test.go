@@ -3,7 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/humatest"
@@ -13,6 +15,8 @@ import (
 	authkit "github.com/itsLeonB/go-authkit"
 	"github.com/itsLeonB/go-authkit/authkittest"
 	"github.com/itsLeonB/ungerr"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // withImmediateVerification mirrors this project's production config (empty
@@ -107,9 +111,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	if err := json.Unmarshal(resp.Body.Bytes(), &problem); err != nil {
 		t.Fatalf("decoding error body: %v", err)
 	}
-	if problem.Detail != authkit.ErrInvalidCredentials.Error() {
-		t.Fatalf("expected detail %q, got %q", authkit.ErrInvalidCredentials.Error(), problem.Detail)
-	}
+	assert.Equal(t, "Invalid email or password.", problem.Detail)
 }
 
 func TestAuthHandler_Login_UnknownEmail(t *testing.T) {
@@ -119,6 +121,12 @@ func TestAuthHandler_Login_UnknownEmail(t *testing.T) {
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 (not a 404 — see mapAuthError, ErrUserNotFound is remapped to invalid credentials by authkit.Login itself), got %d: %s", resp.Code, resp.Body.String())
 	}
+
+	var problem struct {
+		Detail string `json:"detail"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &problem))
+	assert.Equal(t, "Invalid email or password.", problem.Detail)
 }
 
 func TestAuthHandler_Me_RequiresSession(t *testing.T) {
@@ -138,21 +146,27 @@ func TestMapAuthError_UnknownIsLeftForTheGlobalSeam(t *testing.T) {
 }
 
 func TestMapAuthError_KnownStatuses(t *testing.T) {
-	cases := map[error]int{
-		authkit.ErrUserExists:         http.StatusConflict,
-		authkit.ErrInvalidCredentials: http.StatusUnauthorized,
-		authkit.ErrSessionNotFound:    http.StatusUnauthorized,
-		authkit.ErrTokenInvalid:       http.StatusUnauthorized,
-		authkit.ErrTokenExpired:       http.StatusUnauthorized,
-		authkit.ErrTokenNotFound:      http.StatusUnauthorized,
-		authkit.ErrUserNotFound:       http.StatusNotFound,
-		authkit.ErrNotVerified:        http.StatusForbidden,
-		authkit.ErrTooManyRequests:    http.StatusTooManyRequests,
+	cases := map[error]struct {
+		status  int
+		message string
+	}{
+		authkit.ErrUserExists:         {http.StatusConflict, msgUserExists},
+		authkit.ErrInvalidCredentials: {http.StatusUnauthorized, "Invalid email or password."},
+		authkit.ErrSessionNotFound:    {http.StatusUnauthorized, "Session expired or invalid. Please log in again."},
+		authkit.ErrTokenInvalid:       {http.StatusUnauthorized, "Session expired or invalid. Please log in again."},
+		authkit.ErrTokenExpired:       {http.StatusUnauthorized, "Session expired or invalid. Please log in again."},
+		authkit.ErrTokenNotFound:      {http.StatusUnauthorized, "Session expired or invalid. Please log in again."},
+		authkit.ErrUserNotFound:       {http.StatusNotFound, msgUserNotFound},
+		authkit.ErrNotVerified:        {http.StatusForbidden, msgNotVerified},
+		authkit.ErrTooManyRequests:    {http.StatusTooManyRequests, msgTooManyRequests},
 	}
 	for in, want := range cases {
 		var appErr ungerr.AppError
-		if !errors.As(mapAuthError(in), &appErr) || appErr.HttpStatus() != want {
-			t.Errorf("%v: want status %d, got %v", in, want, mapAuthError(in))
-		}
+		require.ErrorAs(t, mapAuthError(in), &appErr, in.Error())
+		assert.Equal(t, want.status, appErr.HttpStatus(), in.Error())
+		// ungerr's Error() is only the HTTP status text; the client-visible
+		// message is Details(), which is what the Huma seam sends as `detail`.
+		assert.Equal(t, want.message, appErr.Details(), in.Error())
+		assert.NotContains(t, strings.ToLower(fmt.Sprint(appErr.Details())), "authkit", in.Error())
 	}
 }
