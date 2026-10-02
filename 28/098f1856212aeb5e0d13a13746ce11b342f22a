@@ -1,0 +1,71 @@
+.scratch/frontend-visual-identity/issues/06-metadata-seo-and-indexing.md
+  s_a039b85626a131::t_c12a2ef8769862 9-15
+docs/agents/conventions/frontend.md
+  s_a039b85626a131::t_4250ceac60903c 35-37
+frontend/.env.example
+  s_a039b85626a131::t_58503d86281f91 2-6
+frontend/e2e/app-shell.spec.ts
+  s_a039b85626a131::t_84c3d99bbaa782 57
+frontend/e2e/seo.spec.ts
+  s_a039b85626a131::t_815f974df8fce9 1-93
+frontend/package.json
+  s_a039b85626a131::t_ab385f3cc560c8 7
+frontend/public/robots.txt
+  s_a039b85626a131::t_e817720d158608 1,3-5
+frontend/src/lib/site.test.ts
+  s_a039b85626a131::t_cf732404d97adf 1-15
+frontend/src/lib/site.ts
+  s_a039b85626a131::t_3bd3f2feb98384 1-17
+frontend/src/routes/__root.tsx
+  s_a039b85626a131::t_481ea2d60fdd93 16,19-21,37-53
+frontend/src/routes/_authenticated.tsx
+  s_a039b85626a131::t_d8000cab489c7c 2,12
+frontend/src/routes/_authenticated/account.tsx
+  s_a039b85626a131::t_ec299df16b0c7a 2,11
+frontend/src/routes/_authenticated/collections/$collectionId/edit.tsx
+  s_a039b85626a131::t_0250b7165e5719 3,29,31
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_a039b85626a131::t_fa217ddbe53581 2,25,27
+frontend/src/routes/_authenticated/collections/index.tsx
+  s_a039b85626a131::t_e2f96813bdbb7b 2,22
+frontend/src/routes/_authenticated/collections/new.tsx
+  s_a039b85626a131::t_444bf0f9cfa64a 3,15
+frontend/src/routes/_authenticated/inventory.tsx
+  s_a039b85626a131::t_9a0ecc96ea6e66 2,9
+frontend/src/routes/auth/login.tsx
+  s_a039b85626a131::t_17f61553799c83 3,23
+frontend/src/routes/auth/register.tsx
+  s_a039b85626a131::t_82ba9e190394d7 3,17
+frontend/src/routes/auth/route.tsx
+  s_a039b85626a131::t_521e7b7b9c9c39 2,14
+frontend/src/routes/catalog/cards.$expansionSetId.$localId.tsx
+  s_a039b85626a131::t_a31c4cf89d07a3 2,27-29,31
+frontend/src/routes/catalog/index.tsx
+  s_a039b85626a131::t_0a961ac2feb698 2,16-20
+frontend/src/routes/catalog/search.tsx
+  s_a039b85626a131::t_161d49feb8286c 3,28
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_a039b85626a131::t_a7365b9fc04d2a 2,22-23,28-31
+frontend/src/routes/index.tsx
+  s_a039b85626a131::t_9581780e2d9e31 2,5-8
+frontend/tools/seo-files.test.ts
+  s_a039b85626a131::t_ccaffb9f64c4a0 1-16
+frontend/tools/seo-files.ts
+  s_a039b85626a131::t_e304dfcc555efb 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "28098f1856212aeb5e0d13a13746ce11b342f22a",
+  "prompts": {},
+  "sessions": {
+    "s_a039b85626a131": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a039b85626a131",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
