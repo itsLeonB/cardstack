@@ -1,8 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import {
   getSearchCatalogCardsQueryOptions,
   useSearchCatalogCards,
 } from "@/generated/endpoints/catalog/catalog"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { CardHoldings } from "@/components/catalog/card-holdings"
 import { CardTile } from "@/components/catalog/card-tile"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -29,15 +32,18 @@ function CardDetailPage() {
   const failed = query.isError || (query.data !== undefined && query.data.status !== 200)
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <Link
-        to="/catalog/sets/$expansionSetId"
-        params={{ expansionSetId }}
-        search={{ page: 1 }}
-        className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← Back to set
-      </Link>
+    <PageContainer>
+      <Breadcrumbs
+        crumbs={[
+          { label: "Catalog", link: { to: "/catalog" } },
+          {
+            label: card?.expansionSet.name ?? "Expansion Set",
+            link: { to: "/catalog/sets/$expansionSetId", params: { expansionSetId }, search: { page: 1 } },
+          },
+          { label: card?.name ?? "Card" },
+        ]}
+      />
+      <PageHeader title={card?.name ?? "Card"} />
       {query.isPending ? (
         <Skeleton className="aspect-[5/7] w-full max-w-xs rounded-4xl" aria-label="Loading card" />
       ) : failed ? (
@@ -52,6 +58,6 @@ function CardDetailPage() {
           <CardHoldings cardId={card.id} />
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

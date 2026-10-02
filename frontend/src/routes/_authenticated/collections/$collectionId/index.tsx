@@ -1,4 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import {
   getGetCollectionQueryOptions,
   useGetCollection,
@@ -26,13 +29,13 @@ function CollectionPage() {
   const loadError = errorDetail(query.data, "Could not load this Collection.")
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
-      <Link
-        to="/collections"
-        className="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-      >
-        ← Back to Collections
-      </Link>
+    <PageContainer>
+      <Breadcrumbs
+        crumbs={[
+          { label: "Collections", link: { to: "/collections" } },
+          { label: collection?.title ?? "Collection" },
+        ]}
+      />
       {(query.isError || loadError) && (
         <p role="alert" className="text-sm text-destructive">
           {loadError ?? NETWORK_ERROR}
@@ -40,20 +43,16 @@ function CollectionPage() {
       )}
       {collection && (
         <>
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="font-heading text-2xl font-medium">{collection.title}</h1>
-              {collection.description && (
-                <p className="text-sm text-muted-foreground">{collection.description}</p>
-              )}
-              {collection.maxCardCount > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Limit: {collection.maxCardCount} cards
-                </p>
-              )}
-            </div>
-            <AddCardsLink collectionId={collectionId} />
-          </header>
+          <PageHeader
+            title={collection.title}
+            description={
+              <>
+                {collection.description && <p>{collection.description}</p>}
+                {collection.maxCardCount > 0 && <p>Limit: {collection.maxCardCount} cards</p>}
+              </>
+            }
+            actions={<AddCardsLink collectionId={collectionId} />}
+          />
           <CollectionEntries
             collectionId={collectionId}
             search={search}
@@ -61,6 +60,6 @@ function CollectionPage() {
           />
         </>
       )}
-    </div>
+    </PageContainer>
   )
 }

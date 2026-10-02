@@ -4,6 +4,8 @@ import {
   useListCatalogSeries,
 } from "@/generated/endpoints/catalog/catalog"
 import type { ExpansionSetSummary } from "@/generated/models"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
@@ -26,17 +28,19 @@ function CatalogSeriesPage() {
       : null
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8 p-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-2xl font-medium">Catalog</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse every Series and Expansion Set, or{" "}
-          <Link to="/catalog/search" className="text-primary underline">
-            search the catalog
-          </Link>
-          .
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Catalog"
+        description={
+          <>
+            Browse every Series and Expansion Set, or{" "}
+            <Link to="/catalog/search" className="text-primary underline">
+              search the catalog
+            </Link>
+            .
+          </>
+        }
+      />
 
       {isPending && (
         <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading catalog">
@@ -92,7 +96,7 @@ function CatalogSeriesPage() {
           </section>
         )}
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

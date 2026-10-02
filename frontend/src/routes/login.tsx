@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
+import { PageContainer } from "@/components/layout/page-container"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -71,7 +72,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[70svh] flex-col items-center justify-center gap-4 p-6">
+    <PageContainer variant="narrow" className="min-h-[70svh] items-center justify-center gap-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Log in</CardTitle>
@@ -125,6 +126,6 @@ function LoginPage() {
           Register
         </Link>
       </p>
-    </div>
+    </PageContainer>
   )
 }
