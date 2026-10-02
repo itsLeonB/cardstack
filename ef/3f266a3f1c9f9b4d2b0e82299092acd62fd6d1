@@ -1,0 +1,19 @@
+backend/internal/adapters/http/handler/auth_handler_test.go
+  s_82c3d80e1d6fe7::t_bc0f962917bc81 6,19,124-129,149-161,165-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ef3f266a3f1c9f9b4d2b0e82299092acd62fd6d1",
+  "prompts": {},
+  "sessions": {
+    "s_82c3d80e1d6fe7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_82c3d80e1d6fe7",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
