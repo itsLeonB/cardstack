@@ -1,0 +1,21 @@
+frontend/src/components/catalog/expansion-set-tile.test.tsx
+  s_822aa2e25b200d::t_5fb264e22db8df 42
+frontend/src/components/catalog/expansion-set-tile.tsx
+  s_822aa2e25b200d::t_c1103c9a76497c 2,11,19-25,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "927c8bc7c5dae2008b28d223633ea5d430e1cf5a",
+  "prompts": {},
+  "sessions": {
+    "s_822aa2e25b200d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_822aa2e25b200d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
