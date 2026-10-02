@@ -1,0 +1,19 @@
+backend/internal/domain/repository/collection_repository.go
+  s_03f0360e8ef7bf::t_785fbcda591e23 29-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "82dfaf324fd981340ed3dbd29192e53c31c7294c",
+  "prompts": {},
+  "sessions": {
+    "s_03f0360e8ef7bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_03f0360e8ef7bf",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
