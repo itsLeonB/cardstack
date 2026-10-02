@@ -7,17 +7,18 @@ import type { Page } from "playwright/test"
 // stubbed at /auth/me so the header can be asserted without seeded users.
 
 async function signIn(page: Page) {
-  // Destination pages crash without a backend; empty lists keep the shell up.
+  // Destination pages (including the dashboard at /) crash without a backend or
+  // on a body missing `meta`; empty paginated lists keep the shell up.
   await page.route(/\/(collections|inventory)/, (route) => {
     if (route.request().resourceType() !== "fetch") return route.fallback()
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       headers: {
-        "access-control-allow-origin": "http://localhost:3000",
+        "access-control-allow-origin": route.request().headers().origin ?? "",
         "access-control-allow-credentials": "true",
       },
-      body: JSON.stringify({ data: [], items: [], total: 0 }),
+      body: JSON.stringify({ data: [], meta: { total: 0, page: 1, limit: 24 } }),
     })
   })
   await page.route("**/auth/me", (route) =>
@@ -25,7 +26,7 @@ async function signIn(page: Page) {
       status: 200,
       contentType: "application/json",
       headers: {
-        "access-control-allow-origin": "http://localhost:3000",
+        "access-control-allow-origin": route.request().headers().origin ?? "",
         "access-control-allow-credentials": "true",
       },
       body: JSON.stringify({ data: { id: "u1", email: "ada@example.com" } }),
