@@ -1,0 +1,33 @@
+backend/internal/domain/dto/collection_dto.go
+  s_b3c76466755abd::t_8915e0917bb0d6 7-9,15
+backend/internal/domain/mapper/collection_mapper.go
+  s_b3c76466755abd::t_cea62af76486c6 8,14
+backend/internal/domain/repository/collection_repository.go
+  s_b3c76466755abd::t_1a03905b2204db 26-29,61-92
+backend/internal/domain/repository/collection_repository_test.go
+  s_b3c76466755abd::t_9f920b8c810a0a 93-126
+backend/internal/domain/service/collection_service.go
+  s_b3c76466755abd::t_5f8450e8d58768 43,60-71,80,98,109-117
+backend/internal/domain/service/collection_service_test.go
+  s_b3c76466755abd::t_f1bb8f35f4d1ee 16,36,55,60-63,65-66,70,73-88,98,103,152,159
+backend/internal/mocks/CollectionRepository.go
+  s_b3c76466755abd::t_b55fd34790223b 533-591
+backend/openapi.json
+  s_b3c76466755abd::t_a49bed775f5bb3 225-228,247-248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "670a6a44e18d4c7456b6a77ee9d0eb19ebca0a76",
+  "prompts": {},
+  "sessions": {
+    "s_b3c76466755abd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b3c76466755abd",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
