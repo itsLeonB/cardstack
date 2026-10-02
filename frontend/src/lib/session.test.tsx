@@ -98,7 +98,7 @@ describe("useLoginMutation", () => {
     mockUseLogin.mockReset()
   })
 
-  it("invalidates the session query once login succeeds", () => {
+  it("resets the session query once login succeeds", () => {
     let capturedOnSuccess: ((response: loginResponse) => void) | undefined
     mockUseLogin.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is a known field on the real useLogin
@@ -109,7 +109,7 @@ describe("useLoginMutation", () => {
     })
 
     const queryClient = new QueryClient()
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+    const resetSpy = vi.spyOn(queryClient, "resetQueries")
 
     function Wrapper({ children }: { children: ReactNode }) {
       return (
@@ -127,7 +127,7 @@ describe("useLoginMutation", () => {
       headers: new Headers(),
     })
 
-    expect(invalidateSpy).toHaveBeenCalledWith({
+    expect(resetSpy).toHaveBeenCalledWith({
       queryKey: getGetCurrentUserQueryKey(),
     })
   })
@@ -143,7 +143,7 @@ describe("useLoginMutation", () => {
     })
 
     const queryClient = new QueryClient()
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+    const resetSpy = vi.spyOn(queryClient, "resetQueries")
 
     function Wrapper({ children }: { children: ReactNode }) {
       return (
@@ -161,7 +161,7 @@ describe("useLoginMutation", () => {
       headers: new Headers(),
     })
 
-    expect(invalidateSpy).not.toHaveBeenCalled()
+    expect(resetSpy).not.toHaveBeenCalled()
   })
 })
 
@@ -170,7 +170,7 @@ describe("useLogoutMutation", () => {
     mockUseLogout.mockReset()
   })
 
-  it("invalidates the session query once logout succeeds (204)", () => {
+  it("resets the session query once logout succeeds (204)", () => {
     let capturedOnSuccess: ((response: logoutResponse) => void) | undefined
     mockUseLogout.mockImplementation((options) => {
       // SAFETY: mutation.onSuccess is a known field on the real useLogout
@@ -181,7 +181,7 @@ describe("useLogoutMutation", () => {
     })
 
     const queryClient = new QueryClient()
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+    const resetSpy = vi.spyOn(queryClient, "resetQueries")
 
     function Wrapper({ children }: { children: ReactNode }) {
       return (
@@ -195,7 +195,7 @@ describe("useLogoutMutation", () => {
 
     capturedOnSuccess?.({ status: 204, data: undefined, headers: new Headers() })
 
-    expect(invalidateSpy).toHaveBeenCalledWith({
+    expect(resetSpy).toHaveBeenCalledWith({
       queryKey: getGetCurrentUserQueryKey(),
     })
   })

@@ -55,7 +55,9 @@ function resetCache(queryClient: QueryClient) {
   queryClient.removeQueries({
     predicate: (query) => query.queryKey[0] !== sessionKey[0],
   })
-  return queryClient.invalidateQueries({ queryKey: sessionKey })
+  // resetQueries (not invalidate) drops the old data, so a failed refetch
+  // can't leave a stale 200/401 for the route guards to trust.
+  return queryClient.resetQueries({ queryKey: sessionKey })
 }
 
 /** Login mutation that refreshes the session query once cookies are set. */
