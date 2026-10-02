@@ -1,14 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useLogoutMutation, useSession } from "@/lib/session"
 
-/**
- * Minimal protected page demonstrating the `_authenticated` guard — later
- * tickets (Collections/Inventory) will add real protected content here and
- * elsewhere under `_authenticated/`.
- */
+/** Settings-style page, reached from the user menu. Navigation lives in the shell, not here. */
 export const Route = createFileRoute("/_authenticated/account")({
   component: AccountPage,
 })
@@ -29,23 +26,40 @@ function AccountPage() {
   }
 
   return (
-    <PageContainer className="gap-4">
-      <PageHeader title="Account" />
-      {user && <p>Logged in as {user.email}</p>}
-      <Link to="/collections" className="w-fit text-sm text-primary underline">
-        My Collections
-      </Link>
-      <Link to="/inventory" className="w-fit text-sm text-primary underline">
-        Master Inventory
-      </Link>
-      <Button
-        variant="outline"
-        className="w-fit"
-        disabled={logoutMutation.isPending}
-        onClick={handleLogout}
-      >
-        {logoutMutation.isPending ? "Logging out..." : "Log out"}
-      </Button>
+    <PageContainer>
+      <PageHeader title="Account" description="Your sign-in details and session." />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg">Profile</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="flex flex-col gap-1 text-sm">
+            <dt className="font-medium">Email</dt>
+            <dd className="break-all">{user?.email}</dd>
+          </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg">Session</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-start gap-3">
+          <p className="text-sm">Sign out of Cardstack on this device.</p>
+          <Button
+            variant="outline"
+            disabled={logoutMutation.isPending}
+            onClick={handleLogout}
+          >
+            {logoutMutation.isPending ? "Logging out..." : "Log out"}
+          </Button>
+        </CardContent>
+      </Card>
     </PageContainer>
   )
 }
