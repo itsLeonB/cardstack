@@ -1,0 +1,37 @@
+docs/agents/conventions/frontend.md
+  s_4283263bd73109::t_1d4a6a00118bb4 18,27
+frontend/e2e/auth.spec.ts
+  s_4283263bd73109::t_124e15860a7fa8 72,122-132
+frontend/src/components/catalog/card-holdings.tsx
+  s_4283263bd73109::t_fe940b5473b7e0 17
+frontend/src/components/layout/not-found.tsx
+  s_4283263bd73109::t_33cb1b46dd4156 1-8
+frontend/src/components/layout/page-container.tsx
+  s_4283263bd73109::t_325dbbd97fa054 10-11
+frontend/src/routeTree.gen.ts
+  s_4283263bd73109::t_9e242730a10a54 18,59-63,130,147,167,187,204,223,288-294,371,377
+frontend/src/routes/__root.tsx
+  s_4283263bd73109::t_d788901341f0e6 13,64
+frontend/src/routes/auth/-route.test.tsx
+  s_4283263bd73109::t_4058bfe7c4edfd 26,41,52,75-84
+frontend/src/routes/auth/index.tsx
+  s_4283263bd73109::t_8791d6025be18a 1-10
+frontend/src/routes/auth/route.tsx
+  s_4283263bd73109::t_f10875ed65582a 3,13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d87e923de60673a065263ec690f98005ac792287",
+  "prompts": {},
+  "sessions": {
+    "s_4283263bd73109": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_4283263bd73109",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
