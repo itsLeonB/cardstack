@@ -1,0 +1,19 @@
+.github/workflows/frontend-ci.yml
+  s_ef8962f0766212::t_f441a078dbf81f 38-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "de56429b5ab1caaecce641e8d69d1fdd4e056118",
+  "prompts": {},
+  "sessions": {
+    "s_ef8962f0766212": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ef8962f0766212",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
