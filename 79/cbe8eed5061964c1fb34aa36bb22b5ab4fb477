@@ -1,0 +1,21 @@
+frontend/src/components/catalog/card-results.test.tsx
+  s_5a0bc026eef330::t_2d5850da5a05f5 16
+frontend/src/lib/session.test.tsx
+  s_5a0bc026eef330::t_442f985c1d5892 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "79cbe8eed5061964c1fb34aa36bb22b5ab4fb477",
+  "prompts": {},
+  "sessions": {
+    "s_5a0bc026eef330": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5a0bc026eef330",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
