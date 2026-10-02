@@ -49,8 +49,9 @@ export function useSession() {
 // Returned so a mutation's `onSuccess` can await it: the caller's own
 // `onSuccess` then runs against a settled session, and a `requireAuth` guard
 // triggered by an immediate redirect (login -> the page the user wanted) can't
-// read the stale pre-login 401 from the cache.
-function resetCache(queryClient: QueryClient) {
+// read the stale pre-login 401 from the cache. Exported too, because a failed
+// refresh has to drop the same dead session before sending the user to login.
+export function resetCache(queryClient: QueryClient) {
   const sessionKey = getGetCurrentUserQueryKey()
   queryClient.removeQueries({
     predicate: (query) => query.queryKey[0] !== sessionKey[0],
