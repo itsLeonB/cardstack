@@ -1,0 +1,25 @@
+backend/internal/adapters/db/postgres/migrations/20261002000000_expansion_sets_release_date_index.sql
+  s_68846b302df7d2::t_b7f9a74dac1cbe 1-9
+backend/internal/domain/repository/catalog_repository.go
+  s_68846b302df7d2::t_aca13195a2c23d 74-77,85-90,95-98,112,120-124,134,366
+backend/internal/domain/repository/catalog_repository_test.go
+  s_68846b302df7d2::t_ec5973412c7175 129-186,212,214,245,424-449
+backend/internal/domain/service/catalog_service.go
+  s_68846b302df7d2::t_e3e89ec34e2f0c 31-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2811dac33a90bcea77e87d937aff8ea2c02bcfeb",
+  "prompts": {},
+  "sessions": {
+    "s_68846b302df7d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_68846b302df7d2",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
