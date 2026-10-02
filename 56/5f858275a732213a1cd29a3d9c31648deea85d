@@ -1,0 +1,23 @@
+docs/agents/conventions/frontend.md
+  s_03aeb2e88c7c3e::t_cf33909d9ae9c9 36
+frontend/tools/vercel-config.test.ts
+  s_03aeb2e88c7c3e::t_98ff8c880a7907 1-18
+frontend/vercel.json
+  s_03aeb2e88c7c3e::t_99102ab69e43fd 2-7,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "565f858275a732213a1cd29a3d9c31648deea85d",
+  "prompts": {},
+  "sessions": {
+    "s_03aeb2e88c7c3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_03aeb2e88c7c3e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
