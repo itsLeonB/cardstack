@@ -1,0 +1,27 @@
+docs/agents/conventions/frontend.md
+  s_8541b9a8001d2b::t_54e6778f2b4f51 41
+frontend/src/lib/infinite-catalog-cards.test.ts
+  s_8541b9a8001d2b::t_55409d8908c5ba 1-2,6,83-121
+frontend/src/lib/infinite-catalog-cards.ts
+  s_8541b9a8001d2b::t_8b676d0d046176 1-2,88-135
+frontend/src/routes/catalog/search.tsx
+  s_8541b9a8001d2b::t_0ba346cafe8b0a 29-30,50,80,103
+frontend/src/routes/catalog/sets/$expansionSetId.tsx
+  s_8541b9a8001d2b::t_ca52806f604304 10-11,19-21,35-36,75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a61fe661b9d43d2aeb2f00b08fa990375248b006",
+  "prompts": {},
+  "sessions": {
+    "s_8541b9a8001d2b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8541b9a8001d2b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
