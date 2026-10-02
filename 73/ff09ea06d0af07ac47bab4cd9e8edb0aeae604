@@ -1,0 +1,21 @@
+backend/internal/adapters/http/handler/auth_handler.go
+  s_2b692ca722420b::t_af0dd7dfc2e154 292-303,307-310,314,316,318,320
+backend/internal/adapters/http/handler/auth_handler_test.go
+  s_2b692ca722420b::t_5dfab9e454701d 7,17,112,156,158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "73ff09ea06d0af07ac47bab4cd9e8edb0aeae604",
+  "prompts": {},
+  "sessions": {
+    "s_2b692ca722420b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_2b692ca722420b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
