@@ -1,0 +1,21 @@
+frontend/src/test-setup.ts
+  s_6348f51c8e3304::t_8c915ca4009ac3 1-6
+frontend/vite.config.ts
+  s_6348f51c8e3304::t_26efbb8c2852c1 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "89e9f34fd48274c27694da8561c329a16b4b9b4f",
+  "prompts": {},
+  "sessions": {
+    "s_6348f51c8e3304": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_6348f51c8e3304",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
