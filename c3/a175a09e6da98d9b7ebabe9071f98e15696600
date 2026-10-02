@@ -1,0 +1,25 @@
+frontend/bun.lock
+  s_20d0e3bac20a31::t_b1abd62b9c73c6 38,558-559
+frontend/package.json
+  s_20d0e3bac20a31::t_4b47f57ea27525 48
+frontend/src/components/collections/collection-card.test.tsx
+  s_20d0e3bac20a31::t_78600c9a077900 3,84-91
+frontend/src/components/collections/collection-card.tsx
+  s_20d0e3bac20a31::t_de4218f08e9718 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c3a175a09e6da98d9b7ebabe9071f98e15696600",
+  "prompts": {},
+  "sessions": {
+    "s_20d0e3bac20a31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_20d0e3bac20a31",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
