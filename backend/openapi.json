@@ -222,6 +222,10 @@
       "CollectionSummary": {
         "additionalProperties": false,
         "properties": {
+          "cardCount": {
+            "format": "int64",
+            "type": "integer"
+          },
           "description": {
             "type": "string"
           },
@@ -240,7 +244,8 @@
           "id",
           "title",
           "description",
-          "maxCardCount"
+          "maxCardCount",
+          "cardCount"
         ],
         "type": "object"
       },
