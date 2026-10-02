@@ -36,7 +36,9 @@ export function isSameOriginPath(path: string | undefined): path is string {
     path !== undefined &&
     path.startsWith("/") &&
     !path.startsWith("//") &&
-    !path.startsWith("/\\")
+    !path.startsWith("/\\") &&
+    // URL parsers strip tab/CR/LF, so `/<TAB>/host` would become `//host`.
+    !/\p{Cc}/u.test(path)
   )
 }
 

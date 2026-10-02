@@ -115,6 +115,10 @@ describe("isSameOriginPath", () => {
     "https://evil.example/x",
     "//evil.example",
     "/\\evil.example",
+    "/\t/evil.example",
+    "/\n/evil.example",
+    "/\r/evil.example",
+    "/ok\u0000",
   ])("rejects %s", (path) => {
     expect(isSameOriginPath(path)).toBe(false)
   })
