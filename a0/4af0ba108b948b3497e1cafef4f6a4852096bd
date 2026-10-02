@@ -1,0 +1,23 @@
+docs/agents/conventions/frontend.md
+  s_ace8937d68e16b::t_ea771ec9c86e3c 34
+frontend/e2e/not-found.spec.ts
+  s_ace8937d68e16b::t_580b8b175eac6a 5-7,10-12,17-24,29-31,38-40,43-45,64-91,93-95
+frontend/src/components/ui/sonner.tsx
+  s_ace8937d68e16b::t_b1e7ba02eeebcf 4-10,21-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a04af0ba108b948b3497e1cafef4f6a4852096bd",
+  "prompts": {},
+  "sessions": {
+    "s_ace8937d68e16b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ace8937d68e16b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
