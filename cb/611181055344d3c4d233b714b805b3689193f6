@@ -1,0 +1,37 @@
+frontend/e2e/catalog-infinite-scroll.spec.ts
+  s_b9593388158676::t_c1c9472eaf430a 1,37-38,66-70,73-78,180-322
+frontend/src/components/catalog/infinite-card-results.test.tsx
+  s_b9593388158676::t_80d4916b9fbde8 87-93
+frontend/src/components/catalog/infinite-card-results.tsx
+  s_b9593388158676::t_f661c9e6aae03a 80
+frontend/src/components/catalog/virtual-grid.test.tsx
+  s_b9593388158676::t_ce60c26c50f644 3,19-20,22,28-29,37-53,61,68,72,87-203
+frontend/src/components/catalog/virtual-grid.tsx
+  s_b9593388158676::t_e81e7f2c3e41ee 10-14,21,24-27,32-33,42-50,56,94-105,111-112,114,118-123,129-131,136-159,164,167-178,181,183,192-200,202
+frontend/src/lib/grid-layout.test.ts
+  s_b9593388158676::t_255146b672a8b4 2-7,53-64
+frontend/src/lib/grid-layout.ts
+  s_b9593388158676::t_9052d0e23284a4 48-53
+frontend/src/router.tsx
+  s_b9593388158676::t_62360c08108f6c 18-19
+frontend/src/routes/catalog/search.tsx
+  s_b9593388158676::t_7a18f0319ccf95 103,108
+frontend/src/test-grid-layout.ts
+  s_b9593388158676::t_bbd44c60523bd7 7,12,26,28,33-34,39-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "cb611181055344d3c4d233b714b805b3689193f6",
+  "prompts": {},
+  "sessions": {
+    "s_b9593388158676": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b9593388158676",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
