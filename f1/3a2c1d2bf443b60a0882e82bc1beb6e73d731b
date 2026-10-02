@@ -1,0 +1,35 @@
+docs/agents/conventions/frontend.md
+  s_ef2c9759cbee80::t_aec7cdcc0a67ba 22-26
+frontend/e2e/app-shell.spec.ts
+  s_ef2c9759cbee80::t_b8a3768693b2e2 10-11,21
+frontend/e2e/home.spec.ts
+  s_ef2c9759cbee80::t_cf6dc8346fc3d0 1-145
+frontend/src/components/home/dashboard.tsx
+  s_ef2c9759cbee80::t_82b6f1ddcc2df5 1-136
+frontend/src/components/home/guest-landing.tsx
+  s_ef2c9759cbee80::t_60d4c31f973695 1-77
+frontend/src/components/home/home-page.test.tsx
+  s_ef2c9759cbee80::t_2f47eaf4fb618a 1-171
+frontend/src/components/home/home-page.tsx
+  s_ef2c9759cbee80::t_39104bdf65912d 1-27
+frontend/src/routes/_authenticated/account.tsx
+  s_ef2c9759cbee80::t_5c4e794fdc1939 1,7,28-46,48-59
+frontend/src/routes/index.tsx
+  s_ef2c9759cbee80::t_2d4c25b72a0ee1 2,4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f13a2c1d2bf443b60a0882e82bc1beb6e73d731b",
+  "prompts": {},
+  "sessions": {
+    "s_ef2c9759cbee80": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ef2c9759cbee80",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
