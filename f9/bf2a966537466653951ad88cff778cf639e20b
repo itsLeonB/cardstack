@@ -1,0 +1,21 @@
+.scratch/frontend-visual-identity/issues/03-landing-dashboard-and-account.md
+  s_793b0d7ef73934::t_1cfdf4b9790428 7,9-18
+frontend/e2e/app-shell.spec.ts
+  s_793b0d7ef73934::t_45ec96557b8731 18,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f9bf2a966537466653951ad88cff778cf639e20b",
+  "prompts": {},
+  "sessions": {
+    "s_793b0d7ef73934": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_793b0d7ef73934",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
