@@ -1,33 +1,27 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
-import { z } from "zod"
-import {
-  getSearchCatalogCardsQueryOptions,
-  useSearchCatalogCards,
-} from "@/generated/endpoints/catalog/catalog"
-import { CardResults } from "@/components/catalog/card-results"
+import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatReleaseDate } from "@/lib/date"
-
-const expansionSetSearchSchema = z.object({
-  page: z.number().int().min(1).default(1),
-})
+import {
+  prefetchInfiniteCatalogCards,
+  useInfiniteCardResultsProps,
+  useInfiniteCatalogCards,
+} from "@/lib/infinite-catalog-cards"
 
 export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
-  validateSearch: expansionSetSearchSchema,
-  loaderDeps: ({ search }) => ({ page: search.page }),
-  loader: async ({ context: { queryClient }, params, deps }) => {
-    const response = await queryClient.ensureQueryData(
-      getSearchCatalogCardsQueryOptions({
-        expansionSetId: [params.expansionSetId],
-        page: deps.page,
-      })
-    )
-    return response.status === 200
-      ? response.data.data?.[0]?.expansionSet.name
+  // No search schema: the list is infinite, so a stale `?page=` in an old link
+  // is simply ignored and the first page opens.
+  loader: async ({ context: { queryClient }, params }) => {
+    const data = await prefetchInfiniteCatalogCards(queryClient, {
+      expansionSetId: [params.expansionSetId],
+    })
+    const first = data?.pages[0]
+    return first?.status === 200
+      ? first.data.data?.[0]?.expansionSet.name
       : undefined
   },
   head: ({ loaderData }) => pageHead(loaderData ?? "Expansion Set"),
@@ -36,26 +30,13 @@ export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
 
 function ExpansionSetCardsPage() {
   const { expansionSetId } = Route.useParams()
-  const { page } = Route.useSearch()
-  const navigate = useNavigate({ from: Route.fullPath })
 
-  const query = useSearchCatalogCards({
-    expansionSetId: [expansionSetId],
-    page,
-  })
-  const result = query.data?.status === 200 ? query.data.data : undefined
-  const cards = result?.data ?? []
+  const query = useInfiniteCatalogCards({ expansionSetId: [expansionSetId] })
+  const results = useInfiniteCardResultsProps(query)
+  const { cards, total } = results
   const firstCard = cards[0]
   const releaseDate = formatReleaseDate(firstCard?.expansionSet.releaseDate)
   const setName = firstCard?.expansionSet.name ?? "Expansion Set"
-  const errorMessage =
-    query.data && query.data.status !== 200
-      ? (query.data.data.detail ?? "Could not load this Expansion Set.")
-      : undefined
-
-  function handlePageChange(nextPage: number) {
-    void navigate({ search: (prev) => ({ ...prev, page: nextPage }) })
-  }
 
   return (
     <PageContainer>
@@ -80,7 +61,7 @@ function ExpansionSetCardsPage() {
         </div>
       )}
 
-      {result && result.meta.total > 0 && (
+      {total > 0 && (
         <Link
           to="/catalog/search"
           search={{ expansionSetId: [expansionSetId] }}
@@ -90,16 +71,9 @@ function ExpansionSetCardsPage() {
         </Link>
       )}
 
-      <CardResults
-        cards={cards}
-        total={result?.meta.total ?? 0}
-        page={page}
-        limit={result?.meta.limit ?? 24}
-        isPending={query.isPending}
-        isError={query.isError || Boolean(errorMessage)}
-        errorMessage={errorMessage}
+      <InfiniteCardResults
+        {...results}
         emptyMessage="This Expansion Set has no cards yet."
-        onPageChange={handlePageChange}
       />
     </PageContainer>
   )

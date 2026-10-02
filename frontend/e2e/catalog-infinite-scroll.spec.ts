@@ -411,3 +411,75 @@ test.describe("Catalog search grid", () => {
     ).toBeFocused()
   })
 })
+
+test.describe("Expansion Set infinite scroll", () => {
+  test("loads every card of the set on scroll without duplicates", async ({
+    page,
+  }) => {
+    const requests = await stubCatalog(page)
+    // Registered after stubCatalog's own series stub, so it wins.
+    await page.route("**/catalog/series", (route) =>
+      json(route, {
+        data: {
+          series: [],
+          ungroupedExpansionSets: [
+            { id: "set-1", code: "TST", name: "Test Set", imageUrl: "" },
+          ],
+        },
+      })
+    )
+    // Reached by client navigation: see openSearch.
+    await page.goto("/")
+    await page
+      .getByRole("main")
+      .getByRole("link", { name: "Browse the catalog" })
+      .click()
+    await page.getByRole("link", { name: /Test Set/ }).click()
+    await expect(
+      page.getByRole("heading", { name: "Test Set", level: 1 })
+    ).toBeVisible()
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+
+    await expect
+      .poll(
+        async () => {
+          await scrollToBottom(page)
+          return page.getByText("300 of 300 cards loaded").count()
+        },
+        { timeout: 15_000 }
+      )
+      .toBe(1)
+
+    await expect(page.getByTitle("Beta 299")).toBeVisible()
+    expect(requests.map((url) => url.searchParams.get("page"))).toEqual([
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+    ])
+    expect(
+      requests.every((url) => url.searchParams.get("expansionSetId"))
+    ).toBe(true)
+    expect(page.url()).not.toContain("page=")
+
+    const names = await page
+      .getByRole("listitem")
+      .locator("p[title]")
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title")))
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  test("a legacy ?page= link opens the first page of the set", async ({
+    page,
+  }) => {
+    const requests = await stubCatalog(page)
+    await page.goto("/catalog/sets/set-1?page=3")
+
+    await expect(
+      page.getByRole("heading", { name: "Test Set", level: 1 })
+    ).toBeVisible()
+    await expect(page.getByText("60 of 300 cards loaded")).toBeVisible()
+    expect(requests[0]?.searchParams.get("page")).toBe("1")
+  })
+})

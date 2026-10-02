@@ -56,7 +56,6 @@ function CardDetailPage() {
             link: {
               to: "/catalog/sets/$expansionSetId",
               params: { expansionSetId },
-              search: { page: 1 },
             },
           },
           { label: cardName },
