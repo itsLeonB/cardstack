@@ -39,6 +39,7 @@ describe("ExpansionSetTile", () => {
     )
 
     expect(container.querySelector("img")).toBeNull()
+    expect(container.querySelector("[data-slot=card]")?.className).not.toContain("flex-row")
     expect(screen.getByText("Inferno X")).toBeTruthy()
   })
 
