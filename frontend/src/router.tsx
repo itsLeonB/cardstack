@@ -15,6 +15,8 @@ export function getRouter() {
     context: { queryClient },
 
     scrollRestoration: true,
+    // Restored positions jump; never animate (reduced-motion users included).
+    scrollRestorationBehavior: "instant",
     defaultErrorComponent: CrashFallback,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,

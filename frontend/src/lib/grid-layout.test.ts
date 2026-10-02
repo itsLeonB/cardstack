@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { chunkRows, columnsForWidth, shouldLoadMore } from "./grid-layout"
+import {
+  chunkRows,
+  columnsForWidth,
+  shouldLoadMore,
+  withPinnedRow,
+} from "./grid-layout"
 
 describe("columnsForWidth", () => {
   it.each([
@@ -43,5 +48,17 @@ describe("shouldLoadMore", () => {
 
   it("does nothing before any row renders", () => {
     expect(shouldLoadMore({ ...base, lastRenderedRow: undefined })).toBe(false)
+  })
+})
+
+describe("withPinnedRow", () => {
+  it("keeps the rendered rows when nothing is focused or it is already rendered", () => {
+    expect(withPinnedRow([4, 5, 6], null)).toEqual([4, 5, 6])
+    expect(withPinnedRow([4, 5, 6], 5)).toEqual([4, 5, 6])
+  })
+
+  it("adds an offscreen focused row in order, above or below the window", () => {
+    expect(withPinnedRow([4, 5, 6], 1)).toEqual([1, 4, 5, 6])
+    expect(withPinnedRow([4, 5, 6], 40)).toEqual([4, 5, 6, 40])
   })
 })

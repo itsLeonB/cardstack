@@ -77,6 +77,7 @@ export function InfiniteCardResults({
         items={cards}
         getKey={getCardKey}
         renderItem={renderCard}
+        totalCount={total}
         // A failed page is retried by the button, never by scrolling alone.
         canLoadMore={canLoadMore && !isError}
         onLoadMore={onLoadMore}

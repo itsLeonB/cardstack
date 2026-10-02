@@ -100,12 +100,12 @@ function CatalogSearchPage() {
   // on back navigation and fight the router's scroll restoration.
   async function updateSearch(patch: Partial<CatalogFilters>) {
     await navigate({ search: (prev) => ({ ...prev, ...patch }) })
-    window.scrollTo({ top: 0 })
+    window.scrollTo({ top: 0, behavior: "instant" })
   }
 
   async function clearSearch() {
     await navigate({ search: { collectionId } })
-    window.scrollTo({ top: 0 })
+    window.scrollTo({ top: 0, behavior: "instant" })
   }
 
   const resultsProps = {
