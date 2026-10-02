@@ -69,6 +69,8 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
       }
     } catch {
       for (const [cardId, , revision] of items) revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
+      // The write may have committed with only the response lost, so cached server data can be stale.
+      onSaved?.()
     } finally {
       // A newer batch for the card keeps its protection until that batch settles.
       for (const [cardId, , revision] of items) if (isLatest(cardId, revision)) inFlight.current.delete(cardId)
