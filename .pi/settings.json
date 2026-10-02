@@ -1,0 +1,8 @@
+{
+  "subagents": {
+    "agentOverrides": {
+      "backend-agent": { "model": false },
+      "frontend-agent": { "model": false }
+    }
+  }
+}
