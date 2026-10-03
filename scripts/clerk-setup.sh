@@ -187,7 +187,7 @@ finish() {
 MODE="${1:-development}"
 case "$MODE" in
   development) KEY_PREFIX="test"; TOTAL_STAGES=9 ;;
-  production)  KEY_PREFIX="live"; TOTAL_STAGES=6 ;;
+  production)  KEY_PREFIX="live"; TOTAL_STAGES=8 ;;
   *) echo "usage: $0 [development|production]" >&2; exit 2 ;;
 esac
 
@@ -222,6 +222,11 @@ skip_done() {
   return 0
 }
 mark_done() { grep -qx "$1" "$STATE_FILE" || echo "$1" >> "$STATE_FILE"; }
+# Changed keys or test-user password make the stored copies stale, so redo them.
+unmark_done() {
+  grep -vx "$1" "$STATE_FILE" > "$STATE_FILE.tmp" || true
+  mv "$STATE_FILE.tmp" "$STATE_FILE"
+}
 
 # load_var VAR FILE reads VAR from FILE, or sets it to "" (re-runs skip stages).
 load_var() { printf -v "$1" '%s' "$(ENV_FILE="$2" _existing "$1" || true)"; }
@@ -251,12 +256,14 @@ copy_clip() {
   else return 1; fi
 }
 
-# Frontend API host is the base64 payload of the publishable key, minus a "$".
-fapi_host() {
-  local b="${1#pk_*_}"
+b64url_decode() {
+  local b="${1//-/+}"; b="${b//_//}"
   while (( ${#b} % 4 )); do b+="="; done
-  printf '%s' "$b" | base64 -d 2>/dev/null | tr -d '$' || true
+  printf '%s' "$b" | base64 -d 2>/dev/null || true
 }
+
+# Frontend API host is the base64 payload of the publishable key, minus a "$".
+fapi_host() { b64url_decode "${1#pk_*_}" | tr -d '$' || true; }
 
 # bapi METHOD PATH [JSON] calls Clerk's Backend API. The secret key goes through
 # curl's stdin and the body through a private temp file, so neither shows in `ps`.
@@ -264,7 +271,8 @@ bapi() {
   local args=(-sS -K - -X "$1" -H 'Content-Type: application/json') body rc=0
   body=$(mktemp)
   printf '%s' "${3:-}" > "$body"
-  if [[ -n "${3:-}" || "$1" != GET ]]; then args+=(--data-binary "@$body"); fi
+  [[ "$1" == GET || -n "${3:-}" ]] || printf '{}' > "$body"
+  if [[ "$1" != GET ]]; then args+=(--data-binary "@$body"); fi
   printf 'header = "Authorization: Bearer %s"\n' "$CLERK_SECRET_KEY" | curl "${args[@]}" "https://api.clerk.com$2" || rc=$?
   rm -f "$body"
   return "$rc"
@@ -315,6 +323,7 @@ stage_keys() {
   done
   ENV_FILE="$FE_ENV" write_env VITE_CLERK_PUBLISHABLE_KEY "$VITE_CLERK_PUBLISHABLE_KEY"
   ENV_FILE="$BE_ENV" write_env CLERK_SECRET_KEY "$CLERK_SECRET_KEY"
+  unmark_done github; unmark_done railway; unmark_done vercel
 }
 
 stage_email_password() {
@@ -351,11 +360,16 @@ stage_claims() {
   pause "Saved? Press Enter."
 }
 
-echo_settings_summary() {
-  grep '^setting:' "$STATE_FILE" >/dev/null 2>&1 || return 0
-  printf '  %sSecurity settings, for the ticket comment:%s\n' "$BOLD" "$RESET"
-  grep '^setting:' "$STATE_FILE" | sed 's/^setting:/    - /; s/=/: /'
-  printf '\n'
+TICKET=.scratch/security-hardening/issues/01-clerk-dashboard-setup.md
+print_settings_summary() {
+  local lines
+  lines=$(grep '^setting:' "$STATE_FILE" | sed 's/^setting://; s/=/: /' | paste -sd ';' - | sed 's/;/; /g' || true)
+  [[ -n "$lines" ]] || return 0
+  printf '  %sSecurity settings (%s instance): %s%s\n\n' "$BOLD" "$MODE" "$lines" "$RESET"
+  if [[ -f "$TICKET" ]] && confirm "Record that in ticket 01's Comments?"; then
+    printf '\n**Clerk %s settings (wizard run %s):** %s.\n' "$MODE" "$(date +%F)" "$lines" >> "$TICKET"
+    say "Appended to $TICKET (commit it)."
+  fi
 }
 
 # ── development instance ──────────────────────────────────────────────────
@@ -423,13 +437,14 @@ run_development() {
       E2E_CLERK_USER_EMAIL="$TEST_EMAIL"; E2E_CLERK_USER_PASSWORD="$pw"
       ENV_FILE="$FE_ENV" write_env E2E_CLERK_USER_EMAIL "$E2E_CLERK_USER_EMAIL"
       ENV_FILE="$FE_ENV" write_env E2E_CLERK_USER_PASSWORD "$E2E_CLERK_USER_PASSWORD"
+      unmark_done github
     fi
     mark_done testuser
   fi
 
   stage "Check the session token carries email and name"
   if ! skip_done tokencheck; then
-    local uid sid jwt payload n
+    local uid sid jwt payload claim_bytes ok=0
     uid=$(find_user)
     [[ -n "$uid" ]] || { warn "Test user not found; redo the previous stage."; exit 1; }
     while :; do
@@ -439,22 +454,23 @@ run_development() {
       payload=$(printf '%s' "$jwt" | cut -d. -f2 | tr '_-' '/+')
       while (( ${#payload} % 4 )); do payload+="="; done
       payload=$(printf '%s' "$payload" | base64 -d 2>/dev/null || true)
-      n=$(jq -c '{email, name}' <<<"$payload" | wc -c) || n=0
+      claim_bytes=$(jq -c '{email, name}' <<<"$payload" | wc -c) || claim_bytes=0
       say "Decoded token claims: $(jq -c '{iss, azp, email, name}' <<<"$payload")"
-      say "Custom claims take ~$n bytes of Clerk's 1200-byte budget; whole token is ${#jwt} characters."
-      if jq -e --arg e "$TEST_EMAIL" '.email == $e and (.name | type == "string" and length > 0)' <<<"$payload" >/dev/null 2>&1 && (( n <= 1200 )); then
+      say "Custom claims take ~$claim_bytes bytes of Clerk's 1200-byte budget; whole token is ${#jwt} characters."
+      if jq -e --arg e "$TEST_EMAIL" '.email == $e and (.name | type == "string" and length > 0)' <<<"$payload" >/dev/null 2>&1 && (( claim_bytes <= 1200 )); then
         say "Email and name claims present and within the size limit."
+        ok=1
         break
       fi
       warn "Email or name claim is missing, wrong or too large. Re-check the Sessions → Customize session token JSON."
       confirm "Retry the check?" || { SKIPPED+=("session token claims not verified (re-run this wizard)"); break; }
     done
-    mark_done tokencheck
+    if (( ok )); then mark_done tokencheck; fi
   fi
 
   stage "Sign in by hand: Google, verified email, unverified email"
   if ! skip_done manualcheck; then
-    local portal="https://${FAPI_HOST%.clerk.accounts.dev}.accounts.dev"
+    local portal="https://${FAPI_HOST%.clerk.accounts.dev}.accounts.dev" skipped_before=${#SKIPPED[@]}
     local stamp; stamp=$(date +%s)
     open_url "$portal/sign-up"
     note "This is Clerk's hosted Account Portal for your dev instance (Dashboard → Account Portal if the address doesn't load)."
@@ -466,22 +482,23 @@ run_development() {
     confirm "Did it stop there, with no signed-in state?" || SKIPPED+=("unverified sign-up may obtain a session: check email verification settings")
     step "Forgot password: on the sign-in page click 'Forgot password?'. It should offer to email a code. Don't finish it."
     confirm "Does it offer a reset code?" || SKIPPED+=("forgot-password not confirmed")
-    mark_done manualcheck
+    if (( ${#SKIPPED[@]} == skipped_before )); then mark_done manualcheck; fi
   fi
 
   stage "Store the keys for CI"
   if ! skip_done github; then
     say "CI uses the development instance."
+    local skipped_before=${#SKIPPED[@]}
     set_secret CLERK_SECRET_KEY "$CLERK_SECRET_KEY"
     set_secret E2E_CLERK_USER_EMAIL "$E2E_CLERK_USER_EMAIL"
     set_secret E2E_CLERK_USER_PASSWORD "$E2E_CLERK_USER_PASSWORD"
     set_var VITE_CLERK_PUBLISHABLE_KEY "$VITE_CLERK_PUBLISHABLE_KEY"
     note "Local copies: $FE_ENV and $BE_ENV (gitignored). Committed examples hold placeholders only."
-    mark_done github
+    if (( ${#SKIPPED[@]} == skipped_before )); then mark_done github; fi
   fi
 
   finish
-  echo_settings_summary
+  print_settings_summary
 }
 
 # ── production instance ───────────────────────────────────────────────────
@@ -523,14 +540,19 @@ run_production() {
     mark_done google
   fi
 
-  stage "Confirm production matches development"
-  if ! skip_done settings; then
-    say "Cloning copies the user settings; re-check them here (SSO, integrations and paths do not clone)."
-    stage_email_password
-    stage_protection
+  say_clone_note() { say "Cloning copied the user settings; re-check them (SSO, integrations and paths do not clone)."; }
+
+  stage "Email and password with mandatory email verification"
+  if ! skip_done email; then say_clone_note; stage_email_password; mark_done email; fi
+
+  stage "Lockout, enumeration protection, bot protection"
+  if ! skip_done protection; then stage_protection; mark_done protection; fi
+
+  stage "Session token claims: email and name"
+  if ! skip_done claims; then
     stage_claims
     note "Production can't mint test sessions, so the claims get their real check on the live site (ticket 13 smoke test)."
-    mark_done settings
+    mark_done claims
   fi
 
   stage "Record the live keys"
@@ -544,30 +566,28 @@ run_production() {
 
   stage "Railway: secret key and allowed frontend origins"
   if ! skip_done railway; then
-    local env="${RAILWAY_ENVIRONMENT:-production}" svc="${RAILWAY_SERVICE:-cardstack}" origins current
+    local env="${RAILWAY_ENVIRONMENT:-production}" svc="${RAILWAY_SERVICE:-cardstack}" origins="" current="" cli=0
     if command -v railway >/dev/null 2>&1 && railway whoami >/dev/null 2>&1; then
+      cli=1
       current=$(railway variables -k -e "$env" -s "$svc" 2>/dev/null | sed -n 's/^APP_CLIENT_URLS=//p' || true)
-      [[ -n "$current" ]] && say "Current APP_CLIENT_URLS: $current"
+      if [[ -n "$current" ]]; then say "Current APP_CLIENT_URLS: $current"; fi
     fi
     warn "This REPLACES APP_CLIENT_URLS. Include every origin that must keep working, comma-separated, no trailing slash."
-    ask origins "Frontend origin(s), e.g. https://$CLERK_PROD_DOMAIN:"
-    if confirm "Set CLERK_SECRET_KEY and APP_CLIENT_URLS on Railway ($env / $svc)?"; then
-      local manual=0
-      for kv in "CLERK_SECRET_KEY=$CLERK_SECRET_KEY" "APP_CLIENT_URLS=$origins"; do
-        if command -v railway >/dev/null 2>&1 && railway variables --set "$kv" -e "$env" -s "$svc" >/dev/null 2>&1; then
-          printf '  %s✓ set%s Railway variable %s\n' "$GREEN" "$RESET" "${kv%%=*}"
-        else
-          manual=1
-          warn "couldn't set ${kv%%=*} with the railway CLI"
-        fi
-      done
-      if (( manual )); then
-        open_url "https://railway.com/dashboard"
-        step "Service $svc → Variables. CLERK_SECRET_KEY is in $PROD_ENV; APP_CLIENT_URLS is: $origins"
-        pause "Set by hand? Press Enter."
-      fi
-      mark_done railway
+    until [[ "$origins" == http* ]]; do
+      ask origins "Frontend origin(s), e.g. https://$CLERK_PROD_DOMAIN:"
+    done
+    if (( cli )) && confirm "Set APP_CLIENT_URLS on Railway ($env / $svc) with the railway CLI?" &&
+       railway variables --set "APP_CLIENT_URLS=$origins" -e "$env" -s "$svc" >/dev/null 2>&1; then
+      printf '  %s✓ set%s Railway variable APP_CLIENT_URLS\n' "$GREEN" "$RESET"
+    else
+      step "Service $svc → Variables: set APP_CLIENT_URLS to $origins"
+      open_url "https://railway.com/dashboard"
     fi
+    # The secret is never put on a command line, where `ps` would show it.
+    step "Same page: set CLERK_SECRET_KEY to the live secret key."
+    copy_clip "$CLERK_SECRET_KEY" && note "(the secret key is on your clipboard)" || note "(it is saved in $PROD_ENV)"
+    pause "Both variables set in Railway? Press Enter."
+    mark_done railway
   fi
 
   stage "Vercel: publishable key"
@@ -576,14 +596,14 @@ run_production() {
     step "Project → Settings → Environment Variables → Add."
     step "Name: VITE_CLERK_PUBLISHABLE_KEY"
     step "Value: $VITE_CLERK_PUBLISHABLE_KEY"
-    step "Environments: Production only. Preview and Development keep the pk_test key."
+    step "Environments: Production only. Leave Preview and Development alone; the preview workflow supplies the pk_test key."
     note "Vite bakes VITE_* into the bundle, so redeploy the frontend after saving."
     pause "Saved? Press Enter."
     mark_done vercel
   fi
 
   finish
-  echo_settings_summary
+  print_settings_summary
 }
 
 "run_$MODE"

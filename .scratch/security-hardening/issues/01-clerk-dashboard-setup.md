@@ -29,4 +29,6 @@
 
 ## Comments
 
-**Wizard:** `scripts/clerk-setup.sh` (development, 9 stages) and `scripts/clerk-setup.sh production` (6 stages, after ticket 02). The wizard prints the plan-gated settings at the end; paste them here. Variable names it writes, for tickets 07 to 09 to adopt: `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`, `APP_CLIENT_URLS` (existing), `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`. GitHub: secrets `CLERK_SECRET_KEY`, `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`, and a variable `VITE_CLERK_PUBLISHABLE_KEY`.
+**Wizard:** `scripts/clerk-setup.sh` (development, 9 stages) and `scripts/clerk-setup.sh production` (8 stages, after ticket 02). The wizard prints the plan-gated settings at the end; paste them here. Variable names it uses, for tickets 07 to 09 to adopt: `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`, `APP_CLIENT_URLS` (existing), `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`. GitHub: secrets `CLERK_SECRET_KEY`, `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`, and a variable `VITE_CLERK_PUBLISHABLE_KEY`. Pull-request previews use the development instance, so the preview workflow (tickets 07 to 09) must read those two from GitHub and push them to the Railway PR environment and the Vercel preview. Not covered by the wizard: the unverified-signup and forgot-password checks are manual confirmations in the Account Portal.
+
+**Clerk development settings (wizard run 2026-10-03):** lockout: enabled; enumeration: enabled; bot: enabled.
