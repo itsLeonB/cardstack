@@ -230,7 +230,10 @@ test.describe("Collection entries infinite scroll", () => {
 
     // Every page was requested (the dev server's StrictMode remount can
     // repeat one, so counts are not asserted), and the URL has no page.
-    await expect(page.getByTitle("Card 249")).toBeVisible()
+    await expect(async () => {
+      await scrollToBottom(page)
+      await expect(page.getByTitle("Card 249")).toBeVisible({ timeout: 1000 })
+    }).toPass()
     const pages = api.entryRequests.map((url) => url.searchParams.get("page"))
     expect(new Set(pages)).toEqual(new Set(["1", "2", "3"]))
     expect(page.url()).not.toContain("page=")
