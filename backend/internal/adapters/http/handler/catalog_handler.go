@@ -54,12 +54,12 @@ func (h *CatalogHandler) listTags(ctx context.Context, _ listTagsInput) ([]strin
 // value means "don't filter on this facet". The multi-value ones are
 // repeated params (?rarityId=a&rarityId=b): OR within a param, AND across.
 type CardFilterParams struct {
-	Name            string   `query:"name" doc:"Case-insensitive substring match on the Card's name."`
-	ExpansionSetIDs []string `query:"expansionSetId,explode" doc:"Only Cards in any of these Expansion Sets (repeatable)."`
+	Name            string   `query:"name" maxLength:"64" doc:"Case-insensitive substring match on the Card's name (at most 64 characters)."`
+	ExpansionSetIDs []string `query:"expansionSetId,explode" maxItems:"20" doc:"Only Cards in any of these Expansion Sets (repeatable, at most 20)."`
 	LocalID         string   `query:"localId" doc:"Only the Card with this number within its Expansion Set (e.g. \"001\")."`
-	RarityIDs       []string `query:"rarityId,explode" doc:"Only Cards with any of these Rarities (repeatable)."`
-	Categories      []string `query:"category,explode" doc:"Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi)."`
-	Tags            []string `query:"tag,explode" doc:"Only Cards carrying any of these tags (repeatable)."`
+	RarityIDs       []string `query:"rarityId,explode" maxItems:"20" doc:"Only Cards with any of these Rarities (repeatable, at most 20)."`
+	Categories      []string `query:"category,explode" maxItems:"20" doc:"Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi)."`
+	Tags            []string `query:"tag,explode" maxItems:"20" doc:"Only Cards carrying any of these tags (repeatable, at most 20)."`
 }
 
 // searchCardsInput is GET /catalog/cards's query string.
@@ -83,7 +83,7 @@ func parseUUIDs(param string, raw []string) ([]uuid.UUID, error) {
 		}
 		id, err := uuid.Parse(r)
 		if err != nil {
-			return nil, ungerr.BadRequestError("invalid " + param + ": " + r)
+			return nil, ungerr.BadRequestError("invalid " + param)
 		}
 		ids = append(ids, id)
 	}
