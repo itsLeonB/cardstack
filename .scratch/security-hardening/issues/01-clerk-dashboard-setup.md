@@ -6,7 +6,7 @@
 
 **Blocked by:** None (can start immediately). The production-instance half also needs the domain from ticket 02.
 
-**Status:** ready-for-human
+**Status:** done — wizard delivered in `scripts/clerk-setup.sh` (commits `870da19`, `47e5c38`); acceptance boxes stay unticked until it has been run against a real Clerk instance.
 
 ## Steps the wizard covers
 
