@@ -28,3 +28,7 @@ These are the required repository secrets needed for [the preview environment pr
 ### Clerk (sign-in provider)
 
 Run `scripts/clerk-setup.sh` to configure the Clerk development instance and store its keys locally and in GitHub. It is re-runnable and skips finished stages. Once the domain from ticket 02 exists, run `scripts/clerk-setup.sh production` for the live instance, Railway and Vercel.
+
+### Cloudflare, R2 and hosting
+
+Run `scripts/cloudflare-setup.sh` to put the domain on Cloudflare, create the R2 bucket and its `cdn` subdomain, proxy the `api` subdomain, add the edge secret header and per-IP rate rule, and set the resulting variables on Railway and Vercel. It is re-runnable and skips finished stages; its values are kept in a private file under `~/.local/state/cardstack/`, outside the repo.
