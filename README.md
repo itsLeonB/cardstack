@@ -24,3 +24,7 @@ These are the required repository secrets needed for [the preview environment pr
 | `VERCEL_ORG_ID` | `https://vercel.com/<team-slug>/~/settings` |
 | `VERCEL_PROJECT_ID` | `https://vercel.com/<team-slug>/<project-name>/settings` |
 | `VERCEL_TOKEN` | [vercel.com/account/settings/tokens](https://vercel.com/account/settings/tokens) |
+
+### Clerk (sign-in provider)
+
+Run `scripts/clerk-setup.sh` to configure the Clerk development instance and store its keys locally and in GitHub. It is re-runnable and skips finished stages. Once the domain from ticket 02 exists, run `scripts/clerk-setup.sh production` for the live instance, Railway and Vercel.

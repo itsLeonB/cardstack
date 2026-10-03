@@ -28,3 +28,5 @@
 - [ ] The wizard script is re-runnable and skips steps that are already done.
 
 ## Comments
+
+**Wizard:** `scripts/clerk-setup.sh` (development, 9 stages) and `scripts/clerk-setup.sh production` (6 stages, after ticket 02). The wizard prints the plan-gated settings at the end; paste them here. Variable names it writes, for tickets 07 to 09 to adopt: `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`, `APP_CLIENT_URLS` (existing), `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`. GitHub: secrets `CLERK_SECRET_KEY`, `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`, and a variable `VITE_CLERK_PUBLISHABLE_KEY`.
