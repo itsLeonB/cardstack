@@ -3,7 +3,7 @@
 # 32: PR cleanup leaves a VITE_API_BASE_URL entry behind in Vercel for every PR
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** None (can start immediately)
 

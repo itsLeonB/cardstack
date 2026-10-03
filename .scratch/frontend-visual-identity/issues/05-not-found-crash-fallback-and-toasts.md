@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Root not-found page rendered inside the shell, with actions back to Home and the Catalog
 - [x] A missing Collection or Card resolves to the same not-found page with a message naming what was not found, rather than a generic message

@@ -4,7 +4,7 @@
 
 **Blocked by:** 03, 04, 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Static Open Graph tags, theme colour and description in the root head, with one static preview image for the whole site
 - [x] Every route sets a descriptive per-route document title from the browser
