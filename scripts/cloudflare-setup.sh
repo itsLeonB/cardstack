@@ -250,8 +250,9 @@ need() {
 
 # r2 METHOD KEY [FILE] talks to R2's S3 API with curl's built-in SigV4 and prints
 # the HTTP status. The key pair goes through curl's stdin, never `ps`.
+R2_BODY=$(mktemp); trap 'rm -f "$R2_BODY"' EXIT
 r2() {
-  local args=(-sS -o /dev/null -w '%{http_code}' -K - --aws-sigv4 'aws:amz:auto:s3' -X "$1")
+  local args=(-sS -o "$R2_BODY" -w '%{http_code}' -K - --aws-sigv4 'aws:amz:auto:s3' -X "$1")
   if [[ -n "${3:-}" ]]; then args+=(-T "$3" -H 'Content-Type: image/png'); fi
   printf 'user = "%s:%s"\n' "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" |
     curl "${args[@]}" "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com/$R2_BUCKET/$2" 2>/dev/null || printf '000'
@@ -263,7 +264,7 @@ r2_put_test() {
   printf '%s' "$TEST_PNG_B64" | base64 -d > "$png"
   status=$(r2 PUT "$TEST_KEY" "$png")
   rm -f "$png"
-  [[ "$status" == 200 ]] || { warn "R2 upload answered HTTP $status."; return 1; }
+  [[ "$status" == 200 ]] || { warn "R2 upload answered HTTP $status: $(head -c 200 "$R2_BODY" | tr '\n' ' ')"; return 1; }
 }
 
 # hget URL HEADER prints "STATUS|header-value" from a plain GET (no redirects followed).
@@ -445,7 +446,7 @@ stage_rate_rule() {
       say "Cloudflare's rate rule fired (HTTP 429, error 1015)."
       break
     fi
-    warn "No Cloudflare 429 seen (last status $code). The rule may not match, or the burst was too slow."
+    warn "No Cloudflare 429 seen (last status $code, body: ${body:0:120}). The rule may not match, or the burst was too slow."
     note "Waiting 10 s for any block to clear."
     sleep 10
   done
