@@ -3,7 +3,7 @@
 # 24: Guest catalog preview: lock some filtering and search behind auth
 
 **Category:** enhancement
-**Status:** needs-triage
+**Status:** done (absorbed into `.scratch/security-hardening/spec.md`)
 
 **Blocked by:** 21 (Catalog faceted multi-value filters), 23 (Add to collection from the catalog page)
 
@@ -17,3 +17,4 @@ Non-blocking enhancement. Idea from the maintainer: because the catalog page now
 - The lock must be enforced by the API, not only hidden in the UI, otherwise a guest can call the search endpoint directly. Confirm that is wanted, since it changes the public catalog endpoints' contract for unauthenticated callers.
 
 ## Comments
+Closed 2026-10-03: absorbed into `.scratch/security-hardening/spec.md`. Answers to the open questions: guests get Series/Expansion Set browse, name search and one page of 24 (page size clamped to 24); rarity, category and tag filters, `/catalog/facets` and any later page return 401 `login_required`; locked controls stay visible but disabled with a sign-in prompt; the lock is enforced by the API.

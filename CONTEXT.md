@@ -46,5 +46,13 @@ _Avoid_: "Inventory" alone — ambiguous between this (atomic, per-Collection) a
 **Master Inventory**:
 Not a stored entity. The aggregate of a user's Inventory Entries across *all* their Collections, grouped by Card — "how many of this card do I own in total, anywhere." Computed on read, not written to.
 
+**Auth Identity**:
+The (auth provider, auth subject) pair that proves who a caller is, issued by the identity provider (Clerk, ADR-0015), never by Cardstack. A User row is the Cardstack-side record of one Auth Identity, plus an email; the User's profile owns Collections. Cardstack stores no passwords or sessions.
+_Avoid_: "account" for the Clerk-side login and "user" for the Cardstack-side row interchangeably — the identity lives at the provider, the row only points at it.
+
+**Guest**:
+A caller with no `Authorization` header. A Guest gets a deliberate catalog preview: browse Series and Expansion Sets, name search, and one page of 24 results; filters on rarity, category and tag, facet counts and further pages require an Auth Identity. A request whose token is present but invalid is not a Guest, it is rejected with 401.
+_Avoid_: calling an expired-token caller a Guest.
+
 **Wishlist**:
 Not modeled in MVP. A future concept for cards a user wants but doesn't own; do not conflate with Inventory Entry (owned quantity) until it's actually built.
