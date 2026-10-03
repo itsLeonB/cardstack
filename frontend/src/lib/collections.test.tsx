@@ -442,6 +442,30 @@ describe("patchCollectionEntryQuantities", () => {
     expect(client.getQueryCache().getAll()).toHaveLength(0)
   })
 
+  it("leaves a first fetch alone: a list with no pages has nothing to patch and nothing would restart it", async () => {
+    const { client } = seed()
+    const otherFilters = getListCollectionEntriesInfiniteQueryKey("col-1", {
+      name: "pika",
+      limit: 100,
+    })
+    const signalled = vi.fn()
+    // The user just changed a filter; its page 1 is still loading.
+    void client
+      .fetchQuery({
+        queryKey: otherFilters,
+        queryFn: ({ signal }) => {
+          signal.addEventListener("abort", signalled)
+          return new Promise(() => {})
+        },
+      })
+      .catch(() => undefined)
+
+    await patchCollectionEntryQuantities(client, "col-1", [saved("c", 5)])
+
+    expect(signalled).not.toHaveBeenCalled()
+    expect(client.getQueryState(otherFilters)?.fetchStatus).toBe("fetching")
+  })
+
   it("cancels a fetch in flight so it cannot write stale pages back over the patch", async () => {
     const { client } = seed()
     const signalled = vi.fn()

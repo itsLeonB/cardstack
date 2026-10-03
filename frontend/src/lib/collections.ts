@@ -51,7 +51,12 @@ export async function patchCollectionEntryQuantities(
   results: InventoryChangeResult[]
 ) {
   const queryKey = getListCollectionEntriesInfiniteQueryKey(collectionId)
-  await queryClient.cancelQueries({ queryKey })
+  // Only lists holding pages: cancelling a first fetch (a filter just changed)
+  // would leave it idle, and nothing would start it again.
+  await queryClient.cancelQueries({
+    queryKey,
+    predicate: (query) => query.state.data !== undefined,
+  })
   const saved = new Map(results.map((r) => [r.cardId, r.quantity]))
   const changed = (page: EntriesPage) =>
     page.status === 200 &&

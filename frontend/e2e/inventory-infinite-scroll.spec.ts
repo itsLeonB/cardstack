@@ -183,7 +183,7 @@ const scrollToBottom = (page: Page) =>
   page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
 
 test.describe("Collection entries infinite scroll", () => {
-  test("keeps a quantity saved on page 2 after page 3 loads and after a refetch", async ({
+  test("keeps a quantity saved on page 2 after page 3 loads", async ({
     page,
   }) => {
     const api = await stubApi(page)
