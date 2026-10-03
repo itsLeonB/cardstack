@@ -54,6 +54,7 @@
   },
   "enabledPlugins": {
     "hookify@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true
+    "security-guidance@claude-plugins-official": true,
+    "pstack@pstack-claude": true
   }
 }
