@@ -28,6 +28,8 @@ Card and Expansion Set images live in a Cloudflare R2 bucket and are served from
 
 Keys are `cards/<card id>` and `expansion-sets/<expansion set id>`, so re-running the ingester is the backfill: it copies only rows whose key is empty, and a failed download or upload is logged and retried by the next run. To host Expansion Set covers without crawling any card, run `go run ./cmd/ingest-pokemon-asia -sync-expansion-sets`. Hosted originals are uploaded with `Cache-Control: public, max-age=31536000, immutable`, which is safe because a key always maps to the same bytes.
 
+Rollout order matters, because nothing enforces it: until `IMAGE_BASE_URL` is set on the API and the ingester has hosted a row, that row's image address is empty and the frontend shows its placeholder. `preserve()` in `railway.ts` keeps an existing `IMAGE_BASE_URL` but never creates one, so set it in Railway first, run the full ingester backfill, then deploy the API. The hosted-images migration also drops `image_url` in the same step as the API change, so replicas still running the old API fail on catalog queries during the rollout window.
+
 ## A failed Vercel build keeps serving the old bundle
 
 If production shows stale behavior (missing images, old UI), suspect a failed Vercel build before suspecting the code: the previous deployment stays live. Check in this order:
