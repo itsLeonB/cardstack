@@ -20,9 +20,10 @@ type Errors = Record<string, string>
 export function useQuantityBatch(
   collectionId: string,
   /**
-   * Runs after each batch the server answered, with its per-card results (none
-   * when the response was lost). The batch stays busy until it settles, so an
-   * async cache patch lands before the cards lose their protection.
+   * Runs after each batch the server accepted (HTTP 200), with its per-card
+   * results, and with none when the response was lost. It is not called for a
+   * rejected request. The batch stays busy until it settles, so an async cache
+   * patch lands before the cards lose their protection; a throw is swallowed.
    */
   onSaved?: (results: InventoryChangeResult[]) => void | Promise<void>
 ) {
@@ -59,6 +60,16 @@ export function useQuantityBatch(
     setErrors((prev) => ({ ...prev, [cardId]: message }))
   }
 
+  // Cache housekeeping must not undo a save the server accepted (the catch below
+  // would revert the card as a network error) or reject out of `send` and stall the queue.
+  async function notifySaved(results: InventoryChangeResult[]) {
+    try {
+      await onSaved?.(results)
+    } catch {
+      // The next refetch repairs the cache.
+    }
+  }
+
   async function send(items: [string, number, number][]) {
     const revisionOf = new Map(
       items.map(([cardId, , revision]) => [cardId, revision])
@@ -75,7 +86,7 @@ export function useQuantityBatch(
         return
       }
       const results = response.data.data ?? []
-      await onSaved?.(results)
+      await notifySaved(results)
       for (const result of results) {
         confirmed.current[result.cardId] = result.quantity
         if (result.status === InventoryChangeResultStatus.declined) {
@@ -91,7 +102,7 @@ export function useQuantityBatch(
       for (const [cardId, , revision] of items)
         revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
       // The write may have committed with only the response lost, so cached server data can be stale.
-      await onSaved?.([])
+      await notifySaved([])
     } finally {
       // A newer batch for the card keeps its protection until that batch settles.
       for (const [cardId, , revision] of items)

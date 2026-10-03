@@ -9,6 +9,7 @@ import type { CatalogFilters } from "@/lib/catalog-search"
 import { hasActiveFilters } from "@/lib/catalog-search"
 import {
   invalidateCollectionCounts,
+  invalidateCollectionEntries,
   patchCollectionEntryQuantities,
 } from "@/lib/collections"
 import { useInfiniteCardResultsProps } from "@/lib/infinite-catalog-cards"
@@ -35,7 +36,12 @@ export function CollectionEntries({
   const batch = useQuantityBatch(collectionId, async (results) => {
     invalidateMasterInventory(queryClient)
     invalidateCollectionCounts(queryClient, collectionId)
-    await patchCollectionEntryQuantities(queryClient, collectionId, results)
+    // No results means the response was lost: the write may have committed, so
+    // there is nothing to patch from and the list must be refetched.
+    if (results.length === 0)
+      invalidateCollectionEntries(queryClient, collectionId)
+    else
+      await patchCollectionEntryQuantities(queryClient, collectionId, results)
   })
 
   const query = useInfiniteCollectionEntries(

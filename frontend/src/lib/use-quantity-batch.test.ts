@@ -219,6 +219,33 @@ describe("useQuantityBatch", () => {
     expect(result.current.isBusy()).toBe(false)
   })
 
+  it("keeps a saved card saved when onSaved rejects", async () => {
+    respond([{ cardId: "a", quantity: 2, status: "applied" }])
+    const onSaved = vi.fn().mockRejectedValue(new Error("cache"))
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(result.current.quantities.a).toBe(2)
+    expect(result.current.errors).toEqual({})
+    expect(result.current.isBusy()).toBe(false)
+  })
+
+  it("keeps flushing later edits when onSaved rejects after a lost response", async () => {
+    bulk.mockRejectedValueOnce(new Error("offline"))
+    const onSaved = vi.fn().mockRejectedValue(new Error("cache"))
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    respond([{ cardId: "b", quantity: 3, status: "applied" }])
+    act(() => result.current.setQuantity("b", 3, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(bulk).toHaveBeenCalledTimes(2)
+  })
+
   it("calls onSaved with no results when the response is lost, since the write may have committed", async () => {
     bulk.mockRejectedValue(new Error("offline"))
     const onSaved = vi.fn()

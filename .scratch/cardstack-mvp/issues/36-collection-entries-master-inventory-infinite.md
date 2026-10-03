@@ -3,7 +3,7 @@
 # 36: Collection entries and Master Inventory on infinite scroll
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** 33, 34
 
@@ -30,12 +30,12 @@ Both lists use numbered pages. `useQuantityBatch` prunes pending edits against t
 - The shared grid from tickets 33 and 34.
 
 **Acceptance criteria:**
-- [ ] Both lists scroll-load all entries with no duplicates
-- [ ] Editing a quantity on a card on page 3 and saving keeps the saved value after further pages load and after a focus refetch
-- [ ] No invalidation silently misses an infinite list (test or documented check per call site)
-- [ ] Focus refetch is skipped with pending edits and runs otherwise
-- [ ] Tests updated and a Playwright e2e for editing a quantity after scrolling
-- [ ] Both verification scripts pass
+- [x] Both lists scroll-load all entries with no duplicates
+- [x] Editing a quantity on a card on page 3 and saving keeps the saved value after further pages load and after a focus refetch
+- [x] No invalidation silently misses an infinite list (test or documented check per call site)
+- [x] Focus refetch is skipped with pending edits and runs otherwise
+- [x] Tests updated and a Playwright e2e for editing a quantity after scrolling
+- [x] Both verification scripts pass
 
 **Out of scope:**
 - The catalog's quantities lookup (ticket 37)
@@ -50,4 +50,6 @@ Both lists use numbered pages. `useQuantityBatch` prunes pending edits against t
 - **`prune` compares with the server data.** Any `data` change (an append, a patch) ran `prune`, which would wipe a declined card's error whenever another card in the same batch was patched. `prune(serverQuantity)` now drops an override or error only when the server data differs from what the hook last confirmed, or the row is gone. Side effect on the catalog search page (ticket 23): a declined card's error now survives the lookup refetch.
 - **Invalidation audit.** `invalidateMasterInventory` hits the infinite list, the plain list (the dashboard's `limit: 1` count) and the facets. `invalidateCollectionEntries` hits the infinite entries list and the plain lookups. Call sites: `CollectionEntries.onSaved` patches the cache and does not refetch (`collection-entries.test.tsx`); `CollectionCardResults.onSaved` is checked by `collection-card-results.test.tsx` for the call and `collections.test.tsx` for real keys; `useDeleteCollectionMutation` goes through `invalidateMasterInventory` (`master-inventory.test.ts`, real keys); `invalidateCollectionCounts` touches only the Collections list and single-Collection keys, so it is unaffected; facets keys are plain queries and unaffected.
 - **No `page`, no loader prefetch.** Both routes validate `catalogFilterSchema` (a stale `?page=` is stripped) and have no `loaderDeps` to change. Neither prefetches entries, since both refetch on mount. Filter changes scroll to the top in the route handler. `CardResults` and its test are deleted.
+- **Lost response refetches the list.** When a save's response is lost (`onSaved([])`) the write may have committed and there is nothing to patch from, so `CollectionEntries` invalidates the entries list (a refetch is the only way to learn the server value). `onSaved` runs in a guard inside `useQuantityBatch`, so a throw in cache housekeeping can neither revert a card the server accepted nor stall the batch queue (both tested).
+- **Accepted limits of the cache patch.** `cancelQueries` also cancels a background focus refetch that was in flight when the user saved; the next focus or mount refreshes the list. A save made on a `keepPreviousData` placeholder tile while the first page of new filters is still loading has nothing to patch, so that tile can show the pre-save value once the page lands; the window is narrow and heals on refetch. `meta.total` in cached pages is not adjusted after a card is zeroed (the "N of total" line is off by one until a refetch).
 - **Not run.** The Playwright specs run against stubbed APIs only; nothing was run against a real backend with a Collection of more than 100 entries.

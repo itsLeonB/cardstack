@@ -313,6 +313,24 @@ describe("CollectionEntries", () => {
     expect(quantityOf(1)).toBe("3")
   })
 
+  it("refetches the list when a save's response is lost, since the write may have committed", async () => {
+    serveEntries([entry(1), entry(2)])
+    const commit = bulk.getMockImplementation()
+    bulk.mockImplementationOnce(async (...args) => {
+      await commit?.(...args)
+      throw new Error("offline")
+    })
+    renderEntries()
+    await settle()
+
+    setQuantityOf(1, 6)
+    await advance(QUANTITY_DEBOUNCE_MS)
+    await settle()
+
+    // The override reverted to 3, but the refetch found the committed 6.
+    expect(quantityOf(1)).toBe("6")
+  })
+
   it("keeps a card saved at 0 on page 3 as a tile at 0 while pages append, and drops it on the next refetch", async () => {
     const gate = serveEntries(
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => entry(n))
@@ -435,8 +453,10 @@ describe("CollectionEntries", () => {
 
     expect(bulk).toHaveBeenCalledTimes(2)
     expect(quantityOf(1)).toBe("5")
+    // The lost response already refetched the list; the refocus must add nothing.
+    const requests = list.mock.calls.length
     await refocusTab()
-    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenCalledTimes(requests)
   })
 
   it("applies +, - and typed quantities optimistically, then sends one bulk call after the debounce", async () => {
