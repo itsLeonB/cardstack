@@ -10,13 +10,15 @@ import {
 } from "@/generated/endpoints/collections/collections"
 import { AddCardsLink } from "@/components/collections/add-cards-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
-import { catalogSearchSchema } from "@/lib/catalog-search"
+import { catalogFilterSchema } from "@/lib/catalog-search"
+import type { CatalogFilters } from "@/lib/catalog-search"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 
 export const Route = createFileRoute(
   "/_authenticated/collections/$collectionId/"
 )({
-  validateSearch: catalogSearchSchema,
+  // Filters only: the entries list is infinite, so a stale `?page=` is stripped.
+  validateSearch: catalogFilterSchema,
   // Entries are deliberately not prefetched into the cache: the page refetches
   // them on mount so a card removed earlier doesn't reappear from stale data.
   loader: async ({ context: { queryClient }, params }) => {
@@ -34,6 +36,12 @@ function CollectionPage() {
   const { collectionId } = Route.useParams()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+
+  // A filter change starts a fresh list, so return to its top.
+  async function changeSearch(next: CatalogFilters) {
+    await navigate({ search: next })
+    window.scrollTo({ top: 0, behavior: "instant" })
+  }
   const query = useGetCollection(collectionId)
   const collection =
     query.data?.status === 200 ? query.data.data.data : undefined
@@ -69,7 +77,7 @@ function CollectionPage() {
           <CollectionEntries
             collectionId={collectionId}
             search={search}
-            onSearchChange={(next) => void navigate({ search: next })}
+            onSearchChange={(next) => void changeSearch(next)}
           />
         </>
       )}

@@ -1,17 +1,25 @@
-import { expect, it, vi } from "vitest"
+import { QueryClient } from "@tanstack/react-query"
+import { expect, it } from "vitest"
 import { invalidateMasterInventory } from "./master-inventory"
 import {
   getListMasterInventoryFacetsQueryKey,
+  getListMasterInventoryInfiniteQueryKey,
   getListMasterInventoryQueryKey,
 } from "@/generated/endpoints/inventory/inventory"
 
-it("invalidates both the Master Inventory list and its facets", () => {
-  const invalidateQueries = vi.fn()
-  // SAFETY: only invalidateQueries is used.
-  invalidateMasterInventory({ invalidateQueries } as any)
-  const keys = invalidateQueries.mock.calls.map(([arg]) => arg.queryKey)
-  expect(keys).toEqual([
-    getListMasterInventoryQueryKey(),
-    getListMasterInventoryFacetsQueryKey(),
-  ])
+// Real keys in a real cache: a prefix that doesn't match fails here, which a
+// mocked invalidateQueries would never notice.
+it("invalidates the infinite list, the plain list (dashboard) and the facets", () => {
+  const client = new QueryClient()
+  const keys = [
+    getListMasterInventoryInfiniteQueryKey({ name: "pika", limit: 100 }),
+    getListMasterInventoryQueryKey({ limit: 1 }),
+    getListMasterInventoryFacetsQueryKey({ name: "pika" }),
+  ]
+  for (const key of keys) client.setQueryData(key, {})
+
+  invalidateMasterInventory(client)
+
+  for (const key of keys)
+    expect(client.getQueryState(key)?.isInvalidated).toBe(true)
 })

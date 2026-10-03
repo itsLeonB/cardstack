@@ -5,18 +5,23 @@
  * OpenAPI spec version: 1.0
  */
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
+  DefinedUseInfiniteQueryResult,
   DefinedUseQueryResult,
+  InfiniteData,
   MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseInfiniteQueryOptions,
+  UseInfiniteQueryResult,
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
@@ -130,12 +135,91 @@ export const listCollectionEntries = async (id: string,
 
 
 
+export const getListCollectionEntriesInfiniteQueryKey = (id: string,
+    params?: ListCollectionEntriesParams,) => {
+    return [
+    'infinite', `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
 export const getListCollectionEntriesQueryKey = (id: string,
     params?: ListCollectionEntriesParams,) => {
     return [
     `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries`, ...(params ? [params] : [])
     ] as const;
     }
+
+
+export const getListCollectionEntriesInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listCollectionEntries>>, ListCollectionEntriesParams['page']>, TError = ErrorModel>(id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData, QueryKey, ListCollectionEntriesParams['page']>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCollectionEntriesInfiniteQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCollectionEntries>>, QueryKey, ListCollectionEntriesParams['page']> = ({ signal, pageParam }) => listCollectionEntries(id,{...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData, QueryKey, ListCollectionEntriesParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCollectionEntriesInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listCollectionEntries>>>
+export type ListCollectionEntriesInfiniteQueryError = ErrorModel
+
+
+export function useListCollectionEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listCollectionEntries>>, ListCollectionEntriesParams['page']>, TError = ErrorModel>(
+ id: string,
+    params: undefined |  ListCollectionEntriesParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData, QueryKey, ListCollectionEntriesParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCollectionEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listCollectionEntries>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCollectionEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listCollectionEntries>>, ListCollectionEntriesParams['page']>, TError = ErrorModel>(
+ id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData, QueryKey, ListCollectionEntriesParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCollectionEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listCollectionEntries>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCollectionEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listCollectionEntries>>, ListCollectionEntriesParams['page']>, TError = ErrorModel>(
+ id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData, QueryKey, ListCollectionEntriesParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters
+ */
+
+export function useListCollectionEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listCollectionEntries>>, ListCollectionEntriesParams['page']>, TError = ErrorModel>(
+ id: string,
+    params?: ListCollectionEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listCollectionEntries>>, TError, TData, QueryKey, ListCollectionEntriesParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCollectionEntriesInfiniteQueryOptions(id,params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
 
 
 export const getListCollectionEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listCollectionEntries>>, TError = ErrorModel>(id: string,
@@ -829,11 +913,84 @@ export const listMasterInventory = async (params?: ListMasterInventoryParams, op
 
 
 
+export const getListMasterInventoryInfiniteQueryKey = (params?: ListMasterInventoryParams,) => {
+    return [
+    'infinite', `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
 export const getListMasterInventoryQueryKey = (params?: ListMasterInventoryParams,) => {
     return [
     `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/inventory/cards`, ...(params ? [params] : [])
     ] as const;
     }
+
+
+export const getListMasterInventoryInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listMasterInventory>>, ListMasterInventoryParams['page']>, TError = ErrorModel>(params?: ListMasterInventoryParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData, QueryKey, ListMasterInventoryParams['page']>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMasterInventoryInfiniteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMasterInventory>>, QueryKey, ListMasterInventoryParams['page']> = ({ signal, pageParam }) => listMasterInventory({...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData, QueryKey, ListMasterInventoryParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMasterInventoryInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listMasterInventory>>>
+export type ListMasterInventoryInfiniteQueryError = ErrorModel
+
+
+export function useListMasterInventoryInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listMasterInventory>>, ListMasterInventoryParams['page']>, TError = ErrorModel>(
+ params: undefined |  ListMasterInventoryParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData, QueryKey, ListMasterInventoryParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMasterInventory>>,
+          TError,
+          Awaited<ReturnType<typeof listMasterInventory>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMasterInventoryInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listMasterInventory>>, ListMasterInventoryParams['page']>, TError = ErrorModel>(
+ params?: ListMasterInventoryParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData, QueryKey, ListMasterInventoryParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMasterInventory>>,
+          TError,
+          Awaited<ReturnType<typeof listMasterInventory>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMasterInventoryInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listMasterInventory>>, ListMasterInventoryParams['page']>, TError = ErrorModel>(
+ params?: ListMasterInventoryParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData, QueryKey, ListMasterInventoryParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)
+ */
+
+export function useListMasterInventoryInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listMasterInventory>>, ListMasterInventoryParams['page']>, TError = ErrorModel>(
+ params?: ListMasterInventoryParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData, QueryKey, ListMasterInventoryParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMasterInventoryInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
 
 
 export const getListMasterInventoryQueryOptions = <TData = Awaited<ReturnType<typeof listMasterInventory>>, TError = ErrorModel>(params?: ListMasterInventoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMasterInventory>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
