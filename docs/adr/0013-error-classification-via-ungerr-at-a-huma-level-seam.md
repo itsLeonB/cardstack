@@ -9,4 +9,6 @@ Every unclassified error returned from a handler was being serialized straight i
 
 ## Consequences
 
+The redaction rule covers client errors as well as server errors: a response to a malformed request never echoes what the caller sent. The same seam drops the `value` Huma copies into each error detail and replaces the detail messages Huma builds from decode failures (request-body parse errors, parameter decode errors) with fixed text. Schema-validation messages (422), which are fixed templates, keep their text and location. Handler-built client errors (for example an invalid identifier) name the parameter, never the value.
+
 New/changed handler code should return `ungerr.AppError` types (or wrap unknown errors so they route through the same classification) rather than calling `huma.ErrorXXX(...)` directly with ad hoc messages. The Huma-level default for anything that isn't a recognized `AppError` redacts response detail and logs the original error in full server-side.

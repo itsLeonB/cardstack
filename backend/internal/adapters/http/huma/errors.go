@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
@@ -19,11 +20,9 @@ var logRedacted = func(err error) {
 
 // installErrorClassifier makes huma.NewError the single seam that decides
 // what reaches the client (huma.NewErrorWithContext delegates to it): AppErrors
-// keep their status and safe detail, other raw errors at 5xx are logged and
-// dropped from the body.
-//
-// ponytail: raw errors below 500 are Huma-internal request decoding errors
-// (out of scope), so they keep Huma's default behaviour.
+// keep their status and safe detail, other raw errors are logged and dropped
+// from the body, and Huma's own request-error details lose the caller input
+// they carry (see clientSafeDetail).
 func installErrorClassifier() {
 	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
 		var details []*huma.ErrorDetail
@@ -32,7 +31,7 @@ func installErrorClassifier() {
 				continue
 			}
 			if d, ok := err.(huma.ErrorDetailer); ok {
-				details = append(details, d.ErrorDetail())
+				details = append(details, clientSafeDetail(status, d.ErrorDetail()))
 				continue
 			}
 			if appErr, ok := errors.AsType[ungerr.AppError](err); ok {
@@ -40,12 +39,10 @@ func installErrorClassifier() {
 				msg = appErrorMessage(appErr)
 				continue
 			}
+			logRedacted(err)
 			if status >= http.StatusInternalServerError {
-				logRedacted(err)
 				status, msg = http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)
-				continue
 			}
-			details = append(details, &huma.ErrorDetail{Message: err.Error()})
 		}
 
 		return &huma.ErrorModel{
@@ -55,6 +52,27 @@ func installErrorClassifier() {
 			Errors: details,
 		}
 	}
+}
+
+// echoingMessagePrefixes start the messages Huma builds by appending a
+// parser's own error text, which can quote caller input.
+var echoingMessagePrefixes = []string{"invalid value: ", "invalid JSON: "}
+
+// clientSafeDetail strips what Huma copies from the request into a request
+// error (ADR-0013): the offending Value, and any message that is parser
+// output. Schema-validation messages (422) are fixed templates and stay.
+func clientSafeDetail(status int, d *huma.ErrorDetail) *huma.ErrorDetail {
+	safe := &huma.ErrorDetail{Location: d.Location, Message: d.Message}
+	if status != http.StatusUnprocessableEntity {
+		safe.Message = "malformed request"
+		return safe
+	}
+	for _, p := range echoingMessagePrefixes {
+		if strings.HasPrefix(d.Message, p) {
+			safe.Message = strings.TrimSuffix(p, ": ")
+		}
+	}
+	return safe
 }
 
 func appErrorMessage(e ungerr.AppError) string {

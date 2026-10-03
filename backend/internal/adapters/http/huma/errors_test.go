@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/humatest"
+	"github.com/google/uuid"
 	"github.com/itsLeonB/ungerr"
 )
 
@@ -125,5 +126,65 @@ func TestValidationErrorsUntouched(t *testing.T) {
 	resp := api.Get("/v?n=0")
 	if resp.Code != http.StatusUnprocessableEntity || !strings.Contains(resp.Body.String(), "query.n") {
 		t.Fatalf("validation response changed: %d %s", resp.Code, resp.Body.String())
+	}
+}
+
+type echoInput struct {
+	ID   uuid.UUID `path:"id"`
+	N    int       `query:"n"`
+	Body struct {
+		Count int `json:"count"`
+	}
+}
+
+func TestClientErrorsDoNotEchoCallerInput(t *testing.T) {
+	const secret = "caller-supplied-secret"
+	captureLogs(t)
+	_, api := humatest.New(t, NewConfig())
+	huma.Post(api, "/e/{id}", func(context.Context, *echoInput) (*errOutput, error) {
+		return &errOutput{}, nil
+	})
+
+	valid := uuid.NewString()
+	cases := map[string]struct {
+		path, body string
+		status     int
+	}{
+		"invalid path uuid":  {"/e/" + secret, `{"count":1}`, http.StatusUnprocessableEntity},
+		"invalid query int":  {"/e/" + valid + "?n=" + secret, `{"count":1}`, http.StatusUnprocessableEntity},
+		"malformed body":     {"/e/" + valid, `{"count": ` + secret, http.StatusBadRequest},
+		"wrong body type":    {"/e/" + valid, `{"count":"` + secret + `"}`, http.StatusUnprocessableEntity},
+		"unreadable literal": {"/e/" + valid, secret, http.StatusBadRequest},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			resp := api.Post(c.path, "Content-Type: application/json", strings.NewReader(c.body))
+			if resp.Code != c.status {
+				t.Fatalf("want %d, got %d: %s", c.status, resp.Code, resp.Body.String())
+			}
+			if strings.Contains(resp.Body.String(), secret) {
+				t.Fatalf("response echoes caller input: %s", resp.Body.String())
+			}
+		})
+	}
+}
+
+func TestDocsAreServedOutsideProduction(t *testing.T) {
+	for _, env := range []string{"debug", "test"} {
+		_, api := humatest.New(t, NewServerConfig(env))
+		for _, path := range []string{"/docs", "/openapi.json", "/openapi.yaml"} {
+			if resp := api.Get(path); resp.Code != http.StatusOK {
+				t.Fatalf("%s in %s mode: want 200, got %d", path, env, resp.Code)
+			}
+		}
+	}
+}
+
+func TestDocsAreNotServedInProduction(t *testing.T) {
+	_, api := humatest.New(t, NewServerConfig("release"))
+	for _, path := range []string{"/docs", "/openapi.json", "/openapi.yaml", "/openapi-3.0.json", "/openapi-3.0.yaml"} {
+		if resp := api.Get(path); resp.Code != http.StatusNotFound {
+			t.Fatalf("%s in production: want 404, got %d", path, resp.Code)
+		}
 	}
 }

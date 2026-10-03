@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -164,4 +165,27 @@ func TestInventoryHandler_ListMasterFacets_MissingSession(t *testing.T) {
 	_, api, _ := newTestInventoryHandler(t, false)
 
 	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards/facets").Code)
+}
+
+func TestInventoryHandler_BoundsSearchInput(t *testing.T) {
+	collection := "/collections/" + uuid.NewString()
+	paths := []string{"/inventory/cards", "/inventory/cards/facets", collection + "/entries", collection + "/facets"}
+	oversized := map[string]string{
+		"name":           "name=" + strings.Repeat("a", 65),
+		"expansionSetId": repeatedParam("expansionSetId", 21),
+		"rarityId":       repeatedParam("rarityId", 21),
+		"category":       repeatedParam("category", 21),
+		"tag":            repeatedParam("tag", 21),
+	}
+
+	for _, path := range paths {
+		for param, query := range oversized {
+			t.Run(path+" "+param, func(t *testing.T) {
+				_, api, _ := newTestInventoryHandler(t, true)
+
+				resp := api.Get(path + "?" + query)
+				assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+			})
+		}
+	}
 }
