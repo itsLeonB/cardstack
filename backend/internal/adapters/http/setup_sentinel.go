@@ -51,9 +51,8 @@ func setupSentinel(router *gin.Engine, skipPaths []string, logger zerolog.Logger
 	tracingCfg := httpserver.DefaultTracingConfig()
 	tracingCfg.SkipPaths = skipPaths
 
+	router.Use(clientAddress(config.Global.EdgeSecret), securityHeaders())
 	router.Use(
-		realIP(),
-		securityHeaders(),
 		sentinelGin.Recovery(logger),
 		sentinelGin.Tracing(tracingCfg),
 		sentinelGin.CORS(corsCfg),
@@ -79,6 +78,15 @@ func securityHeaders() gin.HandlerFunc {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Next()
 	}
+}
+
+// clientAddress behind Cloudflare trusts only the edge's header; without an
+// edge secret (local dev, previews) it keeps trusting the platform's X-Real-IP.
+func clientAddress(edgeSecret string) gin.HandlerFunc {
+	if edgeSecret != "" {
+		return edgeGuard(edgeSecret)
+	}
+	return realIP()
 }
 
 // ponytail: overwrites RemoteAddr with the real client IP from the
