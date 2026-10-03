@@ -490,3 +490,91 @@ func TestIngester_Run_WithoutObjectStoreSkipsHostingAndStillIngests(t *testing.T
 	assert.Empty(t, summary.Failures)
 	assert.Empty(t, rt.hosts(), "with no R2 configured no image is downloaded")
 }
+
+// newHTTPImageClient returns a client whose image allow-list is the given
+// httptest server, reached over real HTTP with the production redirect policy.
+// Only tests can do this: production always uses the https source host.
+func newHTTPImageClient(t *testing.T, source *httptest.Server) *client {
+	t.Helper()
+	c := newClient()
+	c.limiter = rate.NewLimiter(rate.Inf, 0)
+	c.baseURL = source.URL
+	c.imageHost = strings.TrimPrefix(source.URL, "http://")
+	c.imageScheme = "http"
+	return c
+}
+
+func TestClient_FetchImage_OverRealHTTP(t *testing.T) {
+	var offHostHits atomic.Int64
+	offHost := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		offHostHits.Add(1)
+		servePNG(w, r)
+	}))
+	t.Cleanup(offHost.Close)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ok.png", servePNG)
+	mux.HandleFunc("/to-off-host", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, offHost.URL+"/x.png", http.StatusFound)
+	})
+	mux.HandleFunc("/to-ok", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/ok.png", http.StatusFound) })
+	mux.HandleFunc("/loop", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/loop", http.StatusFound) })
+	mux.HandleFunc("/streamed-too-big", func(w http.ResponseWriter, _ *http.Request) {
+		// No Content-Length (chunked): only the streaming cap can stop this.
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte("\x89PNG\r\n\x1a\n"))
+		chunk := bytes.Repeat([]byte{0}, 1<<20)
+		for range maxImageBytes/len(chunk) + 1 {
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+			w.(http.Flusher).Flush()
+		}
+	})
+	mux.HandleFunc("/declared-too-big", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", fmt.Sprint(maxImageBytes+1))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("\x89PNG")) // far short of the declared length
+	})
+	source := httptest.NewServer(mux)
+	t.Cleanup(source.Close)
+	c := newHTTPImageClient(t, source)
+	ctx := context.Background()
+
+	t.Run("plain fetch", func(t *testing.T) {
+		body, contentType, err := c.fetchImage(ctx, source.URL+"/ok.png")
+		require.NoError(t, err)
+		assert.Equal(t, pngBytes, body)
+		assert.Equal(t, "image/png", contentType)
+	})
+	t.Run("same-host redirect is followed", func(t *testing.T) {
+		body, _, err := c.fetchImage(ctx, source.URL+"/to-ok")
+		require.NoError(t, err)
+		assert.Equal(t, pngBytes, body)
+	})
+	t.Run("off-host redirect is refused and never requested", func(t *testing.T) {
+		_, _, err := c.fetchImage(ctx, source.URL+"/to-off-host")
+		assert.Error(t, err)
+		assert.Zero(t, offHostHits.Load())
+	})
+	t.Run("redirect loop is capped", func(t *testing.T) {
+		_, _, err := c.fetchImage(ctx, source.URL+"/loop")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "redirects")
+	})
+	t.Run("streamed body over the cap", func(t *testing.T) {
+		_, _, err := c.fetchImage(ctx, source.URL+"/streamed-too-big")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "limit")
+	})
+	t.Run("declared length over the cap", func(t *testing.T) {
+		_, _, err := c.fetchImage(ctx, source.URL+"/declared-too-big")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "limit")
+	})
+	t.Run("off-host address is rejected without a request", func(t *testing.T) {
+		_, _, err := c.fetchImage(ctx, offHost.URL+"/x.png")
+		assert.Error(t, err)
+		assert.Zero(t, offHostHits.Load())
+	})
+}

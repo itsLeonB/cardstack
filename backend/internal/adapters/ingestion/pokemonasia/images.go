@@ -51,11 +51,11 @@ func newImageClient(c *client) *http.Client {
 	}
 }
 
-// checkImageURL accepts only absolute https addresses on the one known source
+// checkImageURL accepts only absolute addresses (https in production) on the one known source
 // host (the host of the production base address).
 func (c *client) checkImageURL(u *url.URL) error {
-	if u.Scheme != "https" {
-		return fmt.Errorf("image address must be https, got scheme %q", u.Scheme)
+	if u.Scheme != c.imageScheme {
+		return fmt.Errorf("image address must use %s, got scheme %q", c.imageScheme, u.Scheme)
 	}
 	if u.User != nil || !strings.EqualFold(u.Host, c.imageHost) {
 		return fmt.Errorf("image host %q is not the source host", u.Host)
@@ -144,14 +144,11 @@ func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansi
 		return
 	}
 	key := cardImageKey(card.ID)
-	if err := in.hostImage(ctx, key, card.SourceImageURL); err != nil {
-		in.recordImageFailure(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID, Stage: "hosting card image", Err: err})
-		return
-	}
-	card.ImageKey = key
-	if _, err := in.cards.Update(ctx, card); err != nil {
-		in.recordImageFailure(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID, Stage: "saving card image key", Err: err})
-	}
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID}, "card image", key, card.SourceImageURL, func() error {
+		card.ImageKey = key
+		_, err := in.cards.Update(ctx, card)
+		return err
+	})
 }
 
 // hostSetCover is hostCardImage for an Expansion Set's cover.
@@ -160,13 +157,25 @@ func (in *Ingester) hostSetCover(ctx context.Context, set entity.ExpansionSet, e
 		return
 	}
 	key := expansionSetImageKey(set.ID)
-	if err := in.hostImage(ctx, key, set.SourceImageURL); err != nil {
-		in.recordImageFailure(ctx, IngestFailure{ExpansionCode: expansionCode, Stage: "hosting expansion set cover", Err: err})
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode}, "expansion set cover", key, set.SourceImageURL, func() error {
+		set.ImageKey = key
+		_, err := in.sets.Update(ctx, set)
+		return err
+	})
+}
+
+// hostAndSave copies sourceURL to key, then runs save to persist the key.
+// base carries the failure's identifiers; a failure at either step is
+// recorded with Stage "hosting <what>" or "saving <what> key".
+func (in *Ingester) hostAndSave(ctx context.Context, base IngestFailure, what, key, sourceURL string, save func() error) {
+	if err := in.hostImage(ctx, key, sourceURL); err != nil {
+		base.Stage, base.Err = "hosting "+what, err
+		in.recordImageFailure(ctx, base)
 		return
 	}
-	set.ImageKey = key
-	if _, err := in.sets.Update(ctx, set); err != nil {
-		in.recordImageFailure(ctx, IngestFailure{ExpansionCode: expansionCode, Stage: "saving expansion set image key", Err: err})
+	if err := save(); err != nil {
+		base.Stage, base.Err = "saving "+what+" key", err
+		in.recordImageFailure(ctx, base)
 	}
 }
 

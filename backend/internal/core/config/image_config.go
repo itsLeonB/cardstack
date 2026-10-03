@@ -1,9 +1,9 @@
 package config
 
-// Image configures image hosting (docs/adr/0016). BaseUrl is the public
+// Image configures image hosting (docs/adr/0016). BaseURL is the public
 // address the API prepends to a hosted-image key.
 type Image struct {
-	BaseUrl string `split_words:"true"`
+	BaseURL string `split_words:"true"`
 }
 
 func (Image) Prefix() string { return "IMAGE" }

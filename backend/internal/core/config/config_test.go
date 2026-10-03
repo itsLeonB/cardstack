@@ -69,7 +69,7 @@ func TestImageAndR2EnvVarNames(t *testing.T) {
 	var r2 R2
 	require.NoError(t, envconfig.Process(r2.Prefix(), &r2))
 
-	assert.Equal(t, "https://img.example.test", image.BaseUrl)
+	assert.Equal(t, "https://img.example.test", image.BaseURL)
 	assert.Equal(t, R2{AccountID: "acct", AccessKeyID: "key", SecretAccessKey: "secret", Bucket: "images"}, r2)
 	assert.True(t, r2.Configured())
 }

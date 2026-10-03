@@ -46,7 +46,7 @@ func authTestServices(t *testing.T) *provider.Services {
 			CookieSecure:    false,
 			CookieSamesite:  "Lax",
 		},
-		Image: config.Image{BaseUrl: testImageBase},
+		Image: config.Image{BaseURL: testImageBase},
 	}
 
 	dsn := "host=" + envOr("DB_HOST", "localhost") +
