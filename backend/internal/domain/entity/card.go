@@ -33,9 +33,13 @@ type Card struct {
 	Illustrator    string                      `gorm:"not null;default:''"`
 	Tags           datatypes.JSONSlice[string] `gorm:"not null;type:jsonb"`
 	RarityID       uuid.UUID                   `gorm:"type:uuid;not null;index"`
-	ImageURL       string                      `gorm:"not null;default:''"`
-	Attributes     datatypes.JSONMap           `gorm:"not null"`
-	Raw            string                      `gorm:"not null;default:''"`
+	// SourceImageURL is the scraped third-party address, kept only so the image
+	// can be re-hosted; it is never served. ImageKey is the object-store key of
+	// the hosted copy, empty until hosted (docs/adr/0016).
+	SourceImageURL string            `gorm:"not null;default:''"`
+	ImageKey       string            `gorm:"not null;default:''"`
+	Attributes     datatypes.JSONMap `gorm:"not null"`
+	Raw            string            `gorm:"not null;default:''"`
 
 	// Relations, loaded only via crud.Specification.PreloadRelations.
 	Rarity       Rarity       `gorm:"foreignKey:RarityID"`

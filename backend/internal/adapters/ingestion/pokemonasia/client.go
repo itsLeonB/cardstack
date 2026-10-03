@@ -45,14 +45,39 @@ type client struct {
 	baseURL    string
 	httpClient *http.Client
 	limiter    *rate.Limiter
+
+	// imageHost is the only host image downloads may contact, over imageScheme,
+	// and imageClient refuses redirects away from it (see images.go). They stay
+	// the production host and https even when tests point baseURL at a local
+	// server; only tests that serve images over real HTTP override them.
+	imageHost   string
+	imageScheme string
+	imageClient *http.Client
+}
+
+// sourceURL is the parsed baseURL constant. A malformed constant is a
+// programming error, so it fails loudly at startup rather than leaving the
+// image host allow-list empty.
+var sourceURL = mustParseURL(baseURL)
+
+func mustParseURL(raw string) *url.URL {
+	u, err := url.Parse(raw)
+	if err != nil {
+		panic(fmt.Sprintf("pokemonasia: invalid base URL %q: %v", raw, err))
+	}
+	return u
 }
 
 func newClient() *client {
-	return &client{
+	c := &client{
 		baseURL:    baseURL,
 		httpClient: http.DefaultClient,
 		limiter:    rate.NewLimiter(rate.Every(requestInterval), 1),
 	}
+	c.imageHost = sourceURL.Host
+	c.imageScheme = sourceURL.Scheme
+	c.imageClient = newImageClient(c)
+	return c
 }
 
 // expansionListPage fetches one page of the Series/Expansion Set/release-

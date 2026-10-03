@@ -61,9 +61,9 @@ ON CONFLICT (game_id, code) DO NOTHING;
 --   001 E2E Sparky        / Creature / Common / tags: [Basic]
 --   002 E2E Boulder       / Creature / Rare   / tags: [Evolved]
 --   003 E2E Trainer Card  / Support  / Common / tags: []
--- image_url is left empty on every fixture Card so the UI renders its
+-- image_key is left empty on every fixture Card so the UI renders its
 -- name-placeholder fallback deterministically, with no network dependency.
-INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_url)
+INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_key)
 SELECT es.id, '001', 'E2E Sparky', 'Creature', 'E2E Illustrator', '["Basic"]'::jsonb, r.id, ''
 FROM expansion_sets es
 JOIN games g ON g.id = es.game_id
@@ -71,7 +71,7 @@ JOIN rarities r ON r.game_id = g.id AND r.code = 'C'
 WHERE g.slug = 'e2e-test-game' AND es.code = 'TSA'
 ON CONFLICT (expansion_set_id, local_id) DO NOTHING;
 
-INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_url)
+INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_key)
 SELECT es.id, '002', 'E2E Boulder', 'Creature', 'E2E Illustrator', '["Evolved"]'::jsonb, r.id, ''
 FROM expansion_sets es
 JOIN games g ON g.id = es.game_id
@@ -79,7 +79,7 @@ JOIN rarities r ON r.game_id = g.id AND r.code = 'R'
 WHERE g.slug = 'e2e-test-game' AND es.code = 'TSA'
 ON CONFLICT (expansion_set_id, local_id) DO NOTHING;
 
-INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_url)
+INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_key)
 SELECT es.id, '003', 'E2E Trainer Card', 'Support', 'E2E Illustrator', '[]'::jsonb, r.id, ''
 FROM expansion_sets es
 JOIN games g ON g.id = es.game_id
@@ -89,7 +89,7 @@ ON CONFLICT (expansion_set_id, local_id) DO NOTHING;
 
 -- Card in the ungrouped set (TSU):
 --   001 E2E Orphan Card / Creature / Common / tags: [Basic]
-INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_url)
+INSERT INTO cards (expansion_set_id, local_id, name, category, illustrator, tags, rarity_id, image_key)
 SELECT es.id, '001', 'E2E Orphan Card', 'Creature', 'E2E Illustrator', '["Basic"]'::jsonb, r.id, ''
 FROM expansion_sets es
 JOIN games g ON g.id = es.game_id

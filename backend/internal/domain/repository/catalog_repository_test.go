@@ -447,12 +447,13 @@ func TestCatalogRepository_SearchCards_OrdersByReleaseDateDescNullsLast(t *testi
 	assert.Equal(t, []uuid.UUID{cardLater.ID, cardEarlier.ID, cardNoDate.ID}, got)
 }
 
-func TestCatalogRepository_SearchCards_CarriesExpansionSetImageURL(t *testing.T) {
+func TestCatalogRepository_SearchCards_CarriesImageKeys(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
 	set := fixture.newExpansionSet(t, db, nil, nil)
-	require.NoError(t, db.Model(&set).Update("image_url", "https://example.test/set.png").Error)
+	require.NoError(t, db.Model(&set).Update("image_key", "expansion-sets/set1").Error)
 	card := fixture.newCard(t, db, set.ID, nil)
+	require.NoError(t, db.Model(&card).Update("image_key", "cards/card1").Error)
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 	results, _, err := repo.SearchCards(context.Background(), CardFilter{ExpansionSetIDs: []uuid.UUID{set.ID}, Limit: 10})
@@ -460,7 +461,8 @@ func TestCatalogRepository_SearchCards_CarriesExpansionSetImageURL(t *testing.T)
 
 	require.Len(t, results, 1)
 	assert.Equal(t, card.ID, results[0].ID)
-	assert.Equal(t, "https://example.test/set.png", results[0].ExpansionSetImageURL)
+	assert.Equal(t, "cards/card1", results[0].ImageKey)
+	assert.Equal(t, "expansion-sets/set1", results[0].ExpansionSetImageKey)
 }
 
 func containsString(haystack []string, needle string) bool {

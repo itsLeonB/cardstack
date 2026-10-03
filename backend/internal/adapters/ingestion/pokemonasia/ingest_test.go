@@ -19,7 +19,7 @@ import (
 
 func testIngester(t *testing.T) *Ingester {
 	t.Helper()
-	in := NewIngester(testDB(t))
+	in := NewIngester(testDB(t), nil)
 	in.client.limiter = rate.NewLimiter(rate.Inf, 0)
 	return in
 }
@@ -98,7 +98,7 @@ func TestIngester_UpsertExpansionSet_IdempotentAndPopulatesReleaseDate(t *testin
 	first, err := in.upsertExpansionSet(ctx, game.ID, locale.ID, series.ID, listing)
 	require.NoError(t, err)
 	assert.Equal(t, "Original Name", first.Name)
-	assert.Equal(t, "https://example.test/a.png", first.ImageURL)
+	assert.Equal(t, "https://example.test/a.png", first.SourceImageURL)
 	require.NotNil(t, first.ReleaseDate)
 	assert.True(t, first.ReleaseDate.Equal(listing.ReleaseDate))
 	require.NotNil(t, first.SeriesID)
@@ -110,7 +110,7 @@ func TestIngester_UpsertExpansionSet_IdempotentAndPopulatesReleaseDate(t *testin
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID, "must update the existing row, not create a duplicate")
 	assert.Equal(t, "Updated Name", second.Name)
-	assert.Equal(t, "https://example.test/b.png", second.ImageURL)
+	assert.Equal(t, "https://example.test/b.png", second.SourceImageURL)
 
 	rows, err := in.sets.FindAll(ctx, crud.Specification[entity.ExpansionSet]{
 		Model: entity.ExpansionSet{GameID: game.ID, Code: code},
@@ -216,7 +216,7 @@ func TestIngester_UpsertCard_IdempotentAndUpdates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID, "must update the existing row, not create a duplicate")
 	assert.Equal(t, "Second", second.Name)
-	assert.Equal(t, "img2", second.ImageURL)
+	assert.Equal(t, "img2", second.SourceImageURL)
 
 	rows, err := in.cards.FindAll(ctx, crud.Specification[entity.Card]{
 		Model: entity.Card{ExpansionSetID: set.ID, LocalID: localID},
@@ -316,7 +316,7 @@ func TestIngester_Run_EndToEnd(t *testing.T) {
 		db.Where("code = ?", setCode).Delete(&entity.ExpansionSet{}) //nolint:errcheck
 	})
 
-	in := NewIngester(db)
+	in := NewIngester(db, nil)
 	in.client.limiter = rate.NewLimiter(rate.Inf, 0)
 	in.client.baseURL = server.URL
 
@@ -648,14 +648,14 @@ func TestIngester_IngestCard_CorrectsRarityReferenceOnRerun(t *testing.T) {
 	staleCode := "I" // what the pre-fix bug would have wrongly resolved (the Regulation Mark)
 	correctedCode := "SAR" + uniqueCode(t)[:6]
 
-	require.NoError(t, in.ingestCard(ctx, set.ID, "16488", staleCode))
+	require.NoError(t, in.ingestCard(ctx, set.ID, set.Code, "16488", staleCode))
 	first, err := in.cards.FindFirst(ctx, crud.Specification[entity.Card]{
 		Model: entity.Card{ExpansionSetID: set.ID, LocalID: "001"},
 	})
 	require.NoError(t, err)
 	require.False(t, first.IsZero())
 
-	require.NoError(t, in.ingestCard(ctx, set.ID, "16488", correctedCode))
+	require.NoError(t, in.ingestCard(ctx, set.ID, set.Code, "16488", correctedCode))
 	second, err := in.cards.FindFirst(ctx, crud.Specification[entity.Card]{
 		Model: entity.Card{ExpansionSetID: set.ID, LocalID: "001"},
 	})
@@ -807,7 +807,7 @@ func TestIngester_SyncExpansionSets_ListingOnly(t *testing.T) {
 		db.Where("code = ?", setCode).Delete(&entity.ExpansionSet{}) //nolint:errcheck
 	})
 
-	in := NewIngester(db)
+	in := NewIngester(db, nil)
 	in.client.limiter = rate.NewLimiter(rate.Inf, 0)
 	in.client.baseURL = server.URL
 
@@ -826,5 +826,5 @@ func TestIngester_SyncExpansionSets_ListingOnly(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.False(t, set.IsZero())
-	assert.Equal(t, imageURL, set.ImageURL)
+	assert.Equal(t, imageURL, set.SourceImageURL)
 }
