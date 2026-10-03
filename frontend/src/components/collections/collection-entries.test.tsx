@@ -1,35 +1,42 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  QueryClient,
+  QueryClientProvider,
+  focusManager,
+} from "@tanstack/react-query"
 import type * as TanStackRouter from "@tanstack/react-router"
 import { CollectionEntries } from "./collection-entries"
 import { QUANTITY_DEBOUNCE_MS } from "@/lib/use-quantity-batch"
 import {
   bulkUpdateCollectionEntries,
-  useListCollectionEntries,
+  getListCollectionEntriesInfiniteQueryKey,
+  listCollectionEntries,
   useListCollectionFacets,
 } from "@/generated/endpoints/inventory/inventory"
-import {
-  useListCatalogSeries,
-  useSearchCatalogCards,
-} from "@/generated/endpoints/catalog/catalog"
-import type { CardSummary } from "@/generated/models"
-import type { CatalogSearch } from "@/lib/catalog-search"
+import type * as Inventory from "@/generated/endpoints/inventory/inventory"
+import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
+import type * as Catalog from "@/generated/endpoints/catalog/catalog"
+import type { CardSummary, InventoryItem } from "@/generated/models"
+import type { CatalogFilters } from "@/lib/catalog-search"
+import { stubGridLayout } from "@/test-grid-layout"
 
-// Isolates the UI from the network; the generated hooks' wire behaviour is
-// orval's job.
+// Only the network is faked: the generated infinite hook, the query cache and
+// the quantity batch are real, so the paging and cache-patch behaviour under
+// test is the app's own.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/inventory/inventory", () => ({
-  getListCollectionEntriesQueryKey: (id: string) => ["entries", id],
-  getListMasterInventoryQueryKey: () => ["inventory"],
-  getListMasterInventoryFacetsQueryKey: () => ["inventory-facets"],
-  useListCollectionEntries: vi.fn(),
-  useListCollectionFacets: vi.fn(),
-  bulkUpdateCollectionEntries: vi.fn(),
-}))
+vi.mock(
+  "@/generated/endpoints/inventory/inventory",
+  async (importOriginal) => ({
+    ...(await importOriginal<typeof Inventory>()),
+    listCollectionEntries: vi.fn(),
+    bulkUpdateCollectionEntries: vi.fn(),
+    useListCollectionFacets: vi.fn(),
+  })
+)
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/catalog/catalog", () => ({
-  useSearchCatalogCards: vi.fn(),
+vi.mock("@/generated/endpoints/catalog/catalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof Catalog>()),
   useListCatalogSeries: vi.fn(),
 }))
 // CardTile links via TanStack Router's `Link`, which needs a router in the tree.
@@ -47,42 +54,90 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
-const card: CardSummary = {
-  id: "card-1",
-  name: "Pikachu V",
-  localId: "048",
-  category: "Pokémon",
-  tags: [],
-  illustrator: "someone",
-  imageUrl: "",
-  expansionSet: { id: "set-1", code: "SCE", name: "Starter", imageUrl: "" },
-  rarity: { id: "r-1", code: "RR", name: "Double Rare" },
-}
-
-const onSearchChange = vi.fn()
+const PAGE_SIZE = 2
+const list = vi.mocked(listCollectionEntries)
 const bulk = vi.mocked(bulkUpdateCollectionEntries)
+const onSearchChange = vi.fn()
 
-function setList(
-  items: { card: CardSummary; quantity: number }[],
-  total = items.length
-) {
-  // SAFETY: partial mock; the component reads only status/data and isPending/isError.
-  vi.mocked(useListCollectionEntries).mockReturnValue({
-    isPending: false,
-    isError: false,
-    data: {
+const entry = (n: number, quantity = 3): InventoryItem => ({
+  quantity,
+  card: {
+    id: `card-${n}`,
+    name: `Card ${n}`,
+    localId: String(n),
+    category: "Pokémon",
+    tags: [],
+    illustrator: "someone",
+    imageUrl: "",
+    expansionSet: { id: "set-1", code: "SCE", name: "Starter", imageUrl: "" },
+    rarity: { id: "r-1", code: "RR", name: "Double Rare" },
+  } satisfies CardSummary,
+})
+
+// The fake server. A page is read when answered, not when requested, so a held
+// request sees the changes made while it waited, as a real one would.
+let server: InventoryItem[] = []
+
+function serveEntries(items: InventoryItem[]) {
+  server = items
+  const gates = new Map<number, { promise: Promise<void>; open: () => void }>()
+  list.mockImplementation(async (_id, params) => {
+    const page = params?.page ?? 1
+    // A request takes a tick, as a real one does: the grid only asks for the
+    // next page after seeing the previous fetch end.
+    await new Promise((resolve) => setTimeout(resolve, 1))
+    await gates.get(page)?.promise
+    const rows = server.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    // SAFETY: partial response; the app reads status, data and meta.
+    return {
       status: 200,
-      data: { data: items, meta: { total, page: 1, limit: 24 } },
+      data: {
+        data: rows,
+        meta: { total: server.length, page, limit: PAGE_SIZE },
+      },
       headers: new Headers(),
+    } as any
+  })
+  bulk.mockImplementation(async (_id, body) => {
+    const results = (body.items ?? []).map(({ cardId, quantity }) => {
+      server =
+        quantity === 0
+          ? server.filter((item) => item.card.id !== cardId)
+          : server.map((item) =>
+              item.card.id === cardId ? { ...item, quantity } : item
+            )
+      return {
+        cardId,
+        quantity,
+        status: quantity === 0 ? "removed" : "applied",
+      }
+    })
+    // SAFETY: partial response; the hook reads only status and data.data.
+    return { status: 200, data: { data: results } } as any
+  })
+  return {
+    /** Page `page` is requested but not answered until `release`. */
+    hold(page: number) {
+      let open = () => {}
+      const promise = new Promise<void>((resolve) => (open = resolve))
+      gates.set(page, { promise, open })
     },
-  } as any)
+    release: (page: number) => gates.get(page)?.open(),
+  }
 }
 
-function renderEntries(search: CatalogSearch = { page: 1 }) {
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+let queryClient: QueryClient
+
+function renderEntries(search: CatalogFilters = {}) {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
       <CollectionEntries
         collectionId="col-1"
         search={search}
@@ -93,8 +148,15 @@ function renderEntries(search: CatalogSearch = { page: 1 }) {
 }
 
 // SAFETY: the labelled control is an <input>.
-const quantityInput = () =>
-  screen.getByLabelText("Quantity of Pikachu V") as HTMLInputElement
+const quantityOf = (n: number) =>
+  (screen.getByLabelText(`Quantity of Card ${n}`) as HTMLInputElement).value
+const setQuantityOf = (n: number, value: number) =>
+  fireEvent.change(screen.getByLabelText(`Quantity of Card ${n}`), {
+    target: { value: String(value) },
+  })
+const tile = (n: number) => screen.queryAllByLabelText(`Quantity of Card ${n}`)
+const loaded = (count: number, total: number) =>
+  screen.getByText(`${count} of ${total} cards loaded`)
 
 async function advance(ms: number) {
   await act(async () => {
@@ -102,262 +164,26 @@ async function advance(ms: number) {
   })
 }
 
+// Each page takes a few macrotask hops (notify, render, effect, next fetch).
+const settle = () => advance(50)
+
+async function refocusTab() {
+  await act(async () => {
+    focusManager.setFocused(false)
+    focusManager.setFocused(true)
+    await vi.advanceTimersByTimeAsync(50)
+  })
+}
+
 describe("CollectionEntries", () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    stubGridLayout()
     onSearchChange.mockReset()
+    list.mockReset()
     bulk.mockReset()
-    // SAFETY: partial response; the hook reads only status and data.data.
-    bulk.mockResolvedValue({ status: 200, data: { data: [] } } as any)
-    // SAFETY: partial mock; only status/data/isError are read.
-    vi.mocked(useSearchCatalogCards).mockReturnValue({
-      isError: false,
-      data: { status: 200, data: { data: [card] }, headers: new Headers() },
-    } as any)
     // SAFETY: partial mock; only status/data are read.
     vi.mocked(useListCatalogSeries).mockReturnValue({} as any)
-    // SAFETY: partial mock; only status/data are read.
-    vi.mocked(useListCollectionFacets).mockReturnValue({
-      data: {
-        status: 200,
-        data: {
-          data: {
-            expansionSets: [],
-            rarities: [
-              { id: "r-1", code: "RR", name: "Double Rare", available: true },
-            ],
-            categories: [],
-            tags: [],
-          },
-        },
-        headers: new Headers(),
-      },
-    } as any)
-  })
-
-  it("shows an empty state when the Collection has no Cards", () => {
-    setList([])
-    renderEntries()
-    screen.getByText(/has no Cards yet/)
-  })
-
-  it("shows a filtered empty state when filters match nothing", () => {
-    setList([])
-    renderEntries({ page: 1, name: "zzz" })
-    screen.getByText(/match these filters/)
-  })
-
-  it("renders each Card as a tile with a quantity control and no Save/Remove buttons", () => {
-    setList([{ card, quantity: 3 }])
-    renderEntries()
-    expect(screen.getAllByText("Pikachu V").length).toBeGreaterThan(0)
-    expect(quantityInput().value).toBe("3")
-    expect(screen.queryByRole("button", { name: /^Save/ })).toBeNull()
-    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull()
-  })
-
-  it("refetches on mount and does not keep the list cached after leaving", () => {
-    setList([{ card, quantity: 3 }])
-    renderEntries()
-    expect(useListCollectionEntries).toHaveBeenCalledWith(
-      "col-1",
-      { page: 1 },
-      expect.objectContaining({
-        query: expect.objectContaining({ refetchOnMount: "always", gcTime: 0 }),
-      })
-    )
-  })
-
-  it("refetches on window focus only while no quantity edits are pending or saving", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }])
-    renderEntries()
-    const calls = vi.mocked(useListCollectionEntries).mock.calls
-    const shouldRefetch = () => {
-      // SAFETY: the component passes a function; the test calls it like TanStack Query would.
-      const option = calls.at(-1)?.[2]?.query
-        ?.refetchOnWindowFocus as () => boolean
-      return option()
-    }
-
-    expect(shouldRefetch()).toBe(true)
-
-    bulk.mockReturnValue(new Promise(() => {}))
-    fireEvent.click(
-      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
-    )
-    expect(shouldRefetch()).toBe(false)
-
-    await advance(QUANTITY_DEBOUNCE_MS)
-    expect(bulk).toHaveBeenCalledTimes(1)
-    expect(shouldRefetch()).toBe(false)
-  })
-
-  it("lets an older failed batch neither revert nor unprotect a newer, already-sent edit", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }])
-    renderEntries()
-    const calls = vi.mocked(useListCollectionEntries).mock.calls
-    const shouldRefetch = () => {
-      // SAFETY: the component passes a function; the test calls it like TanStack Query would.
-      const option = calls.at(-1)?.[2]?.query
-        ?.refetchOnWindowFocus as () => boolean
-      return option()
-    }
-    let failFirst: () => void = () => {}
-    bulk.mockReturnValueOnce(
-      new Promise(
-        (_, reject) => (failFirst = () => reject(new Error("offline")))
-      )
-    )
-    bulk.mockReturnValueOnce(new Promise(() => {}))
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
-    )
-    await advance(QUANTITY_DEBOUNCE_MS)
-    fireEvent.click(
-      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
-    )
-    await advance(QUANTITY_DEBOUNCE_MS)
-    expect(bulk).toHaveBeenCalledTimes(1)
-
-    failFirst()
-    await advance(0)
-
-    expect(bulk).toHaveBeenCalledTimes(2)
-    expect(quantityInput().value).toBe("5")
-    expect(shouldRefetch()).toBe(false)
-  })
-
-  it("applies +, - and typed quantities optimistically, then sends one bulk call after the debounce", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }])
-    renderEntries()
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
-    )
-    expect(quantityInput().value).toBe("4")
-    fireEvent.click(
-      screen.getByRole("button", { name: "Decrease quantity of Pikachu V" })
-    )
-    fireEvent.change(quantityInput(), { target: { value: "7" } })
-    expect(quantityInput().value).toBe("7")
-
-    await advance(QUANTITY_DEBOUNCE_MS - 1)
-    expect(bulk).not.toHaveBeenCalled()
-    await advance(1)
-    expect(bulk).toHaveBeenCalledTimes(1)
-    expect(bulk).toHaveBeenCalledWith("col-1", {
-      items: [{ cardId: "card-1", quantity: 7 }],
-    })
-  })
-
-  it("keeps the tile visible at 0 after the removal is saved", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 1 }])
-    // SAFETY: partial response; the hook reads only status and data.data.
-    bulk.mockResolvedValue({
-      status: 200,
-      data: { data: [{ cardId: "card-1", quantity: 0, status: "removed" }] },
-    } as any)
-    renderEntries()
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Decrease quantity of Pikachu V" })
-    )
-    await advance(QUANTITY_DEBOUNCE_MS)
-
-    expect(bulk).toHaveBeenCalledWith("col-1", {
-      items: [{ cardId: "card-1", quantity: 0 }],
-    })
-    expect(screen.getAllByText("Pikachu V").length).toBeGreaterThan(0)
-    expect(quantityInput().value).toBe("0")
-    fireEvent.click(
-      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
-    )
-    expect(quantityInput().value).toBe("1")
-  })
-
-  it("reverts a capacity-declined card with an error tied to it", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }])
-    // SAFETY: partial response; the hook reads only status and data.data.
-    bulk.mockResolvedValue({
-      status: 200,
-      data: {
-        data: [
-          {
-            cardId: "card-1",
-            quantity: 3,
-            status: "declined",
-            reason: "capacity_exceeded",
-            message: "Capacity exceeded",
-          },
-        ],
-      },
-    } as any)
-    renderEntries()
-
-    fireEvent.change(quantityInput(), { target: { value: "50" } })
-    await advance(QUANTITY_DEBOUNCE_MS)
-
-    expect(screen.getByRole("alert").textContent).toBe("Capacity exceeded")
-    expect(quantityInput().value).toBe("3")
-  })
-
-  it("flushes pending edits before changing a filter", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }])
-    renderEntries()
-
-    fireEvent.change(quantityInput(), { target: { value: "5" } })
-    fireEvent.click(screen.getByRole("button", { name: "Rarity" }))
-    fireEvent.click(screen.getByLabelText("Double Rare"))
-
-    // The batch goes out without waiting for the debounce, and navigation follows it.
-    await advance(0)
-    expect(bulk).toHaveBeenCalledWith("col-1", {
-      items: [{ cardId: "card-1", quantity: 5 }],
-    })
-    expect(onSearchChange).toHaveBeenCalledWith({ page: 1, rarityId: ["r-1"] })
-  })
-
-  it("flushes pending edits before changing page", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }], 50)
-    renderEntries()
-
-    fireEvent.change(quantityInput(), { target: { value: "5" } })
-    fireEvent.click(screen.getByRole("button", { name: /next/i }))
-
-    await advance(0)
-    expect(bulk).toHaveBeenCalledTimes(1)
-    expect(onSearchChange).toHaveBeenCalledWith({ page: 2 })
-  })
-
-  it("raises a card at 0 in place with +", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 0 }])
-    renderEntries()
-    expect(
-      screen
-        .getByRole("button", { name: "Decrease quantity of Pikachu V" })
-        .hasAttribute("disabled")
-    ).toBe(true)
-    fireEvent.click(
-      screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
-    )
-    expect(quantityInput().value).toBe("1")
-    await advance(QUANTITY_DEBOUNCE_MS)
-    expect(bulk).toHaveBeenCalledWith("col-1", {
-      items: [{ cardId: "card-1", quantity: 1 }],
-    })
-  })
-
-  it("keeps both filter clicks made while a flush is pending", async () => {
-    vi.useFakeTimers()
-    setList([{ card, quantity: 3 }])
     // SAFETY: partial mock; only status/data are read.
     vi.mocked(useListCollectionFacets).mockReturnValue({
       data: {
@@ -376,19 +202,370 @@ describe("CollectionEntries", () => {
         headers: new Headers(),
       },
     } as any)
-    renderEntries()
+  })
 
-    fireEvent.change(quantityInput(), { target: { value: "5" } })
+  it("shows an empty state when the Collection has no Cards", async () => {
+    serveEntries([])
+    renderEntries()
+    await settle()
+    screen.getByText(/has no Cards yet/)
+  })
+
+  it("shows a filtered empty state when filters match nothing", async () => {
+    serveEntries([])
+    renderEntries({ name: "zzz" })
+    await settle()
+    screen.getByText(/match these filters/)
+  })
+
+  it("shows the API error detail when the list fails to load", async () => {
+    // SAFETY: partial response; the app reads status and data.detail.
+    list.mockResolvedValue({ status: 500, data: { detail: "boom" } } as any)
+    renderEntries()
+    await settle()
+    expect(screen.getByRole("alert").textContent).toBe("boom")
+  })
+
+  it("renders each Card as a tile with a quantity control and no Save/Remove buttons", async () => {
+    serveEntries([entry(1)])
+    renderEntries()
+    await settle()
+    expect(quantityOf(1)).toBe("3")
+    expect(screen.queryByRole("button", { name: /^Save/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull()
+  })
+
+  it("requests 100 per page with the URL filters, keyed by the filters alone", async () => {
+    serveEntries([entry(1)])
+    renderEntries({ name: "pika" })
+    await settle()
+    expect(list).toHaveBeenCalledWith(
+      "col-1",
+      { name: "pika", limit: 100, page: 1 },
+      expect.anything()
+    )
+    expect(
+      queryClient.getQueryCache().find({
+        queryKey: getListCollectionEntriesInfiniteQueryKey("col-1", {
+          name: "pika",
+          limit: 100,
+        }),
+      })
+    ).toBeDefined()
+  })
+
+  it("does not keep the list cached after leaving", async () => {
+    serveEntries([entry(1)])
+    const view = renderEntries()
+    await settle()
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+
+    view.unmount()
+    await advance(1)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+  })
+
+  it("loads every page by scrolling, once each, without duplicates", async () => {
+    serveEntries([1, 2, 3, 4, 5].map((n) => entry(n)))
+    renderEntries()
+    await settle()
+
+    expect(list.mock.calls.map(([, params]) => params?.page)).toEqual([1, 2, 3])
+    loaded(5, 5)
+    for (const n of [1, 2, 3, 4, 5]) expect(tile(n)).toHaveLength(1)
+  })
+
+  it("shows a row that repeats across a page boundary once", async () => {
+    const gate = serveEntries([1, 2, 3, 4].map((n) => entry(n)))
+    gate.hold(2)
+    renderEntries()
+    await settle()
+    // Another tab adds a card ahead of the window: page 2 now starts with card 2 again.
+    server = [entry(0), ...server]
+    gate.release(2)
+    await settle()
+
+    expect(tile(2)).toHaveLength(1)
+    loaded(4, 5)
+  })
+
+  it("keeps a quantity saved on page 3 after more pages append and after a focus refetch", async () => {
+    const gate = serveEntries([1, 2, 3, 4, 5, 6, 7, 8].map((n) => entry(n)))
+    gate.hold(4)
+    renderEntries()
+    await settle()
+    expect(quantityOf(5)).toBe("3")
+
+    // Card 5 is on page 3; page 4 is still loading.
+    setQuantityOf(5, 7)
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenCalledTimes(1)
+    expect(quantityOf(5)).toBe("7")
+
+    gate.release(4)
+    await settle()
+    loaded(8, 8)
+    expect(quantityOf(5)).toBe("7")
+    expect(quantityOf(7)).toBe("3")
+
+    await refocusTab()
+    expect(quantityOf(5)).toBe("7")
+    expect(quantityOf(1)).toBe("3")
+  })
+
+  it("refetches the list when a save's response is lost, since the write may have committed", async () => {
+    serveEntries([entry(1), entry(2)])
+    const commit = bulk.getMockImplementation()
+    bulk.mockImplementationOnce(async (...args) => {
+      await commit?.(...args)
+      throw new Error("offline")
+    })
+    renderEntries()
+    await settle()
+
+    setQuantityOf(1, 6)
+    await advance(QUANTITY_DEBOUNCE_MS)
+    await settle()
+
+    // The override reverted to 3, but the refetch found the committed 6.
+    expect(quantityOf(1)).toBe("6")
+  })
+
+  it("keeps a card saved at 0 on page 3 as a tile at 0 while pages append, and drops it on the next refetch", async () => {
+    const gate = serveEntries(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => entry(n))
+    )
+    gate.hold(4)
+    renderEntries()
+    await settle()
+
+    setQuantityOf(5, 0)
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(quantityOf(5)).toBe("0")
+
+    gate.release(4)
+    await settle()
+    // The server shifted up by one, so page 4 starts after card 7: card 7 is
+    // skipped until a refetch (accepted, see ticket 36).
+    expect(tile(7)).toHaveLength(0)
+    expect(quantityOf(5)).toBe("0")
+    expect(quantityOf(3)).toBe("3")
+    expect(quantityOf(9)).toBe("3")
+
+    await refocusTab()
+    expect(tile(5)).toHaveLength(0)
+    expect(tile(7)).toHaveLength(1)
+    loaded(9, 9)
+  })
+
+  it("keeps a declined card's error when a saved card in the same batch patches the cache", async () => {
+    serveEntries([entry(1), entry(2)])
+    // SAFETY: partial response; the hook reads only status and data.data.
+    bulk.mockResolvedValue({
+      status: 200,
+      data: {
+        data: [
+          { cardId: "card-1", quantity: 5, status: "applied" },
+          {
+            cardId: "card-2",
+            quantity: 3,
+            status: "declined",
+            reason: "capacity_exceeded",
+            message: "Capacity exceeded",
+          },
+        ],
+      },
+    } as any)
+    renderEntries()
+    await settle()
+
+    setQuantityOf(1, 5)
+    setQuantityOf(2, 50)
+    await advance(QUANTITY_DEBOUNCE_MS)
+
+    expect(screen.getByRole("alert").textContent).toBe("Capacity exceeded")
+    expect(quantityOf(1)).toBe("5")
+    expect(quantityOf(2)).toBe("3")
+  })
+
+  it("refetches on window focus only while no quantity edits are pending or saving", async () => {
+    serveEntries([entry(1)])
+    renderEntries()
+    await settle()
+    expect(list).toHaveBeenCalledTimes(1)
+
+    // A pending edit holds the refetch off.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Card 1" })
+    )
+    await refocusTab()
+    expect(list).toHaveBeenCalledTimes(1)
+
+    // So does a save in flight.
+    let finish: () => void = () => {}
+    bulk.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = () =>
+          // SAFETY: partial response; the hook reads only status and data.data.
+          resolve({
+            status: 200,
+            data: {
+              data: [{ cardId: "card-1", quantity: 4, status: "applied" }],
+            },
+          } as any)
+      })
+    )
+    await advance(QUANTITY_DEBOUNCE_MS)
+    await refocusTab()
+    expect(list).toHaveBeenCalledTimes(1)
+
+    finish()
+    await settle()
+    expect(list).toHaveBeenCalledTimes(1)
+    await refocusTab()
+    expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it("lets an older failed batch neither revert nor unprotect a newer, already-sent edit", async () => {
+    serveEntries([entry(1)])
+    renderEntries()
+    await settle()
+    let failFirst: () => void = () => {}
+    bulk.mockReturnValueOnce(
+      new Promise(
+        (_, reject) => (failFirst = () => reject(new Error("offline")))
+      )
+    )
+    bulk.mockReturnValueOnce(new Promise(() => {}))
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Card 1" })
+    )
+    await advance(QUANTITY_DEBOUNCE_MS)
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Card 1" })
+    )
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenCalledTimes(1)
+
+    failFirst()
+    await settle()
+
+    expect(bulk).toHaveBeenCalledTimes(2)
+    expect(quantityOf(1)).toBe("5")
+    // The lost response already refetched the list; the refocus must add nothing.
+    const requests = list.mock.calls.length
+    await refocusTab()
+    expect(list).toHaveBeenCalledTimes(requests)
+  })
+
+  it("applies +, - and typed quantities optimistically, then sends one bulk call after the debounce", async () => {
+    serveEntries([entry(1)])
+    renderEntries()
+    await settle()
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Card 1" })
+    )
+    expect(quantityOf(1)).toBe("4")
+    fireEvent.click(
+      screen.getByRole("button", { name: "Decrease quantity of Card 1" })
+    )
+    setQuantityOf(1, 7)
+    expect(quantityOf(1)).toBe("7")
+
+    await advance(QUANTITY_DEBOUNCE_MS - 1)
+    expect(bulk).not.toHaveBeenCalled()
+    await advance(1)
+    expect(bulk).toHaveBeenCalledTimes(1)
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 7 }],
+    })
+  })
+
+  it("raises a card at 0 in place with +", async () => {
+    serveEntries([entry(1, 1)])
+    renderEntries()
+    await settle()
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Decrease quantity of Card 1" })
+    )
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(quantityOf(1)).toBe("0")
+    expect(
+      screen
+        .getByRole("button", { name: "Decrease quantity of Card 1" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase quantity of Card 1" })
+    )
+    expect(quantityOf(1)).toBe("1")
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(bulk).toHaveBeenLastCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 1 }],
+    })
+  })
+
+  it("reverts a capacity-declined card with an error tied to it", async () => {
+    serveEntries([entry(1)])
+    // SAFETY: partial response; the hook reads only status and data.data.
+    bulk.mockResolvedValue({
+      status: 200,
+      data: {
+        data: [
+          {
+            cardId: "card-1",
+            quantity: 3,
+            status: "declined",
+            reason: "capacity_exceeded",
+            message: "Capacity exceeded",
+          },
+        ],
+      },
+    } as any)
+    renderEntries()
+    await settle()
+
+    setQuantityOf(1, 50)
+    await advance(QUANTITY_DEBOUNCE_MS)
+
+    expect(screen.getByRole("alert").textContent).toBe("Capacity exceeded")
+    expect(quantityOf(1)).toBe("3")
+  })
+
+  it("flushes pending edits before changing a filter", async () => {
+    serveEntries([entry(1)])
+    renderEntries()
+    await settle()
+
+    setQuantityOf(1, 5)
+    fireEvent.click(screen.getByRole("button", { name: "Rarity" }))
+    fireEvent.click(screen.getByLabelText("Double Rare"))
+
+    // The batch goes out without waiting for the debounce, and navigation follows it.
+    await settle()
+    expect(bulk).toHaveBeenCalledWith("col-1", {
+      items: [{ cardId: "card-1", quantity: 5 }],
+    })
+    expect(onSearchChange).toHaveBeenCalledWith({ rarityId: ["r-1"] })
+  })
+
+  it("keeps both filter clicks made while a flush is pending", async () => {
+    serveEntries([entry(1)])
+    renderEntries()
+    await settle()
+
+    setQuantityOf(1, 5)
     fireEvent.click(screen.getByRole("button", { name: "Rarity" }))
     fireEvent.click(screen.getByLabelText("Double Rare"))
     // The search prop is still the old one: the second click must build on the first.
     fireEvent.click(screen.getByLabelText("Common"))
-    await advance(0)
+    await settle()
 
     expect(onSearchChange).toHaveBeenCalledTimes(1)
-    expect(onSearchChange).toHaveBeenCalledWith({
-      page: 1,
-      rarityId: ["r-1", "r-2"],
-    })
+    expect(onSearchChange).toHaveBeenCalledWith({ rarityId: ["r-1", "r-2"] })
   })
 })

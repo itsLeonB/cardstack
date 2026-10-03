@@ -20,6 +20,10 @@ interface OpenApiSpec {
 
 const repeatable = ["expansionSetId", "rarityId", "category", "tag"]
 
+const infinitePage = {
+  query: { useInfinite: true, useInfiniteQueryParam: "page" },
+}
+
 const input = {
   target: "../backend/openapi.json",
   override: {
@@ -70,11 +74,12 @@ export default defineConfig({
           name: "customFetch",
         },
         operations: {
-          // Only the catalog search needs an infinite hook for now; the
-          // others join as their lists move off the numbered pager.
-          "search-catalog-cards": {
-            query: { useInfinite: true, useInfiniteQueryParam: "page" },
-          },
+          // The lists that scroll on `page`. The plain hooks stay generated
+          // beside them: the dashboard and the catalog's quantities lookup
+          // still use the plain list queries.
+          "search-catalog-cards": infinitePage,
+          "list-collection-entries": infinitePage,
+          "list-master-inventory": infinitePage,
         },
       },
     },

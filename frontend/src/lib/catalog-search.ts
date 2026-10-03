@@ -18,18 +18,11 @@ export const catalogSearchSchema = SearchCatalogCardsQueryParams.omit({
   tag: multiValue,
 })
 
-export type CatalogSearch = z.infer<typeof catalogSearchSchema>
-
 // The infinite catalog search carries filters only: a stale `?page=` in an old
 // link is stripped by the object schema, so it opens the first page.
 export const catalogFilterSchema = catalogSearchSchema.omit({ page: true })
 
 export type CatalogFilters = z.infer<typeof catalogFilterSchema>
-
-// Facets take the same filters as the card search, minus pagination.
-export function toFacetParams({ page: _page, ...filters }: CatalogSearch) {
-  return filters
-}
 
 export function hasActiveFilters(search: CatalogFilters) {
   return Boolean(

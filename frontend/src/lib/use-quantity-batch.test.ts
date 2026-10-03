@@ -184,15 +184,154 @@ describe("useQuantityBatch", () => {
     expect(result.current.errors).toEqual({})
   })
 
-  it("prune drops settled overrides so fresh server data shows", async () => {
-    respond([{ cardId: "a", quantity: 0, status: "removed" }])
-    const { result } = renderHook(() => useQuantityBatch("col-1"))
+  it("passes the server's per-card results to onSaved", async () => {
+    const results = [
+      { cardId: "a", quantity: 2, status: "applied" },
+      { cardId: "b", quantity: 4, status: "declined", message: "No room" },
+    ]
+    respond(results)
+    const onSaved = vi.fn()
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
 
-    act(() => result.current.setQuantity("a", 0, 1))
+    act(() => result.current.setQuantity("a", 2, 1))
+    act(() => result.current.setQuantity("b", 9, 4))
     await tick(QUANTITY_DEBOUNCE_MS)
-    expect(result.current.quantities.a).toBe(0)
 
-    act(() => result.current.prune())
-    expect(result.current.quantities).toEqual({})
+    expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(onSaved).toHaveBeenCalledWith(results)
+  })
+
+  it("stays busy until an async onSaved has finished, so a cache patch lands before the overrides are unprotected", async () => {
+    respond([{ cardId: "a", quantity: 2, status: "applied" }])
+    let finish: () => void = () => {}
+    const onSaved = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    )
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(result.current.isBusy()).toBe(true)
+
+    finish()
+    await tick(0)
+    expect(result.current.isBusy()).toBe(false)
+  })
+
+  it("keeps a saved card saved when onSaved rejects", async () => {
+    respond([{ cardId: "a", quantity: 2, status: "applied" }])
+    const onSaved = vi.fn().mockRejectedValue(new Error("cache"))
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(result.current.quantities.a).toBe(2)
+    expect(result.current.errors).toEqual({})
+    expect(result.current.isBusy()).toBe(false)
+  })
+
+  it("keeps flushing later edits when onSaved rejects after a lost response", async () => {
+    bulk.mockRejectedValueOnce(new Error("offline"))
+    const onSaved = vi.fn().mockRejectedValue(new Error("cache"))
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    respond([{ cardId: "b", quantity: 3, status: "applied" }])
+    act(() => result.current.setQuantity("b", 3, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(bulk).toHaveBeenCalledTimes(2)
+  })
+
+  it("calls onSaved with no results when the response is lost, since the write may have committed", async () => {
+    bulk.mockRejectedValue(new Error("offline"))
+    const onSaved = vi.fn()
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(onSaved).toHaveBeenCalledWith([])
+  })
+
+  it("does not call onSaved for a rejected request", async () => {
+    // SAFETY: partial response; the hook reads only status and data.detail.
+    bulk.mockResolvedValue({ status: 400, data: { detail: "bad" } } as any)
+    const onSaved = vi.fn()
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  describe("prune", () => {
+    async function saved(
+      results: Parameters<typeof respond>[0],
+      edits: [string, number, number][]
+    ) {
+      respond(results)
+      const view = renderHook(() => useQuantityBatch("col-1"))
+      for (const [cardId, quantity, server] of edits)
+        act(() => view.result.current.setQuantity(cardId, quantity, server))
+      await tick(QUANTITY_DEBOUNCE_MS)
+      return view.result
+    }
+
+    it("drops an override once the server data differs from what was confirmed", async () => {
+      const result = await saved(
+        [{ cardId: "a", quantity: 5, status: "applied" }],
+        [["a", 5, 1]]
+      )
+      expect(result.current.quantities.a).toBe(5)
+
+      // A refetch brought a quantity changed elsewhere.
+      act(() => result.current.prune(() => 7))
+      expect(result.current.quantities).toEqual({})
+    })
+
+    it("drops an override whose row is gone, e.g. a card saved at 0 after a refetch", async () => {
+      const result = await saved(
+        [{ cardId: "a", quantity: 0, status: "removed" }],
+        [["a", 0, 1]]
+      )
+      expect(result.current.quantities.a).toBe(0)
+
+      act(() => result.current.prune(() => undefined))
+      expect(result.current.quantities).toEqual({})
+    })
+
+    it("keeps overrides and errors the data still agrees with, as when a page appends", async () => {
+      const result = await saved(
+        [
+          { cardId: "a", quantity: 0, status: "removed" },
+          { cardId: "b", quantity: 4, status: "declined", message: "No room" },
+        ],
+        [
+          ["a", 0, 1],
+          ["b", 9, 4],
+        ]
+      )
+
+      // The cache holds a patched 0 for "a" and the unchanged 4 for "b".
+      act(() => result.current.prune((cardId) => ({ a: 0, b: 4 })[cardId]))
+
+      expect(result.current.quantities).toEqual({ a: 0, b: 4 })
+      expect(result.current.errors).toEqual({ b: "No room" })
+    })
+
+    it("never touches a card with an edit outstanding", () => {
+      respond([])
+      const { result } = renderHook(() => useQuantityBatch("col-1"))
+
+      act(() => result.current.setQuantity("a", 5, 1))
+      act(() => result.current.prune(() => 9))
+
+      expect(result.current.quantities.a).toBe(5)
+    })
   })
 })

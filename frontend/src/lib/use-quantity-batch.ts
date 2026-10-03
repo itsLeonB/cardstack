@@ -2,6 +2,7 @@ import { useDebouncer } from "@tanstack/react-pacer"
 import { useRef, useState } from "react"
 import { bulkUpdateCollectionEntries } from "@/generated/endpoints/inventory/inventory"
 import { InventoryChangeResultStatus } from "@/generated/models"
+import type { InventoryChangeResult } from "@/generated/models"
 import { NETWORK_ERROR } from "@/lib/collections"
 
 /** Quiet period after the last quantity change before the batch is sent. */
@@ -16,7 +17,16 @@ type Errors = Record<string, string>
  * first) so that, if capacity runs short, the most recently pressed card is the
  * one declined. `quantities` holds the optimistic value per touched card.
  */
-export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
+export function useQuantityBatch(
+  collectionId: string,
+  /**
+   * Runs after each batch the server accepted (HTTP 200), with its per-card
+   * results, and with none when the response was lost. It is not called for a
+   * rejected request. The batch stays busy until it settles, so an async cache
+   * patch lands before the cards lose their protection; a throw is swallowed.
+   */
+  onSaved?: (results: InventoryChangeResult[]) => void | Promise<void>
+) {
   const [quantities, setQuantities] = useState<Quantities>({})
   const [errors, setErrors] = useState<Errors>({})
   // Map iteration order is insertion order; re-inserting on change keeps it by last change.
@@ -50,6 +60,16 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
     setErrors((prev) => ({ ...prev, [cardId]: message }))
   }
 
+  // Cache housekeeping must not undo a save the server accepted (the catch below
+  // would revert the card as a network error) or reject out of `send` and stall the queue.
+  async function notifySaved(results: InventoryChangeResult[]) {
+    try {
+      await onSaved?.(results)
+    } catch {
+      // The next refetch repairs the cache.
+    }
+  }
+
   async function send(items: [string, number, number][]) {
     const revisionOf = new Map(
       items.map(([cardId, , revision]) => [cardId, revision])
@@ -65,8 +85,9 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
           revert(cardId, revision, confirmed.current[cardId], message)
         return
       }
-      onSaved?.()
-      for (const result of response.data.data ?? []) {
+      const results = response.data.data ?? []
+      await notifySaved(results)
+      for (const result of results) {
         confirmed.current[result.cardId] = result.quantity
         if (result.status === InventoryChangeResultStatus.declined) {
           revert(
@@ -81,7 +102,7 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
       for (const [cardId, , revision] of items)
         revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
       // The write may have committed with only the response lost, so cached server data can be stale.
-      onSaved?.()
+      await notifySaved([])
     } finally {
       // A newer batch for the card keeps its protection until that batch settles.
       for (const [cardId, , revision] of items)
@@ -117,19 +138,27 @@ export function useQuantityBatch(collectionId: string, onSaved?: () => void) {
   }
 
   /**
-   * Drop optimistic values for cards with nothing outstanding. Call when fresh
-   * server data arrives so stale overrides can't mask it. Not called after a
-   * successful batch, which is what keeps a card at 0 on screen until reload.
+   * Drop optimistic values (and errors) of cards the server data now disagrees
+   * with, so a stale override can't mask a fresh row. Call when the list's data
+   * changes. A card whose server quantity is still the one this hook last
+   * confirmed is kept: nothing is fresher than the override, which is what
+   * keeps a declined card's error, and a card saved at 0, on screen when a
+   * page appends or a save patches the cache. Cards with edits outstanding are
+   * never touched.
    */
-  function prune() {
-    const settled = (cardId: string) =>
-      !pending.current.has(cardId) && !inFlight.current.has(cardId)
-    for (const cardId of Object.keys(confirmed.current)) {
-      if (settled(cardId)) delete confirmed.current[cardId]
-    }
+  function prune(serverQuantity: (cardId: string) => number | undefined) {
+    const stale = new Set(
+      Object.keys(confirmed.current).filter(
+        (cardId) =>
+          !pending.current.has(cardId) &&
+          !inFlight.current.has(cardId) &&
+          serverQuantity(cardId) !== confirmed.current[cardId]
+      )
+    )
+    for (const cardId of stale) delete confirmed.current[cardId]
     const keep = <T>(record: Record<string, T>) =>
       Object.fromEntries(
-        Object.entries(record).filter(([cardId]) => !settled(cardId))
+        Object.entries(record).filter(([cardId]) => !stale.has(cardId))
       )
     setQuantities(keep)
     setErrors(keep)

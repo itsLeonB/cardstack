@@ -3,7 +3,7 @@
 # 36: Collection entries and Master Inventory on infinite scroll
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** 33, 34
 
@@ -30,13 +30,27 @@ Both lists use numbered pages. `useQuantityBatch` prunes pending edits against t
 - The shared grid from tickets 33 and 34.
 
 **Acceptance criteria:**
-- [ ] Both lists scroll-load all entries with no duplicates
-- [ ] Editing a quantity on a card on page 3 and saving keeps the saved value after further pages load and after a focus refetch
-- [ ] No invalidation silently misses an infinite list (test or documented check per call site)
-- [ ] Focus refetch is skipped with pending edits and runs otherwise
-- [ ] Tests updated and a Playwright e2e for editing a quantity after scrolling
-- [ ] Both verification scripts pass
+- [x] Both lists scroll-load all entries with no duplicates
+- [x] Editing a quantity on a card on page 3 and saving keeps the saved value after further pages load and after a focus refetch
+- [x] No invalidation silently misses an infinite list (test or documented check per call site)
+- [x] Focus refetch is skipped with pending edits and runs otherwise
+- [x] Tests updated and a Playwright e2e for editing a quantity after scrolling
+- [x] Both verification scripts pass
 
 **Out of scope:**
 - The catalog's quantities lookup (ticket 37)
 - Backend changes, cursor pagination
+
+## Decisions
+
+- **Focus refetch cost (accepted).** Collection entries keep the default `staleTime: 0`, so a tab refocus re-requests every loaded page in sequence, skipped while edits are pending or saving (`refetchOnWindowFocus: () => !batch.isBusy()`, tested). Page size is 100, so a 1,000-card Collection costs 10 sequential requests per refocus and most cost one; that is acceptable for the freshness ticket 29 wanted. The scroll trigger is guarded while any fetch is in flight (`InfiniteCardResults` uses `hasNextPage && !isFetching`, and `useInfiniteCardResultsProps` passes `cancelRefetch: false`), so a scroll cannot cancel a focus refetch.
+- **`gcTime`.** Collection entries keep `gcTime: 0` with `refetchOnMount: "always"` (research 3.3 option a): a card taken to 0 must not reappear from cache. The cost is that back navigation lands at the top with page 1 only; the list is bounded and most Collections fit one page. Master Inventory uses the default `gcTime` with `refetchOnMount: "always"`: it is read-only, so no zeroed tile can reappear, and it can be thousands of cards long, so restoring the scroll position from cached pages matters. Cached pages show first and are then refreshed. Master Inventory also gets `staleTime: 60_000`, so a refocus does not re-request every loaded page for data only this app's own edits change; its invalidations still mark it stale.
+- **One skipped card after zeroing (accepted).** Saving a card at 0 deletes the entry on the server while its tile stays at 0 (ticket 22), so the next page loaded afterwards starts one row late and skips one card until the next real refetch (focus, remount or any invalidation). It is pinned in a test. The mitigation (make Load more refetch first) would drop the zeroed tile and shift rows while the user scrolls, contradicting ticket 22. The skip is one card per boundary and heals on refetch, so it is recorded rather than mitigated.
+- **Cache patch cancels fetches in flight.** The research's `setQueryData` patch alone was not enough: a page append that started before the save writes back the pages it saw at its start, so the saved value reverted (reproduced). `patchCollectionEntryQuantities` cancels the entries query's in-flight fetches first and the grid asks for the cancelled page again. Only queries that already hold pages are cancelled: a first fetch (a filter just changed, old tiles shown as placeholders) would be left idle with nothing to restart it. `onSaved` may return a promise and the batch stays busy until it settles, so `prune` cannot run in the gap before the patch lands.
+- **`prune` compares with the server data.** Any `data` change (an append, a patch) ran `prune`, which would wipe a declined card's error whenever another card in the same batch was patched. `prune(serverQuantity)` now drops an override or error only when the server data differs from what the hook last confirmed, or the row is gone. Side effect on the catalog search page (ticket 23): a declined card's error now survives the lookup refetch.
+- **Invalidation audit.** `invalidateMasterInventory` hits the infinite list, the plain list (the dashboard's `limit: 1` count) and the facets. `invalidateCollectionEntries` hits the infinite entries list and the plain lookups. Call sites: `CollectionEntries.onSaved` patches the cache and does not refetch (`collection-entries.test.tsx`); `CollectionCardResults.onSaved` is checked by `collection-card-results.test.tsx` for the call and `collections.test.tsx` for real keys; `useDeleteCollectionMutation` goes through `invalidateMasterInventory` (`master-inventory.test.ts`, real keys); `invalidateCollectionCounts` touches only the Collections list and single-Collection keys, so it is unaffected; facets keys are plain queries and unaffected.
+- **No `page`, no loader prefetch.** Both routes validate `catalogFilterSchema` (a stale `?page=` is stripped) and have no `loaderDeps` to change. Neither prefetches entries, since both refetch on mount. Filter changes scroll to the top in the route handler. `CardResults` and its test are deleted.
+- **Lost response refetches the list.** When a save's response is lost (`onSaved([])`) the write may have committed and there is nothing to patch from, so `CollectionEntries` invalidates the entries list (a refetch is the only way to learn the server value). `onSaved` runs in a guard inside `useQuantityBatch`, so a throw in cache housekeeping can neither revert a card the server accepted nor stall the batch queue (both tested).
+- **Accepted limits of the cache patch.** `cancelQueries` also cancels a background focus refetch that was in flight when the user saved; the next focus or mount refreshes the list. A save made on a `keepPreviousData` placeholder tile while the first page of new filters is still loading has nothing to patch, so that tile can show the pre-save value once the page lands; the window is narrow and heals on refetch. `meta.total` in cached pages is not adjusted after a card is zeroed (the "N of total" line is off by one until a refetch).
+- **Verification.** The backend is untouched, so only the frontend script ran (`bun run lint`, `check`, `typecheck`, `test`, `build`). The stubbed Playwright specs `inventory-infinite-scroll` and `catalog-infinite-scroll` pass on the final tree with one worker (parallel runs time out under dev-server load).
+- **Not run.** The Playwright specs run against stubbed APIs only; nothing was run against a real backend with a Collection of more than 100 entries.
