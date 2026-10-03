@@ -3,7 +3,7 @@
 # 37: Catalog quantities lookup per loaded page
 
 **Category:** bug
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** 33, 36
 
@@ -27,11 +27,18 @@ The catalog looks up the quantities for all displayed card ids in one request wi
 - `useQuantityBatch`'s saved-results callback.
 
 **Acceptance criteria:**
-- [ ] With more than 100 cards loaded, every tile shows its correct quantity
-- [ ] Editing a quantity and saving keeps the saved value as further pages load
-- [ ] Existing ticket 23 tests still pass; a test covers the over-100 case
-- [ ] Both verification scripts pass
+- [x] With more than 100 cards loaded, every tile shows its correct quantity
+- [x] Editing a quantity and saving keeps the saved value as further pages load
+- [x] Existing ticket 23 tests still pass; a test covers the over-100 case
+- [x] Both verification scripts pass
 
 **Out of scope:**
 - Raising the endpoint's 100-id cap
 - Collection entries and Master Inventory (ticket 36)
+
+## Decisions
+
+- **Slices, not pages.** `CollectionCardResults` receives a flat card list, so it slices the loaded cards by `CATALOG_PAGE_SIZE` (60, under the endpoint's cap of 100) and runs one `useQueries` lookup per slice. A page that appends adds a query; earlier lookups keep their key and data, so no tile loses its control while the next slice loads (the previous single lookup changed key on every append). A card gets its control once its own slice has loaded. If dedupe ever shifts card positions, later slices re-key once.
+- **Targeted refresh instead of a patch.** The ticket asked to patch the matching lookup from the bulk result. A lookup only returns cards the Collection holds, so a card going 0 to 2 has no row to patch without rebuilding a card summary; instead a save invalidates only the lookups that asked for the saved cards (one request), plus the infinite entries list. A lost response invalidates every lookup. `prune` keeps the optimistic value until the refetch confirms it.
+- **Reported as a bug.** Cards past the 100th loaded card (page 2 onward of a long list) showed no +/- control on the catalog search with a Collection selected. Regression test: `collection-card-results.pages.test.tsx` (real hook, stubbed `fetch`).
+- **Not run.** Nothing was checked against the deployed preview or a real backend.

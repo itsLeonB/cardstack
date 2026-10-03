@@ -6,9 +6,14 @@ import { CollectionCardResults } from "./collection-card-results"
 import { QUANTITY_DEBOUNCE_MS } from "@/lib/use-quantity-batch"
 import {
   bulkUpdateCollectionEntries,
-  useListCollectionEntries,
+  getListCollectionEntriesQueryOptions,
 } from "@/generated/endpoints/inventory/inventory"
-import type { CardSummary } from "@/generated/models"
+import type {
+  CardSummary,
+  ListCollectionEntriesParams,
+} from "@/generated/models"
+
+const lookup = vi.hoisted(() => vi.fn())
 
 // Isolates the UI from the network.
 // oxlint-disable-next-line anti-slop/no-module-mocking
@@ -23,7 +28,17 @@ vi.mock("@/generated/endpoints/inventory/inventory", () => ({
   getListMasterInventoryInfiniteQueryKey: () => ["infinite", "inventory"],
   getListMasterInventoryFacetsQueryKey: () => ["inventory-facets"],
   getListCollectionFacetsQueryKey: (id: string) => ["facets", id],
-  useListCollectionEntries: vi.fn(),
+  getListCollectionEntriesQueryOptions: vi.fn(
+    (
+      id: string,
+      params: ListCollectionEntriesParams,
+      options?: { query?: object }
+    ) => ({
+      queryKey: ["entries", id, params],
+      queryFn: () => lookup(params),
+      ...options?.query,
+    })
+  ),
   bulkUpdateCollectionEntries: vi.fn(),
 }))
 // oxlint-disable-next-line anti-slop/no-module-mocking
@@ -55,22 +70,24 @@ const card: CardSummary = {
 }
 
 const bulk = vi.mocked(bulkUpdateCollectionEntries)
-const entries = vi.mocked(useListCollectionEntries)
+const entries = vi.mocked(getListCollectionEntriesQueryOptions)
 
 function setEntries(items: { card: CardSummary; quantity: number }[]) {
-  // SAFETY: partial mock; the component reads only status/data and isError.
-  entries.mockReturnValue({
-    isError: false,
-    data: {
-      status: 200,
-      data: { data: items, meta: { total: items.length, page: 1, limit: 24 } },
-    },
-  } as any)
+  lookup.mockResolvedValue({
+    status: 200,
+    data: { data: items, meta: { total: items.length, page: 1, limit: 24 } },
+  })
+}
+
+async function settle() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0)
+  })
 }
 
 function renderResults(
   cards: CardSummary[] = [card],
-  client = new QueryClient()
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 ) {
   render(
     <QueryClientProvider client={client}>
@@ -101,21 +118,23 @@ async function advance(ms: number) {
 
 describe("CollectionCardResults", () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     bulk.mockReset()
-    entries.mockReset()
+    entries.mockClear()
+    lookup.mockReset()
     // SAFETY: partial response; the hook reads only status and data.data.
     bulk.mockResolvedValue({ status: 200, data: { data: [] } } as any)
   })
 
-  it("looks up quantities only for the cards on the page", () => {
+  it("looks up quantities only for the cards on the page", async () => {
     setEntries([])
     renderResults()
+    await settle()
     expect(entries).toHaveBeenCalledWith(
       "col-1",
       { cardId: ["card-1"], limit: 1 },
       expect.objectContaining({
         query: expect.objectContaining({
-          enabled: true,
           gcTime: 0,
           refetchOnMount: "always",
         }),
@@ -123,52 +142,61 @@ describe("CollectionCardResults", () => {
     )
   })
 
-  it("caps the lookup at the endpoint's 100-id limit", () => {
+  it("looks up each page's worth of cards separately, none over the endpoint's 100-id limit", async () => {
     setEntries([])
     renderResults(
-      Array.from({ length: 120 }, (_, index) => ({
+      Array.from({ length: 130 }, (_, index) => ({
         ...card,
         id: `card-${index}`,
       }))
     )
-    const [, params] = entries.mock.calls[0]!
-    expect(params?.cardId).toHaveLength(100)
-    expect(params?.limit).toBe(100)
+    await settle()
+    const sizes = lookup.mock.calls.map(([params]) => params.cardId.length)
+    expect(sizes).toEqual([60, 60, 10])
+    for (const [params] of lookup.mock.calls)
+      expect(params.limit).toBe(params.cardId.length)
   })
 
-  it("never fires the lookup with an empty card list", () => {
+  it("never fires the lookup with an empty card list", async () => {
     setEntries([])
     renderResults([])
-    expect(entries).toHaveBeenCalledWith(
-      "col-1",
-      expect.anything(),
-      expect.objectContaining({
-        query: expect.objectContaining({ enabled: false }),
-      })
-    )
+    await settle()
+    expect(lookup).not.toHaveBeenCalled()
   })
 
-  it("shows the Collection quantity, 0 when the card is absent", () => {
+  it("shows the Collection quantity, 0 when the card is absent", async () => {
     setEntries([{ card, quantity: 3 }])
     renderResults()
+    await settle()
     expect(quantityInput().value).toBe("3")
     cleanup()
     setEntries([])
     renderResults()
+    await settle()
     expect(quantityInput().value).toBe("0")
   })
 
-  it("shows no control until the quantities have loaded", () => {
-    // SAFETY: partial mock; still loading.
-    entries.mockReturnValue({ isError: false, data: undefined } as any)
+  it("shows no control until the quantities have loaded", async () => {
+    lookup.mockReturnValue(new Promise(() => {}))
     renderResults()
+    await settle()
+    expect(screen.queryByLabelText("Quantity of Pikachu V")).toBeNull()
+  })
+
+  it("shows an alert and no control when the lookup fails", async () => {
+    lookup.mockRejectedValue(new Error("offline"))
+    renderResults()
+    await settle()
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Could not load this Collection"
+    )
     expect(screen.queryByLabelText("Quantity of Pikachu V")).toBeNull()
   })
 
   it("adds a card by increasing from 0 through one bulk call", async () => {
-    vi.useFakeTimers()
     setEntries([])
     renderResults()
+    await settle()
     fireEvent.click(
       screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
     )
@@ -180,7 +208,6 @@ describe("CollectionCardResults", () => {
   })
 
   it("reverts a capacity-declined addition with an error", async () => {
-    vi.useFakeTimers()
     setEntries([])
     // SAFETY: partial response; the hook reads only status and data.data.
     bulk.mockResolvedValue({
@@ -198,6 +225,7 @@ describe("CollectionCardResults", () => {
       },
     } as any)
     renderResults()
+    await settle()
     fireEvent.click(
       screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
     )
@@ -207,11 +235,11 @@ describe("CollectionCardResults", () => {
   })
 
   it("after a save, invalidates both this lookup and the Collection page's infinite list", async () => {
-    vi.useFakeTimers()
     setEntries([])
     const client = new QueryClient()
     const invalidate = vi.spyOn(client, "invalidateQueries")
     renderResults([card], client)
+    await settle()
     fireEvent.click(
       screen.getByRole("button", { name: "Increase quantity of Pikachu V" })
     )

@@ -13,7 +13,10 @@ import {
   getListCollectionEntriesQueryKey,
 } from "@/generated/endpoints/inventory/inventory"
 import type { listCollectionEntries } from "@/generated/endpoints/inventory/inventory"
-import type { InventoryChangeResult } from "@/generated/models"
+import type {
+  InventoryChangeResult,
+  ListCollectionEntriesParams,
+} from "@/generated/models"
 
 /**
  * Refreshes a Collection's entries wherever they are cached. Two key roots, so
@@ -22,14 +25,26 @@ import type { InventoryChangeResult } from "@/generated/models"
  */
 export function invalidateCollectionEntries(
   queryClient: QueryClient,
-  collectionId: string
+  collectionId: string,
+  /** Only refresh the plain lookups that asked for one of these cards (one request each, not one per loaded page). */
+  cardIds?: string[]
 ) {
-  for (const queryKey of [
-    getListCollectionEntriesInfiniteQueryKey(collectionId),
-    getListCollectionEntriesQueryKey(collectionId),
-  ]) {
-    void queryClient.invalidateQueries({ queryKey })
-  }
+  void queryClient.invalidateQueries({
+    queryKey: getListCollectionEntriesInfiniteQueryKey(collectionId),
+  })
+  const [root] = getListCollectionEntriesQueryKey(collectionId)
+  void queryClient.invalidateQueries({
+    queryKey: getListCollectionEntriesQueryKey(collectionId),
+    predicate: ({ queryKey }) => {
+      if (!cardIds) return true
+      // SAFETY: keys under this root are built by getListCollectionEntriesQueryKey, [url, params?].
+      const [, params] = queryKey as [string, ListCollectionEntriesParams?]
+      return (
+        queryKey[0] === root &&
+        !!params?.cardId?.some((id) => cardIds.includes(id))
+      )
+    },
+  })
 }
 
 type EntriesPage = Awaited<ReturnType<typeof listCollectionEntries>>

@@ -352,6 +352,29 @@ describe("invalidateCollectionEntries", () => {
       expect(client.getQueryState(key)?.isInvalidated).toBe(true)
     expect(client.getQueryState(other)?.isInvalidated).toBe(false)
   })
+
+  it("given card ids, refreshes only the lookups that asked for them, plus the infinite list", () => {
+    const client = new QueryClient()
+    const infinite = getListCollectionEntriesInfiniteQueryKey("col-1", {
+      limit: 100,
+    })
+    const withCard = getListCollectionEntriesQueryKey("col-1", {
+      cardId: ["a", "b"],
+      limit: 2,
+    })
+    const without = getListCollectionEntriesQueryKey("col-1", {
+      cardId: ["c"],
+      limit: 1,
+    })
+    for (const key of [infinite, withCard, without])
+      client.setQueryData(key, {})
+
+    invalidateCollectionEntries(client, "col-1", ["b"])
+
+    expect(client.getQueryState(infinite)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(withCard)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(without)?.isInvalidated).toBe(false)
+  })
 })
 
 type EntriesPage = Awaited<ReturnType<typeof listCollectionEntries>>
