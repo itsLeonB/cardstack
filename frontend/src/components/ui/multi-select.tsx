@@ -31,7 +31,8 @@ interface MultiSelectProps {
 
 /**
  * Dropdown of checkboxes that stays open while toggling. Native checkboxes
- * inside a popover keep Tab/Space/Escape keyboard handling for free.
+ * inside a popover keep Tab/Space/Escape keyboard handling for free. The
+ * popover only mounts when open, so tests and e2e must click the trigger first.
  */
 export function MultiSelect({
   label,

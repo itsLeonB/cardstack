@@ -1,0 +1,22 @@
+name: Conventions CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/agents/conventions/**"
+      - "scripts/check-conventions.sh"
+      - ".github/workflows/conventions-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  bullet-length:
+    name: Bullet length
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: scripts/check-conventions.sh

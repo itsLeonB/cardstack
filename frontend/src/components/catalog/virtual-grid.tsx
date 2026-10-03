@@ -57,6 +57,12 @@ interface VirtualGridProps<T> {
  *
  * Known limitation of virtualizing: browser find-in-page (Ctrl+F) only sees
  * the rendered rows, so it cannot find a loaded card that is scrolled out.
+ *
+ * Keyboard users: scroll-triggered loading pauses while a tile has
+ * `:focus-visible` focus, so "Load more" is their path until the last page is
+ * loaded. Known limitation: a column change remounts every tile, so a focused
+ * tile loses focus. Programmatic scrolls are always instant (no CSS
+ * `scroll-behavior: smooth`), which is how reduced motion is respected.
  */
 export function VirtualGrid<T>({
   items,
