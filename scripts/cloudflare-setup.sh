@@ -376,7 +376,7 @@ stage_transformations() {
 
 stage_api_domain() {
   open_url "https://railway.com/dashboard"
-  step "Backend service → Settings → Networking → + Custom Domain: $API_HOST (target port: the app's port, 8080, if asked)."
+  step "Service api → Settings → Networking → + Custom Domain: $API_HOST (target port: the app's port, 8080, if asked)."
   step "Railway shows a CNAME target and a TXT record. You need BOTH."
   open_url "$CF/?to=/:account/:zone/dns/records"
   step "Add the CNAME: name 'api', target = Railway's value, Proxy status ON (orange cloud)."
@@ -464,7 +464,7 @@ stage_railway() {
     SKIPPED+=("EDGE_SECRET not set on Railway yet: add it at cutover (ticket 13 step 5); it is saved in $CF_ENV")
   fi
   open_url "https://railway.com/dashboard"
-  step "Backend service → Variables → Raw Editor. Paste the block below at the end and Update Variables (this redeploys)."
+  step "Service api → Variables → Raw Editor. Paste the block below at the end and Update Variables (this redeploys)."
   printf '\n%s\n\n' "$(printf '%s' "$block" | sed -E 's/^(R2_SECRET_ACCESS_KEY|EDGE_SECRET)=.*/\1=<secret>/')"
   if copy_clip "$block"; then
     note "(the whole block, real secrets included, is on your clipboard: clear it after pasting)"
