@@ -23,7 +23,7 @@ import (
 //
 // DocsPath and OpenAPIPath are left at their defaults ("/docs",
 // "/openapi.json"/"/openapi.yaml") so Huma auto-mounts docs + spec at the
-// engine root, unauthenticated.
+// engine root, unauthenticated. NewServerConfig turns that off in production.
 //
 // CookieAuth is registered as the API's one security scheme. Ticket 01
 // scaffolded a placeholder "BearerAuth" (type: http, scheme: bearer) before

@@ -14,6 +14,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -264,26 +265,27 @@ func repeatedParam(name string, n int) string {
 	return strings.Join(parts, "&")
 }
 
-func TestCatalogHandler_BoundsSearchInput(t *testing.T) {
-	oversized := map[string]string{
+func oversizedFilterQueries() map[string]string {
+	return map[string]string{
 		"name":           "name=" + strings.Repeat("a", 65),
 		"expansionSetId": repeatedParam("expansionSetId", 21),
 		"rarityId":       repeatedParam("rarityId", 21),
 		"category":       repeatedParam("category", 21),
 		"tag":            repeatedParam("tag", 21),
 	}
+}
+
+func TestCatalogHandler_BoundsSearchInput(t *testing.T) {
 	atLimit := "name=" + strings.Repeat("a", 64) + "&" + repeatedParam("expansionSetId", 20) + "&" +
 		repeatedParam("rarityId", 20) + "&" + repeatedParam("category", 20) + "&" + repeatedParam("tag", 20)
 
 	for _, path := range []string{"/catalog/cards", "/catalog/facets"} {
-		for param, query := range oversized {
+		for param, query := range oversizedFilterQueries() {
 			t.Run(path+" "+param, func(t *testing.T) {
 				_, api := newTestCatalogHandler(t)
 
 				resp := api.Get(path + "?" + query)
-				if resp.Code != http.StatusUnprocessableEntity {
-					t.Fatalf("expected 422, got %d: %s", resp.Code, resp.Body.String())
-				}
+				assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
 			})
 		}
 	}
@@ -294,9 +296,8 @@ func TestCatalogHandler_BoundsSearchInput(t *testing.T) {
 		svc.EXPECT().ListFacets(mock.Anything, mock.Anything).Return(dto.CatalogFacets{}, nil)
 
 		for _, path := range []string{"/catalog/cards", "/catalog/facets"} {
-			if resp := api.Get(path + "?" + atLimit); resp.Code != http.StatusOK {
-				t.Fatalf("%s: expected 200, got %d: %s", path, resp.Code, resp.Body.String())
-			}
+			resp := api.Get(path + "?" + atLimit)
+			assert.Equal(t, http.StatusOK, resp.Code, path+": "+resp.Body.String())
 		}
 	})
 }
@@ -310,12 +311,8 @@ func TestCatalogHandler_InvalidIDDoesNotEchoInput(t *testing.T) {
 				_, api := newTestCatalogHandler(t)
 
 				resp := api.Get(path + "?" + param + "=" + secret)
-				if resp.Code != http.StatusBadRequest {
-					t.Fatalf("expected 400, got %d: %s", resp.Code, resp.Body.String())
-				}
-				if strings.Contains(resp.Body.String(), secret) {
-					t.Fatalf("response echoes caller input: %s", resp.Body.String())
-				}
+				assert.Equal(t, http.StatusBadRequest, resp.Code, resp.Body.String())
+				assert.NotContains(t, resp.Body.String(), secret)
 			})
 		}
 	}

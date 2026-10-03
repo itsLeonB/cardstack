@@ -11,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
 	"github.com/itsLeonB/ungerr"
+	"github.com/stretchr/testify/assert"
 )
 
 const leakyDSN = "failed to connect: postgres://admin:s3cr3t@dbhost:5432/cards"
@@ -150,21 +151,18 @@ func TestClientErrorsDoNotEchoCallerInput(t *testing.T) {
 		path, body string
 		status     int
 	}{
-		"invalid path uuid":  {"/e/" + secret, `{"count":1}`, http.StatusUnprocessableEntity},
-		"invalid query int":  {"/e/" + valid + "?n=" + secret, `{"count":1}`, http.StatusUnprocessableEntity},
-		"malformed body":     {"/e/" + valid, `{"count": ` + secret, http.StatusBadRequest},
-		"wrong body type":    {"/e/" + valid, `{"count":"` + secret + `"}`, http.StatusUnprocessableEntity},
-		"unreadable literal": {"/e/" + valid, secret, http.StatusBadRequest},
+		"invalid path uuid":   {"/e/" + secret, `{"count":1}`, http.StatusUnprocessableEntity},
+		"invalid query int":   {"/e/" + valid + "?n=" + secret, `{"count":1}`, http.StatusUnprocessableEntity},
+		"malformed body":      {"/e/" + valid, `{"count": ` + secret, http.StatusBadRequest},
+		"wrong body type":     {"/e/" + valid, `{"count":"` + secret + `"}`, http.StatusUnprocessableEntity},
+		"unreadable literal":  {"/e/" + valid, secret, http.StatusBadRequest},
+		"unexpected body key": {"/e/" + valid, `{"count":1,"` + secret + `":1}`, http.StatusUnprocessableEntity},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			resp := api.Post(c.path, "Content-Type: application/json", strings.NewReader(c.body))
-			if resp.Code != c.status {
-				t.Fatalf("want %d, got %d: %s", c.status, resp.Code, resp.Body.String())
-			}
-			if strings.Contains(resp.Body.String(), secret) {
-				t.Fatalf("response echoes caller input: %s", resp.Body.String())
-			}
+			assert.Equal(t, c.status, resp.Code, resp.Body.String())
+			assert.NotContains(t, resp.Body.String(), secret)
 		})
 	}
 }
@@ -173,9 +171,7 @@ func TestDocsAreServedOutsideProduction(t *testing.T) {
 	for _, env := range []string{"debug", "test"} {
 		_, api := humatest.New(t, NewServerConfig(env))
 		for _, path := range []string{"/docs", "/openapi.json", "/openapi.yaml"} {
-			if resp := api.Get(path); resp.Code != http.StatusOK {
-				t.Fatalf("%s in %s mode: want 200, got %d", path, env, resp.Code)
-			}
+			assert.Equal(t, http.StatusOK, api.Get(path).Code, env+" "+path)
 		}
 	}
 }
@@ -183,8 +179,6 @@ func TestDocsAreServedOutsideProduction(t *testing.T) {
 func TestDocsAreNotServedInProduction(t *testing.T) {
 	_, api := humatest.New(t, NewServerConfig("release"))
 	for _, path := range []string{"/docs", "/openapi.json", "/openapi.yaml", "/openapi-3.0.json", "/openapi-3.0.yaml"} {
-		if resp := api.Get(path); resp.Code != http.StatusNotFound {
-			t.Fatalf("%s in production: want 404, got %d", path, resp.Code)
-		}
+		assert.Equal(t, http.StatusNotFound, api.Get(path).Code, path)
 	}
 }

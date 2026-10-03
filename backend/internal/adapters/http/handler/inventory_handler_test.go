@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -170,16 +169,9 @@ func TestInventoryHandler_ListMasterFacets_MissingSession(t *testing.T) {
 func TestInventoryHandler_BoundsSearchInput(t *testing.T) {
 	collection := "/collections/" + uuid.NewString()
 	paths := []string{"/inventory/cards", "/inventory/cards/facets", collection + "/entries", collection + "/facets"}
-	oversized := map[string]string{
-		"name":           "name=" + strings.Repeat("a", 65),
-		"expansionSetId": repeatedParam("expansionSetId", 21),
-		"rarityId":       repeatedParam("rarityId", 21),
-		"category":       repeatedParam("category", 21),
-		"tag":            repeatedParam("tag", 21),
-	}
 
 	for _, path := range paths {
-		for param, query := range oversized {
+		for param, query := range oversizedFilterQueries() {
 			t.Run(path+" "+param, func(t *testing.T) {
 				_, api, _ := newTestInventoryHandler(t, true)
 

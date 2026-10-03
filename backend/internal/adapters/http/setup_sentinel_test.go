@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSecurityHeadersAreOnEveryResponse(t *testing.T) {
@@ -26,13 +28,9 @@ func TestSecurityHeadersAreOnEveryResponse(t *testing.T) {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 
-		if w.Code != status {
-			t.Fatalf("%s: want %d, got %d", path, status, w.Code)
-		}
+		require.Equal(t, status, w.Code, path)
 		for header, value := range want {
-			if got := w.Header().Get(header); got != value {
-				t.Errorf("%s: %s = %q, want %q", path, header, got, value)
-			}
+			assert.Equal(t, value, w.Header().Get(header), path+" "+header)
 		}
 	}
 }

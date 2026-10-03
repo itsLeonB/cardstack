@@ -6,14 +6,14 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `name` search longer than 64 characters is rejected with a validation error, on every endpoint that accepts it.
-- [ ] Each repeated filter (Expansion Set, rarity, category, tag) rejects more than 20 values, on every endpoint that accepts them, including facets.
-- [ ] Error responses for malformed requests no longer include caller-supplied values: invalid-identifier messages and the detail strings Huma produces for decode errors are replaced by fixed messages. ADR-0013's rule is extended to client errors, and the ADR or its Consequences section says so.
-- [ ] Every API response carries HSTS and a Referrer-Policy header alongside the existing headers.
-- [ ] In production mode the interactive docs page and the OpenAPI endpoints return 404; in other modes they are unchanged. The committed OpenAPI file and the frontend code generation still work.
-- [ ] CORS behavior is unchanged, and no cache is added to facets.
-- [ ] Route tests cover each criterion at the HTTP level; the backend build, vet and tests pass.
+- [x] `name` search longer than 64 characters is rejected with a validation error, on every endpoint that accepts it.
+- [x] Each repeated filter (Expansion Set, rarity, category, tag) rejects more than 20 values, on every endpoint that accepts them, including facets.
+- [x] Error responses for malformed requests no longer include caller-supplied values: invalid-identifier messages and the detail strings Huma produces for decode errors are replaced by fixed messages. ADR-0013's rule is extended to client errors, and the ADR or its Consequences section says so.
+- [x] Every API response carries HSTS and a Referrer-Policy header alongside the existing headers.
+- [x] In production mode the interactive docs page and the OpenAPI endpoints return 404; in other modes they are unchanged. The committed OpenAPI file and the frontend code generation still work.
+- [x] CORS behavior is unchanged, and no cache is added to facets.
+- [x] Route tests cover each criterion at the HTTP level; the backend build, vet and tests pass.
 
 ## Comments

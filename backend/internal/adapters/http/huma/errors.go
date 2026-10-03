@@ -56,7 +56,13 @@ func installErrorClassifier() {
 
 // echoingMessagePrefixes start the messages Huma builds by appending a
 // parser's own error text, which can quote caller input.
-var echoingMessagePrefixes = []string{"invalid value: ", "invalid JSON: "}
+var echoingMessagePrefixes = []string{"invalid value: ", "invalid JSON: ", "expected string to be RFC 5322 email: "}
+
+// callerNamedLocations maps the messages Huma attaches to a location named
+// by the caller (an unknown body key) to the location that is safe to return.
+var callerNamedLocations = map[string]string{
+	"unexpected property": "body",
+}
 
 // clientSafeDetail strips what Huma copies from the request into a request
 // error (ADR-0013): the offending Value, and any message that is parser
@@ -71,6 +77,9 @@ func clientSafeDetail(status int, d *huma.ErrorDetail) *huma.ErrorDetail {
 		if strings.HasPrefix(d.Message, p) {
 			safe.Message = strings.TrimSuffix(p, ": ")
 		}
+	}
+	if loc, ok := callerNamedLocations[d.Message]; ok {
+		safe.Location = loc
 	}
 	return safe
 }
