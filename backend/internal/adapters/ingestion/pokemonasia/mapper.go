@@ -267,7 +267,7 @@ func mapCard(detail cardDetail, expansionSetID, rarityID uuid.UUID, imageURL str
 		Illustrator:    detail.Illustrator,
 		Tags:           tags,
 		RarityID:       rarityID,
-		ImageURL:       imageURL,
+		SourceImageURL: imageURL,
 		Attributes:     datatypes.JSONMap(attributes),
 		Raw:            string(raw),
 	}

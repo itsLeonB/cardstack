@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
@@ -47,7 +48,9 @@ type Summary struct {
 	Sets     int
 	Rarities int
 	Cards    int
-	Failures []IngestFailure
+	// ImagesHosted counts images copied into the object store by this run.
+	ImagesHosted int
+	Failures     []IngestFailure
 }
 
 // IngestFailure records one item (a card, or a listing/results page) that
@@ -82,6 +85,10 @@ type Ingester struct {
 	rarities crud.Repository[entity.Rarity]
 	cards    crud.Repository[entity.Card]
 	client   *client
+
+	// store receives hosted images (ADR-0016). Nil means image hosting is off.
+	store        objectstore.ObjectStore
+	imagesHosted atomic.Int64
 
 	// gameID is set once at the start of Run and read (never written)
 	// concurrently afterward, so no locking is needed for it.
@@ -118,9 +125,12 @@ type rarityCacheKey struct {
 	code   string
 }
 
-// NewIngester builds an Ingester backed by the given *gorm.DB.
-func NewIngester(db *gorm.DB) *Ingester {
+// NewIngester builds an Ingester backed by the given *gorm.DB. A nil store
+// turns image hosting off: the run logs a warning and rows keep an empty
+// image key.
+func NewIngester(db *gorm.DB, store objectstore.ObjectStore) *Ingester {
 	return &Ingester{
+		store:    store,
 		games:    crud.NewRepository[entity.Game](db),
 		locales:  crud.NewRepository[entity.Locale](db),
 		series:   crud.NewRepository[entity.Series](db),
@@ -154,6 +164,9 @@ func (in *Ingester) SyncExpansionSets(ctx context.Context, seriesFilter, setFilt
 
 func (in *Ingester) run(ctx context.Context, seriesFilter, setFilter string, crawlCards bool) (Summary, error) {
 	logger.Infof("starting ingestion (series filter: %q, set filter: %q, crawl cards: %t)", seriesFilter, setFilter, crawlCards)
+	if in.store == nil {
+		logger.Warn("R2 is not configured (set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET): skipping image hosting, catalog images will be empty")
+	}
 
 	game, err := in.upsertGame(ctx)
 	if err != nil {
@@ -196,6 +209,7 @@ func (in *Ingester) run(ctx context.Context, seriesFilter, setFilter string, cra
 			continue
 		}
 		summary.Sets++
+		in.hostSetCover(ctx, set, listing.Code)
 
 		if !crawlCards {
 			logger.Infof("[%d/%d] synced set %s (%s, series %s)", i+1, len(listings), listing.Code, listing.Name, listing.Series)
@@ -217,14 +231,15 @@ func (in *Ingester) run(ctx context.Context, seriesFilter, setFilter string, cra
 	in.rarityMu.Lock()
 	summary.Rarities = len(in.rarityCache)
 	in.rarityMu.Unlock()
+	summary.ImagesHosted = int(in.imagesHosted.Load())
 
 	in.failuresMu.Lock()
 	summary.Failures = append([]IngestFailure(nil), in.failures...)
 	in.failuresMu.Unlock()
 
 	logger.Infof(
-		"ingestion finished: %d series, %d sets, %d rarities, %d cards, %d failure(s)",
-		summary.Series, summary.Sets, summary.Rarities, summary.Cards, len(summary.Failures),
+		"ingestion finished: %d series, %d sets, %d rarities, %d cards, %d image(s) hosted, %d failure(s)",
+		summary.Series, summary.Sets, summary.Rarities, summary.Cards, summary.ImagesHosted, len(summary.Failures),
 	)
 
 	return summary, nil
@@ -331,7 +346,7 @@ func (in *Ingester) ingestSet(ctx context.Context, expansionSetID uuid.UUID, exp
 				return nil
 			}
 
-			if err := in.ingestCard(groupCtx, expansionSetID, id, rarityCode); err != nil {
+			if err := in.ingestCard(groupCtx, expansionSetID, expansionCode, id, rarityCode); err != nil {
 				if groupCtx.Err() != nil {
 					return fmt.Errorf("ingesting card %s: %w", id, err)
 				}
@@ -431,7 +446,7 @@ func (in *Ingester) sweepRarities(ctx context.Context, expansionCode string, rar
 // ingestCard fetches, parses, and upserts one card's detail page.
 // rarityCode is the card's already-resolved print rarity (from
 // sweepRarities), independent of anything the detail page itself exposes.
-func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, id, rarityCode string) error {
+func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, expansionCode, id, rarityCode string) error {
 	doc, raw, err := in.client.cardDetail(ctx, id)
 	if err != nil {
 		return fmt.Errorf("fetching card detail: %w", err)
@@ -453,9 +468,11 @@ func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, id
 	}
 
 	card := mapCard(detail, expansionSetID, rarityID, cardImageURL(id), raw)
-	if _, err := in.upsertCard(ctx, card); err != nil {
+	saved, err := in.upsertCard(ctx, card)
+	if err != nil {
 		return fmt.Errorf("upserting card: %w", err)
 	}
+	in.hostCardImage(ctx, saved, expansionCode, id)
 	return nil
 }
 
@@ -519,13 +536,13 @@ func (in *Ingester) upsertExpansionSet(
 	releaseDate := listing.ReleaseDate
 	if existing.IsZero() {
 		return in.sets.Insert(ctx, entity.ExpansionSet{
-			GameID:      gameID,
-			Code:        listing.Code,
-			Name:        listing.Name,
-			LocaleID:    localeID,
-			SeriesID:    &seriesID,
-			ReleaseDate: &releaseDate,
-			ImageURL:    listing.ImageURL,
+			GameID:         gameID,
+			Code:           listing.Code,
+			Name:           listing.Name,
+			LocaleID:       localeID,
+			SeriesID:       &seriesID,
+			ReleaseDate:    &releaseDate,
+			SourceImageURL: listing.ImageURL,
 		})
 	}
 
@@ -533,7 +550,7 @@ func (in *Ingester) upsertExpansionSet(
 	existing.LocaleID = localeID
 	existing.SeriesID = &seriesID
 	existing.ReleaseDate = &releaseDate
-	existing.ImageURL = listing.ImageURL
+	existing.SourceImageURL = listing.ImageURL
 	return in.sets.Update(ctx, existing)
 }
 
@@ -553,7 +570,7 @@ func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Ca
 	existing.Illustrator = card.Illustrator
 	existing.Tags = card.Tags
 	existing.RarityID = card.RarityID
-	existing.ImageURL = card.ImageURL
+	existing.SourceImageURL = card.SourceImageURL
 	existing.Attributes = card.Attributes
 	existing.Raw = card.Raw
 	return in.cards.Update(ctx, existing)

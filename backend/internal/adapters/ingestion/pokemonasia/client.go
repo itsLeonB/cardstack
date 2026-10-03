@@ -45,14 +45,25 @@ type client struct {
 	baseURL    string
 	httpClient *http.Client
 	limiter    *rate.Limiter
+
+	// imageHost is the only host image downloads may contact, and imageClient
+	// refuses redirects away from it (see images.go). It stays the production
+	// host even when tests point baseURL at a local server.
+	imageHost   string
+	imageClient *http.Client
 }
 
 func newClient() *client {
-	return &client{
+	c := &client{
 		baseURL:    baseURL,
 		httpClient: http.DefaultClient,
 		limiter:    rate.NewLimiter(rate.Every(requestInterval), 1),
 	}
+	if u, err := url.Parse(baseURL); err == nil {
+		c.imageHost = u.Host
+	}
+	c.imageClient = newImageClient(c)
+	return c
 }
 
 // expansionListPage fetches one page of the Series/Expansion Set/release-

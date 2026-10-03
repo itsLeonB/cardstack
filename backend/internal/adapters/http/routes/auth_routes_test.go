@@ -22,6 +22,10 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
+// testImageBase is the configured image base address (IMAGE_BASE_URL) the
+// feature tests serve hosted keys under.
+const testImageBase = "https://img.example.test"
+
 // authTestServices builds a *provider.Services backed by a real local
 // Postgres instance (per docs/adr/0005: feature tests run against the full
 // real stack, not mocks) rather than through provider.InitializeProviders,
@@ -42,6 +46,7 @@ func authTestServices(t *testing.T) *provider.Services {
 			CookieSecure:    false,
 			CookieSamesite:  "Lax",
 		},
+		Image: config.Image{BaseUrl: testImageBase},
 	}
 
 	dsn := "host=" + envOr("DB_HOST", "localhost") +
@@ -83,10 +88,11 @@ func authTestServices(t *testing.T) *provider.Services {
 	}
 	t.Cleanup(cleanup)
 
-	catalog := provider.ProvideCatalogService(&provider.DataSources{Gorm: db, SQL: sqlDB})
+	images := provider.ProvideImageHost()
+	catalog := provider.ProvideCatalogService(&provider.DataSources{Gorm: db, SQL: sqlDB}, images)
 	collections := provider.ProvideCollectionService(&provider.DataSources{Gorm: db, SQL: sqlDB})
 
-	return provider.ProvideServices(kit, profiles, catalog, collections, provider.ProvideInventoryService(&provider.DataSources{Gorm: db, SQL: sqlDB}))
+	return provider.ProvideServices(kit, profiles, catalog, collections, provider.ProvideInventoryService(&provider.DataSources{Gorm: db, SQL: sqlDB}, images))
 }
 
 func migrateTestDB(t *testing.T, sqlDB *sql.DB) {
