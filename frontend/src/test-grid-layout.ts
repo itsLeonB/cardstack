@@ -6,6 +6,12 @@ import { vi } from "vitest"
  * the same width, every row `rowHeight`, and lets a test resize the
  * container with `resize` and scroll the window with `scrollTo`. Undo with `vi.restoreAllMocks()` and
  * `vi.unstubAllGlobals()`.
+ *
+ * Also stubs `scrollY`, `scrollHeight` and `scrollTo`. Virtual-core skips
+ * synchronous measurement during a user scroll and relies on `ResizeObserver`,
+ * which this stub never fires. `scrollToIndex` reschedules its own animation
+ * frames, so queue frames and run them one at a time instead of running
+ * `requestAnimationFrame` inline.
  */
 export function stubGridLayout(width = 1000, rowHeight = 400) {
   let current = width

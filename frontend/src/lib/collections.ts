@@ -59,6 +59,11 @@ type EntriesPage = Awaited<ReturnType<typeof listCollectionEntries>>
  * Cancels fetches in flight first: a page append (or refetch) that started
  * before the save writes back the pages it saw when it started, which would
  * undo the patch. The grid asks for the cancelled page again.
+ *
+ * Known and accepted: once a card is saved at 0 and a later page then loads,
+ * the server list is one row shorter than the client list, so the first card
+ * of that page is skipped until the next real refetch (focus, remount, any
+ * invalidation).
  */
 export async function patchCollectionEntryQuantities(
   queryClient: QueryClient,
