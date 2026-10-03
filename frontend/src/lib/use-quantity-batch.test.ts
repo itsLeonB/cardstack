@@ -201,6 +201,24 @@ describe("useQuantityBatch", () => {
     expect(onSaved).toHaveBeenCalledWith(results)
   })
 
+  it("stays busy until an async onSaved has finished, so a cache patch lands before the overrides are unprotected", async () => {
+    respond([{ cardId: "a", quantity: 2, status: "applied" }])
+    let finish: () => void = () => {}
+    const onSaved = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    )
+    const { result } = renderHook(() => useQuantityBatch("col-1", onSaved))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(result.current.isBusy()).toBe(true)
+
+    finish()
+    await tick(0)
+    expect(result.current.isBusy()).toBe(false)
+  })
+
   it("calls onSaved with no results when the response is lost, since the write may have committed", async () => {
     bulk.mockRejectedValue(new Error("offline"))
     const onSaved = vi.fn()

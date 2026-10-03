@@ -7,9 +7,8 @@ import {
 } from "@/generated/endpoints/inventory/inventory"
 import type { InventoryItem } from "@/generated/models"
 import type { CatalogFilters } from "@/lib/catalog-search"
-import type { CardList } from "@/lib/infinite-catalog-cards"
 import { infinitePages, mergePages } from "@/lib/infinite-pages"
-import type { ListPage } from "@/lib/infinite-pages"
+import type { CardList, ListPage } from "@/lib/infinite-pages"
 
 /** The endpoints allow 100 per page at most. */
 export const INVENTORY_PAGE_SIZE = 100

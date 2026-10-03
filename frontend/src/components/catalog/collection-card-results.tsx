@@ -59,7 +59,7 @@ export function CollectionCardResults({
     (response?.data ?? []).map((item) => [item.card.id, item.quantity])
   )
 
-  // Fresh server data replaces optimistic values.
+  // Drops overrides the looked-up rows now contradict (changed elsewhere); agreeing ones stay, so a declined card keeps its error.
   useEffect(
     () =>
       batch.prune((cardId) =>

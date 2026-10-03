@@ -7,6 +7,7 @@ import {
 } from "@/generated/endpoints/catalog/catalog"
 import type { CardSummary, SearchCatalogCardsParams } from "@/generated/models"
 import { infinitePages, mergePages } from "@/lib/infinite-pages"
+import type { CardList } from "@/lib/infinite-pages"
 
 export const CATALOG_PAGE_SIZE = 60
 
@@ -14,18 +15,6 @@ export type CatalogFilterParams = Omit<
   SearchCatalogCardsParams,
   "page" | "limit"
 >
-type Page = Awaited<ReturnType<typeof searchCatalogCards>>
-
-/** What `InfiniteCardResults` renders: the loaded cards and the server's total. */
-export interface CardList {
-  cards: CardSummary[]
-  total: number
-}
-
-export function mergeCatalogPages(pages: Page[]): CardList {
-  const { rows, total } = mergePages(pages, (card: CardSummary) => card.id)
-  return { cards: rows, total }
-}
 
 function infiniteArgs(filters: CatalogFilterParams) {
   const params = { ...filters, limit: CATALOG_PAGE_SIZE }
@@ -50,7 +39,16 @@ export function catalogInfiniteQueryOptions(filters: CatalogFilterParams) {
 export function useInfiniteCatalogCards(filters: CatalogFilterParams) {
   const { params, query } = infiniteArgs(filters)
   return useSearchCatalogCardsInfinite(params, {
-    query: { ...query, select: (data) => mergeCatalogPages(data.pages) },
+    query: {
+      ...query,
+      select: (data): CardList => {
+        const { rows, total } = mergePages(
+          data.pages,
+          (card: CardSummary) => card.id
+        )
+        return { cards: rows, total }
+      },
+    },
   })
 }
 

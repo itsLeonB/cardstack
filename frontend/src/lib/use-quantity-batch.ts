@@ -19,8 +19,12 @@ type Errors = Record<string, string>
  */
 export function useQuantityBatch(
   collectionId: string,
-  /** Runs after each batch the server answered, with its per-card results (none when the response was lost). */
-  onSaved?: (results: InventoryChangeResult[]) => void
+  /**
+   * Runs after each batch the server answered, with its per-card results (none
+   * when the response was lost). The batch stays busy until it settles, so an
+   * async cache patch lands before the cards lose their protection.
+   */
+  onSaved?: (results: InventoryChangeResult[]) => void | Promise<void>
 ) {
   const [quantities, setQuantities] = useState<Quantities>({})
   const [errors, setErrors] = useState<Errors>({})
@@ -71,7 +75,7 @@ export function useQuantityBatch(
         return
       }
       const results = response.data.data ?? []
-      onSaved?.(results)
+      await onSaved?.(results)
       for (const result of results) {
         confirmed.current[result.cardId] = result.quantity
         if (result.status === InventoryChangeResultStatus.declined) {
@@ -87,7 +91,7 @@ export function useQuantityBatch(
       for (const [cardId, , revision] of items)
         revert(cardId, revision, confirmed.current[cardId], NETWORK_ERROR)
       // The write may have committed with only the response lost, so cached server data can be stale.
-      onSaved?.([])
+      await onSaved?.([])
     } finally {
       // A newer batch for the card keeps its protection until that batch settles.
       for (const [cardId, , revision] of items)

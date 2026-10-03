@@ -1,8 +1,8 @@
 import { test, expect } from "playwright/test"
 import type { Page, Route } from "playwright/test"
 
-// Stubs a signed-in user with one Collection of 250 entries (100 per page, so
-// three pages) and the same 250 cards as the Master Inventory, instead of the
+// Stubs a signed-in user with one Collection of 350 entries (100 per page, so
+// four pages) and the same 350 cards as the Master Inventory, instead of the
 // seeded fixture, which is too small to scroll.
 const entry = (index: number, quantity = 3) => ({
   quantity,
@@ -60,13 +60,13 @@ const FACETS = {
 }
 
 async function stubApi(page: Page) {
-  let entries = Array.from({ length: 250 }, (_, index) => entry(index))
+  let entries = Array.from({ length: 350 }, (_, index) => entry(index))
   const entryRequests: URL[] = []
   const bulkBodies: { items: { cardId: string; quantity: number }[] }[] = []
-  // Page 3 of the Collection is answered only once the test lets it.
-  let releasePageThree = () => {}
-  const pageThree = new Promise<void>((resolve) => (releasePageThree = resolve))
-  let holdPageThree = false
+  // Page 4 of the Collection is answered only once the test lets it.
+  let releasePageFour = () => {}
+  const pageFour = new Promise<void>((resolve) => (releasePageFour = resolve))
+  let holdPageFour = false
 
   await page.route("**/auth/me", (route) =>
     json(route, { data: { id: "u1", email: "ada@example.com" } })
@@ -82,7 +82,7 @@ async function stubApi(page: Page) {
           id: "col-1",
           title: "Binder",
           description: "",
-          cardCount: 250,
+          cardCount: 350,
           maxCardCount: 0,
         },
       ],
@@ -95,7 +95,7 @@ async function stubApi(page: Page) {
         id: "col-1",
         title: "Binder",
         description: "",
-        cardCount: 250,
+        cardCount: 350,
         maxCardCount: 0,
       },
     })
@@ -130,8 +130,8 @@ async function stubApi(page: Page) {
     }
     const url = new URL(request.url())
     entryRequests.push(url)
-    if (holdPageThree && url.searchParams.get("page") === "3") {
-      await pageThree
+    if (holdPageFour && url.searchParams.get("page") === "4") {
+      await pageFour
     }
     return json(route, pageOf(route, entries))
   })
@@ -142,7 +142,7 @@ async function stubApi(page: Page) {
       route,
       pageOf(
         route,
-        Array.from({ length: 250 }, (_, index) => entry(index, index + 1))
+        Array.from({ length: 350 }, (_, index) => entry(index, index + 1))
       )
     )
   )
@@ -151,10 +151,10 @@ async function stubApi(page: Page) {
   return {
     entryRequests,
     bulkBodies,
-    holdPageThree() {
-      holdPageThree = true
+    holdPageFour() {
+      holdPageFour = true
     },
-    releasePageThree,
+    releasePageFour,
   }
 }
 
@@ -183,46 +183,46 @@ const scrollToBottom = (page: Page) =>
   page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
 
 test.describe("Collection entries infinite scroll", () => {
-  test("keeps a quantity saved on page 2 after page 3 loads", async ({
+  test("keeps a quantity saved on page 3 after page 4 loads and after a focus refetch", async ({
     page,
   }) => {
     const api = await stubApi(page)
-    api.holdPageThree()
+    api.holdPageFour()
     await openCollection(page)
-    await expect(page.getByText("100 of 250 cards loaded")).toBeVisible()
+    await expect(page.getByText("100 of 350 cards loaded")).toBeVisible()
 
-    // Scroll until page 2 is in; page 3 is requested but held.
+    // Scroll until page 3 is in; page 4 is requested but held.
     await expect
       .poll(
         async () => {
           await scrollToBottom(page)
-          return page.getByText("200 of 250 cards loaded").count()
+          return page.getByText("300 of 350 cards loaded").count()
         },
         { timeout: 15_000 }
       )
       .toBe(1)
 
-    // Card 199 is on page 2, in the last rendered row.
-    const quantity = page.getByLabel("Quantity of Card 199", { exact: true })
+    // Card 299 is on page 3, in the last rendered row.
+    const quantity = page.getByLabel("Quantity of Card 299", { exact: true })
     await expect(async () => {
       await scrollToBottom(page)
       await expect(quantity).toHaveValue("3", { timeout: 1000 })
     }).toPass()
     await page
-      .getByRole("button", { name: "Increase quantity of Card 199" })
+      .getByRole("button", { name: "Increase quantity of Card 299" })
       .click()
     await expect(quantity).toHaveValue("4")
     await expect.poll(() => api.bulkBodies.length).toBe(1)
     expect(api.bulkBodies[0]).toEqual({
-      items: [{ cardId: "card-199", quantity: 4 }],
+      items: [{ cardId: "card-299", quantity: 4 }],
     })
 
-    api.releasePageThree()
+    api.releasePageFour()
     await expect
       .poll(
         async () => {
           await scrollToBottom(page)
-          return page.getByText("250 of 250 cards loaded").count()
+          return page.getByText("350 of 350 cards loaded").count()
         },
         { timeout: 15_000 }
       )
@@ -232,26 +232,50 @@ test.describe("Collection entries infinite scroll", () => {
     // repeat one, so counts are not asserted), and the URL has no page.
     await expect(async () => {
       await scrollToBottom(page)
-      await expect(page.getByTitle("Card 249")).toBeVisible({ timeout: 1000 })
+      await expect(page.getByTitle("Card 349")).toBeVisible({ timeout: 1000 })
     }).toPass()
     const pages = api.entryRequests.map((url) => url.searchParams.get("page"))
-    expect(new Set(pages)).toEqual(new Set(["1", "2", "3"]))
+    expect(new Set(pages)).toEqual(new Set(["1", "2", "3", "4"]))
     expect(page.url()).not.toContain("page=")
 
-    // Scroll back to card 199: still 4, not the stale 3 from page 2's first read.
+    // Scroll back to card 199: still 4, not the stale 3 from page 3's first read.
     await page.evaluate(() => window.scrollTo(0, 0))
     await expect
       .poll(async () => {
         await scrollToBottom(page)
-        return page.getByText("250 of 250 cards loaded").count()
+        return page.getByText("350 of 350 cards loaded").count()
       })
       .toBe(1)
     await page.evaluate(() => {
-      const row = document.querySelector('[aria-posinset="200"]')
+      const row = document.querySelector('[aria-posinset="300"]')
       row?.scrollIntoView({ block: "center" })
     })
     await expect(
-      page.getByLabel("Quantity of Card 199", { exact: true })
+      page.getByLabel("Quantity of Card 299", { exact: true })
+    ).toHaveValue("4")
+
+    // Refocusing the tab refetches every loaded page; the saved value is the server's.
+    const before = api.entryRequests.length
+    await page.evaluate(() => {
+      const setVisibility = (state: string) => {
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          get: () => state,
+        })
+        document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+      }
+      setVisibility("hidden")
+      setVisibility("visible")
+    })
+    await expect
+      .poll(() => api.entryRequests.length - before, { timeout: 15_000 })
+      .toBeGreaterThanOrEqual(4)
+    await page.evaluate(() => {
+      const row = document.querySelector('[aria-posinset="300"]')
+      row?.scrollIntoView({ block: "center" })
+    })
+    await expect(
+      page.getByLabel("Quantity of Card 299", { exact: true })
     ).toHaveValue("4")
   })
 })
@@ -260,19 +284,19 @@ test.describe("Master Inventory infinite scroll", () => {
   test("loads every page on scroll without duplicates", async ({ page }) => {
     await stubApi(page)
     await navigateTo(page, "Master Inventory", "Master Inventory")
-    await expect(page.getByText("100 of 250 cards loaded")).toBeVisible()
+    await expect(page.getByText("100 of 350 cards loaded")).toBeVisible()
 
     await expect
       .poll(
         async () => {
           await scrollToBottom(page)
-          return page.getByText("250 of 250 cards loaded").count()
+          return page.getByText("350 of 350 cards loaded").count()
         },
         { timeout: 15_000 }
       )
       .toBe(1)
 
-    await expect(page.getByText("×250", { exact: true })).toBeVisible()
+    await expect(page.getByText("×350", { exact: true })).toBeVisible()
     expect(page.url()).not.toContain("page=")
     const names = await page
       .getByRole("listitem")

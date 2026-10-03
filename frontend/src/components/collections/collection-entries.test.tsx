@@ -289,52 +289,55 @@ describe("CollectionEntries", () => {
     loaded(4, 5)
   })
 
-  it("keeps a saved quantity after more pages append and after a focus refetch", async () => {
-    const gate = serveEntries([1, 2, 3, 4, 5, 6].map((n) => entry(n)))
-    gate.hold(3)
-    renderEntries()
-    await settle()
-    expect(quantityOf(3)).toBe("3")
-
-    // Card 3 is on page 2; page 3 is still loading.
-    setQuantityOf(3, 5)
-    await advance(QUANTITY_DEBOUNCE_MS)
-    expect(bulk).toHaveBeenCalledTimes(1)
-    expect(quantityOf(3)).toBe("5")
-
-    gate.release(3)
-    await settle()
-    loaded(6, 6)
-    expect(quantityOf(3)).toBe("5")
-    expect(quantityOf(5)).toBe("3")
-
-    await refocusTab()
-    expect(quantityOf(3)).toBe("5")
-    expect(quantityOf(1)).toBe("3")
-  })
-
-  it("keeps a card saved at 0 as a tile at 0 while pages append, and drops it on the next refetch", async () => {
+  it("keeps a quantity saved on page 3 after more pages append and after a focus refetch", async () => {
     const gate = serveEntries([1, 2, 3, 4, 5, 6, 7, 8].map((n) => entry(n)))
     gate.hold(4)
     renderEntries()
     await settle()
+    expect(quantityOf(5)).toBe("3")
 
-    setQuantityOf(4, 0)
+    // Card 5 is on page 3; page 4 is still loading.
+    setQuantityOf(5, 7)
     await advance(QUANTITY_DEBOUNCE_MS)
-    expect(quantityOf(4)).toBe("0")
+    expect(bulk).toHaveBeenCalledTimes(1)
+    expect(quantityOf(5)).toBe("7")
+
+    gate.release(4)
+    await settle()
+    loaded(8, 8)
+    expect(quantityOf(5)).toBe("7")
+    expect(quantityOf(7)).toBe("3")
+
+    await refocusTab()
+    expect(quantityOf(5)).toBe("7")
+    expect(quantityOf(1)).toBe("3")
+  })
+
+  it("keeps a card saved at 0 on page 3 as a tile at 0 while pages append, and drops it on the next refetch", async () => {
+    const gate = serveEntries(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => entry(n))
+    )
+    gate.hold(4)
+    renderEntries()
+    await settle()
+
+    setQuantityOf(5, 0)
+    await advance(QUANTITY_DEBOUNCE_MS)
+    expect(quantityOf(5)).toBe("0")
 
     gate.release(4)
     await settle()
     // The server shifted up by one, so page 4 starts after card 7: card 7 is
     // skipped until a refetch (accepted, see ticket 36).
     expect(tile(7)).toHaveLength(0)
-    expect(quantityOf(4)).toBe("0")
+    expect(quantityOf(5)).toBe("0")
     expect(quantityOf(3)).toBe("3")
+    expect(quantityOf(9)).toBe("3")
 
     await refocusTab()
-    expect(tile(4)).toHaveLength(0)
+    expect(tile(5)).toHaveLength(0)
     expect(tile(7)).toHaveLength(1)
-    loaded(7, 7)
+    loaded(9, 9)
   })
 
   it("keeps a declined card's error when a saved card in the same batch patches the cache", async () => {

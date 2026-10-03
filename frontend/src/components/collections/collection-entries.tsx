@@ -32,10 +32,10 @@ export function CollectionEntries({
   // A save writes the confirmed quantities into the cached pages instead of
   // refetching them: a refetch costs a request per loaded page and would drop
   // a card saved at 0, whose tile stays until the next real refetch.
-  const batch = useQuantityBatch(collectionId, (results) => {
-    void patchCollectionEntryQuantities(queryClient, collectionId, results)
+  const batch = useQuantityBatch(collectionId, async (results) => {
     invalidateMasterInventory(queryClient)
     invalidateCollectionCounts(queryClient, collectionId)
+    await patchCollectionEntryQuantities(queryClient, collectionId, results)
   })
 
   const query = useInfiniteCollectionEntries(

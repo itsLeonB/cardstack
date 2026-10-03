@@ -1,5 +1,6 @@
 // Shared plumbing for the lists that scroll on the API's `page` / `limit` /
 // `meta.total` contract: catalog search, Collection entries, Master Inventory.
+import type { CardSummary } from "@/generated/models"
 
 interface PageMeta {
   page: number
@@ -20,6 +21,12 @@ type FailedPage = {
 }
 
 export type ListPage<T> = OkPage<T> | FailedPage
+
+/** What `InfiniteCardResults` renders: the loaded cards and the server's total. */
+export interface CardList {
+  cards: CardSummary[]
+  total: number
+}
 
 const isOk = <T>(page: ListPage<T>): page is OkPage<T> => page.status === 200
 
