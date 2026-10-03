@@ -234,6 +234,15 @@ load EDGE_SECRET; load RATE_LIMIT
 set_hosts() { CDN_HOST="cdn.$DOMAIN"; API_HOST="api.$DOMAIN"; }
 set_hosts
 
+# bail MSG stops the wizard with a visible reason (the library's SKIPPED list is
+# only printed by finish, which an exit never reaches).
+bail() { warn "$1"; exit 1; }
+
+on_cloudflare() {
+  local ns; ns=$(dig +short NS "$DOMAIN" 2>/dev/null || true)
+  [[ "${ns,,}" == *cloudflare.com* ]]
+}
+
 # need VAR: a stage that depends on an earlier one stops with a clear message.
 need() {
   [[ -n "${!1}" ]] || { warn "$1 is missing: redo the earlier stage that records it."; exit 1; }
@@ -257,7 +266,7 @@ r2_put_test() {
   [[ "$status" == 200 ]] || { warn "R2 upload answered HTTP $status."; return 1; }
 }
 
-# hget URL HEADER prints "STATUS|header-value" for a HEAD-like GET (no redirects).
+# hget URL HEADER prints "STATUS|header-value" from a plain GET (no redirects followed).
 hget() {
   local out status value
   out=$(curl -sS -D - -o /dev/null -H 'Accept: image/avif,image/webp,*/*' "$1" 2>/dev/null | tr -d '\r') || true
@@ -267,14 +276,19 @@ hget() {
 }
 
 stage_zone() {
+  local old_domain="$DOMAIN" k
   while :; do
     ask DOMAIN "Your domain, e.g. example.com (no www, no https://):"
     [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$ ]] && break
     warn "That doesn't look like a bare domain name."
   done
+  if [[ -n "$old_domain" && "$DOMAIN" != "$old_domain" ]]; then
+    for k in bucket r2key images apidomain edgerule raterule railway vercel; do unmark_done "$k"; done
+    warn "Domain changed: every stage that depends on it will run again."
+  fi
   write_env DOMAIN "$DOMAIN"
   set_hosts
-  if dig +short NS "$DOMAIN" | grep -qi 'cloudflare.com'; then
+  if on_cloudflare; then
     say "$DOMAIN already uses Cloudflare nameservers. Nothing to do."
     return
   fi
@@ -283,18 +297,26 @@ stage_zone() {
   step "Cloudflare shows two nameservers. At your registrar, replace the domain's nameservers with them."
   warn "If the domain already serves a live site, review the DNS records Cloudflare imported before switching."
   step "Wait for Cloudflare to say the site is Active (minutes to hours)."
-  until dig +short NS "$DOMAIN" | grep -qi 'cloudflare.com'; do
+  until on_cloudflare; do
     warn "No Cloudflare nameservers visible for $DOMAIN yet."
-    confirm "Check again?" || { SKIPPED+=("$DOMAIN is not on Cloudflare yet: re-run this wizard once it is active"); exit 1; }
+    confirm "Check again?" || bail "$DOMAIN is not on Cloudflare yet: re-run this wizard once it is active."
   done
   say "Confirmed: $DOMAIN uses Cloudflare nameservers."
 }
 
 stage_bucket() {
+  local old_bucket="$R2_BUCKET" k
   open_url "$CF/?to=/:account/r2/overview"
-  step "Create bucket. Name it as you like (default suggestion: cardstack-images); leave location on Automatic."
-  ask R2_BUCKET "Bucket name:"
-  [[ -n "$R2_BUCKET" ]] || { warn "Bucket name is required."; exit 1; }
+  step "Create bucket. Name it as you like (for example cardstack-images); leave location on Automatic."
+  while :; do
+    ask R2_BUCKET "Bucket name:"
+    [[ -n "$R2_BUCKET" ]] && break
+    warn "A bucket name is required."
+  done
+  if [[ -n "$old_bucket" && "$R2_BUCKET" != "$old_bucket" ]]; then
+    for k in r2key images railway; do unmark_done "$k"; done
+    warn "Bucket changed: the access key, image check and Railway variables will run again."
+  fi
   write_env R2_BUCKET "$R2_BUCKET"
   step "Open the bucket → Settings → Custom Domains → Add: $CDN_HOST. Pick the $DOMAIN zone, then Connect domain."
   step "Leave 'Public Development URL' (r2.dev) disabled: the custom domain is the only public door."
@@ -316,7 +338,7 @@ stage_r2_key() {
       say "Upload works: the key can write to $R2_BUCKET."
       break
     fi
-    confirm "Enter the credentials again?" || exit 1
+    confirm "Enter the credentials again?" || bail "R2 credentials not verified: re-run this wizard."
   done
   write_env R2_ACCOUNT_ID "$R2_ACCOUNT_ID"
   write_env R2_ACCESS_KEY_ID "$R2_ACCESS_KEY_ID"
@@ -392,12 +414,13 @@ stage_edge_rule() {
   step "Deploy."
   note "Scoped to $API_HOST so the cdn host never gets the secret. Ticket 04 is what checks the header; nothing rejects requests yet."
   pause "Deployed? Press Enter."
+  SKIPPED+=("edge-secret header rule is unverified until ticket 04 ships: then confirm the raw Railway address rejects requests without it")
 }
 
 stage_rate_rule() {
   local n code body
   ask RATE_LIMIT "Requests allowed per IP per 10 seconds [100]:"
-  [[ "$RATE_LIMIT" =~ ^[0-9]+$ ]] || RATE_LIMIT=100
+  [[ "$RATE_LIMIT" =~ ^[0-9]+$ ]] || { warn "Not a number: using 100."; RATE_LIMIT=100; }
   write_env RATE_LIMIT "$RATE_LIMIT"
   say "The free plan allows ONE rate rule: period 10 s, action Block, duration 10 s, counted per IP."
   warn "Free-plan expressions can't match on hostname, so the rule covers the whole zone. Scope it to API paths so image loads on $CDN_HOST never count."
@@ -415,7 +438,7 @@ stage_rate_rule() {
     confirm "Run a burst of $n requests at https://$API_HOST/catalog/series now? Your IP will be blocked for ~10 s." || {
       SKIPPED+=("rate rule not burst-tested (re-run this wizard)"); return 1; }
     yes "https://$API_HOST/catalog/series" | head -n "$n" |
-      xargs -P 40 -n1 curl -s -o /dev/null -w '%{http_code}\n' | sort | uniq -c | sed 's/^/    /'
+      xargs -P 40 -n1 curl -s -o /dev/null -w '%{http_code}\n' | sort | uniq -c | sed 's/^/    /' || true
     body=$(curl -s "https://$API_HOST/catalog/series" || true)
     code=$(curl -s -o /dev/null -w '%{http_code}' "https://$API_HOST/catalog/series" || true)
     if [[ "$code" == 429 && "$body" == *1015* ]]; then
@@ -443,7 +466,7 @@ stage_railway() {
   step "Backend service → Variables → Raw Editor. Paste the block below at the end and Update Variables (this redeploys)."
   printf '\n%s\n\n' "$(printf '%s' "$block" | sed -E 's/^(R2_SECRET_ACCESS_KEY|EDGE_SECRET)=.*/\1=<secret>/')"
   if copy_clip "$block"; then
-    note "(the whole block, real secrets included, is on your clipboard)"
+    note "(the whole block, real secrets included, is on your clipboard: clear it after pasting)"
   else
     note "(no clipboard tool found: copy the real values from $CF_ENV)"
   fi
@@ -451,6 +474,7 @@ stage_railway() {
   step "If a PR environment is open, check its Variables: EDGE_SECRET and the R2 keys must not be there. Remove them if they are."
   note "Ticket 04 (and 05) must make the preview workflow unset them; recorded in ticket 02's comments."
   pause "Variables saved in Railway? Press Enter."
+  (( gate ))  # a withheld EDGE_SECRET leaves the stage open, so a re-run offers it again
 }
 
 stage_vercel() {
@@ -492,7 +516,7 @@ stage "Per-IP rate rule"
 if ! skip_done raterule; then stage_rate_rule && mark_done raterule; fi
 
 stage "Railway: R2 credentials, image base address, edge secret"
-if ! skip_done railway; then stage_railway; mark_done railway; fi
+if ! skip_done railway; then stage_railway && mark_done railway; fi
 
 stage "Vercel: image host"
 if ! skip_done vercel; then stage_vercel; mark_done vercel; fi
