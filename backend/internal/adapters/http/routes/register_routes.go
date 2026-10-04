@@ -23,11 +23,15 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	// is a 401 on both.
 	guestsAllowed := authpkg.Guard(api, services.Verifier, services.Users, true)
 	private := authpkg.Guard(api, services.Verifier, services.Users, false)
-	// Name search and facets are the costliest queries, so they get their own
-	// tighter buckets.
+	// Name-searchable card lists and facets are the costliest queries, so they
+	// get their own tighter buckets.
 	perUser := ratelimit.PerUser(api, limits, map[string]*ratelimit.Limiter{
-		"search-catalog-cards": limits.Search,
-		"list-catalog-facets":  limits.Facets,
+		handler.OpSearchCatalogCards:        limits.Search,
+		handler.OpListCollectionEntries:     limits.Search,
+		handler.OpListMasterInventory:       limits.Search,
+		handler.OpListCatalogFacets:         limits.Facets,
+		handler.OpListCollectionFacets:      limits.Facets,
+		handler.OpListMasterInventoryFacets: limits.Facets,
 	})
 
 	endpoint.RegisterAll(api, healthHandler.Routes())

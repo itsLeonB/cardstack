@@ -27,9 +27,9 @@ type Limits struct {
 
 func NewLimits(cfg config.RateLimit, now func() time.Time) Limits {
 	return Limits{
-		User:   NewLimiter(cfg.UserPerMinute, cfg.UserBurst),
-		Search: NewLimiter(cfg.SearchPerMinute, cfg.SearchBurst),
-		Facets: NewLimiter(cfg.FacetsPerMinute, cfg.FacetsBurst),
+		User:   NewLimiter(cfg.User.PerMinute, cfg.User.Burst),
+		Search: NewLimiter(cfg.Search.PerMinute, cfg.Search.Burst),
+		Facets: NewLimiter(cfg.Facets.PerMinute, cfg.Facets.Burst),
 		Now:    now,
 	}
 }

@@ -18,9 +18,9 @@ import (
 // Refills are one token a second (general) or every two seconds (search,
 // facets), so nothing comes back while a test runs unless it moves the clock.
 var tightLimits = config.RateLimit{
-	UserPerMinute: 60, UserBurst: 4,
-	SearchPerMinute: 30, SearchBurst: 2,
-	FacetsPerMinute: 30, FacetsBurst: 1,
+	User:   config.Tier{PerMinute: 60, Burst: 4},
+	Search: config.Tier{PerMinute: 30, Burst: 2},
+	Facets: config.Tier{PerMinute: 30, Burst: 1},
 }
 
 type fakeClock struct {
@@ -68,7 +68,7 @@ func TestRateLimit_SignedInCallerIsLimitedPerUser(t *testing.T) {
 	api, clock := newRateLimitedAPI(t)
 	auth := bearer(api.newUserToken(t))
 
-	for i := range tightLimits.UserBurst {
+	for i := range tightLimits.User.Burst {
 		assert.Equal(t, http.StatusOK, api.Get("/collections", auth).Code, "request %d is under the limit", i+1)
 	}
 	assertRateLimited(t, api.Get("/collections", auth), "1", "over the limit")
@@ -83,17 +83,17 @@ func TestRateLimit_SearchAndFacetsHaveTheirOwnTighterBuckets(t *testing.T) {
 	api, clock := newRateLimitedAPI(t)
 	auth := bearer(api.newUserToken(t))
 
-	for i := range tightLimits.SearchBurst {
+	for i := range tightLimits.Search.Burst {
 		assert.Equal(t, http.StatusOK, api.Get("/catalog/cards?name=rate", auth).Code, "search %d", i+1)
 	}
 	assertRateLimited(t, api.Get("/catalog/cards?name=rate", auth), "2", "search is over its own limit")
 
-	for i := range tightLimits.FacetsBurst {
+	for i := range tightLimits.Facets.Burst {
 		assert.Equal(t, http.StatusOK, api.Get("/catalog/facets?name=rate", auth).Code, "facets %d", i+1)
 	}
 	assertRateLimited(t, api.Get("/catalog/facets?name=rate", auth), "2", "facets are over their own limit")
 
-	for i := range tightLimits.UserBurst {
+	for i := range tightLimits.User.Burst {
 		assert.Equal(t, http.StatusOK, api.Get("/collections", auth).Code, "general request %d: search and facets did not spend it", i+1)
 	}
 
@@ -107,7 +107,7 @@ func TestRateLimit_UsersDoNotShareAnAllowance(t *testing.T) {
 	first := bearer(api.newUserToken(t))
 	second := bearer(api.newUserToken(t))
 
-	for range tightLimits.UserBurst {
+	for range tightLimits.User.Burst {
 		require.Equal(t, http.StatusOK, api.Get("/collections", first).Code)
 	}
 	assertRateLimited(t, api.Get("/collections", first), "1")
@@ -118,7 +118,19 @@ func TestRateLimit_UsersDoNotShareAnAllowance(t *testing.T) {
 func TestRateLimit_GuestsAreNotLimitedPerUser(t *testing.T) {
 	api, _ := newRateLimitedAPI(t)
 
-	for i := range tightLimits.UserBurst + tightLimits.SearchBurst + 1 {
+	for i := range tightLimits.User.Burst + tightLimits.Search.Burst + 1 {
 		assert.Equal(t, http.StatusOK, api.Get("/catalog/cards?name=rate").Code, "guest search %d", i+1)
 	}
+}
+
+func TestRateLimit_InventorySearchAndFacetsShareTheTighterBuckets(t *testing.T) {
+	api, _ := newRateLimitedAPI(t)
+	auth := bearer(api.newUserToken(t))
+
+	assert.Equal(t, http.StatusOK, api.Get("/inventory/cards?name=rate", auth).Code)
+	assert.Equal(t, http.StatusOK, api.Get("/catalog/cards?name=rate", auth).Code)
+	assertRateLimited(t, api.Get("/inventory/cards?name=rate", auth), "2", "inventory search spends the search bucket")
+
+	assert.Equal(t, http.StatusOK, api.Get("/inventory/cards/facets", auth).Code)
+	assertRateLimited(t, api.Get("/catalog/facets", auth), "2", "inventory facets spend the facets bucket")
 }

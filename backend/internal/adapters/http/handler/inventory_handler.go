@@ -209,12 +209,20 @@ func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
 	return h.inventorySvc.Remove(ctx, dto.InventoryEntryLookup{ProfileID: profileID, CollectionID: in.CollectionID, CardID: in.CardID})
 }
 
+// Operation IDs the router gives the tighter per-user rate-limit tiers.
+const (
+	OpListCollectionEntries     = "list-collection-entries"
+	OpListMasterInventory       = "list-master-inventory"
+	OpListMasterInventoryFacets = "list-master-inventory-facets"
+	OpListCollectionFacets      = "list-collection-facets"
+)
+
 // Routes sets Secured:true only as OpenAPI metadata; the router must pass
 // SessionGuard to RegisterAll.
 func (h *InventoryHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
 		endpoint.NewWithMeta(endpoint.EndpointWithMeta[listEntriesInput, []dto.InventoryItem, dto.PaginationMeta]{
-			OperationID: "list-collection-entries",
+			OperationID: OpListCollectionEntries,
 			Method:      http.MethodGet,
 			Path:        "/collections/{id}/entries",
 			Summary:     "Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters",
@@ -224,7 +232,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			HandlerFunc: h.list,
 		}),
 		endpoint.NewWithMeta(endpoint.EndpointWithMeta[masterInventoryInput, []dto.InventoryItem, dto.PaginationMeta]{
-			OperationID: "list-master-inventory",
+			OperationID: OpListMasterInventory,
 			Method:      http.MethodGet,
 			Path:        "/inventory/cards",
 			Summary:     "Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)",
@@ -234,7 +242,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			HandlerFunc: h.listMaster,
 		}),
 		endpoint.New(endpoint.Endpoint[masterFacetsInput, dto.CatalogFacets]{
-			OperationID: "list-master-inventory-facets",
+			OperationID: OpListMasterInventoryFacets,
 			Method:      http.MethodGet,
 			Path:        "/inventory/cards/facets",
 			Summary:     "List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)",
@@ -254,7 +262,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			HandlerFunc: h.listHoldings,
 		}),
 		endpoint.New(endpoint.Endpoint[listEntryFacetsInput, dto.CatalogFacets]{
-			OperationID: "list-collection-facets",
+			OperationID: OpListCollectionFacets,
 			Method:      http.MethodGet,
 			Path:        "/collections/{id}/facets",
 			Summary:     "List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)",

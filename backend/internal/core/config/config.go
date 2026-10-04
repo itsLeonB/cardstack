@@ -52,7 +52,7 @@ func Load() error {
 		errs = errors.Join(errs, err)
 	}
 
-	var rateLimit RateLimit
+	rateLimit := DefaultRateLimit()
 	if err := envconfig.Process(rateLimit.Prefix(), &rateLimit); err != nil {
 		errs = errors.Join(errs, err)
 	}

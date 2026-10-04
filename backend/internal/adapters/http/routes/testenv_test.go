@@ -60,12 +60,8 @@ type testAPI struct {
 func newTestAPI(t *testing.T) testAPI {
 	t.Helper()
 
-	const unreachable = 1_000_000
-	return newTestAPIWithLimits(t, ratelimit.NewLimits(config.RateLimit{
-		UserPerMinute: unreachable, UserBurst: unreachable,
-		SearchPerMinute: unreachable, SearchBurst: unreachable,
-		FacetsPerMinute: unreachable, FacetsBurst: unreachable,
-	}, time.Now))
+	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
+	return newTestAPIWithLimits(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now))
 }
 
 func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {

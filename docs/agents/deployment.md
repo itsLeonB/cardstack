@@ -53,7 +53,7 @@ Rollout order matters, because nothing enforces it. `preserve()` in `railway.ts`
 
 ## Backend per-user rate limits
 
-Signed-in callers are limited per user (keyed by their verified user id) inside the API, so one account gets one allowance from any number of addresses. Each tier is a token bucket: a caller may spend the burst at once and gets the per-minute number back each minute. Name search (`GET /catalog/cards`) and facets (`GET /catalog/facets`) have their own tighter tiers and do not spend the general one. Over a limit, the API answers 429 with a `Retry-After` header in whole seconds and a fixed body. Guests are not limited per user: the Cloudflare edge rule and the in-API per-IP backstop (100 requests a second, burst 200) cover them. The API refuses to boot with any of these set to zero or less.
+Signed-in callers are limited per user (keyed by their verified user id) inside the API, so one account gets one allowance from any number of addresses. Each tier is a token bucket: a caller may spend the burst at once and gets the per-minute number back each minute. The name-searchable card lists (`GET /catalog/cards`, `GET /inventory/cards`, `GET /collections/{id}/entries`) share a tighter search tier, and the three facets routes (`GET /catalog/facets`, `GET /inventory/cards/facets`, `GET /collections/{id}/facets`) share a tighter facets tier; neither spends the general one. Over a limit, the API answers 429 with a `Retry-After` header in whole seconds and a fixed body. Guests are not limited per user: the Cloudflare edge rule and the in-API per-IP backstop (100 requests a second, burst 200) cover them. The API refuses to boot with any of these set to zero or less.
 
 | Setting | Default |
 | --- | --- |
