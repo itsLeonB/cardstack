@@ -6,13 +6,13 @@
 
 **Blocked by:** 05. Real-world verification also needs ticket 02.
 
-**Status:** ready-for-agent
+**Status:** code, tests and docs are in; real-browser verification is still open. Neither a manual browser check nor an e2e covers the UI yet: it needs ticket 02's image host with Image Transformations enabled and `VITE_IMAGE_HOST` set, to confirm actual resizing, format negotiation and the redirect fallback.
 
-- [ ] A single image helper turns the API's image address into a sized address and a responsive source set: card tiles at 240 and 480 wide, the detail view at 720, Expansion Set covers at 128, with automatic format selection and a redirect to the original when the transformation allowance is exhausted.
-- [ ] Tiles, the detail view and Expansion Set covers use the helper and declare dimensions so layout does not shift.
-- [ ] An empty address, or an address not on the configured image host (local development, hosting not configured), is returned unchanged; an empty address shows the existing placeholder.
-- [ ] The placeholder still appears when an image fails to load.
-- [ ] Feature tests (generated client mocked) cover the sized, empty, off-host and load-error cases; the image-host setting is added to the frontend env example and the deployment doc.
-- [ ] Frontend build, type check, lint and tests pass. UI behavior in a real browser is verified manually or by the existing e2e layer, and the ticket says which.
+- [x] A single image helper turns the API's image address into a sized address and a responsive source set: card tiles at 240 and 480 wide, the detail view at 720, Expansion Set covers at 128, with automatic format selection and a redirect to the original when the transformation allowance is exhausted.
+- [x] Tiles, the detail view and Expansion Set covers use the helper and declare dimensions so layout does not shift.
+- [x] An empty address, or an address not on the configured image host (local development, hosting not configured), is returned unchanged; an empty address shows the existing placeholder.
+- [x] The placeholder still appears when an image fails to load.
+- [x] Feature tests (generated client mocked) cover the sized, empty, off-host and load-error cases; the image-host setting is added to the frontend env example and the deployment doc.
+- [ ] Frontend build, type check, lint and tests pass (they do). UI behavior in a real browser is verified manually or by the existing e2e layer, and the ticket says which.
 
 ## Comments

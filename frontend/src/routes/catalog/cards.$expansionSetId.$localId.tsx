@@ -77,7 +77,7 @@ function CardDetailPage() {
         </p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-[minmax(0,20rem)_1fr]">
-          <CardTile card={card} />
+          <CardTile card={card} imageVariant="detail" />
           <CardHoldings cardId={card.id} />
         </div>
       )}

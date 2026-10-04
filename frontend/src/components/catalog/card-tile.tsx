@@ -4,23 +4,37 @@ import { Link } from "@tanstack/react-router"
 import type { CardSummary } from "@/generated/models"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { imageSources } from "@/lib/image"
 
-/** One Card in a browse/search results grid: art, name, set/number, rarity, category, and tags. */
+// Intrinsic sizes match the requested widths at the card's 5:7 ratio, so layout is reserved before the image loads.
+const IMAGE_SIZE = {
+  tile: { variant: "cardTile", width: 240, height: 336 },
+  detail: { variant: "cardDetail", width: 720, height: 1008 },
+} as const
+
+/** One Card in a browse/search results grid: art, name, set/number, rarity, category, and tags. `imageVariant="detail"` asks for the larger image the detail view shows. */
 export function CardTile({
   card,
   control,
+  imageVariant = "tile",
 }: {
   card: CardSummary
   control?: ReactNode
+  imageVariant?: keyof typeof IMAGE_SIZE
 }) {
   const [imageFailed, setImageFailed] = useState(false)
+  const { variant, width, height } = IMAGE_SIZE[imageVariant]
+  const { src, srcSet } = imageSources(card.imageUrl, variant)
   const tags = card.tags ?? []
 
   return (
     <Card size="sm" className="h-full">
       {card.imageUrl && !imageFailed ? (
         <img
-          src={card.imageUrl}
+          src={src}
+          srcSet={srcSet}
+          width={width}
+          height={height}
           alt={card.name}
           loading="lazy"
           className="aspect-[5/7] w-full object-cover"
