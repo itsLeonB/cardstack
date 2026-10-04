@@ -22,6 +22,32 @@ ls /opt/pw-browsers                                                             
 Pin `frontend/package.json`'s `playwright` devDependency to that same version. `chromium.launch()` (default options) then finds and drives `/opt/pw-browsers/chromium-<revision>/chrome-linux/chrome` directly — no `executablePath` override needed once the installed version matches.
 
 
+## Frontend: end-to-end authentication (Playwright and Clerk)
+
+The e2e layer signs in through the real Clerk development instance (ADR-0015), never a stub of Clerk or of the API's identity endpoints. Two things in `frontend/e2e/support/clerk-auth.ts` do it, both on `@clerk/testing/playwright`: `clerkSetup()` runs once in `e2e/global-setup.ts` and fetches a Testing Token (it lets the run past Clerk's bot protection), and every signed-in spec calls `signInAsTestUser(page)`, which attaches that token to the page and redeems a one-time sign-in token minted for the test user, so the session is real and the API verifies its bearer token like any other. `sign-in.spec.ts` is the thin proof of the form itself: the happy path through Clerk's real sign-in form (`signInThroughForm`, also used by the two redirect-after-login specs in `auth.spec.ts`) and one key failure, a wrong password. Other specs only need a session, so they skip the form. API stubs (`page.route` on `/collections`, `/inventory`) stay where a spec needs deterministic data: the stubs answer, the real token authenticates.
+
+| Name | Kind | Where it comes from |
+| --- | --- | --- |
+| `CLERK_SECRET_KEY` | GitHub secret | The development instance's secret key (Clerk dashboard, API keys). Mints the Testing Token and the sign-in token. A production key (`sk_live_`) is refused by `clerkSetup`. |
+| `E2E_CLERK_USER_EMAIL` | GitHub secret | The dedicated test user's email, created in the development instance by `scripts/clerk-setup.sh` (a `+clerk_test` address, which never sends mail and accepts the code `424242`). |
+| `E2E_CLERK_USER_PASSWORD` | GitHub secret | That user's password, from the same wizard run. Only the form-based specs type it. |
+| `VITE_CLERK_PUBLISHABLE_KEY` | GitHub variable | The development instance's publishable key (public). `clerkSetup` derives the instance's Frontend API from it; the dev server bakes it into the app. `e2e.yml` falls back to the development instance's public key when the variable is absent. |
+
+`scripts/clerk-setup.sh` stores all four in GitHub and writes the local values (it keeps the secret key in `backend/.env`).
+
+**Skip behaviour.** Without all three secrets the tests tagged `@signed-in` (the sign-in specs and every spec that signs in) skip with the reason "Clerk sign-in e2e is not configured", and `global-setup.ts` does not call Clerk. The guest specs run exactly as before. This is what happens on fork and Dependabot pull requests, which GitHub gives no secrets: the E2E job still runs there for the guest specs (it falls back to placeholder Clerk values for the API), and only the sign-in specs skip. A run that has the secrets but a wrong one fails loudly in the global setup.
+
+**Run it locally.** Run the backend against a seeded Postgres as for any e2e run, and give the backend the same development instance (`CLERK_SECRET_KEY`, `CLERK_ISSUER` from `backend/.env.example`; `APP_CLIENT_URLS` must include `http://localhost:3000`). Then, in `frontend/`, put `VITE_CLERK_PUBLISHABLE_KEY`, `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD` and `CLERK_SECRET_KEY` in `.env` (`playwright.config.ts` loads it; real environment variables win) and run `bunx playwright test`. `--project=chromium-signed-in` runs only the signed-in specs, `--project=chromium` only the guest ones.
+
+**What needs what.**
+
+- Guest specs run without Clerk credentials, but the app only leaves its loading state once clerk-js loads, so they need the publishable key and a network path to Clerk.
+- Seeded backend (`backend/internal/adapters/db/postgres/testdata/e2e_seed.sql`, and the real API): `catalog-browse.spec.ts`, `catalog-search.spec.ts` and `breadcrumbs.spec.ts`. They assert the seed's Series, Expansion Sets and cards.
+- Stubbed data, no seed: `catalog-infinite-scroll.spec.ts` (guest), the signed-in suites of `app-shell`, `home`, `not-found`, `auth` and `inventory-infinite-scroll`. The signed-in ones still need the real Clerk instance, and the API running with the same instance so it accepts the token for the calls the specs do not stub.
+- Real Clerk instance, real API, no stub: `sign-in.spec.ts` (it opens Collections through the API) and the account-page step of `seo.spec.ts`.
+
+**No secret in artifacts.** Playwright records what a spec does, and the HTML report is uploaded when CI fails. A trace holds request headers (the session cookie and bearer token) and every action's arguments, and `fill()` prints its value in the step title and in failure messages. So the signed-in specs run in their own `chromium-signed-in` project with `trace: "off"` (select it by tagging the describe `SIGNED_IN_TAG`; the sign-in helpers throw in an untagged test), and the form helper types the email and password through `evaluate` instead of `fill()`. The remaining exposure is the test user's email in `clerk.signIn`'s own error text, and GitHub masks secret values in the job log. Never `console.log` the environment in a helper.
+
 ## Getting a local Postgres
 
 Repository tests run against a real Postgres per `docs/adr/0005-backend-tests-hit-real-postgres.md`, using the `DB_*` env vars from `backend/.env.example` (`localhost:5432`, user/password/db all `cardstack`). Whether you provision this yourself depends on the environment:

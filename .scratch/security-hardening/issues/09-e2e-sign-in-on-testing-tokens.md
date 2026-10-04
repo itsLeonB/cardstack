@@ -6,13 +6,35 @@
 
 **Blocked by:** 08, 01.
 
-**Status:** ready-for-agent
+**Status:** implemented, not yet run against real Clerk (see Implementation notes); needs one CI run with the three secrets set
 
-- [ ] A sign-in spec covers the happy path and one key failure (wrong password), not every branch.
+- [x] A sign-in spec covers the happy path and one key failure (wrong password), not every branch.
 - [ ] Existing specs that registered a user through the old form sign in through the new helper instead, and still pass.
-- [ ] CI provides the Clerk secret key and the test user's credentials from repository secrets, and the e2e job is skipped on fork pull requests.
-- [ ] No secret appears in the repo or logs.
-- [ ] The frontend testing doc describes how e2e authenticates and what secrets it needs.
-- [ ] The e2e specs that need a seeded backend are documented as such, and the ticket records which ones were actually run.
+- [x] CI provides the Clerk secret key and the test user's credentials from repository secrets, and the e2e job is skipped on fork pull requests.
+- [x] No secret appears in the repo or logs.
+- [x] The frontend testing doc describes how e2e authenticates and what secrets it needs.
+- [x] The e2e specs that need a seeded backend are documented as such, and the ticket records which ones were actually run.
 
 ## Comments
+
+### Implementation notes
+
+**What was built.** `@clerk/testing` is a devDependency. `frontend/e2e/global-setup.ts` calls `clerkSetup()` once (a no-op without credentials) and `frontend/e2e/support/clerk-auth.ts` holds the helpers: `signInAsTestUser(page)` (Testing Token on the page, then `clerk.signIn({ page, emailAddress })`, which redeems a one-time sign-in token minted with the secret key), `signInThroughForm(page, url, { password? })` (types into Clerk's real form) and `useSignedInSuite()` (skips without credentials). `e2e/sign-in.spec.ts` is the thin spec: sign in through the form and open Collections through the real API, and a wrong password (Clerk's error shown, no session: `/collections` still bounces to login). Every spec parked by ticket 08 (`app-shell`, `auth`, `home`, `not-found`, `seo`, `inventory-infinite-scroll`) is un-parked and signs in through the helpers; the `/auth/me` and `/auth/login` stubs and their comments are gone, and `inventory-infinite-scroll`'s preflight header list no longer names the removed CSRF header. The `/collections` and `/inventory` stubs stay where a spec needs deterministic data, and the real session token still authenticates. The pure credential check has a vitest unit test (`e2e/support/clerk-credentials.test.ts`; `vite.config.ts` now excludes only `e2e/**/*.spec.ts`, and `playwright.config.ts` has `testMatch: "**/*.spec.ts"` so the two runners do not pick up each other's files).
+
+**Decisions to know about.**
+
+- Programmatic sign-in uses the sign-in-token (`emailAddress`) form of `clerk.signIn`, not the `password` strategy. It needs the secret key and the email, never types the password, and is not affected by Clerk's verification steps (a new-device code, for example). Only the form-based specs (`sign-in.spec.ts` and the two redirect-after-login specs in `auth.spec.ts`) use `E2E_CLERK_USER_PASSWORD`. If the development instance has Client Trust (new-device email verification) enabled, those form specs would stop at a code prompt; the helper does not handle one, because I could not see the instance. The test user's `+clerk_test` address accepts the code `424242` if it turns out to be needed.
+- Publishable key: `clerkSetup` already reads `VITE_CLERK_PUBLISHABLE_KEY`; `global-setup.ts` passes it explicitly, so no `CLERK_PUBLISHABLE_KEY` mapping is needed.
+- Skipped on forks, read as: the E2E job keeps running on fork pull requests for the guest specs (ticket 08's PR 39 follow-up did this on purpose, and the spec's seam 4 says guest specs still run), and the sign-in specs skip there, because GitHub passes no secrets and the helpers skip when any of the three is empty. Skipping the whole job would have dropped the guest e2e coverage on forks. Dependabot pull requests behave the same.
+- Traces: `trace: "on-first-retry"` would record the session cookie and bearer token (request headers) and every action's arguments in a trace zip, and `fill()` prints its value in step titles and failure messages, all of which reach the `playwright-report` artifact that CI uploads on failure. So signed-in describes are tagged `@signed-in` and run in a second Playwright project, `chromium-signed-in`, with `trace: "off"` (trace is a worker option, so a describe cannot switch it off); the guest project keeps `on-first-retry` and excludes the tag. The sign-in helpers throw in an untagged test. The email and password are typed through `evaluate`, not `fill()`. The dev server started by Playwright gets the three e2e variables blanked. Residual: `clerk.signIn`'s own error text includes the test user's email, and GitHub masks secret values in the job log. No `console.*` call is added.
+- Assertions that used to compare against `ada@example.com` now check that the shell shows the test user's email without printing it in a failure message (`expectShowsTestUserEmail`).
+- `.env.example` gained `CLERK_SECRET_KEY` (the wizard keeps it in `backend/.env`; `playwright.config.ts` loads `frontend/.env` with `process.loadEnvFile()` so a local run can find all four values).
+- A convention bullet was added to `docs/agents/conventions/frontend.md` (Testing); `docs/agents/testing.md` has a new "End-to-end authentication" section with the secrets, local run, skip behaviour and which specs need what.
+
+**Which specs need what.** Seeded backend (`e2e_seed.sql`): `catalog-browse`, `catalog-search`, `breadcrumbs`. Stubbed data, no seed: `catalog-infinite-scroll` (guest) and the signed-in suites of `app-shell`, `home`, `not-found`, `auth` and `inventory-infinite-scroll`. Real Clerk instance plus the API accepting its token: all signed-in specs, with `sign-in.spec.ts` and the account step of `seo.spec.ts` also calling the real API unstubbed.
+
+**What was actually run here, and what was not.**
+
+- Run and passing: `bun install`, `bun run lint`, `bun run check`, `bun run typecheck`, `bun run test` (47 files, 346 tests, including the new credential unit test), `bun run build` (with the public fallback key), `yamllint .github/workflows/e2e.yml`, `scripts/check-conventions.sh`. The e2e files are covered by typecheck, lint and Prettier (`@clerk/testing`'s types import `@playwright/test`, which this repo deliberately does not install, so `skipLibCheck` types its `page` parameters loosely; its runtime never imports it and works with the `playwright/test` runner).
+- Run: `bunx playwright test --list` (73 tests in 11 files, 20 in `chromium-signed-in`) and `--project=chromium-signed-in` with no secrets: all 20 skipped with the reason, none failed. With a fake secret key set, the global setup failed loudly with Clerk's `Unauthorized` and printed no secret. I also checked in headless Chromium that Playwright fulfils a stub's CORS preflight itself, so the existing stubs keep working now that requests carry an `Authorization` header.
+- NOT run: none of the real sign-in specs, since no Clerk secret key or test user exists in this environment: `sign-in.spec.ts`, and every signed-in spec of `app-shell`, `auth`, `home`, `not-found`, `seo` and `inventory-infinite-scroll`. They have never executed against real Clerk and may need selector or timing fixes on the first CI run (Clerk's field labels, the "Password is incorrect" text, whether the password is on the same step as the email, the account page's content). Also NOT run: the guest e2e specs. In this sandbox the app never leaves its loading state because Clerk's browser bundle cannot be loaded (the same limit ticket 08 recorded), so even unchanged guest specs fail here (11 of 42 passed in one run of six spec files); the seeded-backend specs were not tried, as no backend or database was started. The e2e workflow change is validated by yamllint only, not by a CI run, and the "Not verified" list in ticket 08 (Clerk's rendered pages, Google sign-in, sign-out, real token expiry) is still open until the first CI run with secrets.
