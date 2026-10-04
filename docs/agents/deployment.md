@@ -21,7 +21,7 @@ Vite bakes `VITE_*` vars into the bundle at build time, so a changed value needs
 
 ## Backend sign-in (Clerk)
 
-The API authenticates only by an `Authorization: Bearer` Clerk session token (ADR-0015); it holds no credentials, sessions or cookies. It verifies the signature against the instance's keys (fetched with the secret key and cached), the expiry, the issuer, and that the token's authorized party is one of the frontend origins. It refuses to boot without the secret key and issuer, and rejects every token (logging why) while no frontend origin is configured. Local values: `backend/.env.example`.
+The API authenticates only by an `Authorization: Bearer` Clerk session token (ADR-0015); it holds no credentials, sessions or cookies. It verifies the signature against the instance's keys (fetched with the secret key and cached), the expiry, the issuer, and that the token's authorized party is one of the frontend origins. The API refuses to boot without the secret key and issuer (the migration job and the ingesters do not need them), and rejects every token (logging why) while no frontend origin is configured. Local values: `backend/.env.example`.
 
 - `CLERK_SECRET_KEY`: the instance's secret key, used to fetch its signing keys. Keep it out of the frontend.
 - `CLERK_ISSUER`: the instance's Frontend API URL, the `iss` claim of its tokens (for example `https://example.clerk.accounts.dev`). It is also the base64 payload of the publishable key, which is how the preview and end-to-end workflows derive it.

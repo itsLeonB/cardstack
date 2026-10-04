@@ -17,11 +17,7 @@ func InitializeProviders() (*Providers, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	tokenVerifier, err := ProvideTokenVerifier()
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
+	tokenVerifier := ProvideTokenVerifier()
 	userRepository := ProvideUserRepository(dataSources)
 	identityCache := ProvideIdentityCache()
 	userService := ProvideUserService(dataSources, userRepository, identityCache)

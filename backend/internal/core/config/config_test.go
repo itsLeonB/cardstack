@@ -20,6 +20,13 @@ func TestClerkEnvVarNames(t *testing.T) {
 	assert.Equal(t, "https://example.clerk.accounts.dev", clerk.Issuer)
 }
 
+func TestClerk_ValidateClerk_NeedsSecretKeyAndIssuer(t *testing.T) {
+	assert.NoError(t, Clerk{SecretKey: "sk", Issuer: "https://x.clerk.accounts.dev"}.ValidateClerk())
+	assert.Error(t, Clerk{Issuer: "https://x.clerk.accounts.dev"}.ValidateClerk())
+	assert.Error(t, Clerk{SecretKey: "sk"}.ValidateClerk())
+	assert.Error(t, Clerk{}.ValidateClerk())
+}
+
 func TestImageAndR2EnvVarNames(t *testing.T) {
 	t.Setenv("IMAGE_BASE_URL", "https://img.example.test")
 	t.Setenv("R2_ACCOUNT_ID", "acct")
