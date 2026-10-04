@@ -2,7 +2,10 @@
 // the huma.Config and the Envelope response wrapper.
 package httpapi
 
-import "github.com/danielgtaylor/huma/v2"
+import (
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/gin-gonic/gin"
+)
 
 // NewConfig builds the huma.Config used to construct the huma.API bound to
 // the gin engine root.
@@ -20,7 +23,7 @@ import "github.com/danielgtaylor/huma/v2"
 //
 // DocsPath and OpenAPIPath are left at their defaults ("/docs",
 // "/openapi.json"/"/openapi.yaml") so Huma auto-mounts docs + spec at the
-// engine root, unauthenticated.
+// engine root, unauthenticated. NewServerConfig turns that off in production.
 //
 // CookieAuth is registered as the API's one security scheme. Ticket 01
 // scaffolded a placeholder "BearerAuth" (type: http, scheme: bearer) before
@@ -47,5 +50,19 @@ func NewConfig() huma.Config {
 		Name: "access_token",
 	}
 
+	return cfg
+}
+
+// NewServerConfig is NewConfig for a running server: in production
+// (gin.ReleaseMode, the only mode APP_ENV selects there) the docs page and
+// the OpenAPI endpoints are not mounted, so the API does not advertise its
+// own surface. cmd/genspec reads the spec from the huma.API directly, so the
+// committed openapi.json and frontend code generation are unaffected.
+func NewServerConfig(env string) huma.Config {
+	cfg := NewConfig()
+	if env == gin.ReleaseMode {
+		cfg.DocsPath = ""
+		cfg.OpenAPIPath = ""
+	}
 	return cfg
 }

@@ -10,6 +10,16 @@ import * as zod from 'zod';
 /**
  * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag
  */
+export const searchCatalogCardsQueryNameMax = 64;
+
+export const searchCatalogCardsQueryExpansionSetIdMax = 20;
+
+export const searchCatalogCardsQueryRarityIdMax = 20;
+
+export const searchCatalogCardsQueryCategoryMax = 20;
+
+export const searchCatalogCardsQueryTagMax = 20;
+
 export const searchCatalogCardsQueryPageDefault = 1;
 
 export const searchCatalogCardsQueryLimitDefault = 24;
@@ -18,12 +28,12 @@ export const searchCatalogCardsQueryLimitMax = 100;
 
 
 export const SearchCatalogCardsQueryParams = zod.object({
-  "name": zod.string().optional().describe('Case-insensitive substring match on the Card\'s name.'),
-  "expansionSetId": zod.array(zod.string()).optional().describe('Only Cards in any of these Expansion Sets (repeatable).'),
+  "name": zod.string().max(searchCatalogCardsQueryNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
+  "expansionSetId": zod.array(zod.string()).max(searchCatalogCardsQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
   "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
-  "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
-  "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
-  "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).'),
+  "rarityId": zod.array(zod.string()).max(searchCatalogCardsQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
+  "category": zod.array(zod.string()).max(searchCatalogCardsQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).max(searchCatalogCardsQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).'),
   "page": zod.int().min(1).default(searchCatalogCardsQueryPageDefault).describe('1-indexed page number.'),
   "limit": zod.int().min(1).max(searchCatalogCardsQueryLimitMax).default(searchCatalogCardsQueryLimitDefault).describe('Page size.')
 })
@@ -67,13 +77,25 @@ export const ListCatalogCategoriesResponse = zod.object({
 /**
  * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)
  */
+export const listCatalogFacetsQueryNameMax = 64;
+
+export const listCatalogFacetsQueryExpansionSetIdMax = 20;
+
+export const listCatalogFacetsQueryRarityIdMax = 20;
+
+export const listCatalogFacetsQueryCategoryMax = 20;
+
+export const listCatalogFacetsQueryTagMax = 20;
+
+
+
 export const ListCatalogFacetsQueryParams = zod.object({
-  "name": zod.string().optional().describe('Case-insensitive substring match on the Card\'s name.'),
-  "expansionSetId": zod.array(zod.string()).optional().describe('Only Cards in any of these Expansion Sets (repeatable).'),
+  "name": zod.string().max(listCatalogFacetsQueryNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
+  "expansionSetId": zod.array(zod.string()).max(listCatalogFacetsQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
   "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
-  "rarityId": zod.array(zod.string()).optional().describe('Only Cards with any of these Rarities (repeatable).'),
-  "category": zod.array(zod.string()).optional().describe('Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).'),
-  "tag": zod.array(zod.string()).optional().describe('Only Cards carrying any of these tags (repeatable).')
+  "rarityId": zod.array(zod.string()).max(listCatalogFacetsQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
+  "category": zod.array(zod.string()).max(listCatalogFacetsQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).max(listCatalogFacetsQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).')
 })
 
 export const ListCatalogFacetsResponse = zod.object({

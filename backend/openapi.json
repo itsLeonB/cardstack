@@ -1143,25 +1143,27 @@
         "operationId": "search-catalog-cards",
         "parameters": [
           {
-            "description": "Case-insensitive substring match on the Card's name.",
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
             "explode": false,
             "in": "query",
             "name": "name",
             "schema": {
-              "description": "Case-insensitive substring match on the Card's name.",
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
               "type": "string"
             }
           },
           {
-            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1179,15 +1181,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these Rarities (repeatable).",
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with any of these Rarities (repeatable).",
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1195,15 +1198,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
             "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1211,15 +1215,16 @@
             }
           },
           {
-            "description": "Only Cards carrying any of these tags (repeatable).",
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying any of these tags (repeatable).",
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1326,25 +1331,27 @@
         "operationId": "list-catalog-facets",
         "parameters": [
           {
-            "description": "Case-insensitive substring match on the Card's name.",
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
             "explode": false,
             "in": "query",
             "name": "name",
             "schema": {
-              "description": "Case-insensitive substring match on the Card's name.",
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
               "type": "string"
             }
           },
           {
-            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1362,15 +1369,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these Rarities (repeatable).",
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with any of these Rarities (repeatable).",
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1378,15 +1386,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
             "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1394,15 +1403,16 @@
             }
           },
           {
-            "description": "Only Cards carrying any of these tags (repeatable).",
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying any of these tags (repeatable).",
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1793,25 +1803,27 @@
             }
           },
           {
-            "description": "Case-insensitive substring match on the Card's name.",
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
             "explode": false,
             "in": "query",
             "name": "name",
             "schema": {
-              "description": "Case-insensitive substring match on the Card's name.",
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
               "type": "string"
             }
           },
           {
-            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1829,15 +1841,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these Rarities (repeatable).",
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with any of these Rarities (repeatable).",
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1845,15 +1858,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
             "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -1861,15 +1875,16 @@
             }
           },
           {
-            "description": "Only Cards carrying any of these tags (repeatable).",
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying any of these tags (repeatable).",
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2198,25 +2213,27 @@
             }
           },
           {
-            "description": "Case-insensitive substring match on the Card's name.",
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
             "explode": false,
             "in": "query",
             "name": "name",
             "schema": {
-              "description": "Case-insensitive substring match on the Card's name.",
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
               "type": "string"
             }
           },
           {
-            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2234,15 +2251,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these Rarities (repeatable).",
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with any of these Rarities (repeatable).",
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2250,15 +2268,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
             "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2266,15 +2285,16 @@
             }
           },
           {
-            "description": "Only Cards carrying any of these tags (repeatable).",
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying any of these tags (repeatable).",
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2351,25 +2371,27 @@
         "operationId": "list-master-inventory",
         "parameters": [
           {
-            "description": "Case-insensitive substring match on the Card's name.",
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
             "explode": false,
             "in": "query",
             "name": "name",
             "schema": {
-              "description": "Case-insensitive substring match on the Card's name.",
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
               "type": "string"
             }
           },
           {
-            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2387,15 +2409,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these Rarities (repeatable).",
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with any of these Rarities (repeatable).",
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2403,15 +2426,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
             "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2419,15 +2443,16 @@
             }
           },
           {
-            "description": "Only Cards carrying any of these tags (repeatable).",
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying any of these tags (repeatable).",
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2517,25 +2542,27 @@
         "operationId": "list-master-inventory-facets",
         "parameters": [
           {
-            "description": "Case-insensitive substring match on the Card's name.",
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
             "explode": false,
             "in": "query",
             "name": "name",
             "schema": {
-              "description": "Case-insensitive substring match on the Card's name.",
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
               "type": "string"
             }
           },
           {
-            "description": "Only Cards in any of these Expansion Sets (repeatable).",
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "expansionSetId",
             "schema": {
-              "description": "Only Cards in any of these Expansion Sets (repeatable).",
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2553,15 +2580,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these Rarities (repeatable).",
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "rarityId",
             "schema": {
-              "description": "Only Cards with any of these Rarities (repeatable).",
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2569,15 +2597,16 @@
             }
           },
           {
-            "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
             "explode": true,
             "in": "query",
             "name": "category",
             "schema": {
-              "description": "Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).",
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"
@@ -2585,15 +2614,16 @@
             }
           },
           {
-            "description": "Only Cards carrying any of these tags (repeatable).",
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
             "explode": true,
             "in": "query",
             "name": "tag",
             "schema": {
-              "description": "Only Cards carrying any of these tags (repeatable).",
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
               "items": {
                 "type": "string"
               },
+              "maxItems": 20,
               "type": [
                 "array",
                 "null"

@@ -165,3 +165,19 @@ func TestInventoryHandler_ListMasterFacets_MissingSession(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, api.Get("/inventory/cards/facets").Code)
 }
+
+func TestInventoryHandler_BoundsSearchInput(t *testing.T) {
+	collection := "/collections/" + uuid.NewString()
+	paths := []string{"/inventory/cards", "/inventory/cards/facets", collection + "/entries", collection + "/facets"}
+
+	for _, path := range paths {
+		for param, query := range oversizedFilterQueries() {
+			t.Run(path+" "+param, func(t *testing.T) {
+				_, api, _ := newTestInventoryHandler(t, true)
+
+				resp := api.Get(path + "?" + query)
+				assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+			})
+		}
+	}
+}
