@@ -29,7 +29,7 @@ type Services struct {
 // addresses from IMAGE_BASE_URL (docs/adr/0016). An unset base address yields
 // empty image addresses, never source addresses.
 func ProvideImageHost() mapper.ImageHost {
-	return mapper.NewImageHost(config.Global.Image.BaseURL)
+	return mapper.NewImageHost(config.Global.BaseURL)
 }
 
 // ProvideCatalogService builds the catalog service over ds's DB. It's a

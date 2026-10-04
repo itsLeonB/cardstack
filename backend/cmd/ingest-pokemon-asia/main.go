@@ -62,7 +62,7 @@ func main() {
 	// A nil interface (not a nil *R2Store) is what tells the ingester that
 	// image hosting is off.
 	var store corestore.ObjectStore
-	if config.Global.R2.Configured() {
+	if config.Global.Configured() {
 		store = objectstore.NewR2Store(config.Global.R2)
 	}
 	ingester := pokemonasia.NewIngester(providers.Gorm, store)

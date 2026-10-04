@@ -28,7 +28,7 @@ func main() {
 	if err := config.Load(); err != nil {
 		logger.Fatal(err)
 	}
-	if !config.Global.R2.Configured() {
+	if !config.Global.Configured() {
 		logger.Fatal("R2 is not configured: set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET")
 	}
 
