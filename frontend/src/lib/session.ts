@@ -1,103 +1,97 @@
-import { useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
+import { useClerk, useUser } from "@clerk/react"
 import type { QueryClient } from "@tanstack/react-query"
-import {
-  getGetCurrentUserQueryKey,
-  useGetCurrentUser,
-  useLogin,
-  useLogout,
-  useRegister,
-} from "@/generated/endpoints/auth/auth"
-import type { MeResponse } from "@/generated/models"
-import { setCsrfToken } from "./http"
+import { toast } from "sonner"
+import { LOGIN_PATH } from "./auth-paths"
+import { rearmAuthLost, reportAuthLost } from "./http"
 
-// GET /auth/me never throws on a 401 (the fetch mutator resolves for every
-// HTTP status), so an unauthenticated visitor reads as an ordinary
-// `status: 401` response rather than a thrown query error/toast. A 5-minute
-// staleTime avoids re-probing on every render, and retry is off because
-// retrying a 401 can't turn it into a 200.
-const SESSION_STALE_TIME = 5 * 60 * 1000
+export interface SessionUser {
+  id: string
+  /** The account's full name, absent for plain email sign-ups. */
+  name: string | null
+  email: string | null
+}
 
 /**
- * Wraps `GET /auth/me` as the single source of truth for client-side auth
- * state, since the real session cookies are HttpOnly and unreadable by JS.
+ * Clerk-derived auth state: the single source of truth for the shell and for
+ * public pages gating features on `isAuthenticated`. `isLoading` is true until
+ * Clerk has loaded, which is when "signed out" cannot be told from "not known yet".
  */
 export function useSession() {
-  const query = useGetCurrentUser({
-    query: {
-      staleTime: SESSION_STALE_TIME,
-      retry: false,
-    },
-  })
+  const { isLoaded, isSignedIn, user } = useUser()
+  const isAuthenticated = isLoaded && isSignedIn === true
 
-  const response = query.data
-  const isAuthenticated = response?.status === 200
-  const user: MeResponse | null =
-    response && response.status === 200 ? response.data.data : null
+  const sessionUser: SessionUser | null =
+    isAuthenticated && user
+      ? {
+          id: user.id,
+          name: user.fullName,
+          email: user.primaryEmailAddress?.emailAddress ?? null,
+        }
+      : null
 
-  return {
-    user,
-    isAuthenticated,
-    isLoading: query.isPending,
-    query,
-  }
+  return { user: sessionUser, isAuthenticated, isLoading: !isLoaded }
 }
 
 // Routes read via ensureQueryData, so any user-scoped entry left in the cache
-// would be served to the next user who signs in without a page reload. Drop
-// everything except the session query, which is refetched instead.
-//
-// Returned so a mutation's `onSuccess` can await it: the caller's own
-// `onSuccess` then runs against a settled session, and a `requireAuth` guard
-// triggered by an immediate redirect (login -> the page the user wanted) can't
-// read the stale pre-login 401 from the cache. Exported too, because a failed
-// refresh has to drop the same dead session before sending the user to login.
+// would be served to the next user who signs in (or to the guest after a
+// sign-out) without a page reload. Dropping everything is right: the app has
+// no query that outlives a session.
 export function resetCache(queryClient: QueryClient) {
-  const sessionKey = getGetCurrentUserQueryKey()
-  queryClient.removeQueries({
-    predicate: (query) => query.queryKey[0] !== sessionKey[0],
-  })
-  // resetQueries (not invalidate) drops the old data, so a failed refetch
-  // can't leave a stale 200/401 for the route guards to trust.
-  return queryClient.resetQueries({ queryKey: sessionKey })
+  queryClient.removeQueries()
 }
 
-/** Login mutation that refreshes the session query once cookies are set. */
-export function useLoginMutation() {
-  const queryClient = useQueryClient()
+// Set by `useSignOut` so the sign-out it asked for is not mistaken for a session
+// Clerk lost; the next sign-out transition consumes it. Cleared if Clerk fails.
+let deliberateSignOut = false
 
-  return useLogin({
-    mutation: {
-      onSuccess: (response) => {
-        if (response.status === 200) {
-          // The csrf_token cookie is on the backend's origin, not readable
-          // by this page's JS once frontend/backend are cross-site (Vercel/
-          // Railway) — the response body is the only place this page can
-          // actually get it from. See http.ts's setCsrfToken doc comment.
-          setCsrfToken(response.data.data.csrfToken ?? null)
-          return resetCache(queryClient)
-        }
-      },
-    },
-  })
+/**
+ * What a change of Clerk session (sign-in, sign-out, another account) does to
+ * the app, wherever it came from, including another tab: drop the old
+ * session's data, and re-arm the lost-session notice once a new session
+ * exists. A session that vanished without our asking (ended elsewhere,
+ * revoked) while a private page is mounted is announced like any lost
+ * session, which moves the user to sign-in; a guest-only change is not.
+ */
+export function createSessionChangeHandler(
+  queryClient: QueryClient,
+  isOnPrivatePage: () => boolean
+) {
+  return (current: string | null, previous: string | null) => {
+    resetCache(queryClient)
+    if (current) {
+      rearmAuthLost()
+      return
+    }
+    const asked = deliberateSignOut
+    deliberateSignOut = false
+    if (!asked && previous && isOnPrivatePage()) reportAuthLost()
+  }
 }
 
-/** Register mutation. Registration alone doesn't establish a session. */
-export function useRegisterMutation() {
-  return useRegister()
-}
+export const LOGOUT_FAILED = "Could not log out. You are still signed in."
 
-/** Logout mutation that clears the session query once the backend confirms. */
-export function useLogoutMutation() {
-  const queryClient = useQueryClient()
+/**
+ * Ends the Clerk session and leaves for the login page. A failure toasts
+ * instead of navigating, since the user is still signed in. The query cache is
+ * dropped by the session-change handler rather than here.
+ */
+export function useSignOut() {
+  const { signOut } = useClerk()
+  const [isPending, setIsPending] = useState(false)
 
-  return useLogout({
-    mutation: {
-      onSuccess: (response) => {
-        if (response.status === 204) {
-          setCsrfToken(null)
-          return resetCache(queryClient)
-        }
-      },
-    },
-  })
+  async function handleSignOut() {
+    setIsPending(true)
+    deliberateSignOut = true
+    try {
+      await signOut({ redirectUrl: LOGIN_PATH })
+    } catch {
+      deliberateSignOut = false
+      toast.error(LOGOUT_FAILED)
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return { signOut: handleSignOut, isPending }
 }

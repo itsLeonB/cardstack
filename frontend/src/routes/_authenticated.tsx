@@ -9,6 +9,9 @@ import { requireAuth } from "@/lib/route-guard"
  */
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: requireAuth,
+  // Clerk's state exists only in the browser (SPA); a server render of a
+  // private route would have no way to run the guard.
+  ssr: false,
   head: () => ({ meta: [NOINDEX_META] }),
   component: () => <Outlet />,
 })

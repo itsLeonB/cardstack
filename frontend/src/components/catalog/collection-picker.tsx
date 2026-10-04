@@ -13,7 +13,7 @@ export function useCatalogCollection(
   selectedId: string | undefined,
   onSelect: (id: string | undefined) => void
 ) {
-  const { isAuthenticated, isLoading, query: session } = useSession()
+  const { isAuthenticated, isLoading } = useSession()
   const query = useListCollections({ query: { enabled: isAuthenticated } })
   const collections =
     query.data?.status === 200 ? (query.data.data.data ?? []) : []
@@ -21,12 +21,11 @@ export function useCatalogCollection(
   const known = collections.some((collection) => collection.id === selectedId)
 
   // Only definitive answers clear the selection: not loading, 5xx or network errors.
-  const sessionStatus = session.data?.status
   const listStatus = query.data?.status
   const denied = (status?: number) => status === 401 || status === 403
   const invalid =
     selectedId !== undefined &&
-    (denied(sessionStatus) ||
+    ((!isLoading && !isAuthenticated) ||
       denied(listStatus) ||
       listStatus === 404 ||
       (loaded && !known))

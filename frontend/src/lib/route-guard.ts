@@ -1,25 +1,10 @@
 import { redirect } from "@tanstack/react-router"
 import { z } from "zod"
-import { CancelledError } from "@tanstack/react-query"
-import type { QueryClient } from "@tanstack/react-query"
-import { getGetCurrentUserQueryOptions } from "@/generated/endpoints/auth/auth"
-
-// In dev, React StrictMode mounts and unmounts the header's `useSession`
-// observer while this probe is still in flight; with no observer left, query
-// cancels the fetch. Retrying once starts a fresh fetch against the settled mount.
-async function probeSession(queryClient: QueryClient) {
-  const probe = () =>
-    queryClient.ensureQueryData(getGetCurrentUserQueryOptions())
-  try {
-    return await probe()
-  } catch (error) {
-    if (error instanceof CancelledError) return probe()
-    throw error
-  }
-}
+import { LOGIN_PATH } from "./auth-paths"
+import type { AuthGate } from "./clerk-auth"
 
 interface GuardContext {
-  context: { queryClient: QueryClient }
+  context: { auth: AuthGate }
 }
 
 interface RequireAuthArgs extends GuardContext {
@@ -43,45 +28,50 @@ export function isSameOriginPath(path: string | undefined): path is string {
 }
 
 // `.catch`: a rejected target is dropped, so login and register still work.
-export const redirectSchema = z
+// `redirect` only ever needs to point back into this app (`requireAuth` sets it
+// from the router's own location), so it is restricted to a same-origin path.
+// Left unvalidated, a crafted `/auth/login?redirect=` link could send a
+// successful sign-in to an attacker controlled destination (open redirect).
+const redirectSchema = z
   .string()
   .refine(isSameOriginPath)
   .optional()
   .catch(undefined)
 
+/** `validateSearch` for login and register. */
+export const redirectSearchSchema = z.object({ redirect: redirectSchema })
+
+/** Carries a validated `redirect` target across the login/register switch link. */
+export function withRedirect(path: string, target: string | undefined) {
+  return target ? `${path}?${new URLSearchParams({ redirect: target })}` : path
+}
+
 /**
- * Reusable `beforeLoad` guard for protected routes. Probes `GET /auth/me`
- * through the router's queryClient (so it shares the cache with
- * `useSession()`) and redirects to `/auth/login` when the session isn't
- * authenticated, preserving the attempted path and query string as a
- * relative `redirect` search param (`location.href` can be absolute, which
- * the login page's same-origin check rejects).
+ * Reusable `beforeLoad` guard for protected routes. Waits for Clerk to load
+ * (through the router context's `auth`) so a reload on a protected page never
+ * bounces a signed-in user, then redirects to `/auth/login` when nobody is
+ * signed in, preserving the attempted path and query string as a relative
+ * `redirect` search param (`location.href` can be absolute, which the login
+ * page's same-origin check rejects).
  *
  * Attach directly to a protected route's `beforeLoad`, or to a shared
  * pathless layout route (e.g. `_authenticated.tsx`) that groups several.
  */
 export async function requireAuth({ context, location }: RequireAuthArgs) {
-  const response = await probeSession(context.queryClient)
-
-  if (response.status !== 200) {
+  if (!(await context.auth.isSignedIn())) {
     throw redirect({
-      to: "/auth/login",
+      to: LOGIN_PATH,
       search: { redirect: location.pathname + location.searchStr },
     })
   }
-
-  return { user: response.data.data }
 }
 
 /**
  * `beforeLoad` guard for login and register: signed-in users are sent to `/`.
- * Anything but a 200 (or a failed probe, e.g. backend unreachable) leaves the
- * forms reachable, since a guest must never be locked out of them.
+ * Like `requireAuth` it waits for Clerk to load; a guest is never locked out.
  */
 export async function requireGuest({ context }: GuardContext) {
-  const response = await probeSession(context.queryClient).catch(() => null)
-
-  if (response?.status === 200) {
+  if (await context.auth.isSignedIn()) {
     throw redirect({ to: "/" })
   }
 }

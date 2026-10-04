@@ -21,9 +21,10 @@ function json(route: Route, body: StubBody) {
   }
 }
 
-// Stubs the session and the two reads the dashboard makes, so it can be
-// asserted without a seeded user. Guests rely on the real /auth/me answering
-// 401 (or being unreachable), as in app-shell.spec.ts.
+// Stubs the two reads the dashboard makes, so it can be asserted without a
+// seeded user. The signed-in tests are `fixme` until ticket 09's Clerk Testing
+// Tokens layer can create a real session (the /auth/me stub below simulated the
+// session the API no longer has). Guests need no setup, as in app-shell.spec.ts.
 async function signIn(
   page: Page,
   collections: { id: string; title: string }[],
@@ -63,7 +64,7 @@ test.describe("Home: guest", () => {
   })
 })
 
-test.describe("Home: signed in", () => {
+test.describe.fixme("Home: signed in", () => {
   test("shows the dashboard, not the landing", async ({ page }) => {
     await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
     await page.goto("/")
@@ -129,7 +130,8 @@ test.describe("Home: mobile", () => {
     expect(overflow).toBeLessThanOrEqual(0)
   })
 
-  test("dashboard has no horizontal scroll at phone width", async ({
+  // FIXME(ticket 09): needs a real Clerk session; see signIn() above.
+  test.fixme("dashboard has no horizontal scroll at phone width", async ({
     page,
   }) => {
     await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)

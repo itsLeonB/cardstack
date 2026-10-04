@@ -37,19 +37,18 @@ const collections = [{ id: "c1", title: "Binder" }]
 function setup({
   authed,
   list,
-  sessionStatus = authed ? 200 : 401,
+  loading = false,
   listStatus = 200,
 }: {
   authed: boolean
   list?: unknown
-  sessionStatus?: number
+  loading?: boolean
   listStatus?: number
 }) {
   // SAFETY: partial mocks; the hook reads only these fields.
   vi.mocked(useSession).mockReturnValue({
     isAuthenticated: authed,
-    isLoading: false,
-    query: { data: { status: sessionStatus } },
+    isLoading: loading,
   } as any)
   // SAFETY: partial mock; only data is read.
   vi.mocked(useListCollections).mockReturnValue({
@@ -139,8 +138,8 @@ describe("useCatalogCollection", () => {
     expect(onSelect).toHaveBeenCalledWith(undefined)
   })
 
-  it("keeps the selection through a transient server error", () => {
-    setup({ authed: false, sessionStatus: 500 })
+  it("keeps the selection while Clerk is still loading", () => {
+    setup({ authed: false, loading: true })
     const onSelect = vi.fn()
     renderHook(() => useCatalogCollection("c1", onSelect))
     expect(onSelect).not.toHaveBeenCalled()

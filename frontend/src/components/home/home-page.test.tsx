@@ -14,23 +14,20 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
-import type * as AuthModule from "@/generated/endpoints/auth/auth"
+import { useUser } from "@clerk/react"
 import type * as CollectionsModule from "@/generated/endpoints/collections/collections"
 import type * as InventoryModule from "@/generated/endpoints/inventory/inventory"
-import { useGetCurrentUser } from "@/generated/endpoints/auth/auth"
 import { useListCollections } from "@/generated/endpoints/collections/collections"
 import { useListMasterInventory } from "@/generated/endpoints/inventory/inventory"
+import { clerkUserResult } from "@/test-clerk"
 import { HomePage } from "./home-page"
 
-// Network boundary: these are generated orval hooks with no service layer to
-// inject (same approach as lib/session.test.tsx).
+// Network boundary: the generated orval hooks have no service layer to inject,
+// and Clerk's hooks need a ClerkProvider talking to Clerk's servers.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual = await vi.importActual<typeof AuthModule>(
-    "@/generated/endpoints/auth/auth"
-  )
-  return { ...actual, useGetCurrentUser: vi.fn() }
-})
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/collections/collections", async () => {
   const actual = await vi.importActual<typeof CollectionsModule>(
@@ -46,28 +43,14 @@ vi.mock("@/generated/endpoints/inventory/inventory", async () => {
   return { ...actual, useListMasterInventory: vi.fn() }
 })
 
-const mockSession = vi.mocked(useGetCurrentUser)
+const mockSession = vi.mocked(useUser)
 const mockCollections = vi.mocked(useListCollections)
 const mockInventory = vi.mocked(useListMasterInventory)
 
 afterEach(cleanup)
 
-function session(state: "loading" | "failed" | "guest" | "signed-in") {
-  const results = {
-    loading: { data: undefined, isPending: true, isError: false },
-    failed: { data: undefined, isPending: false, isError: true },
-    guest: { data: { status: 401 }, isPending: false, isError: false },
-    "signed-in": {
-      data: {
-        status: 200,
-        data: { data: { id: "1", email: "ada@example.com" } },
-      },
-      isPending: false,
-      isError: false,
-    },
-  }
-  // SAFETY: partial hook results cover only the fields the components read.
-  mockSession.mockReturnValue(results[state] as any)
+function session(state: "loading" | "guest" | "signed-in") {
+  mockSession.mockReturnValue(clerkUserResult(state))
 }
 
 function dashboardData(
@@ -132,17 +115,6 @@ describe("HomePage session states", () => {
     expect(screen.queryByRole("heading")).toBeNull()
     expect(screen.queryByText(/Track every card/)).toBeNull()
   })
-
-  it("shows the guest landing when the session check fails", async () => {
-    session("failed")
-    await renderHome()
-
-    expect(await screen.findByRole("heading", { level: 1 })).toBeTruthy()
-    expect(
-      screen.getByText("Track every card you own, across every binder.")
-    ).toBeTruthy()
-    expect(screen.queryByRole("status")).toBeNull()
-  })
 })
 
 describe("guest landing", () => {
@@ -181,6 +153,7 @@ describe("signed-in dashboard", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Welcome back" })
     ).toBeTruthy()
+    expect(screen.getByText("Signed in as Ada Lovelace")).toBeTruthy()
     expect(
       screen.getByRole("link", { name: "Trade binder" }).getAttribute("href")
     ).toBe("/collections/c1")
@@ -190,6 +163,22 @@ describe("signed-in dashboard", () => {
     expect(screen.queryByText(/Track every card/)).toBeNull()
     // Only the total is read, so the list request asks for a single row.
     expect(mockInventory.mock.calls[0]?.[0]).toEqual({ page: 1, limit: 1 })
+  })
+
+  it("greets by email when the account has no name", async () => {
+    mockSession.mockReturnValue(
+      clerkUserResult("signed-in", {
+        id: "user_2",
+        fullName: null,
+        primaryEmailAddress: { emailAddress: "grace@example.com" },
+      })
+    )
+    dashboardData([], 0)
+    await renderHome()
+
+    expect(
+      await screen.findByText("Signed in as grace@example.com")
+    ).toBeTruthy()
   })
 
   it("explains what to do first when there are no Collections", async () => {

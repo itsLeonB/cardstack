@@ -2,9 +2,10 @@ import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Page } from "playwright/test"
 
-// Shell-level checks. Guest tests rely on the real /auth/me answering 401 (or
-// being unreachable), which both read as "guest". The signed-in session is
-// stubbed at /auth/me so the header can be asserted without seeded users.
+// Shell-level checks. Guest tests need no setup: Clerk loads, finds no session
+// and the shell reads as "guest". Signed-in tests need a real Clerk session,
+// which only ticket 09's Clerk Testing Tokens layer can create; they are
+// `fixme` until then (the `signIn` stub below simulated the removed /auth/me).
 
 async function signIn(page: Page) {
   // Destination pages (including the dashboard at /) crash without a backend or
@@ -100,7 +101,7 @@ test.describe("App shell: guest", () => {
   })
 })
 
-test.describe("App shell: signed in", () => {
+test.describe.fixme("App shell: signed in", () => {
   test("shows signed-in navigation and the user menu", async ({ page }) => {
     await signIn(page)
     await page.goto("/")
