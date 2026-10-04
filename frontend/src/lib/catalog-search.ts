@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { SearchCatalogCardsQueryParams } from "@/generated/endpoints/catalog/catalog.zod"
+import type { CatalogFacets, SeriesBrowseResult } from "@/generated/models"
 
 // TanStack parses `?tag=2` to the number 2 and a legacy single-value URL
 // `?rarityId=x` to a bare string; both normalize to string[] so old links keep working.
@@ -33,4 +34,32 @@ export function hasActiveFilters(search: CatalogFilters) {
     search.category?.length ||
     search.tag?.length
   )
+}
+
+/**
+ * What the filter panel shows a Guest in place of the facets endpoint, which is
+ * locked to them: every Expansion Set, from the Series list, as the one filter
+ * that stays open. Counts and the other filters need an account.
+ */
+export function guestFacets(
+  browse: SeriesBrowseResult | undefined
+): CatalogFacets | undefined {
+  if (!browse) return undefined
+  const grouped = (browse.series ?? []).flatMap((series) =>
+    (series.expansionSets ?? []).map((set) => ({
+      ...set,
+      seriesId: series.id,
+      available: true,
+    }))
+  )
+  const ungrouped = (browse.ungroupedExpansionSets ?? []).map((set) => ({
+    ...set,
+    available: true,
+  }))
+  return {
+    expansionSets: [...grouped, ...ungrouped],
+    rarities: [],
+    categories: [],
+    tags: [],
+  }
 }

@@ -3,7 +3,12 @@ import {
   defaultStringifySearch,
 } from "@tanstack/react-router"
 import { describe, expect, it } from "vitest"
-import { catalogFilterSchema, catalogSearchSchema } from "./catalog-search"
+import {
+  catalogFilterSchema,
+  catalogSearchSchema,
+  guestFacets,
+} from "./catalog-search"
+import type { SeriesBrowseResult } from "@/generated/models"
 
 describe("catalogSearchSchema", () => {
   it("wraps a legacy single value into an array", () => {
@@ -38,5 +43,44 @@ describe("catalogFilterSchema", () => {
   it("strips a legacy page param so an old link opens the first page", () => {
     const parsed = catalogFilterSchema.parse({ page: 3, name: "Pika" })
     expect(parsed).toEqual({ name: "Pika" })
+  })
+})
+
+describe("guestFacets", () => {
+  const set = (id: string) => ({
+    id,
+    code: id.toUpperCase(),
+    name: `Set ${id}`,
+    imageUrl: "",
+    releaseDate: "2024-01-01",
+  })
+  const browse: SeriesBrowseResult = {
+    series: [
+      { id: "sr1", code: "SV", name: "Scarlet", expansionSets: [set("a")] },
+      { id: "sr2", code: "SW", name: "Sword", expansionSets: null },
+    ],
+    ungroupedExpansionSets: [set("b")],
+  }
+
+  it("lists every Expansion Set, under its Series, as the only options a Guest has", () => {
+    expect(guestFacets(browse)).toEqual({
+      expansionSets: [
+        { ...set("a"), seriesId: "sr1", available: true },
+        { ...set("b"), available: true },
+      ],
+      rarities: [],
+      categories: [],
+      tags: [],
+    })
+  })
+
+  it("is undefined until the Series list has loaded", () => {
+    expect(guestFacets(undefined)).toBeUndefined()
+  })
+
+  it("copes with a catalog that has no Series or sets", () => {
+    expect(
+      guestFacets({ series: null, ungroupedExpansionSets: null })?.expansionSets
+    ).toEqual([])
   })
 })

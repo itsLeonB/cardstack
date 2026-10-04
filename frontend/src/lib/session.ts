@@ -33,6 +33,16 @@ export function useSession() {
   return { user: sessionUser, isAuthenticated, isLoading: !isLoaded }
 }
 
+/**
+ * True once Clerk has loaded and nobody is signed in: the catalog's guest lock
+ * applies. Not true while Clerk loads, so a signed-in user never sees the lock
+ * flash up; a request made before then still carries the right token.
+ */
+export function useIsGuest() {
+  const { isAuthenticated, isLoading } = useSession()
+  return !isLoading && !isAuthenticated
+}
+
 // Routes read via ensureQueryData, so any user-scoped entry left in the cache
 // would be served to the next user who signs in (or to the guest after a
 // sign-out) without a page reload. Dropping everything is right: the app has

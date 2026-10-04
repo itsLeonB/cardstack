@@ -1,8 +1,9 @@
 import { useCallback } from "react"
 import type { ReactNode } from "react"
+import { SignInLink } from "@/components/auth/sign-in-link"
 import { CardTile } from "@/components/catalog/card-tile"
 import { VirtualGrid } from "@/components/catalog/virtual-grid"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { CardSummary } from "@/generated/models"
 
@@ -18,6 +19,12 @@ export interface InfiniteCardResultsProps {
   /** Starts the next page; the caller must ignore it while a fetch is in flight. */
   onLoadMore: () => void
   renderControl?: (card: CardSummary) => ReactNode
+  /** A Guest sees the first page only: no next-page load, a sign-in prompt where it would be. */
+  guest?: boolean
+  /** The API refused with `login_required`: show a sign-in prompt instead of an error. */
+  loginRequired?: boolean
+  /** Path (with search) the sign-in prompts return to. */
+  signInRedirect?: string
 }
 
 const getCardKey = (card: CardSummary) => card.id
@@ -25,7 +32,8 @@ const getCardKey = (card: CardSummary) => card.id
 /**
  * Results for an infinite card query: loading, error and empty states, a
  * virtualized grid that loads the next page near the end, and a "Load more"
- * button that is both the fallback control and a trigger.
+ * button that is both the fallback control and a trigger. For a Guest the
+ * button is a "Sign in to see more" link and nothing loads past page 1.
  */
 export function InfiniteCardResults({
   cards,
@@ -38,6 +46,9 @@ export function InfiniteCardResults({
   isFetching,
   onLoadMore,
   renderControl,
+  guest = false,
+  loginRequired = false,
+  signInRedirect,
 }: InfiniteCardResultsProps) {
   const renderCard = useCallback(
     (card: CardSummary) => (
@@ -46,8 +57,14 @@ export function InfiniteCardResults({
     [renderControl]
   )
 
-  const canLoadMore = hasNextPage && !isFetching
+  const canLoadMore = hasNextPage && !isFetching && !guest
   const showList = !isPending && cards.length > 0
+  const signInPrompt = (
+    <p role="status" className="text-sm">
+      <SignInLink redirect={signInRedirect}>Sign in</SignInLink> to see these
+      results.
+    </p>
+  )
 
   let body: ReactNode
   if (isPending) {
@@ -64,7 +81,9 @@ export function InfiniteCardResults({
       </div>
     )
   } else if (isError && cards.length === 0) {
-    body = (
+    body = loginRequired ? (
+      signInPrompt
+    ) : (
       <p role="alert" className="text-sm text-destructive">
         {errorMessage ?? "Could not load cards. Please try again."}
       </p>
@@ -88,11 +107,15 @@ export function InfiniteCardResults({
   return (
     <div className="flex flex-col gap-6">
       {body}
-      {showList && isError && (
-        <p role="alert" className="text-center text-sm text-destructive">
-          {errorMessage ?? "Could not load more cards."}
-        </p>
-      )}
+      {showList &&
+        isError &&
+        (loginRequired ? (
+          signInPrompt
+        ) : (
+          <p role="alert" className="text-center text-sm text-destructive">
+            {errorMessage ?? "Could not load more cards."}
+          </p>
+        ))}
       {/* Always mounted: a live region that appears together with its text is often not announced. */}
       <p
         className="text-center text-sm text-muted-foreground empty:sr-only"
@@ -101,7 +124,7 @@ export function InfiniteCardResults({
         {showList ? `${cards.length} of ${total} cards loaded` : ""}
       </p>
       {/* Hidden once the last page is loaded; while fetching it stays, inert, so focus isn't lost. */}
-      {showList && hasNextPage && (
+      {showList && hasNextPage && !guest && (
         <Button
           type="button"
           variant="outline"
@@ -115,6 +138,17 @@ export function InfiniteCardResults({
           Load more
         </Button>
       )}
+      {/* Always mounted, like the status line above: a live region that appears together with its text is often not announced. */}
+      <div aria-live="polite" className="self-center empty:hidden">
+        {showList && hasNextPage && guest && (
+          <SignInLink
+            redirect={signInRedirect}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Sign in to see more
+          </SignInLink>
+        )}
+      </div>
     </div>
   )
 }

@@ -73,7 +73,7 @@ describe("CollectionPicker", () => {
     expect(
       (screen.getByLabelText("Add to collection") as HTMLSelectElement).disabled
     ).toBe(true)
-    screen.getByText("Log in to add cards to a Collection")
+    screen.getByText("Sign in to add cards to a Collection")
   })
 
   it("shows no login prompt while the session loads", () => {

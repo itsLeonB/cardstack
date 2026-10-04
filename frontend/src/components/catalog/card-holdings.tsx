@@ -1,10 +1,18 @@
 import { Link } from "@tanstack/react-router"
+import { SignInLink } from "@/components/auth/sign-in-link"
 import { useListCardHoldings } from "@/generated/endpoints/inventory/inventory"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSession } from "@/lib/session"
 
 /** "Your collections": which of the signed-in user's Collections hold this Card, and how many. */
-export function CardHoldings({ cardId }: { cardId: string }) {
+export function CardHoldings({
+  cardId,
+  loginRedirect,
+}: {
+  cardId: string
+  /** Path (with search) the sign-in prompt returns to. */
+  loginRedirect?: string
+}) {
   const { isAuthenticated, isLoading } = useSession()
   const query = useListCardHoldings(cardId, {
     query: { enabled: isAuthenticated },
@@ -18,13 +26,8 @@ export function CardHoldings({ cardId }: { cardId: string }) {
   } else if (!isAuthenticated) {
     body = (
       <p className="text-sm text-muted-foreground">
-        <Link
-          to="/auth/login"
-          className="font-medium text-foreground underline underline-offset-4"
-        >
-          Sign in
-        </Link>{" "}
-        to see which of your Collections hold this Card.
+        <SignInLink redirect={loginRedirect}>Sign in</SignInLink> to see which
+        of your Collections hold this Card.
       </p>
     )
   } else if (query.isError || query.data?.status !== 200) {

@@ -17,7 +17,7 @@ interface OkPage<T> {
 // assignable (same trick as `StatusResponse` in `lib/collections.ts`).
 type FailedPage = {
   status: number
-  data: { detail?: string; data?: unknown }
+  data: { code?: string; detail?: string; data?: unknown }
 }
 
 export type ListPage<T> = OkPage<T> | FailedPage
@@ -26,6 +26,17 @@ export type ListPage<T> = OkPage<T> | FailedPage
 export interface CardList {
   cards: CardSummary[]
   total: number
+}
+
+/**
+ * The API's 401 for what a Guest may not do (ADR-0013's `login_required`
+ * code). A distinct class so the UI shows a sign-in prompt, not a generic error.
+ */
+export class LoginRequiredError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "LoginRequiredError"
+  }
 }
 
 const isOk = <T>(page: ListPage<T>): page is OkPage<T> => page.status === 200
@@ -80,7 +91,10 @@ export function infinitePages<P extends FailedPage>(
     }) => {
       const response = await fetchPage(pageParam, signal)
       if (response.status !== 200) {
-        throw new Error(response.data.detail ?? fallbackMessage)
+        const message = response.data.detail ?? fallbackMessage
+        throw response.status === 401 && response.data.code === "login_required"
+          ? new LoginRequiredError(message)
+          : new Error(message)
       }
       return response
     },

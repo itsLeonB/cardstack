@@ -23,13 +23,14 @@ import {
   useCatalogCollection,
 } from "@/components/catalog/collection-picker"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
-import { catalogFilterSchema } from "@/lib/catalog-search"
+import { catalogFilterSchema, guestFacets } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import {
   prefetchInfiniteCatalogCards,
   useInfiniteCardResultsProps,
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
+import { useIsGuest } from "@/lib/session"
 
 // `collectionId` is page state only; it is split off before any catalog query.
 const searchSchema = catalogFilterSchema.extend({
@@ -72,19 +73,22 @@ function CatalogSearchPage() {
   const href = useLocation({ select: (location) => location.href })
   const collection = useCatalogCollection(collectionId, selectCollection)
 
+  const isGuest = useIsGuest()
   const seriesQuery = useListCatalogSeries()
   const facetsQuery = useListCatalogFacets(search, {
-    query: { placeholderData: keepPreviousData },
+    query: { placeholderData: keepPreviousData, enabled: !isGuest },
   })
   const cardsQuery = useInfiniteCatalogCards(search)
   const cardResults = useInfiniteCardResultsProps(cardsQuery)
 
-  const series =
-    seriesQuery.data?.status === 200
-      ? (seriesQuery.data.data.data?.series ?? [])
-      : []
-  const facets =
-    facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
+  const browse =
+    seriesQuery.data?.status === 200 ? seriesQuery.data.data.data : undefined
+  const series = browse?.series ?? []
+  const facets = isGuest
+    ? guestFacets(browse)
+    : facetsQuery.data?.status === 200
+      ? facetsQuery.data.data.data
+      : undefined
 
   // A filter change starts a fresh list, so return to its top. Done in the
   // handlers and not in an effect keyed on the filters, which would also fire
@@ -102,6 +106,8 @@ function CatalogSearchPage() {
   const resultsProps = {
     ...cardResults,
     emptyMessage: "No cards match these filters.",
+    guest: isGuest,
+    signInRedirect: href,
   }
 
   return (
@@ -123,6 +129,8 @@ function CatalogSearchPage() {
         series={series}
         onChange={(patch) => void updateSearch(patch)}
         onClear={() => void clearSearch()}
+        guest={isGuest}
+        signInRedirect={href}
       />
 
       <CollectionPicker

@@ -1,4 +1,5 @@
 import { RiCloseLine } from "@remixicon/react"
+import { SignInLink } from "@/components/auth/sign-in-link"
 import { MultiSelect } from "@/components/ui/multi-select"
 import type {
   MultiSelectGroup,
@@ -31,7 +32,14 @@ interface FacetFiltersProps {
   series: { id: string; name: string }[]
   selected: FacetSelection
   onChange: (key: FacetKey, values: string[]) => void
+  /** A Guest may filter by Expansion Set only: the other dropdowns are disabled, with a sign-in prompt. */
+  locked?: boolean
+  /** Path (with search) the sign-in prompt returns to. */
+  signInRedirect?: string
 }
+
+// What the API's guest lock leaves closed.
+const GUEST_LOCKED: FacetKey[] = ["rarityId", "category", "tag"]
 
 /**
  * Dropdown multi-selects (with removable chips) for the faceted catalog
@@ -43,6 +51,8 @@ export function FacetFilters({
   series,
   selected,
   onChange,
+  locked = false,
+  signInRedirect,
 }: FacetFiltersProps) {
   const sets = withSelected(
     (facets?.expansionSets ?? []).map((set) => ({
@@ -126,9 +136,17 @@ export function FacetFilters({
             searchable={searchable}
             selected={selected[key]}
             onChange={(values) => onChange(key, values)}
+            disabled={locked && GUEST_LOCKED.includes(key)}
           />
         ))}
       </div>
+      {locked && (
+        <p className="text-sm">
+          <SignInLink redirect={signInRedirect}>
+            Sign in to use filters
+          </SignInLink>
+        </p>
+      )}
       {chips.length > 0 && (
         <div
           role="group"

@@ -6,7 +6,11 @@ import {
   useSearchCatalogCardsInfinite,
 } from "@/generated/endpoints/catalog/catalog"
 import type { CardSummary, SearchCatalogCardsParams } from "@/generated/models"
-import { infinitePages, mergePages } from "@/lib/infinite-pages"
+import {
+  LoginRequiredError,
+  infinitePages,
+  mergePages,
+} from "@/lib/infinite-pages"
 import type { CardList } from "@/lib/infinite-pages"
 
 export const CATALOG_PAGE_SIZE = 60
@@ -90,6 +94,7 @@ export function useInfiniteCardResultsProps(query: {
     total: query.data?.total ?? 0,
     isPending: query.isPending,
     isError: query.isError,
+    loginRequired: query.error instanceof LoginRequiredError,
     errorMessage:
       query.error instanceof Error ? query.error.message : undefined,
     hasNextPage: query.hasNextPage,

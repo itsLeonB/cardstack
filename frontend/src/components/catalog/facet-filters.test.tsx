@@ -6,9 +6,27 @@ import {
   screen,
   within,
 } from "@testing-library/react"
+import type * as TanStackRouter from "@tanstack/react-router"
 import { FacetFilters } from "./facet-filters"
 import type { FacetSelection } from "./facet-filters"
 import type { CatalogFacets } from "@/generated/models"
+
+// The sign-in prompt links through TanStack Router's `Link`, which needs a router.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof TanStackRouter>()
+  return {
+    ...actual,
+    Link: ({ children, to, search, ...props }: any) => (
+      <a
+        href={`${to}?redirect=${encodeURIComponent(search?.redirect ?? "")}`}
+        {...props}
+      >
+        {children}
+      </a>
+    ),
+  }
+})
 
 afterEach(() => cleanup())
 
@@ -177,5 +195,58 @@ describe("FacetFilters", () => {
     expect(
       screen.getByRole("checkbox", { name: /Special Art\s*\(unavailable\)/ })
     ).toBeTruthy()
+  })
+
+  describe("locked for a Guest", () => {
+    function renderLocked(selected = none, onChange = vi.fn()) {
+      render(
+        <FacetFilters
+          facets={facets}
+          series={series}
+          selected={selected}
+          onChange={onChange}
+          locked
+          signInRedirect="/catalog/search?name=pika"
+        />
+      )
+      return onChange
+    }
+    const disabled = (name: RegExp | string) =>
+      screen.getByRole("button", { name }).hasAttribute("disabled")
+
+    it("shows rarity, category and tag disabled, and leaves Expansion Set usable", () => {
+      renderLocked()
+
+      expect(disabled("Rarity")).toBe(true)
+      expect(disabled("Category")).toBe(true)
+      expect(disabled("Tag")).toBe(true)
+      expect(disabled("Expansion Set")).toBe(false)
+    })
+
+    it("explains the lock with a sign-in link that returns to the same view", () => {
+      renderLocked()
+
+      const link = screen.getByRole("link", { name: "Sign in to use filters" })
+      expect(link.getAttribute("href")).toBe(
+        "/auth/login?redirect=%2Fcatalog%2Fsearch%3Fname%3Dpika"
+      )
+    })
+
+    it("still lets Expansion Set be chosen and a leftover chip be removed", () => {
+      const onChange = renderLocked({ ...none, rarityId: ["r1"] })
+
+      open("Expansion Set")
+      fireEvent.click(screen.getByLabelText(/Set One/))
+      expect(onChange).toHaveBeenCalledWith("expansionSetId", ["s1"])
+      fireEvent.click(screen.getByRole("button", { name: "Remove Common" }))
+      expect(onChange).toHaveBeenCalledWith("rarityId", [])
+    })
+
+    it("shows no prompt and no disabled control when not locked", () => {
+      renderFilters()
+
+      expect(screen.queryByRole("link")).toBeNull()
+      expect(disabled("Rarity")).toBe(false)
+    })
   })
 })

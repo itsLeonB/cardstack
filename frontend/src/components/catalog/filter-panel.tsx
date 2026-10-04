@@ -21,6 +21,10 @@ interface CatalogFilterPanelProps {
   /** Called with the changed filters; the caller resets the page. */
   onChange: (patch: Partial<CatalogFilters>) => void
   onClear: () => void
+  /** A Guest: the rarity, category and tag filters are disabled with a sign-in prompt. */
+  guest?: boolean
+  /** Path (with search) the sign-in prompt returns to. */
+  signInRedirect?: string
 }
 
 /** Name and card-number search plus the faceted filters, shared by the catalog and Collection pages. */
@@ -30,6 +34,8 @@ export function CatalogFilterPanel({
   series,
   onChange,
   onClear,
+  guest = false,
+  signInRedirect,
 }: CatalogFilterPanelProps) {
   const [nameInput, setNameInput] = useState(search.name ?? "")
   const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
@@ -94,6 +100,8 @@ export function CatalogFilterPanel({
           onChange={(key: FacetKey, values: string[]) =>
             onChange({ [key]: values.length > 0 ? values : undefined })
           }
+          locked={guest}
+          signInRedirect={signInRedirect}
         />
 
         <div className="flex flex-wrap items-center gap-3">

@@ -16,9 +16,14 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof TanStackRouter>()
   return {
     ...actual,
-    Link: ({ children, params, to, ...props }: any) => (
+    Link: ({ children, params, to, search, ...props }: any) => (
       <a
-        href={to.replace("$collectionId", params?.collectionId ?? "")}
+        href={
+          to.replace("$collectionId", params?.collectionId ?? "") +
+          (search?.redirect
+            ? `?redirect=${encodeURIComponent(search.redirect)}`
+            : "")
+        }
         {...props}
       >
         {children}
@@ -35,12 +40,16 @@ interface HoldingsState {
   data?: { status: number; data: { data?: unknown[]; detail?: string } }
 }
 
-function setup(session: { isAuthenticated: boolean }, holdings: HoldingsState) {
+function setup(
+  session: { isAuthenticated: boolean },
+  holdings: HoldingsState,
+  loginRedirect?: string
+) {
   // SAFETY: tests supply only the fields CardHoldings reads from these hooks.
   vi.mocked(useSession).mockReturnValue({ isLoading: false, ...session } as any)
   // SAFETY: tests supply only the fields CardHoldings reads from this hook.
   vi.mocked(useListCardHoldings).mockReturnValue(holdings as any)
-  render(<CardHoldings cardId="card-1" />)
+  render(<CardHoldings cardId="card-1" loginRedirect={loginRedirect} />)
 }
 const ok = (data: unknown[]): HoldingsState => ({
   isPending: false,
@@ -98,6 +107,17 @@ describe("CardHoldings", () => {
       { isPending: true, isError: false, data: undefined }
     )
     expect(screen.getByLabelText("Loading your collections")).toBeTruthy()
+  })
+
+  it("sends the sign-in prompt back to the same Card page", () => {
+    setup(
+      { isAuthenticated: false },
+      { isPending: true, isError: false, data: undefined },
+      "/catalog/cards/s1/001"
+    )
+    expect(
+      screen.getByRole("link", { name: "Sign in" }).getAttribute("href")
+    ).toBe("/auth/login?redirect=%2Fcatalog%2Fcards%2Fs1%2F001")
   })
 
   it("prompts sign-in and does not enable the holdings query when signed out", () => {

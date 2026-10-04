@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { Link } from "@tanstack/react-router"
+import { SignInLink } from "@/components/auth/sign-in-link"
 import { useListCollections } from "@/generated/endpoints/collections/collections"
 import { useSession } from "@/lib/session"
 
@@ -78,13 +78,11 @@ export function CollectionPicker({
         ))}
       </select>
       {!isAuthenticated && !isLoading && (
-        <Link
-          to="/auth/login"
-          search={{ redirect: loginRedirect }}
-          className="text-sm underline-offset-2 hover:underline"
-        >
-          Log in to add cards to a Collection
-        </Link>
+        <span className="text-sm">
+          <SignInLink redirect={loginRedirect}>
+            Sign in to add cards to a Collection
+          </SignInLink>
+        </span>
       )}
     </div>
   )

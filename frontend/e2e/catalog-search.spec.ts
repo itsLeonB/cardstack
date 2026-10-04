@@ -1,9 +1,18 @@
 import { test, expect } from "playwright/test"
 import type { Page } from "playwright/test"
 
+import {
+  SIGNED_IN_TAG,
+  signInAsTestUser,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
 // Exercises /catalog/search against the seeded e2e fixture (see
 // backend/internal/adapters/db/postgres/testdata/e2e_seed.sql): name search,
-// Expansion Set + card number, and category/tag/rarity filters, plus the
+// Expansion Set + card number, and category/tag/rarity filters (a signed-in
+// feature: a Guest sees them disabled, see catalog-guest-lock.spec.ts, so those
+// three sign in through Clerk's development instance and skip without its
+// credentials), plus the
 // series-less ("ungrouped") Expansion Set being reachable from the
 // Expansion Set filter. Facet filters are dropdown multi-selects of checkboxes
 // that apply immediately; selections show as removable chips (buttons, not
@@ -51,39 +60,6 @@ test.describe("Catalog search", () => {
     await expect(results).toContainText("E2E Boulder")
   })
 
-  test("filters by category", async ({ page }) => {
-    await page.goto("/catalog/search")
-
-    await check(page, "Expansion Set", "Test Set Alpha (TSA)")
-    await check(page, "Category", "Support")
-
-    const results = page.getByRole("listitem")
-    await expect(results).toHaveCount(1)
-    await expect(results).toContainText("E2E Trainer Card")
-  })
-
-  test("filters by tag", async ({ page }) => {
-    await page.goto("/catalog/search")
-
-    await check(page, "Expansion Set", "Test Set Alpha (TSA)")
-    await check(page, "Tag", "Evolved")
-
-    const results = page.getByRole("listitem")
-    await expect(results).toHaveCount(1)
-    await expect(results).toContainText("E2E Boulder")
-  })
-
-  test("filters by rarity", async ({ page }) => {
-    await page.goto("/catalog/search")
-
-    await check(page, "Expansion Set", "Test Set Alpha (TSA)")
-    await check(page, "Rarity", "Rare")
-
-    const results = page.getByRole("listitem")
-    await expect(results).toHaveCount(1)
-    await expect(results).toContainText("E2E Boulder")
-  })
-
   test("offers the Ungrouped Expansion Set in the filter and searches within it", async ({
     page,
   }) => {
@@ -121,5 +97,45 @@ test.describe("Catalog search", () => {
       .getByRole("button", { name: "Remove Ungrouped Test Set (TSU)" })
       .click()
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0)
+  })
+})
+
+test.describe("Catalog search filters", { tag: SIGNED_IN_TAG }, () => {
+  useSignedInSuite()
+
+  test("filters by category", async ({ page }) => {
+    await signInAsTestUser(page)
+    await page.goto("/catalog/search")
+
+    await check(page, "Expansion Set", "Test Set Alpha (TSA)")
+    await check(page, "Category", "Support")
+
+    const results = page.getByRole("listitem")
+    await expect(results).toHaveCount(1)
+    await expect(results).toContainText("E2E Trainer Card")
+  })
+
+  test("filters by tag", async ({ page }) => {
+    await signInAsTestUser(page)
+    await page.goto("/catalog/search")
+
+    await check(page, "Expansion Set", "Test Set Alpha (TSA)")
+    await check(page, "Tag", "Evolved")
+
+    const results = page.getByRole("listitem")
+    await expect(results).toHaveCount(1)
+    await expect(results).toContainText("E2E Boulder")
+  })
+
+  test("filters by rarity", async ({ page }) => {
+    await signInAsTestUser(page)
+    await page.goto("/catalog/search")
+
+    await check(page, "Expansion Set", "Test Set Alpha (TSA)")
+    await check(page, "Rarity", "Rare")
+
+    const results = page.getByRole("listitem")
+    await expect(results).toHaveCount(1)
+    await expect(results).toContainText("E2E Boulder")
   })
 })
