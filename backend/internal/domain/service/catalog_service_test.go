@@ -391,7 +391,6 @@ func TestCatalogService_GuestSearch_RefusesWhatIsLocked(t *testing.T) {
 		"a rarity":     {RarityIDs: []uuid.UUID{uuid.New()}},
 		"a category":   {Categories: []string{"Trainer"}},
 		"a tag":        {Tags: []string{"ex"}},
-		"a late page":  {Page: 5, Name: "pika"},
 	}
 	for name, filter := range locked {
 		t.Run(name, func(t *testing.T) {

@@ -70,11 +70,17 @@ func decodePage(t *testing.T, resp *httptest.ResponseRecorder) lockedPage {
 func assertLoginRequired(t *testing.T, resp *httptest.ResponseRecorder, msgAndArgs ...any) {
 	t.Helper()
 	require.Equal(t, http.StatusUnauthorized, resp.Code, append([]any{resp.Body.String()}, msgAndArgs...)...)
+	assert.Equal(t, loginRequired, errorCode(t, resp), msgAndArgs...)
+}
+
+// errorCode is the stable code in an error response body, or "" when it has none.
+func errorCode(t *testing.T, resp *httptest.ResponseRecorder) string {
+	t.Helper()
 	var body struct {
 		Code string `json:"code"`
 	}
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
-	assert.Equal(t, loginRequired, body.Code, msgAndArgs...)
+	return body.Code
 }
 
 func TestGuestCatalogLock(t *testing.T) {
@@ -180,10 +186,18 @@ func TestInvalidTokenIsNotAGuestOnLockedCatalog(t *testing.T) {
 	for _, path := range []string{"/catalog/cards?" + inSet, "/catalog/cards?page=2&" + inSet, "/catalog/facets"} {
 		resp := api.Get(path, bearer(expired))
 		require.Equal(t, http.StatusUnauthorized, resp.Code, path)
-		var body struct {
-			Code string `json:"code"`
-		}
-		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
-		assert.NotEqual(t, loginRequired, body.Code, path)
+		assert.NotEqual(t, loginRequired, errorCode(t, resp), path)
+	}
+
+	// A bad token never falls back to the Guest preview, whatever it asks for.
+	for name, header := range map[string]string{
+		"wrong scheme":      "Authorization: Basic abc",
+		"no token":          "Authorization: Bearer ",
+		"garbage token":     bearer("garbage"),
+		"expired, filtered": bearer(expired),
+	} {
+		resp := api.Get("/catalog/cards?rarityId="+cat.rarity.ID.String()+"&"+inSet, header)
+		require.Equal(t, http.StatusUnauthorized, resp.Code, name)
+		assert.NotEqual(t, loginRequired, errorCode(t, resp), name)
 	}
 }

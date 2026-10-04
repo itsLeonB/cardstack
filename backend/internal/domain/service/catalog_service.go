@@ -26,9 +26,8 @@ const (
 // catalog preview locks; the stable signal is the apperr.CodeLoginRequired code.
 const loginRequiredMsg = "sign in to use this part of the catalog"
 
-// CatalogService answers the read-only catalog
-// browse/search surface (ticket 05): listing Series/Expansion Sets to
-// browse, and searching/filtering Cards by name, Expansion Set + card
+// CatalogService answers the read-only catalog browse/search surface (ticket
+// 05): listing Series/Expansion Sets to browse, and searching/filtering Cards by name, Expansion Set + card
 // number, rarity, category, and tag. It never filters by ownership - that's
 // Collection/Inventory territory (tickets 06/07), not implemented yet, so
 // results always include Cards the caller doesn't own.
