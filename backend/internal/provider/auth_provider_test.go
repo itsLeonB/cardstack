@@ -14,8 +14,8 @@ func TestProvideTokenVerifier_RefusesMissingClerkSettings(t *testing.T) {
 		Clerk: config.Clerk{SecretKey: "sk_test_x", Issuer: "https://example.clerk.accounts.dev"},
 	}
 	cases := map[string]func(c *config.Config){
-		"no secret key": func(c *config.Config) { c.Clerk.SecretKey = "" },
-		"no issuer":     func(c *config.Config) { c.Clerk.Issuer = "" },
+		"no secret key": func(c *config.Config) { c.SecretKey = "" },
+		"no issuer":     func(c *config.Config) { c.Issuer = "" },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

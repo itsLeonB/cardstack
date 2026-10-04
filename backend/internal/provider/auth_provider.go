@@ -18,12 +18,12 @@ var AuthSet = wire.NewSet(ProvideTokenVerifier)
 // has none until its frontend is deployed), and logs why.
 func ProvideTokenVerifier() (auth.TokenVerifier, error) {
 	cfg := config.Global
-	if cfg.Clerk.SecretKey == "" || cfg.Clerk.Issuer == "" {
+	if cfg.SecretKey == "" || cfg.Issuer == "" {
 		return nil, errors.New("CLERK_SECRET_KEY and CLERK_ISSUER are required")
 	}
 	if len(cfg.ClientUrls) == 0 {
 		logger.Error("APP_CLIENT_URLS is empty: every token will be rejected, since none can come from a configured frontend origin")
 	}
 
-	return auth.NewClerkVerifier(cfg.Clerk.Issuer, cfg.ClientUrls, auth.NewClerkKeys(cfg.Clerk.SecretKey)), nil
+	return auth.NewClerkVerifier(cfg.Issuer, cfg.ClientUrls, auth.NewClerkKeys(cfg.SecretKey)), nil
 }

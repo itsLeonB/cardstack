@@ -133,7 +133,7 @@ func TestClerkVerifier_RejectsBadTokens(t *testing.T) {
 	})
 
 	t.Run("HMAC-signed with the public key as the secret", func(t *testing.T) {
-		secret := []byte(key.PublicKey.N.String())
+		secret := []byte(key.N.String())
 
 		_, err := newTestVerifier(t, key).Verify(context.Background(), signToken(t, secret, jose.HS256, validClaims()))
 
