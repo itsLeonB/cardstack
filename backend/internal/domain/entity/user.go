@@ -4,15 +4,14 @@ import (
 	crud "github.com/itsLeonB/go-crud"
 )
 
-// User is the GORM row backing authkit.UserStore. It carries a uuid.UUID
-// primary key (via crud.BaseEntity, PG18 native uuidv7()) rather than
-// authkit.User's string ID — the repository adapter converts between the
-// two at the authkit.UserStore boundary.
+// User is the one row we own per Auth Identity: the identity provider owns
+// credentials and sessions, so this holds only who the provider says the
+// caller is. AuthProvider and AuthSubject are unique together.
 type User struct {
 	crud.BaseEntity
-	Email        string `gorm:"uniqueIndex;not null"`
-	PasswordHash string `gorm:"not null"`
-	Verified     bool   `gorm:"not null;default:false"`
+	AuthProvider string `gorm:"not null;uniqueIndex:idx_users_auth_identity"`
+	AuthSubject  string `gorm:"not null;uniqueIndex:idx_users_auth_identity"`
+	Email        string `gorm:"not null;index"`
 }
 
 func (User) TableName() string { return "users" }

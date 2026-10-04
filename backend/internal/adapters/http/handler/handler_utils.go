@@ -8,14 +8,14 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-// requireProfileID returns the profile ID SessionGuard stashed in ctx; a
-// failure here is unreachable behind SessionGuard.
+// requireProfileID returns the authenticated caller's profile ID, which
+// authpkg.Guard stashed in ctx; a Guest here is unreachable behind a private
+// route's guard.
 func requireProfileID(ctx context.Context) (uuid.UUID, error) {
-	raw, _ := authpkg.ProfileID(ctx)
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return uuid.Nil, ungerr.UnauthorizedError("missing session")
+	caller := authpkg.CallerFrom(ctx)
+	if caller.IsGuest() {
+		return uuid.Nil, ungerr.UnauthorizedError("authentication required")
 	}
 
-	return id, nil
+	return caller.ProfileID, nil
 }

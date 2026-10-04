@@ -5,9 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
-	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
@@ -30,9 +28,7 @@ type seriesEnvelope struct {
 // plus the hosted key, and is empty without a key even when the row still
 // carries its scraped source address (docs/adr/0016: never hot-link).
 func TestCatalogImageURLs(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 
 	dsn := "host=" + envOr("DB_HOST", "localhost") + " port=" + envOr("DB_PORT", "5432") + " user=" + envOr("DB_USER", "cardstack") +
 		" password=" + envOr("DB_PASSWORD", "cardstack") + " dbname=" + envOr("DB_NAME", "cardstack") + " sslmode=disable"

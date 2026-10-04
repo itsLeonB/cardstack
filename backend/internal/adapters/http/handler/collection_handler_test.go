@@ -20,8 +20,8 @@ import (
 )
 
 // newTestCollectionHandler registers the routes behind a stub guard that
-// stashes a fixed profile ID, standing in for SessionGuard (which needs a
-// real AuthKit session). With guarded false, no claims are stashed.
+// stashes a fixed profile ID, standing in for authpkg.Guard (which needs a verified token and
+// a database). With guarded false, no claims are stashed.
 func newTestCollectionHandler(t *testing.T, guarded bool) (*mocks.MockCollectionService, humatest.TestAPI, uuid.UUID) {
 	t.Helper()
 
@@ -32,7 +32,7 @@ func newTestCollectionHandler(t *testing.T, guarded bool) (*mocks.MockCollection
 	var mw []func(huma.Context, func(huma.Context))
 	if guarded {
 		mw = append(mw, func(ctx huma.Context, next func(huma.Context)) {
-			next(authpkg.WithClaims(ctx, "user", "session", "e@example.com", profileID.String()))
+			next(authpkg.WithCaller(ctx, authpkg.Caller{UserID: uuid.New(), ProfileID: profileID}))
 		})
 	}
 	endpoint.RegisterAll(api, NewCollectionHandler(svc).Routes(), mw...)

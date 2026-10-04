@@ -766,12 +766,7 @@ func TestCatalogRepository_CollectionScope(t *testing.T) {
 	ownedToo := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2"; c.Category = "Pokémon" })
 	fixture.newCard(t, db, otherSet.ID, func(c *entity.Card) { c.LocalID = "3"; c.Category = "Energi" })
 
-	user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
-	require.NoError(t, err)
-	userID, err := uuid.Parse(user.ID)
-	require.NoError(t, err)
-	profile := entity.UserProfile{UserID: userID, Name: "Scope Test"}
-	require.NoError(t, db.Create(&profile).Error)
+	profile := newTestProfile(t, db, "Scope Test")
 	col := entity.Collection{ProfileID: profile.ID, Title: "Binder"}
 	require.NoError(t, db.Create(&col).Error)
 	require.NoError(t, db.Create(&entity.InventoryEntry{CollectionID: col.ID, CardID: owned.ID, Quantity: 4}).Error)
@@ -836,15 +831,7 @@ func TestCatalogRepository_MasterInventory(t *testing.T) {
 	zero := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "3"; c.Category = "Energi" })
 	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "4" })
 
-	newProfile := func() entity.UserProfile {
-		user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
-		require.NoError(t, err)
-		userID, err := uuid.Parse(user.ID)
-		require.NoError(t, err)
-		p := entity.UserProfile{UserID: userID, Name: "Master Test"}
-		require.NoError(t, db.Create(&p).Error)
-		return p
-	}
+	newProfile := func() entity.UserProfile { return newTestProfile(t, db, "Master Test") }
 	hold := func(p entity.UserProfile, cardID uuid.UUID, qty int) {
 		c := entity.Collection{ProfileID: p.ID, Title: uuid.NewString()}
 		require.NoError(t, db.Create(&c).Error)

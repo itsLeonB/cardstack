@@ -7,7 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/pressly/goose/v3"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -74,10 +76,13 @@ func uniqueEmail(t *testing.T) string {
 	return uuid.NewString() + "@example.com"
 }
 
-// uniqueHash returns a token_hash value unique to this test run — refresh
-// tokens' token_hash column is uniquely indexed, so a fixed literal would
-// collide with a previous run's leftover row (see testDB's doc comment).
-func uniqueHash(t *testing.T) string {
+// newTestProfile inserts a user (with a subject unique to this test run, as
+// the auth identity is uniquely indexed) and its profile.
+func newTestProfile(t *testing.T, db *gorm.DB, name string) entity.UserProfile {
 	t.Helper()
-	return uuid.NewString()
+	user := entity.User{AuthProvider: "test", AuthSubject: uuid.NewString(), Email: uniqueEmail(t)}
+	require.NoError(t, db.Create(&user).Error)
+	profile := entity.UserProfile{UserID: user.ID, Name: name}
+	require.NoError(t, db.Create(&profile).Error)
+	return profile
 }

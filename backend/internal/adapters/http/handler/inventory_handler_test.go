@@ -27,7 +27,7 @@ func newTestInventoryHandler(t *testing.T, guarded bool) (*mocks.MockInventorySe
 	var mw []func(huma.Context, func(huma.Context))
 	if guarded {
 		mw = append(mw, func(ctx huma.Context, next func(huma.Context)) {
-			next(authpkg.WithClaims(ctx, "user", "session", "e@example.com", profileID.String()))
+			next(authpkg.WithCaller(ctx, authpkg.Caller{UserID: uuid.New(), ProfileID: profileID}))
 		})
 	}
 	endpoint.RegisterAll(api, NewInventoryHandler(svc).Routes(), mw...)

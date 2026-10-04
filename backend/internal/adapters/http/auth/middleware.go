@@ -1,108 +1,65 @@
 package auth
 
 import (
-	"context"
+	"errors"
 	"net/http"
-	"slices"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	authkit "github.com/itsLeonB/go-authkit"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
+	"github.com/itsLeonB/ungerr"
 )
 
-// ProfileLookup resolves a user_profiles row's ID for a user_id. SessionGuard
-// calls it after verifying the access token, rather than reading profile_id
-// out of the token itself: users is the auth table, user_profiles is domain
-// data, and there's deliberately no FK between them (see
-// entity/user_profile.go's doc comment) — so profile_id is looked up fresh
-// per request instead of being baked into the JWT.
-type ProfileLookup interface {
-	FindProfileIDByUserID(ctx context.Context, userID string) (string, error)
-}
-
-// SessionGuard ports authgin.AuthMiddleware's access-token check to Huma:
-// read the access-token and fingerprint cookies, verify them against kit,
-// resolve profile_id via ProfileLookup, and stash the resulting
-// userID/sessionID/email/profileID claims into the request context for
-// downstream handlers (see claims.go). A request without a valid session,
-// or a valid session with no resolvable profile, is rejected with 401 and
-// never reaches the handler.
-//
-// It reads the fingerprint cookie by transport.FingerprintCookieName()
-// rather than a fixed name, so it always matches whichever name SetCookies
-// actually wrote (plain vs. "__Secure-" prefixed, per CookieSecure).
-func SessionGuard(api huma.API, kit *authkit.AuthKit, transport *Transport, profiles ProfileLookup) func(huma.Context, func(huma.Context)) {
+// Guard classifies each request. No Authorization header is a Guest: it
+// passes when allowGuests is set and is a 401 otherwise. A valid bearer token
+// is authenticated: its user and profile (created on first use) are stashed
+// for CallerFrom. A header that is present but not a valid token is always a
+// 401, never a Guest, so a client with an expired token refreshes it instead
+// of silently losing access.
+func Guard(api huma.API, verifier TokenVerifier, users service.UserService, allowGuests bool) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		token, err := readCookie(ctx, accessTokenCookie)
-		if err != nil || token == "" {
-			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "missing access token")
+		header := ctx.Header("Authorization")
+		if header == "" {
+			if allowGuests {
+				next(ctx)
+				return
+			}
+			writeErr(api, ctx, ungerr.UnauthorizedError("authentication required"))
 			return
 		}
 
-		fingerprint, _ := readCookie(ctx, transport.FingerprintCookieName())
+		scheme, token, _ := strings.Cut(header, " ")
+		if !strings.EqualFold(scheme, "Bearer") || token == "" {
+			writeErr(api, ctx, ungerr.UnauthorizedError(invalidTokenMsg))
+			return
+		}
 
-		claims, err := kit.VerifyToken(ctx.Context(), token, fingerprint)
+		identity, err := verifier.Verify(ctx.Context(), token)
 		if err != nil {
-			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "invalid or expired session")
+			writeErr(api, ctx, err)
 			return
 		}
 
-		userID, _ := claims[authkit.ClaimUserID].(string)
-		sessionID, _ := claims[authkit.ClaimSessionID].(string)
-		if userID == "" || sessionID == "" {
-			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "invalid session claims")
-			return
-		}
-		email, _ := claims[EmailClaim].(string)
-
-		profileID, err := profiles.FindProfileIDByUserID(ctx.Context(), userID)
+		caller, err := users.ResolveCaller(ctx.Context(), identity)
 		if err != nil {
-			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "invalid session claims")
+			writeErr(api, ctx, err)
 			return
 		}
 
-		next(WithClaims(ctx, userID, sessionID, email, profileID))
+		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID}))
 	}
 }
 
-// CSRFGuard ports authgin.CSRFMiddleware's double-submit check to Huma: on
-// any request past GET/HEAD/OPTIONS, the csrf_token cookie must match the
-// X-CSRF-Token header. Registered globally; exemptPaths (operation paths,
-// e.g. register/login) skip the check because they're what create the CSRF
-// cookie in the first place, so there's nothing to double-submit against yet
-// on that first call (see the plan's "CSRF"
-// decision).
-func CSRFGuard(api huma.API, exemptPaths ...string) func(huma.Context, func(huma.Context)) {
-	return func(ctx huma.Context, next func(huma.Context)) {
-		switch ctx.Method() {
-		case http.MethodGet, http.MethodHead, http.MethodOptions:
-			next(ctx)
-			return
-		}
-		if op := ctx.Operation(); op != nil && slices.Contains(exemptPaths, op.Path) {
-			next(ctx)
-			return
-		}
-
-		cookieToken, err := readCookie(ctx, csrfTokenCookie)
-		if err != nil || cookieToken == "" {
-			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "missing CSRF token")
-			return
-		}
-
-		headerToken := ctx.Header("X-CSRF-Token")
-		if headerToken == "" || headerToken != cookieToken {
-			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "invalid CSRF token")
-			return
-		}
-
-		next(ctx)
+// writeErr answers through the Huma error seam (ADR-0013): an AppError keeps
+// its status and safe message, anything else becomes a redacted 500.
+func writeErr(api huma.API, ctx huma.Context, err error) {
+	status := http.StatusInternalServerError
+	if appErr, ok := errors.AsType[ungerr.AppError](err); ok {
+		status = appErr.HttpStatus()
 	}
-}
 
-func readCookie(ctx huma.Context, name string) (string, error) {
-	c, err := huma.ReadCookie(ctx, name)
-	if err != nil {
-		return "", err
+	if writeFailure := huma.WriteErr(api, ctx, status, http.StatusText(status), err); writeFailure != nil {
+		logger.Errorf("writing auth error response: %v", writeFailure)
 	}
-	return c.Value, nil
 }

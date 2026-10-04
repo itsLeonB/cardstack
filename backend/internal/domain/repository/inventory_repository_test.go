@@ -20,12 +20,7 @@ func TestInventoryRepository_SumQuantity(t *testing.T) {
 	card1 := fixture.newCard(t, db, set.ID, nil)
 	card2 := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "002" })
 
-	user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
-	require.NoError(t, err)
-	userID, err := uuid.Parse(user.ID)
-	require.NoError(t, err)
-	profile := entity.UserProfile{UserID: userID, Name: "Inventory Test"}
-	require.NoError(t, db.Create(&profile).Error)
+	profile := newTestProfile(t, db, "Inventory Test")
 	col := entity.Collection{ProfileID: profile.ID, Title: "Binder"}
 	require.NoError(t, db.Create(&col).Error)
 
@@ -58,16 +53,11 @@ func TestInventoryRepository_Constraints(t *testing.T) {
 	fixture := newCatalogFixture(t, db)
 	card := fixture.newCard(t, db, fixture.newExpansionSet(t, db, nil, nil).ID, nil)
 
-	user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
-	require.NoError(t, err)
-	userID, err := uuid.Parse(user.ID)
-	require.NoError(t, err)
-	profile := entity.UserProfile{UserID: userID, Name: "Inventory Test"}
-	require.NoError(t, db.Create(&profile).Error)
+	profile := newTestProfile(t, db, "Inventory Test")
 	col := entity.Collection{ProfileID: profile.ID, Title: "Binder"}
 	require.NoError(t, db.Create(&col).Error)
 
-	_, err = repo.Insert(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card.ID, Quantity: 1})
+	_, err := repo.Insert(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card.ID, Quantity: 1})
 	require.NoError(t, err)
 	_, err = repo.Insert(ctx, entity.InventoryEntry{CollectionID: col.ID, CardID: card.ID, Quantity: 2})
 	assert.Error(t, err, "duplicate (collection, card) must be rejected")
@@ -87,15 +77,7 @@ func TestInventoryRepository_ListHoldings(t *testing.T) {
 	card := fixture.newCard(t, db, set.ID, nil)
 	otherCard := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "002" })
 
-	newProfile := func() entity.UserProfile {
-		user, err := NewUserRepository(db).Create(ctx, uniqueEmail(t), "hash")
-		require.NoError(t, err)
-		userID, err := uuid.Parse(user.ID)
-		require.NoError(t, err)
-		p := entity.UserProfile{UserID: userID, Name: "Holdings Test"}
-		require.NoError(t, db.Create(&p).Error)
-		return p
-	}
+	newProfile := func() entity.UserProfile { return newTestProfile(t, db, "Holdings Test") }
 	newCollection := func(p entity.UserProfile, title string, cardID uuid.UUID, qty int) entity.Collection {
 		c := entity.Collection{ProfileID: p.ID, Title: title}
 		require.NoError(t, db.Create(&c).Error)
