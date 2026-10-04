@@ -27,6 +27,7 @@ interface MultiSelectProps {
   selected: string[]
   onChange: (values: string[]) => void
   searchable?: boolean
+  disabled?: boolean
 }
 
 /**
@@ -40,6 +41,7 @@ export function MultiSelect({
   selected,
   onChange,
   searchable,
+  disabled,
 }: MultiSelectProps) {
   const [query, setQuery] = useState("")
   const needle = query.trim().toLowerCase()
@@ -55,7 +57,10 @@ export function MultiSelect({
 
   return (
     <Popover onOpenChange={() => setQuery("")}>
-      <PopoverTrigger className="inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 sm:w-fit">
+      <PopoverTrigger
+        disabled={disabled}
+        className="inline-flex h-9 w-full items-center justify-between gap-1.5 rounded-3xl border border-transparent bg-input/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
+      >
         {label}
         {selected.length > 0 && (
           <Badge>

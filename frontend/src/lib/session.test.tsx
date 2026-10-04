@@ -7,6 +7,7 @@ import {
   LOGOUT_FAILED,
   createSessionChangeHandler,
   resetCache,
+  useIsGuest,
   useSession,
   useSignOut,
 } from "./session"
@@ -44,6 +45,17 @@ function clerkUser(state: "loading" | "signed-out" | "signed-in") {
           }) as any
   )
 }
+
+describe("useIsGuest", () => {
+  it("is a Guest only once Clerk has loaded and nobody is signed in", () => {
+    clerkUser("loading")
+    expect(renderHook(() => useIsGuest()).result.current).toBe(false)
+    clerkUser("signed-out")
+    expect(renderHook(() => useIsGuest()).result.current).toBe(true)
+    clerkUser("signed-in")
+    expect(renderHook(() => useIsGuest()).result.current).toBe(false)
+  })
+})
 
 describe("useSession", () => {
   it("is loading, and not authenticated, until Clerk has loaded", () => {

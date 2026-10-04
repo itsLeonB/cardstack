@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, useLocation } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
@@ -11,6 +11,7 @@ import {
   useInfiniteCardResultsProps,
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
+import { useIsGuest } from "@/lib/session"
 
 export const Route = createFileRoute("/catalog/sets/$expansionSetId")({
   // No search schema: the list is infinite, so a stale `?page=` in an old link
@@ -33,6 +34,8 @@ function ExpansionSetCardsPage() {
 
   const query = useInfiniteCatalogCards({ expansionSetId: [expansionSetId] })
   const results = useInfiniteCardResultsProps(query)
+  const isGuest = useIsGuest()
+  const href = useLocation({ select: (location) => location.href })
   const { cards, total } = results
   const firstCard = cards[0]
   const releaseDate = formatReleaseDate(firstCard?.expansionSet.releaseDate)
@@ -73,6 +76,8 @@ function ExpansionSetCardsPage() {
 
       <InfiniteCardResults
         {...results}
+        guest={isGuest}
+        signInRedirect={href}
         emptyMessage="This Expansion Set has no cards yet."
       />
     </PageContainer>

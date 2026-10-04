@@ -2,8 +2,19 @@ import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Page, Route } from "playwright/test"
 
+import { stubEmptyLists } from "./support/api-stubs"
+import {
+  SIGNED_IN_TAG,
+  signInAsTestUser,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
 // Stubs the catalog API with 300 generated cards (60 per page, so five pages)
-// instead of the seeded fixture, which is too small to scroll. Alpha cards are
+// instead of the seeded fixture, which is too small to scroll. Past the first
+// page the catalog is a signed-in feature (a Guest gets "Sign in to see more",
+// see catalog-guest-lock.spec.ts), so the specs that scroll sign in through
+// Clerk's real development instance (support/clerk-auth.ts) and skip without
+// its credentials; the stubs answer, the real session token authenticates. Alpha cards are
 // the even indexes and Beta the odd ones.
 const CARDS = Array.from({ length: 300 }, (_, index) => ({
   id: `card-${index}`,
@@ -23,13 +34,20 @@ type StubBody = {
 }
 
 function json(route: Route, body: StubBody) {
+  const headers = {
+    "access-control-allow-origin": route.request().headers()["origin"] ?? "",
+    "access-control-allow-credentials": "true",
+    // The bearer token makes every call cross-origin preflighted.
+    "access-control-allow-headers": "authorization, content-type",
+    "access-control-allow-methods": "GET, OPTIONS",
+  }
+  if (route.request().method() === "OPTIONS") {
+    return route.fulfill({ status: 204, headers })
+  }
   return route.fulfill({
     status: 200,
     contentType: "application/json",
-    headers: {
-      "access-control-allow-origin": route.request().headers()["origin"] ?? "",
-      "access-control-allow-credentials": "true",
-    },
+    headers,
     body: JSON.stringify(body),
   })
 }
@@ -50,6 +68,8 @@ async function stubCatalog(
     })
   )
   await page.route("**/catalog/cards?*", (route) => {
+    // A preflight is not a page request.
+    if (route.request().method() === "OPTIONS") return json(route, { data: [] })
     const url = new URL(route.request().url())
     requests.push(url)
     const name = (url.searchParams.get("name") ?? "").toLowerCase()
@@ -74,14 +94,20 @@ async function stubCatalog(
   return requests
 }
 
-// Reached by client navigation: a direct load runs the route loader on the dev
-// server, where these browser-level stubs don't apply.
-async function openSearch(page: Page) {
-  await page.goto("/")
+// Signs in (landing on the dashboard, whose lists are stubbed empty) and goes
+// to the catalog by client navigation: a direct load runs the route loader on
+// the dev server, where these browser-level stubs don't apply.
+async function openCatalog(page: Page) {
+  await stubEmptyLists(page)
+  await signInAsTestUser(page)
   await page
-    .getByRole("main")
-    .getByRole("link", { name: "Browse the catalog" })
+    .getByRole("banner")
+    .getByRole("link", { name: "Catalog", exact: true })
     .click()
+}
+
+async function openSearch(page: Page) {
+  await openCatalog(page)
   await page.getByRole("link", { name: "search the catalog" }).click()
   await expect(
     page.getByRole("heading", { name: "Search the catalog", level: 1 })
@@ -91,7 +117,9 @@ async function openSearch(page: Page) {
 const scrollToBottom = (page: Page) =>
   page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
 
-test.describe("Catalog search infinite scroll", () => {
+test.describe("Catalog search infinite scroll", { tag: SIGNED_IN_TAG }, () => {
+  useSignedInSuite()
+
   test("loads every page on scroll without duplicates and keeps the DOM windowed", async ({
     page,
   }) => {
@@ -202,7 +230,9 @@ const lowestRenderedPosition = (page: Page) =>
   )
 
 // The accessibility and place-keeping behaviour of the virtualized grid.
-test.describe("Catalog search grid", () => {
+test.describe("Catalog search grid", { tag: SIGNED_IN_TAG }, () => {
+  useSignedInSuite()
+
   const loadedCount = async (page: Page) => {
     const text = await page.getByText(/ of 300 cards loaded/).textContent()
     return Number(text?.split(" ")[0])
@@ -400,7 +430,9 @@ test.describe("Catalog search grid", () => {
   })
 })
 
-test.describe("Expansion Set infinite scroll", () => {
+test.describe("Expansion Set infinite scroll", { tag: SIGNED_IN_TAG }, () => {
+  useSignedInSuite()
+
   test("loads every card of the set on scroll without duplicates", async ({
     page,
   }) => {
@@ -416,12 +448,7 @@ test.describe("Expansion Set infinite scroll", () => {
         },
       })
     )
-    // Reached by client navigation: see openSearch.
-    await page.goto("/")
-    await page
-      .getByRole("main")
-      .getByRole("link", { name: "Browse the catalog" })
-      .click()
+    await openCatalog(page)
     await page.getByRole("link", { name: /Test Set/ }).click()
     await expect(
       page.getByRole("heading", { name: "Test Set", level: 1 })
@@ -457,7 +484,10 @@ test.describe("Expansion Set infinite scroll", () => {
       .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title")))
     expect(new Set(names).size).toBe(names.length)
   })
+})
 
+// A Guest's first page is all the legacy link can open, which needs no sign-in.
+test.describe("Expansion Set legacy link", () => {
   test("a legacy ?page= link opens the first page of the set", async ({
     page,
   }) => {

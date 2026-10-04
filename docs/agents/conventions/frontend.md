@@ -14,6 +14,7 @@ These apply to every frontend change, whether made by the root agent or a subage
 ## Routing and layout
 
 - On public routes, read auth state with `useSession()` (no redirect) and gate features on `isAuthenticated`; only `requireAuth` under `_authenticated/` redirects. Guards read Clerk through `context.auth`, and a layout with such a guard sets `ssr: false`.
+- Mirror the API's guest lock with `useIsGuest()` (`lib/session.ts`), which is true only once Clerk has loaded with nobody signed in, so a signed-in user never sees the lock flash up. Send every sign-in prompt on a public page through `SignInLink` with the page's own `location.href` as `redirect`, so signing in returns to the same view. Handle `login_required` (a 401 with that `code`) as a prompt, never a toast or generic error: `infinitePages` throws `LoginRequiredError` for it.
 - Every redirect target must pass `isSameOriginPath` (`lib/route-guard.ts`) and is followed with `router.history.push`, since `navigate({ to })` doesn't take a query string.
 - Drop user-scoped query data in `createSessionChangeHandler` (`lib/session.ts`), which reacts to Clerk's session changes, not in a mutation's `onSuccess`. Never store the Clerk session token.
 - Lay out every page with `PageContainer` and `PageHeader` (`components/layout/`). Pages never render their own `main`, wrapper `div` or `h1`: each shell owns its single `main` landmark.

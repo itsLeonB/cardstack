@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useLocation } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import {
   getSearchCatalogCardsQueryOptions,
@@ -38,6 +38,7 @@ export const Route = createFileRoute("/catalog/cards/$expansionSetId/$localId")(
 
 function CardDetailPage() {
   const { expansionSetId, localId } = Route.useParams()
+  const href = useLocation({ select: (location) => location.href })
   const query = useSearchCatalogCards(cardParams(expansionSetId, localId))
   const card =
     query.data?.status === 200 ? query.data.data.data?.[0] : undefined
@@ -78,7 +79,7 @@ function CardDetailPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-[minmax(0,20rem)_1fr]">
           <CardTile card={card} imageVariant="detail" />
-          <CardHoldings cardId={card.id} />
+          <CardHoldings cardId={card.id} loginRedirect={href} />
         </div>
       )}
     </PageContainer>

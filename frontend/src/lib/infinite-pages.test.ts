@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { infinitePages, mergePages, nextPageParam } from "./infinite-pages"
+import {
+  LoginRequiredError,
+  infinitePages,
+  mergePages,
+  nextPageParam,
+} from "./infinite-pages"
 import type { ListPage } from "./infinite-pages"
 
 type Row = { id: string }
@@ -101,5 +106,33 @@ describe("infinitePages", () => {
         "fallback"
       ).queryFn({ pageParam: 1, signal })
     ).rejects.toThrow("fallback")
+  })
+  it("throws LoginRequiredError for a 401 login_required, so a prompt can replace the generic error", async () => {
+    const locked: Page = {
+      status: 401,
+      data: { detail: "sign in to use this part of the catalog" },
+    }
+    // `code` is the stable signal; the detail text is never parsed.
+    const withCode = {
+      ...locked,
+      data: { ...locked.data, code: "login_required" },
+    }
+    await expect(
+      infinitePages(() => Promise.resolve(withCode), "fallback").queryFn({
+        pageParam: 1,
+        signal,
+      })
+    ).rejects.toBeInstanceOf(LoginRequiredError)
+  })
+
+  it("keeps a 401 without the login_required code a plain error", async () => {
+    const expired = () =>
+      infinitePages(
+        () =>
+          Promise.resolve<Page>({ status: 401, data: { detail: "expired" } }),
+        "fallback"
+      ).queryFn({ pageParam: 1, signal })
+    await expect(expired()).rejects.toThrow("expired")
+    await expect(expired()).rejects.not.toBeInstanceOf(LoginRequiredError)
   })
 })
