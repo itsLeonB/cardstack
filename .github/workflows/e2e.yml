@@ -147,14 +147,16 @@ jobs:
           VITE_CLERK_PUBLISHABLE_KEY: >-
             ${{ vars.VITE_CLERK_PUBLISHABLE_KEY ||
             'pk_test_d29ya2luZy1jaGltcC01NzcxLmNsZXJrLmFjY291bnRzLmRldiQ=' }}
-          # Real sign-in (ticket 09): the development instance's secret key and
-          # the dedicated test user. Scoped to this step, so no other step sees
-          # them. Fork and Dependabot pull requests get none of the three (they
-          # arrive empty), so the sign-in specs skip with a reason there while
-          # the guest specs above still run. Never echo these.
+          # Real sign-in (ticket 09), scoped to this step. Fork and Dependabot
+          # pull requests get no secrets, so the signed-in specs skip there
+          # while the guest specs run. Everywhere else the secrets must exist:
+          # E2E_REQUIRE_SIGN_IN makes missing ones fail those specs, not skip.
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
+          E2E_REQUIRE_SIGN_IN: >-
+            ${{ github.event.pull_request.head.repo.fork != true &&
+            github.actor != 'dependabot[bot]' }}
         run: bunx playwright test
 
       - name: Upload Playwright report

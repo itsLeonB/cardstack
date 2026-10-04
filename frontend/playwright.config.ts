@@ -43,9 +43,7 @@ export default defineConfig({
       grepInvert: /@signed-in/,
       use: { ...devices["Desktop Chrome"] },
     },
-    // Specs that sign in run untraced: a trace records the session cookie and
-    // bearer token, and CI uploads the report on a failure. The tag is
-    // e2e/support/clerk-auth.ts's SIGNED_IN_TAG.
+    // Untraced on purpose: see SIGNED_IN_TAG in e2e/support/clerk-auth.ts.
     {
       name: "chromium-signed-in",
       grep: /@signed-in/,
@@ -66,8 +64,7 @@ export default defineConfig({
         command: "bun run dev",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
-        // The dev server renders pages on the server and has no use for the e2e
-        // credentials, so it does not inherit them from this process.
+        // The dev server has no use for the e2e credentials.
         env: {
           CLERK_SECRET_KEY: "",
           E2E_CLERK_USER_EMAIL: "",
