@@ -27,8 +27,8 @@ type Services struct {
 // is) because it needs a DataSources — ProvideServices otherwise takes only
 // already-built, DB-free dependencies so cmd/genspec can call it without a DB
 // (see ProvideServices's own doc comment).
-func ProvideUserService(ds *DataSources, users catalogrepository.UserRepository) service.UserService {
-	return service.NewUserService(crud.NewTransactor(ds.Gorm), users, crud.NewRepository[entity.UserProfile](ds.Gorm))
+func ProvideUserService(ds *DataSources, users catalogrepository.UserRepository, cache service.IdentityCache) service.UserService {
+	return service.NewUserService(crud.NewTransactor(ds.Gorm), users, crud.NewRepository[entity.UserProfile](ds.Gorm), cache)
 }
 
 // ProvideCatalogService builds the catalog service over ds's DB, for the same

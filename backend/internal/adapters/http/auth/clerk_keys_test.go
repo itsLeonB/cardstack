@@ -86,13 +86,17 @@ func TestClerkKeys_RefetchesAfterTheKeyTTL(t *testing.T) {
 	assert.Equal(t, int32(2), fetches.Load(), "a key Clerk retired must not stay trusted forever")
 }
 
-func TestClerkKeys_FailedFetchIsAnErrorAndRetriedNextTime(t *testing.T) {
-	keys, fetches, _ := newTestKeys(t, http.StatusInternalServerError)
+func TestClerkKeys_FailedFetchIsAnErrorAndThrottled(t *testing.T) {
+	keys, fetches, now := newTestKeys(t, http.StatusInternalServerError)
 
 	_, err := keys.FindKey(context.Background(), testKeyID)
 	assert.Error(t, err)
 	_, err = keys.FindKey(context.Background(), testKeyID)
-	assert.Error(t, err)
+	assert.Error(t, err, "an outage keeps failing, it must not look like an unknown key")
+	assert.Equal(t, int32(1), fetches.Load(), "an outage must not make every request call Clerk")
 
+	*now = now.Add(keyRefetchInterval)
+	_, err = keys.FindKey(context.Background(), testKeyID)
+	assert.Error(t, err)
 	assert.Equal(t, int32(2), fetches.Load())
 }

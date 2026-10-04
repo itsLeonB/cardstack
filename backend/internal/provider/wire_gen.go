@@ -23,7 +23,8 @@ func InitializeProviders() (*Providers, func(), error) {
 		return nil, nil, err
 	}
 	userRepository := ProvideUserRepository(dataSources)
-	userService := ProvideUserService(dataSources, userRepository)
+	identityCache := ProvideIdentityCache()
+	userService := ProvideUserService(dataSources, userRepository, identityCache)
 	catalogService := ProvideCatalogService(dataSources)
 	collectionService := ProvideCollectionService(dataSources)
 	inventoryService := ProvideInventoryService(dataSources)

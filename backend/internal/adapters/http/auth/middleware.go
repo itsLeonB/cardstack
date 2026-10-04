@@ -31,7 +31,7 @@ func Guard(api huma.API, verifier TokenVerifier, users service.UserService, allo
 
 		scheme, token, _ := strings.Cut(header, " ")
 		if !strings.EqualFold(scheme, "Bearer") || token == "" {
-			writeErr(api, ctx, ungerr.UnauthorizedError("invalid or expired token"))
+			writeErr(api, ctx, ungerr.UnauthorizedError(invalidTokenMsg))
 			return
 		}
 

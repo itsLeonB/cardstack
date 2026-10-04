@@ -64,7 +64,7 @@ func newTestAPI(t *testing.T) testAPI {
 	ds := &provider.DataSources{Gorm: db, SQL: sqlDB}
 	services := provider.ProvideServices(
 		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, keys),
-		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds)),
+		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
 		provider.ProvideCatalogService(ds),
 		provider.ProvideCollectionService(ds),
 		provider.ProvideInventoryService(ds),

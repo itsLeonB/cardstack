@@ -18,6 +18,7 @@ packages:
       CollectionService:
       InventoryService:
       UserService:
+      IdentityCache:
   github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth:
     interfaces:
       KeySource:

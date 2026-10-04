@@ -96,7 +96,9 @@ jobs:
           payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
           domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
             | tr -d '$') || true
-          echo "CLERK_ISSUER=https://$domain" >> "$GITHUB_ENV"
+          if [[ -n "$domain" ]]; then
+            echo "CLERK_ISSUER=https://$domain" >> "$GITHUB_ENV"
+          fi
 
       - name: Start the backend API
         working-directory: backend

@@ -211,12 +211,16 @@ jobs:
           #
           # Previews use Clerk's development instance. The API verifies
           # tokens against its issuer, the Frontend API URL, which is the
-          # publishable key's base64 payload ("<domain>$"). It also refuses to
-          # boot without APP_CLIENT_URLS, which is set after the Vercel
+          # publishable key's base64 payload ("<domain>$"). The API rejects
+          # every token until APP_CLIENT_URLS is set, after the Vercel
           # preview exists (see "Allow the Vercel preview origin" below).
           payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
           domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
             | tr -d '$') || true
+          if [[ -z "$domain" ]]; then
+            echo "::error::VITE_CLERK_PUBLISHABLE_KEY is missing or invalid."
+            exit 1
+          fi
           issuer="https://$domain"
           railway variable set \
             "DB_HOST=${{ steps.neon.outputs.host }}" \

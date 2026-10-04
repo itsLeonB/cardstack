@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
@@ -21,6 +20,7 @@ type userFixture struct {
 	ctx      context.Context
 	users    *mocks.MockUserRepository
 	profiles *mocks.MockRepository[entity.UserProfile]
+	cache    *mocks.MockIdentityCache
 	svc      UserService
 	identity dto.AuthIdentity
 }
@@ -32,12 +32,13 @@ func newUserFixture(t *testing.T) userFixture {
 		ctx:      context.Background(),
 		users:    mocks.NewMockUserRepository(t),
 		profiles: mocks.NewMockRepository[entity.UserProfile](t),
+		cache:    mocks.NewMockIdentityCache(t),
 		identity: dto.AuthIdentity{Provider: dto.AuthProviderClerk, Subject: "user_1", Email: "ada@example.com", Name: "Ada Lovelace"},
 	}
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewUserService(transactor, f.users, f.profiles)
+	f.svc = NewUserService(transactor, f.users, f.profiles, f.cache)
 	return f
 }
 
@@ -49,8 +50,12 @@ func profileSpec(userID uuid.UUID) crud.Specification[entity.UserProfile] {
 	return crud.Specification[entity.UserProfile]{Model: entity.UserProfile{UserID: userID}}
 }
 
-func (f userFixture) expectLock() {
+// expectProvisioning expects a cache miss, the identity lock, and the mapping
+// being cached for the caller the test resolves to.
+func (f userFixture) expectProvisioning(caller dto.CallerIdentity) {
+	f.cache.EXPECT().Get(f.identity).Return(dto.CallerIdentity{}, false).Once()
 	f.users.EXPECT().LockIdentity(f.ctx, f.identity.Provider, f.identity.Subject).Return(nil).Once()
+	f.cache.EXPECT().Set(f.identity, caller).Once()
 }
 
 func (f userFixture) existingUser() entity.User {
@@ -62,7 +67,7 @@ func TestUserService_ResolveCaller_FirstUseCreatesUserAndProfile(t *testing.T) {
 	user := f.existingUser()
 	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: user.ID, Name: "Ada Lovelace"}
 
-	f.expectLock()
+	f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID})
 	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(entity.User{}, nil).Once()
 	f.users.EXPECT().Insert(f.ctx, entity.User{AuthProvider: "clerk", AuthSubject: "user_1", Email: "ada@example.com"}).Return(user, nil).Once()
 	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(entity.UserProfile{}, nil).Once()
@@ -80,11 +85,11 @@ func TestUserService_ResolveCaller_NameFallsBackToEmailLocalPart(t *testing.T) {
 		f.identity.Name = name
 		user := f.existingUser()
 
-		f.expectLock()
+		created := entity.UserProfile{BaseEntity: baseEntity(uuid.New())}
+		f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: created.ID})
 		f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
 		f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(entity.UserProfile{}, nil).Once()
-		f.profiles.EXPECT().Insert(f.ctx, entity.UserProfile{UserID: user.ID, Name: "ada"}).
-			Return(entity.UserProfile{BaseEntity: baseEntity(uuid.New())}, nil).Once()
+		f.profiles.EXPECT().Insert(f.ctx, entity.UserProfile{UserID: user.ID, Name: "ada"}).Return(created, nil).Once()
 
 		_, err := f.svc.ResolveCaller(f.ctx, f.identity)
 
@@ -98,7 +103,7 @@ func TestUserService_ResolveCaller_ExistingUserKeepsNameAndEmail(t *testing.T) {
 	user := f.existingUser()
 	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: user.ID, Name: "Ada Lovelace"}
 
-	f.expectLock()
+	f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID})
 	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
 	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Once()
 
@@ -117,7 +122,7 @@ func TestUserService_ResolveCaller_UpdatesEmailOnlyWhenItDiffers(t *testing.T) {
 	updated.Email = f.identity.Email
 	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: user.ID, Name: "Ada Lovelace"}
 
-	f.expectLock()
+	f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID})
 	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
 	f.users.EXPECT().Update(f.ctx, updated).Return(updated, nil).Once()
 	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Once()
@@ -127,42 +132,16 @@ func TestUserService_ResolveCaller_UpdatesEmailOnlyWhenItDiffers(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUserService_ResolveCaller_CachesTheMapping(t *testing.T) {
+func TestUserService_ResolveCaller_CacheHitSkipsTheDatabase(t *testing.T) {
 	f := newUserFixture(t)
-	user := f.existingUser()
-	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: user.ID, Name: "Ada Lovelace"}
+	cached := dto.CallerIdentity{UserID: uuid.New(), ProfileID: uuid.New()}
+	f.cache.EXPECT().Get(f.identity).Return(cached, true).Once()
 
-	f.expectLock()
-	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
-	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Once()
-
-	first, err := f.svc.ResolveCaller(f.ctx, f.identity)
-	require.NoError(t, err)
-	second, err := f.svc.ResolveCaller(f.ctx, f.identity)
+	caller, err := f.svc.ResolveCaller(f.ctx, f.identity)
 
 	require.NoError(t, err)
-	assert.Equal(t, first, second, "the second call must not reach the repositories (Once() above)")
-}
-
-func TestUserService_ResolveCaller_ChangedEmailBypassesTheCache(t *testing.T) {
-	f := newUserFixture(t)
-	user := f.existingUser()
-	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: user.ID, Name: "Ada Lovelace"}
-	changed := user
-	changed.Email = "new@example.com"
-
-	f.users.EXPECT().LockIdentity(f.ctx, "clerk", "user_1").Return(nil).Twice()
-	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
-	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
-	f.users.EXPECT().Update(f.ctx, changed).Return(changed, nil).Once()
-	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Twice()
-
-	_, err := f.svc.ResolveCaller(f.ctx, f.identity)
-	require.NoError(t, err)
-
-	f.identity.Email = "new@example.com"
-	_, err = f.svc.ResolveCaller(f.ctx, f.identity)
-	require.NoError(t, err)
+	assert.Equal(t, cached, caller)
+	// No repository call is expected: the mocks fail the test on any.
 }
 
 func TestUserService_ResolveCaller_RejectsIdentityWithoutProviderOrSubject(t *testing.T) {
@@ -178,37 +157,4 @@ func TestUserService_ResolveCaller_RejectsIdentityWithoutProviderOrSubject(t *te
 		require.True(t, ok, "%v", err)
 		assert.Equal(t, http.StatusUnauthorized, appErr.HttpStatus())
 	}
-}
-
-func TestIdentityCache_ExpiresEntries(t *testing.T) {
-	now := time.Now()
-	cache := newIdentityCache(func() time.Time { return now })
-	identity := dto.AuthIdentity{Provider: "clerk", Subject: "user_1", Email: "a@example.com"}
-	caller := dto.CallerIdentity{UserID: uuid.New(), ProfileID: uuid.New()}
-
-	cache.set(identity, caller)
-	got, ok := cache.get(identity)
-	require.True(t, ok)
-	assert.Equal(t, caller, got)
-
-	now = now.Add(identityCacheTTL)
-	_, ok = cache.get(identity)
-	assert.False(t, ok, "an entry is stale once its TTL has elapsed")
-}
-
-func TestIdentityCache_EmptiesWhenFull(t *testing.T) {
-	cache := newIdentityCache(time.Now)
-	caller := dto.CallerIdentity{UserID: uuid.New(), ProfileID: uuid.New()}
-	first := dto.AuthIdentity{Provider: "clerk", Subject: "first"}
-
-	cache.set(first, caller)
-	for i := 1; i < identityCacheMax; i++ {
-		cache.set(dto.AuthIdentity{Provider: "clerk", Subject: uuid.NewString()}, caller)
-	}
-	cache.set(dto.AuthIdentity{Provider: "clerk", Subject: "overflow"}, caller)
-
-	_, ok := cache.get(first)
-	assert.False(t, ok)
-	_, ok = cache.get(dto.AuthIdentity{Provider: "clerk", Subject: "overflow"})
-	assert.True(t, ok)
 }

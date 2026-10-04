@@ -77,7 +77,7 @@ func requireUnauthorized(t *testing.T, err error) {
 	appErr, ok := errors.AsType[ungerr.AppError](err)
 	require.True(t, ok, "expected an AppError, got %v", err)
 	assert.Equal(t, http.StatusUnauthorized, appErr.HttpStatus())
-	assert.Equal(t, "invalid or expired token", appErr.Details())
+	assert.Equal(t, invalidTokenMsg, appErr.Details())
 }
 
 func TestClerkVerifier_AcceptsAValidToken(t *testing.T) {
@@ -107,6 +107,7 @@ func TestClerkVerifier_RejectsBadTokens(t *testing.T) {
 
 	cases := map[string]func(claims map[string]any){
 		"expired":                  func(c map[string]any) { c["exp"] = now.Add(-time.Hour).Unix() },
+		"no expiry":                func(c map[string]any) { delete(c, "exp") },
 		"not yet valid":            func(c map[string]any) { c["nbf"] = now.Add(time.Hour).Unix() },
 		"another issuer":           func(c map[string]any) { c["iss"] = "https://other.clerk.accounts.dev" },
 		"another authorized party": func(c map[string]any) { c["azp"] = "https://evil.example" },

@@ -24,9 +24,11 @@ type ClerkKeys struct {
 	client *jwks.Client
 	now    func() time.Time
 
-	mu        sync.Mutex
-	keys      map[string]*clerk.JSONWebKey
-	fetchedAt time.Time
+	mu          sync.Mutex
+	keys        map[string]*clerk.JSONWebKey
+	fetchedAt   time.Time
+	attemptedAt time.Time
+	lastErr     error
 }
 
 func NewClerkKeys(secretKey string) *ClerkKeys {
@@ -41,24 +43,29 @@ func (c *ClerkKeys) FindKey(ctx context.Context, keyID string) (*clerk.JSONWebKe
 	defer c.mu.Unlock()
 
 	now := c.now()
-	age := now.Sub(c.fetchedAt)
-	if key, ok := c.keys[keyID]; ok && age < keyTTL {
+	if key, ok := c.keys[keyID]; ok && now.Sub(c.fetchedAt) < keyTTL {
 		return key, nil
 	}
-	if !c.fetchedAt.IsZero() && age < keyRefetchInterval {
-		return nil, nil
+	// A failed fetch is throttled like a successful one, and keeps failing
+	// meanwhile: during a Clerk outage requests must not each call Clerk, and an
+	// outage must not look like a forged key id.
+	if !c.attemptedAt.IsZero() && now.Sub(c.attemptedAt) < keyRefetchInterval {
+		return nil, c.lastErr
 	}
 
+	c.attemptedAt = now
 	set, err := c.client.Get(ctx, &jwks.GetParams{})
 	if err != nil {
-		return nil, ungerr.Wrap(err, "fetching clerk signing keys")
+		c.lastErr = ungerr.Wrap(err, "fetching clerk signing keys")
+		return nil, c.lastErr
 	}
 
+	c.lastErr = nil
+	c.fetchedAt = now
 	c.keys = make(map[string]*clerk.JSONWebKey, len(set.Keys))
 	for _, key := range set.Keys {
 		c.keys[key.KeyID] = key
 	}
-	c.fetchedAt = now
 
 	return c.keys[keyID], nil
 }

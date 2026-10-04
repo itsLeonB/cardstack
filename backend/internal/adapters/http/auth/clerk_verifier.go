@@ -21,6 +21,9 @@ type KeySource interface {
 
 var errInvalidToken = errors.New("invalid token")
 
+// invalidTokenMsg is the safe detail of every 401 caused by the token itself.
+const invalidTokenMsg = "invalid or expired token"
+
 // customClaims are the two claims the Clerk session token is configured to
 // carry (see scripts/clerk-setup.sh). They are trusted because the token is
 // signed.
@@ -45,7 +48,7 @@ func NewClerkVerifier(issuer string, authorizedParties []string, keys KeySource)
 func (v *ClerkVerifier) Verify(ctx context.Context, token string) (dto.AuthIdentity, error) {
 	identity, err := v.verify(ctx, token)
 	if errors.Is(err, errInvalidToken) {
-		return dto.AuthIdentity{}, ungerr.UnauthorizedError("invalid or expired token")
+		return dto.AuthIdentity{}, ungerr.UnauthorizedError(invalidTokenMsg)
 	}
 
 	return identity, err
@@ -73,6 +76,12 @@ func (v *ClerkVerifier) verify(ctx context.Context, token string) (dto.AuthIdent
 	})
 	if err != nil {
 		return dto.AuthIdentity{}, fmt.Errorf("%w: verifying: %w", errInvalidToken, err)
+	}
+
+	// Verify checks exp only when the claim is present, and a token that never
+	// expires must not be accepted.
+	if claims.Expiry == nil {
+		return dto.AuthIdentity{}, fmt.Errorf("%w: no expiry", errInvalidToken)
 	}
 
 	// Verify only checks that the issuer looks like a Clerk one, not that it is
