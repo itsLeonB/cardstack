@@ -1,56 +1,19 @@
 import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
-import type { Page, Route } from "playwright/test"
+import type { Page } from "playwright/test"
+
+import { stubEmptyLists } from "./support/api-stubs"
+import {
+  signInAsTestUser,
+  signInThroughForm,
+  SIGNED_IN_TAG,
+  useSignedInSuite,
+} from "./support/clerk-auth"
 
 // Sign-in and sign-up are Clerk's prebuilt components (ADR-0015). Guest checks
-// here need no setup. Flows that sign in need a real Clerk session, which only
-// ticket 09's Clerk Testing Tokens layer can create, so they are `fixme` until
-// then. `stubApi` below simulated the removed /auth/me and /auth/login endpoints.
-interface StubBody {
-  data?: unknown
-  detail?: string
-  meta?: { total: number; page: number; limit: number }
-}
-
-function fulfillJson(route: Route, status: number, body: StubBody) {
-  return {
-    status,
-    contentType: "application/json",
-    headers: {
-      "access-control-allow-origin": route.request().headers()["origin"] ?? "",
-      "access-control-allow-credentials": "true",
-    },
-    body: JSON.stringify(body),
-  }
-}
-
-async function stubApi(page: Page, { signedIn }: { signedIn: boolean }) {
-  let session = signedIn
-  await page.route("**/auth/me", (route) =>
-    route.fulfill(
-      session
-        ? fulfillJson(route, 200, {
-            data: { id: "u1", email: "ada@example.com" },
-          })
-        : fulfillJson(route, 401, { detail: "Unauthorized" })
-    )
-  )
-  await page.route("**/auth/login", (route) => {
-    // The page itself lives at /auth/login; only the API call is stubbed.
-    if (route.request().resourceType() !== "fetch") return route.fallback()
-    session = true
-    return route.fulfill(fulfillJson(route, 200, { data: { csrfToken: "t" } }))
-  })
-  await page.route(/\/(collections|inventory)/, (route) => {
-    if (route.request().resourceType() !== "fetch") return route.fallback()
-    return route.fulfill(
-      fulfillJson(route, 200, {
-        data: [],
-        meta: { total: 0, page: 1, limit: 24 },
-      })
-    )
-  })
-}
+// here need no setup. The signed-in ones sign in through Clerk's real
+// development instance (see support/clerk-auth.ts) and skip without its
+// credentials.
 
 test.describe("Auth redirects", () => {
   test("sends a guest from a protected page to login, remembering the page and its query", async ({
@@ -65,49 +28,57 @@ test.describe("Auth redirects", () => {
     )
   })
 
-  test.fixme("returns to the protected page, query string included, after login", async ({
-    page,
-  }) => {
-    await stubApi(page, { signedIn: false })
-    await page.goto("/collections?q=binder")
+  test.describe("signed in", { tag: SIGNED_IN_TAG }, () => {
+    useSignedInSuite()
 
-    await expect(page).toHaveURL(
-      /\/auth\/login\?redirect=%2Fcollections%3Fq%3Dbinder$/
-    )
-    await page.getByLabel("Email").fill("ada@example.com")
-    await page.getByLabel("Password", { exact: true }).fill("correct horse")
-    await page.getByRole("button", { name: "Log in" }).click()
+    test("returns to the protected page, query string included, after login", async ({
+      page,
+    }) => {
+      await stubEmptyLists(page)
+      await signInThroughForm(
+        page,
+        "/auth/login?redirect=%2Fcollections%3Fq%3Dbinder"
+      )
 
-    await expect(page).toHaveURL(/\/collections\?q=binder$/)
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Collections" })
-    ).toBeVisible()
-  })
-
-  test.fixme("ignores an external redirect target after login", async ({
-    page,
-  }) => {
-    await stubApi(page, { signedIn: false })
-    await page.goto("/auth/login?redirect=https://evil.example/")
-
-    await page.getByLabel("Email").fill("ada@example.com")
-    await page.getByLabel("Password", { exact: true }).fill("correct horse")
-    await page.getByRole("button", { name: "Log in" }).click()
-
-    await expect(page).toHaveURL(/localhost:\d+\/account$/)
-  })
-
-  for (const path of ["/auth/login", "/auth/register", "/auth/foo", "/auth"]) {
-    test.fixme(`sends a signed-in user from ${path} to /`, async ({ page }) => {
-      await stubApi(page, { signedIn: true })
-      await page.goto(path)
-
-      await expect(page).toHaveURL(/\/$/)
+      await expect(page).toHaveURL(/\/collections\?q=binder$/, {
+        timeout: 15_000,
+      })
       await expect(
-        page.getByRole("heading", { level: 1, name: "Welcome back" })
+        page.getByRole("heading", { level: 1, name: "Collections" })
       ).toBeVisible()
     })
-  }
+
+    test("ignores an external redirect target after login", async ({
+      page,
+    }) => {
+      await signInThroughForm(
+        page,
+        "/auth/login?redirect=https://evil.example/"
+      )
+
+      await expect(page).toHaveURL(/localhost:\d+\/account$/, {
+        timeout: 15_000,
+      })
+    })
+
+    for (const path of [
+      "/auth/login",
+      "/auth/register",
+      "/auth/foo",
+      "/auth",
+    ]) {
+      test(`sends a signed-in user from ${path} to /`, async ({ page }) => {
+        await stubEmptyLists(page)
+        await signInAsTestUser(page)
+        await page.goto(path)
+
+        await expect(page).toHaveURL(/\/$/)
+        await expect(
+          page.getByRole("heading", { level: 1, name: "Welcome back" })
+        ).toBeVisible()
+      })
+    }
+  })
 
   // The page's one h1 is Clerk's own header title; the app adds none.
   for (const path of ["/auth/login", "/auth/register"]) {

@@ -2,40 +2,23 @@ import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Page } from "playwright/test"
 
+import { stubEmptyLists } from "./support/api-stubs"
+import {
+  expectShowsTestUserEmail,
+  signInAsTestUser,
+  SIGNED_IN_TAG,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
 // Shell-level checks. Guest tests need no setup: Clerk loads, finds no session
-// and the shell reads as "guest". Signed-in tests need a real Clerk session,
-// which only ticket 09's Clerk Testing Tokens layer can create; they are
-// `fixme` until then (the `signIn` stub below simulated the removed /auth/me).
+// and the shell reads as "guest". Signed-in tests sign in through Clerk's real
+// development instance (see support/clerk-auth.ts) and skip without its
+// credentials; the Collection and Inventory lists stay stubbed so the
+// destination pages render whatever the backend holds.
 
 async function signIn(page: Page) {
-  // Destination pages (including the dashboard at /) crash without a backend or
-  // on a body missing `meta`; empty paginated lists keep the shell up.
-  await page.route(/\/(collections|inventory)/, (route) => {
-    if (route.request().resourceType() !== "fetch") return route.fallback()
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: {
-        "access-control-allow-origin": route.request().headers().origin ?? "",
-        "access-control-allow-credentials": "true",
-      },
-      body: JSON.stringify({
-        data: [],
-        meta: { total: 0, page: 1, limit: 24 },
-      }),
-    })
-  })
-  await page.route("**/auth/me", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: {
-        "access-control-allow-origin": route.request().headers().origin ?? "",
-        "access-control-allow-credentials": "true",
-      },
-      body: JSON.stringify({ data: { id: "u1", email: "ada@example.com" } }),
-    })
-  )
+  await stubEmptyLists(page)
+  await signInAsTestUser(page)
 }
 
 // The dev server can hydrate after the first click lands, which would be a
@@ -101,7 +84,9 @@ test.describe("App shell: guest", () => {
   })
 })
 
-test.describe.fixme("App shell: signed in", () => {
+test.describe("App shell: signed in", { tag: SIGNED_IN_TAG }, () => {
+  useSignedInSuite()
+
   test("shows signed-in navigation and the user menu", async ({ page }) => {
     await signIn(page)
     await page.goto("/")
@@ -120,7 +105,7 @@ test.describe.fixme("App shell: signed in", () => {
 
     await openMenu(page, "User menu", "Account")
     await expect(page.getByRole("menuitem", { name: "Log out" })).toBeVisible()
-    await expect(page.getByRole("menu")).toContainText("ada@example.com")
+    await expectShowsTestUserEmail(page.getByRole("menu"))
   })
 
   test("passes axe on the signed-in shell", async ({ page }) => {

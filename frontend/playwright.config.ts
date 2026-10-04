@@ -6,11 +6,27 @@ import { defineConfig, devices } from "playwright/test"
 // test runner API as `@playwright/test`, so we import from there instead
 // of adding a second, overlapping dependency.
 
+// The dev server reads frontend/.env itself, but this process does not. Load it
+// so a local run finds the Clerk credentials documented in .env.example (see
+// docs/agents/testing.md, "End-to-end authentication"); variables already in
+// the environment win, and CI has no .env file.
+try {
+  process.loadEnvFile()
+} catch {
+  // No .env file: the environment alone decides.
+}
+
 const PORT = 3000
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: "./e2e",
+  // Only specs: e2e/support/*.test.ts are vitest unit tests.
+  testMatch: "**/*.spec.ts",
+  // Fetches the Clerk Testing Token once for the run (a no-op without the
+  // Clerk credentials). A global setup, not a setup project: workers inherit
+  // its environment, which is how the token reaches them.
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -24,7 +40,14 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      grepInvert: /@signed-in/,
       use: { ...devices["Desktop Chrome"] },
+    },
+    // Untraced on purpose: see SIGNED_IN_TAG in e2e/support/clerk-auth.ts.
+    {
+      name: "chromium-signed-in",
+      grep: /@signed-in/,
+      use: { ...devices["Desktop Chrome"], trace: "off" },
     },
   ],
   // Only start a local dev server when there's no already-deployed target
@@ -41,5 +64,11 @@ export default defineConfig({
         command: "bun run dev",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
+        // The dev server has no use for the e2e credentials.
+        env: {
+          CLERK_SECRET_KEY: "",
+          E2E_CLERK_USER_EMAIL: "",
+          E2E_CLERK_USER_PASSWORD: "",
+        },
       },
 })

@@ -1,23 +1,18 @@
 import { test, expect } from "playwright/test"
 import type { Page } from "playwright/test"
 
+import {
+  SIGNED_IN_TAG,
+  signInAsTestUser,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
 // Metadata is set from the browser (SPA mode), so these read the live document head.
 
 const cors = (origin: string | undefined) => ({
   "access-control-allow-origin": origin ?? "",
   "access-control-allow-credentials": "true",
 })
-
-async function signIn(page: Page) {
-  await page.route("**/auth/me", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: cors(route.request().headers().origin),
-      body: JSON.stringify({ data: { id: "u1", email: "ada@example.com" } }),
-    })
-  )
-}
 
 const robotsMeta = (page: Page) => page.locator('head meta[name="robots"]')
 
@@ -88,20 +83,25 @@ test.describe("Titles and indexing", () => {
     await expect(robotsMeta(page)).toHaveAttribute("content", "noindex")
   })
 
-  // FIXME(ticket 09): needs a real Clerk session; signIn() stubbed the removed /auth/me.
-  test.fixme("an authenticated page is noindex", async ({ page }) => {
-    await signIn(page)
-    await page.goto("/")
-    await expect(async () => {
-      await page.getByRole("button", { name: "User menu" }).click()
-      await page
-        .getByRole("menuitem", { name: "Account" })
-        .click({ timeout: 1000 })
-    }).toPass()
+  // Signs in through Clerk's real development instance and skips without its
+  // credentials. The dashboard's own reads go to the real backend.
+  test.describe("signed in", { tag: SIGNED_IN_TAG }, () => {
+    useSignedInSuite()
 
-    await expect(page).toHaveTitle("Account · Cardstack")
-    await expect(robotsMeta(page)).toHaveAttribute("content", "noindex")
-    await expect(robotsMeta(page)).toHaveCount(1)
+    test("an authenticated page is noindex", async ({ page }) => {
+      await signInAsTestUser(page)
+      await page.goto("/")
+      await expect(async () => {
+        await page.getByRole("button", { name: "User menu" }).click()
+        await page
+          .getByRole("menuitem", { name: "Account" })
+          .click({ timeout: 1000 })
+      }).toPass()
+
+      await expect(page).toHaveTitle("Account · Cardstack")
+      await expect(robotsMeta(page)).toHaveAttribute("content", "noindex")
+      await expect(robotsMeta(page)).toHaveCount(1)
+    })
   })
 
   test("robots.txt disallows the authenticated paths", async ({ request }) => {
