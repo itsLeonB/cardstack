@@ -56,10 +56,10 @@ jobs:
       DB_USER: cardstack
       DB_PASSWORD: cardstack
       DB_NAME: cardstack
-      # config.Auth's only field with no default (see
-      # internal/core/config/auth_config.go) — needed for config.Load() to
-      # succeed, unused by anything this workflow actually exercises.
-      AUTH_JWT_SECRET: e2e-test-secret
+      # The API refuses to boot without these. Real sign-in is wired up with
+      # the Clerk end-to-end tests (security-hardening ticket 09).
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      APP_CLIENT_URLS: http://localhost:3000
 
     steps:
       - name: Checkout code
@@ -86,6 +86,17 @@ jobs:
         run: >-
           psql -h localhost -U cardstack -d cardstack
           -f backend/internal/adapters/db/postgres/testdata/e2e_seed.sql
+
+      - name: Derive the Clerk issuer from the publishable key
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          # The issuer is the Frontend API URL, which the publishable key
+          # base64-encodes as "<domain>$".
+          payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
+          domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
+            | tr -d '$') || true
+          echo "CLERK_ISSUER=https://$domain" >> "$GITHUB_ENV"
 
       - name: Start the backend API
         working-directory: backend

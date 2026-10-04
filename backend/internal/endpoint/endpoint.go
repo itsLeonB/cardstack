@@ -28,14 +28,10 @@ import (
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 )
 
-// CookieAuthSecurity is the single security requirement used by every
+// BearerAuthSecurity is the single security requirement used by every
 // secured route in this API — see httpapi.NewConfig, which registers
-// "CookieAuth" as the only security scheme. Exported so handlers that
-// register routes directly with huma.Register (bypassing this package's
-// Endpoint wrappers, e.g. auth_handler.go's cookie-setting routes) can
-// declare the same security requirement without duplicating the scheme
-// name.
-var CookieAuthSecurity = []map[string][]string{{"CookieAuth": {}}}
+// "BearerAuth" as the only security scheme.
+var BearerAuthSecurity = []map[string][]string{{"BearerAuth": {}}}
 
 // mergeMiddlewares appends route-specific middlewares after RegisterAll's
 // shared ones, so shared middleware always runs first. Returns shared
@@ -84,7 +80,7 @@ func Register[Req, Res any](api huma.API, e Endpoint[Req, Res], mw ...func(huma.
 	}
 
 	if e.Secured {
-		op.Security = CookieAuthSecurity
+		op.Security = BearerAuthSecurity
 	}
 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*envelopeOutput[Res], error) {
@@ -131,7 +127,7 @@ func RegisterWithMeta[Req, Res, Meta any](api huma.API, e EndpointWithMeta[Req, 
 	}
 
 	if e.Secured {
-		op.Security = CookieAuthSecurity
+		op.Security = BearerAuthSecurity
 	}
 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*envelopeWithMetaOutput[Res, Meta], error) {
@@ -174,7 +170,7 @@ func RegisterNoBody[Req any](api huma.API, e NoBodyEndpoint[Req], mw ...func(hum
 	}
 
 	if e.Secured {
-		op.Security = CookieAuthSecurity
+		op.Security = BearerAuthSecurity
 	}
 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*noBodyOutput, error) {
@@ -219,7 +215,7 @@ func RegisterList[Req, Res any](api huma.API, e ListEndpoint[Req, Res], mw ...fu
 	}
 
 	if e.Secured {
-		op.Security = CookieAuthSecurity
+		op.Security = BearerAuthSecurity
 	}
 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*listOutput[Res], error) {
@@ -264,7 +260,7 @@ func RegisterRedirect[Req any](api huma.API, e RedirectEndpoint[Req], mw ...func
 	}
 
 	if e.Secured {
-		op.Security = CookieAuthSecurity
+		op.Security = BearerAuthSecurity
 	}
 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*redirectOutput, error) {

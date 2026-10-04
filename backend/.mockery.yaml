@@ -11,11 +11,17 @@ packages:
       CatalogRepository:
       CollectionRepository:
       InventoryRepository:
+      UserRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       CatalogService:
       CollectionService:
       InventoryService:
+      UserService:
+  github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth:
+    interfaces:
+      KeySource:
+      TokenVerifier:
   github.com/itsLeonB/go-crud:
     interfaces:
       Repository:

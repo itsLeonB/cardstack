@@ -4,12 +4,13 @@ go 1.26.3
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/clerk/clerk-sdk-go/v2 v2.7.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/gin-gonic/gin v1.12.0
+	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.7.0
 	github.com/itsLeonB/ezutil/v2 v2.4.0
-	github.com/itsLeonB/go-authkit v0.2.0-pre2
 	github.com/itsLeonB/go-crud v1.4.0
 	github.com/itsLeonB/ungerr v0.5.0
 	github.com/joho/godotenv v1.5.1
@@ -55,7 +56,6 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/subcommands v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -67,7 +67,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/markbates/goth v1.82.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.23 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
@@ -116,7 +115,6 @@ require (
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect

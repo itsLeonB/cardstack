@@ -17,28 +17,22 @@ func InitializeProviders() (*Providers, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	auth := ProvideAuthConfig()
-	userStore := ProvideUserStore(dataSources)
-	sessionStore := ProvideSessionStore(dataSources)
-	refreshTokenStore := ProvideRefreshTokenStore(dataSources)
-	transactor := ProvideTransactor(dataSources)
-	sessionCache := ProvideSessionCache()
-	authKit, cleanup2, err := ProvideAuthKit(auth, userStore, sessionStore, refreshTokenStore, transactor, sessionCache)
+	tokenVerifier, err := ProvideTokenVerifier()
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	profileLookup := ProvideProfileLookup(dataSources)
+	userRepository := ProvideUserRepository(dataSources)
+	userService := ProvideUserService(dataSources, userRepository)
 	catalogService := ProvideCatalogService(dataSources)
 	collectionService := ProvideCollectionService(dataSources)
 	inventoryService := ProvideInventoryService(dataSources)
-	services := ProvideServices(authKit, profileLookup, catalogService, collectionService, inventoryService)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,
 	}
 	return providers, func() {
-		cleanup2()
 		cleanup()
 	}, nil
 }

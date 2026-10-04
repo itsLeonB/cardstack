@@ -127,11 +127,6 @@ jobs:
           DB_USER: ${{ secrets.NEON_ROLE_NAME }}
           DB_PASSWORD: ${{ steps.neon.outputs.password }}
           DB_NAME: ${{ secrets.NEON_DATABASE_NAME }}
-          # cmd/job loads the full Config (config.Load() validates every
-          # sub-struct, not just DB) even though the migration runner
-          # itself never touches auth — AUTH_JWT_SECRET is the only field
-          # with no default, so it needs *a* value, not the real one.
-          AUTH_JWT_SECRET: unused-by-migrations
         run: go run ./cmd/job
 
       - name: Install Railway CLI
@@ -200,10 +195,12 @@ jobs:
           echo "$last_list"
           exit 1
 
-      - name: Push Neon credentials into the Railway PR environment
+      - name: Push Neon and Clerk settings into the Railway PR environment
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
           # Variable changes trigger a redeploy by default, so no separate
           # redeploy step is needed once these are set.
@@ -212,22 +209,23 @@ jobs:
           # just "api" — cardstack has no worker/job services like cashus
           # did), so no per-service loop is needed here.
           #
-          # AUTH_JWT_SECRET has no default (config.Auth's only
-          # required:"true" field with no fallback — see
-          # internal/core/config/auth_config.go) — without it config.Load()
-          # fails and the api service never boots. Generated fresh per run
-          # rather than a fixed repo secret: this is a throwaway preview
-          # environment (its Neon branch is deleted and recreated the same
-          # way on every push), so there's no session continuity to
-          # preserve across pushes, and a fresh secret per push is strictly
-          # safer than a long-lived one shared across every PR preview.
+          # Previews use Clerk's development instance. The API verifies
+          # tokens against its issuer, the Frontend API URL, which is the
+          # publishable key's base64 payload ("<domain>$"). It also refuses to
+          # boot without APP_CLIENT_URLS, which is set after the Vercel
+          # preview exists (see "Allow the Vercel preview origin" below).
+          payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
+          domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
+            | tr -d '$') || true
+          issuer="https://$domain"
           railway variable set \
             "DB_HOST=${{ steps.neon.outputs.host }}" \
             "DB_PORT=5432" \
             "DB_USER=${{ secrets.NEON_ROLE_NAME }}" \
             "DB_PASSWORD=${{ steps.neon.outputs.password }}" \
             "DB_NAME=${{ secrets.NEON_DATABASE_NAME }}" \
-            "AUTH_JWT_SECRET=$(openssl rand -hex 32)" \
+            "CLERK_SECRET_KEY=$CLERK_SECRET_KEY" \
+            "CLERK_ISSUER=$issuer" \
             --service api \
             --environment "$RAILWAY_ENV"
 
@@ -315,6 +313,19 @@ jobs:
             -m "githubCommitRef=$HEAD_REF" \
             -m "githubCommitSha=$HEAD_SHA")
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Allow the Vercel preview origin on the Railway API
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
+          PREVIEW_ORIGIN: ${{ steps.vercel.outputs.url }}
+        run: |
+          # The API checks each token's authorized party against
+          # APP_CLIENT_URLS, and this is the origin people sign in from. The
+          # variable change redeploys the API.
+          railway variable set "APP_CLIENT_URLS=$PREVIEW_ORIGIN" \
+            --service api \
+            --environment "$RAILWAY_ENV"
 
       - name: Comment preview links on the PR
         uses: actions/github-script@v8

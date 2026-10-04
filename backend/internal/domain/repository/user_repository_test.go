@@ -3,160 +3,98 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	authkit "github.com/itsLeonB/go-authkit"
+	crud "github.com/itsLeonB/go-crud"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestUserRepository_CreateAndFindByEmail(t *testing.T) {
+func TestUserRepository_AuthIdentityIsUnique(t *testing.T) {
 	db := testDB(t)
-	repo := NewUserRepository(db)
+	repo := NewUserRepository(crud.NewRepository[entity.User](db))
+	ctx := context.Background()
+	subject := uuid.NewString()
+
+	_, err := repo.Insert(ctx, entity.User{AuthProvider: "test", AuthSubject: subject, Email: uniqueEmail(t)})
+	require.NoError(t, err)
+
+	_, err = repo.Insert(ctx, entity.User{AuthProvider: "test", AuthSubject: subject, Email: uniqueEmail(t)})
+	assert.Error(t, err, "the same provider and subject must not map to two users")
+
+	_, err = repo.Insert(ctx, entity.User{AuthProvider: "other", AuthSubject: subject, Email: uniqueEmail(t)})
+	assert.NoError(t, err, "the same subject under another provider is a different identity")
+}
+
+func TestUserRepository_EmailIsNotUnique(t *testing.T) {
+	db := testDB(t)
+	repo := NewUserRepository(crud.NewRepository[entity.User](db))
 	ctx := context.Background()
 	email := uniqueEmail(t)
 
-	created, err := repo.Create(ctx, email, "hashed-password")
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-	if created.ID == "" {
-		t.Fatal("expected a generated ID")
-	}
-	if created.Verified {
-		t.Fatal("expected a newly created user to be unverified")
-	}
-
-	found, err := repo.FindByEmail(ctx, email)
-	if err != nil {
-		t.Fatalf("FindByEmail: %v", err)
-	}
-	if found.ID != created.ID || found.PasswordHash != "hashed-password" {
-		t.Fatalf("FindByEmail returned %+v, want ID=%s PasswordHash=hashed-password", found, created.ID)
-	}
-
-	byID, err := repo.FindByID(ctx, created.ID)
-	if err != nil {
-		t.Fatalf("FindByID: %v", err)
-	}
-	if byID.Email != email {
-		t.Fatalf("FindByID returned email %q, want %q", byID.Email, email)
-	}
+	_, err := repo.Insert(ctx, entity.User{AuthProvider: "test", AuthSubject: uuid.NewString(), Email: email})
+	require.NoError(t, err)
+	_, err = repo.Insert(ctx, entity.User{AuthProvider: "test", AuthSubject: uuid.NewString(), Email: email})
+	assert.NoError(t, err, "two identities may share an email")
 }
 
-func TestUserRepository_FindByEmail_NotFound(t *testing.T) {
+func TestUserRepository_DeletingUserCascadesToProfile(t *testing.T) {
 	db := testDB(t)
-	repo := NewUserRepository(db)
+	profile := newTestProfile(t, db, "Cascade")
 
-	_, err := repo.FindByEmail(context.Background(), "nobody@example.com")
-	if err != authkit.ErrUserNotFound {
-		t.Fatalf("expected ErrUserNotFound, got %v", err)
-	}
+	require.NoError(t, db.Delete(&entity.User{BaseEntity: crud.BaseEntity{ID: profile.UserID}}).Error)
+
+	var count int64
+	require.NoError(t, db.Model(&entity.UserProfile{}).Where("id = ?", profile.ID).Count(&count).Error)
+	assert.Zero(t, count)
 }
 
-func TestUserRepository_FindByID_NotFound(t *testing.T) {
+func TestUserRepository_LockIdentity(t *testing.T) {
 	db := testDB(t)
-	repo := NewUserRepository(db)
+	repo := NewUserRepository(crud.NewRepository[entity.User](db))
+	tx := crud.NewTransactor(db)
+	subject := uuid.NewString()
 
-	_, err := repo.FindByID(context.Background(), "not-a-uuid")
-	if err != authkit.ErrUserNotFound {
-		t.Fatalf("expected ErrUserNotFound for a malformed ID, got %v", err)
-	}
-}
-
-func TestUserRepository_SetVerified(t *testing.T) {
-	db := testDB(t)
-	repo := NewUserRepository(db)
-	ctx := context.Background()
-
-	created, err := repo.Create(ctx, uniqueEmail(t), "hash")
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-
-	updated, err := repo.SetVerified(ctx, created.ID, "Bob", "")
-	if err != nil {
-		t.Fatalf("SetVerified: %v", err)
-	}
-	if !updated.Verified {
-		t.Fatal("expected Verified to be true after SetVerified")
+	holding := make(chan struct{})
+	release := make(chan struct{})
+	holderDone := make(chan error, 1)
+	go func() {
+		holderDone <- tx.WithinTransaction(context.Background(), func(ctx context.Context) error {
+			if err := repo.LockIdentity(ctx, "test", subject); err != nil {
+				return err
+			}
+			close(holding)
+			<-release
+			return nil
+		})
+	}()
+	select {
+	case <-holding:
+	case err := <-holderDone:
+		t.Fatalf("the first transaction ended before holding the lock: %v", err)
 	}
 
-	// ProfileID is now an opaque FK into user_profiles (see
-	// entity/user_profile.go), not the name itself — check it via the
-	// row it actually points to.
-	profileID, err := uuid.Parse(updated.ProfileID)
-	if err != nil {
-		t.Fatalf("expected ProfileID to be a valid UUID, got %q: %v", updated.ProfileID, err)
+	waiterDone := make(chan error, 1)
+	go func() {
+		waiterDone <- tx.WithinTransaction(context.Background(), func(ctx context.Context) error {
+			return repo.LockIdentity(ctx, "test", subject)
+		})
+	}()
+
+	select {
+	case <-waiterDone:
+		t.Fatal("a second transaction acquired the identity lock while the first held it")
+	case <-time.After(300 * time.Millisecond):
 	}
 
-	var profile entity.UserProfile
-	if err := db.First(&profile, "id = ?", profileID).Error; err != nil {
-		t.Fatalf("expected a user_profiles row for id %s: %v", profileID, err)
-	}
-	if profile.Name != "Bob" {
-		t.Fatalf("expected user_profiles.name %q, got %q", "Bob", profile.Name)
-	}
-	if profile.UserID.String() != created.ID {
-		t.Fatalf("expected user_profiles.user_id %q, got %q", created.ID, profile.UserID)
-	}
+	// A different identity is not blocked by the held lock.
+	require.NoError(t, tx.WithinTransaction(context.Background(), func(ctx context.Context) error {
+		return repo.LockIdentity(ctx, "test", uuid.NewString())
+	}))
 
-	// A second SetVerified call updates the same profile row rather than
-	// creating a duplicate.
-	updatedAgain, err := repo.SetVerified(ctx, created.ID, "Bobby", "")
-	if err != nil {
-		t.Fatalf("second SetVerified: %v", err)
-	}
-	if updatedAgain.ProfileID != updated.ProfileID {
-		t.Fatalf("expected ProfileID to stay %q on a second SetVerified, got %q", updated.ProfileID, updatedAgain.ProfileID)
-	}
-
-	var reloaded entity.UserProfile
-	if err := db.First(&reloaded, "id = ?", profileID).Error; err != nil {
-		t.Fatalf("expected the same user_profiles row to still exist: %v", err)
-	}
-	if reloaded.Name != "Bobby" {
-		t.Fatalf("expected user_profiles.name to be updated to %q, got %q", "Bobby", reloaded.Name)
-	}
-}
-
-func TestUserRepository_UpdatePassword(t *testing.T) {
-	db := testDB(t)
-	repo := NewUserRepository(db)
-	ctx := context.Background()
-
-	created, err := repo.Create(ctx, uniqueEmail(t), "old-hash")
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-
-	if err := repo.UpdatePassword(ctx, created.ID, "new-hash"); err != nil {
-		t.Fatalf("UpdatePassword: %v", err)
-	}
-
-	found, err := repo.FindByID(ctx, created.ID)
-	if err != nil {
-		t.Fatalf("FindByID: %v", err)
-	}
-	if found.PasswordHash != "new-hash" {
-		t.Fatalf("expected PasswordHash %q, got %q", "new-hash", found.PasswordHash)
-	}
-}
-
-func TestUserRepository_Exists(t *testing.T) {
-	db := testDB(t)
-	repo := NewUserRepository(db)
-	ctx := context.Background()
-
-	created, err := repo.Create(ctx, uniqueEmail(t), "hash")
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-
-	if err := repo.Exists(ctx, created.ID); err != nil {
-		t.Fatalf("Exists for a real user: %v", err)
-	}
-
-	if err := repo.Exists(ctx, "00000000-0000-0000-0000-000000000000"); err != authkit.ErrUserNotFound {
-		t.Fatalf("expected ErrUserNotFound for a missing user, got %v", err)
-	}
+	close(release)
+	require.NoError(t, <-holderDone)
+	require.NoError(t, <-waiterDone)
 }

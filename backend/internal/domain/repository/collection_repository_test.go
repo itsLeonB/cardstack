@@ -16,12 +16,7 @@ import (
 
 func newTestCollection(t *testing.T, db *gorm.DB) entity.Collection {
 	t.Helper()
-	user, err := NewUserRepository(db).Create(context.Background(), uniqueEmail(t), "hash")
-	require.NoError(t, err)
-	userID, err := uuid.Parse(user.ID)
-	require.NoError(t, err)
-	profile := entity.UserProfile{UserID: userID, Name: "Collection Test"}
-	require.NoError(t, db.Create(&profile).Error)
+	profile := newTestProfile(t, db, "Collection Test")
 	col := entity.Collection{ProfileID: profile.ID, Title: "Binder"}
 	require.NoError(t, db.Create(&col).Error)
 	return col

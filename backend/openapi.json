@@ -22,21 +22,6 @@
         ],
         "type": "object"
       },
-      "AuthMessage": {
-        "additionalProperties": false,
-        "properties": {
-          "csrfToken": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "type": "object"
-      },
       "BulkUpdateEntriesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -249,18 +234,6 @@
         ],
         "type": "object"
       },
-      "EnvelopeAuthMessage": {
-        "additionalProperties": false,
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/AuthMessage"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "type": "object"
-      },
       "EnvelopeCatalogFacets": {
         "additionalProperties": false,
         "properties": {
@@ -392,18 +365,6 @@
               "array",
               "null"
             ]
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "type": "object"
-      },
-      "EnvelopeMeResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/MeResponse"
           }
         },
         "required": [
@@ -703,39 +664,6 @@
         ],
         "type": "object"
       },
-      "LoginInputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "email": {
-            "format": "email",
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "type": "object"
-      },
-      "MeResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "email": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "email"
-        ],
-        "type": "object"
-      },
       "PaginationMeta": {
         "additionalProperties": false,
         "properties": {
@@ -800,28 +728,6 @@
           "id",
           "code",
           "name"
-        ],
-        "type": "object"
-      },
-      "RegisterInputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "email": {
-            "format": "email",
-            "type": "string"
-          },
-          "password": {
-            "minLength": 8,
-            "type": "string"
-          },
-          "passwordConfirmation": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "password",
-          "passwordConfirmation"
         ],
         "type": "object"
       },
@@ -917,10 +823,10 @@
       }
     },
     "securitySchemes": {
-      "CookieAuth": {
-        "in": "cookie",
-        "name": "access_token",
-        "type": "apiKey"
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -930,214 +836,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/auth/login": {
-      "post": {
-        "operationId": "login",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginInputBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EnvelopeAuthMessage"
-                }
-              }
-            },
-            "description": "OK",
-            "headers": {
-              "Set-Cookie": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Log in with email and password",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/logout": {
-      "post": {
-        "operationId": "logout",
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "Set-Cookie": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "security": [
-          {
-            "CookieAuth": []
-          }
-        ],
-        "summary": "Log out and clear the current session",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/me": {
-      "get": {
-        "operationId": "get-current-user",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EnvelopeMeResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "security": [
-          {
-            "CookieAuth": []
-          }
-        ],
-        "summary": "Get the current session's user",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/refresh": {
-      "post": {
-        "operationId": "refresh-token",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "refresh_token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EnvelopeAuthMessage"
-                }
-              }
-            },
-            "description": "OK",
-            "headers": {
-              "Set-Cookie": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Rotate the refresh token and issue a new access token",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/register": {
-      "post": {
-        "operationId": "register",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterInputBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EnvelopeAuthMessage"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Register with email and password",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/catalog/cards": {
       "get": {
         "operationId": "search-catalog-cards",
@@ -1592,7 +1290,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "List the current user's own Collections",
@@ -1636,7 +1334,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Create a Collection",
@@ -1677,7 +1375,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Delete one of the current user's own Collections (hard delete, no undo)",
@@ -1723,7 +1421,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Get one of the current user's own Collections",
@@ -1779,7 +1477,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Edit one of the current user's own Collections",
@@ -1960,7 +1658,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Search/page the Cards and quantities in one of the current user's own Collections, with the catalog search filters",
@@ -2016,7 +1714,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Set many Card quantities in one of the current user's own Collections; items over capacity or naming an unknown Card are declined, the rest applied",
@@ -2072,7 +1770,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Add a Card to one of the current user's own Collections",
@@ -2123,7 +1821,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Remove a Card from one of the current user's own Collections",
@@ -2189,7 +1887,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Set the quantity of a Card already in one of the current user's own Collections",
@@ -2326,7 +2024,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "List each filter's available options computed only from the Cards in one of the current user's own Collections (same faceted rule as the catalog)",
@@ -2528,7 +2226,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "Search/page the current user's Master Inventory with the catalog search filters: each owned Card with its quantity summed across all their Collections (computed on read)",
@@ -2655,7 +2353,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "List each filter's available options computed only from the Cards in the current user's Master Inventory (same faceted rule as the catalog)",
@@ -2703,7 +2401,7 @@
         },
         "security": [
           {
-            "CookieAuth": []
+            "BearerAuth": []
           }
         ],
         "summary": "List the current user's own Collections that hold a Card, with the quantity in each (empty when none)",

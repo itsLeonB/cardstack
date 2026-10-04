@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
-	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
@@ -63,15 +61,13 @@ func newTestCardsInSet(t *testing.T, n int, releaseDate *time.Time) []uuid.UUID 
 // capacity-limit rejection and cross-user isolation; branch cases live in
 // the service unit tests.
 func TestInventoryFlow(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 	cards := newTestCards(t, 2)
 
-	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	owner := api.newUserToken(t)
+	other := api.newUserToken(t)
 
-	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder", "maxCardCount": 5})
+	createResp := api.Post("/collections", bearer(owner), map[string]any{"title": "Binder", "maxCardCount": 5})
 	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
 	var created collectionEnvelope
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
@@ -79,22 +75,22 @@ func TestInventoryFlow(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, api.Get(base).Code)
 
-	resp := api.Post(base, cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": cards[0], "quantity": 3})
+	resp := api.Post(base, bearer(owner), map[string]any{"cardId": cards[0], "quantity": 3})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
-	resp = api.Post(base, cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": cards[1], "quantity": 2})
+	resp = api.Post(base, bearer(owner), map[string]any{"cardId": cards[1], "quantity": 2})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 
 	// A Card already in the Collection is a conflict, not a merge.
-	resp = api.Post(base, cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	resp = api.Post(base, bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
 	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
 
 	// Full: any further increase is rejected, a decrease is fine.
-	resp = api.Put(base+"/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner), map[string]any{"quantity": 4})
+	resp = api.Put(base+"/"+cards[0].String(), bearer(owner), map[string]any{"quantity": 4})
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
-	resp = api.Put(base+"/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner), map[string]any{"quantity": 1})
+	resp = api.Put(base+"/"+cards[0].String(), bearer(owner), map[string]any{"quantity": 1})
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 
-	resp = api.Get(base, cookieHeader(owner))
+	resp = api.Get(base, bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	var list struct {
 		Data []struct {
@@ -110,25 +106,22 @@ func TestInventoryFlow(t *testing.T) {
 	assert.Equal(t, map[string]int{cards[0].String(): 1, cards[1].String(): 2}, got)
 
 	// Another user sees a missing Collection on every verb.
-	assert.Equal(t, http.StatusNotFound, api.Get(base, cookieHeader(other)).Code)
-	resp = api.Post(base, cookieHeader(other), csrfHeader(other), map[string]any{"cardId": cards[0], "quantity": 1})
+	assert.Equal(t, http.StatusNotFound, api.Get(base, bearer(other)).Code)
+	resp = api.Post(base, bearer(other), map[string]any{"cardId": cards[0], "quantity": 1})
 	assert.Equal(t, http.StatusNotFound, resp.Code)
-	resp = api.Put(base+"/"+cards[0].String(), cookieHeader(other), csrfHeader(other), map[string]any{"quantity": 1})
+	resp = api.Put(base+"/"+cards[0].String(), bearer(other), map[string]any{"quantity": 1})
 	assert.Equal(t, http.StatusNotFound, resp.Code)
-	assert.Equal(t, http.StatusNotFound, api.Delete(base+"/"+cards[0].String(), cookieHeader(other), csrfHeader(other)).Code)
+	assert.Equal(t, http.StatusNotFound, api.Delete(base+"/"+cards[0].String(), bearer(other)).Code)
 
-	// CSRF guard covers the mutating routes.
-	assert.Equal(t, http.StatusForbidden, api.Delete(base+"/"+cards[0].String(), cookieHeader(owner)).Code)
-
-	resp = api.Delete(base+"/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner))
+	resp = api.Delete(base+"/"+cards[0].String(), bearer(owner))
 	assert.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
-	resp = api.Delete(base+"/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner))
+	resp = api.Delete(base+"/"+cards[0].String(), bearer(owner))
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 
 	// A removed entry stays removed: update reports 404, never resurrects it.
-	resp = api.Put(base+"/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner), map[string]any{"quantity": 1})
+	resp = api.Put(base+"/"+cards[0].String(), bearer(owner), map[string]any{"quantity": 1})
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
-	resp = api.Get(base, cookieHeader(owner))
+	resp = api.Get(base, bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code)
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &list))
 	assert.Len(t, list.Data, 1)
@@ -136,26 +129,24 @@ func TestInventoryFlow(t *testing.T) {
 
 // TestInventoryListOrder: the list sorts by Set release date, unknown last.
 func TestInventoryListOrder(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 	released := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	unknown := newTestCardsInSet(t, 1, nil)[0]
 	known := newTestCardsInSet(t, 1, &released)[0]
 
-	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder"})
+	owner := api.newUserToken(t)
+	createResp := api.Post("/collections", bearer(owner), map[string]any{"title": "Binder"})
 	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
 	var created collectionEnvelope
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
 	base := "/collections/" + created.Data.ID + "/entries"
 
 	for _, id := range []uuid.UUID{unknown, known} {
-		resp := api.Post(base, cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": id, "quantity": 1})
+		resp := api.Post(base, bearer(owner), map[string]any{"cardId": id, "quantity": 1})
 		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 	}
 
-	resp := api.Get(base, cookieHeader(owner))
+	resp := api.Get(base, bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	var list struct {
 		Data []struct {
@@ -169,19 +160,17 @@ func TestInventoryListOrder(t *testing.T) {
 }
 
 // TestInventoryBulkUpdateFlow covers the bulk endpoint end to end: apply,
-// idempotent retry, auth/CSRF/ownership, and concurrent batches on one
+// idempotent retry, auth/ownership, and concurrent batches on one
 // Collection serializing on its row lock. Branch cases (capacity, unknown
 // card, duplicates) live in the service unit tests.
 func TestInventoryBulkUpdateFlow(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 	cards := newTestCards(t, 4)
 
-	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	owner := api.newUserToken(t)
+	other := api.newUserToken(t)
 
-	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder", "maxCardCount": 5})
+	createResp := api.Post("/collections", bearer(owner), map[string]any{"title": "Binder", "maxCardCount": 5})
 	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
 	var created collectionEnvelope
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
@@ -194,8 +183,8 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 		}
 		return map[string]any{"items": list}
 	}
-	patch := func(user []*http.Cookie, path string, body any) (int, []dto.InventoryChangeResult) {
-		resp := api.Patch(path, cookieHeader(user), csrfHeader(user), body)
+	patch := func(user string, path string, body any) (int, []dto.InventoryChangeResult) {
+		resp := api.Patch(path, bearer(user), body)
 		var out struct {
 			Data []dto.InventoryChangeResult `json:"data"`
 		}
@@ -205,7 +194,7 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 		return resp.Code, out.Data
 	}
 	quantities := func() map[string]int {
-		resp := api.Get(base, cookieHeader(owner))
+		resp := api.Get(base, bearer(owner))
 		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 		var list struct {
 			Data []struct {
@@ -237,10 +226,8 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 	assert.Equal(t, dto.InventoryStatusRemoved, res[1].Status)
 	assert.Equal(t, map[string]int{cards[0].String(): 3}, quantities())
 
-	// Auth, CSRF, ownership.
-	// CSRF is checked first, so an anonymous caller needs a matching token pair to reach the 401.
-	assert.Equal(t, http.StatusUnauthorized, api.Patch(base, "Cookie: csrf_token=x", "X-CSRF-Token: x", items(cards[0], 1)).Code)
-	assert.Equal(t, http.StatusForbidden, api.Patch(base, cookieHeader(owner), items(cards[0], 1)).Code)
+	// Auth, ownership.
+	assert.Equal(t, http.StatusUnauthorized, api.Patch(base, items(cards[0], 1)).Code)
 	code, _ = patch(other, base, items(cards[0], 1))
 	assert.Equal(t, http.StatusNotFound, code)
 	code, _ = patch(owner, "/collections/"+uuid.NewString()+"/entries", items(cards[0], 1))
@@ -275,14 +262,12 @@ func TestInventoryBulkUpdateFlow(t *testing.T) {
 // like catalog search over only the Collection's Cards, facets are scoped to
 // them, and another profile's Collection is 404 on both.
 func TestInventoryFilterAndFacetsFlow(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 	cards := newTestCards(t, 3) // one shared set/rarity, category Pokémon
 
-	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder"})
+	owner := api.newUserToken(t)
+	other := api.newUserToken(t)
+	createResp := api.Post("/collections", bearer(owner), map[string]any{"title": "Binder"})
 	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
 	var created collectionEnvelope
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
@@ -290,7 +275,7 @@ func TestInventoryFilterAndFacetsFlow(t *testing.T) {
 
 	// Only the first two Cards are in the Collection.
 	for i, q := range []int{3, 1} {
-		resp := api.Post(base+"/entries", cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": cards[i], "quantity": q})
+		resp := api.Post(base+"/entries", bearer(owner), map[string]any{"cardId": cards[i], "quantity": q})
 		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 	}
 
@@ -301,8 +286,8 @@ func TestInventoryFilterAndFacetsFlow(t *testing.T) {
 		} `json:"data"`
 		Meta struct{ Total, Page, Limit int } `json:"meta"`
 	}
-	get := func(path string, who []*http.Cookie) (int, listResp) {
-		resp := api.Get(path, cookieHeader(who))
+	get := func(path string, who string) (int, listResp) {
+		resp := api.Get(path, bearer(who))
 		var out listResp
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
 		return resp.Code, out
@@ -323,7 +308,7 @@ func TestInventoryFilterAndFacetsFlow(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Len(t, out.Data, 2)
 
-	resp := api.Get(base+"/facets", cookieHeader(owner))
+	resp := api.Get(base+"/facets", bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	var facets struct {
 		Data struct {
@@ -335,36 +320,34 @@ func TestInventoryFilterAndFacetsFlow(t *testing.T) {
 	assert.Len(t, facets.Data.ExpansionSets, 1)
 	assert.Equal(t, "Pokémon", facets.Data.Categories[0].Value)
 
-	assert.Equal(t, http.StatusNotFound, api.Get(base+"/entries", cookieHeader(other)).Code)
-	assert.Equal(t, http.StatusNotFound, api.Get(base+"/facets", cookieHeader(other)).Code)
+	assert.Equal(t, http.StatusNotFound, api.Get(base+"/entries", bearer(other)).Code)
+	assert.Equal(t, http.StatusNotFound, api.Get(base+"/facets", bearer(other)).Code)
 	assert.Equal(t, http.StatusUnauthorized, api.Get(base+"/facets").Code)
 }
 
 // TestCardHoldingsFlow: holdings list only the caller's own Collections, and
 // are empty (not an error) for a user who holds nothing.
 func TestCardHoldingsFlow(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 	card := newTestCards(t, 1)[0]
 	path := "/inventory/cards/" + card.String() + "/holdings"
 
-	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	owner := api.newUserToken(t)
+	other := api.newUserToken(t)
 	assert.Equal(t, http.StatusUnauthorized, api.Get(path).Code)
 
-	createResp := api.Post("/collections", cookieHeader(owner), csrfHeader(owner), map[string]any{"title": "Binder"})
+	createResp := api.Post("/collections", bearer(owner), map[string]any{"title": "Binder"})
 	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
 	var created collectionEnvelope
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
-	resp := api.Post("/collections/"+created.Data.ID+"/entries", cookieHeader(owner), csrfHeader(owner), map[string]any{"cardId": card, "quantity": 4})
+	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": card, "quantity": 4})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 
-	resp = api.Get(path, cookieHeader(owner))
+	resp = api.Get(path, bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.JSONEq(t, `{"data":[{"collection":{"id":"`+created.Data.ID+`","name":"Binder"},"quantity":4}]}`, resp.Body.String())
 
-	resp = api.Get(path, cookieHeader(other))
+	resp = api.Get(path, bearer(other))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.JSONEq(t, `{"data":[]}`, resp.Body.String())
 }
@@ -373,25 +356,23 @@ func TestCardHoldingsFlow(t *testing.T) {
 // another user's entries are never aggregated, and a Card removed from every
 // Collection drops out immediately.
 func TestMasterInventoryFlow(t *testing.T) {
-	services := authTestServices(t)
-	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	api := newTestAPI(t)
 	cards := newTestCards(t, 2)
 	path := "/inventory/cards"
 
-	owner := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
-	other := registerAndLogin(t, api, uuid.NewString()+"@example.com", "correct-horse-battery-staple")
+	owner := api.newUserToken(t)
+	other := api.newUserToken(t)
 	assert.Equal(t, http.StatusUnauthorized, api.Get(path).Code)
 
-	newCollection := func(who []*http.Cookie, title string) string {
-		resp := api.Post("/collections", cookieHeader(who), csrfHeader(who), map[string]any{"title": title})
+	newCollection := func(who string, title string) string {
+		resp := api.Post("/collections", bearer(who), map[string]any{"title": title})
 		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 		var c collectionEnvelope
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &c))
 		return c.Data.ID
 	}
-	add := func(who []*http.Cookie, colID string, card uuid.UUID, qty int) {
-		resp := api.Post("/collections/"+colID+"/entries", cookieHeader(who), csrfHeader(who), map[string]any{"cardId": card, "quantity": qty})
+	add := func(who string, colID string, card uuid.UUID, qty int) {
+		resp := api.Post("/collections/"+colID+"/entries", bearer(who), map[string]any{"cardId": card, "quantity": qty})
 		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 	}
 	binder, box, theirs := newCollection(owner, "Binder"), newCollection(owner, "Box"), newCollection(other, "Theirs")
@@ -407,8 +388,8 @@ func TestMasterInventoryFlow(t *testing.T) {
 		} `json:"data"`
 		Meta struct{ Total, Page, Limit int } `json:"meta"`
 	}
-	get := func(who []*http.Cookie) listResp {
-		resp := api.Get(path, cookieHeader(who))
+	get := func(who string) listResp {
+		resp := api.Get(path, bearer(who))
 		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 		var out listResp
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
@@ -422,7 +403,7 @@ func TestMasterInventoryFlow(t *testing.T) {
 	assert.Equal(t, 7, out.Data[0].Quantity)
 
 	for _, col := range []string{binder, box} {
-		resp := api.Delete("/collections/"+col+"/entries/"+cards[0].String(), cookieHeader(owner), csrfHeader(owner))
+		resp := api.Delete("/collections/"+col+"/entries/"+cards[0].String(), bearer(owner))
 		require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
 	}
 	assert.Empty(t, get(owner).Data)
