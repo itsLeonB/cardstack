@@ -41,18 +41,6 @@ async function stubCatalog(
   { tagsPerCard = 0, total = CARDS.length } = {}
 ) {
   const requests: URL[] = []
-  await page.route("**/auth/me", (route) =>
-    route.fulfill({
-      status: 401,
-      contentType: "application/json",
-      headers: {
-        "access-control-allow-origin":
-          route.request().headers()["origin"] ?? "",
-        "access-control-allow-credentials": "true",
-      },
-      body: JSON.stringify({ status: 401 }),
-    })
-  )
   await page.route("**/catalog/series", (route) =>
     json(route, { data: { series: [], ungroupedExpansionSets: [] } })
   )

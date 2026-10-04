@@ -14,12 +14,15 @@ const MAX_COLLECTIONS = 5
 /** Home for signed-in users: their Collections, a Master Inventory total and shortcuts. */
 export function Dashboard() {
   const { user } = useSession()
+  // `||`: an empty name falls back to the email too; an account with neither
+  // gets no description rather than "Signed in as null".
+  const who = user?.name || user?.email
 
   return (
     <PageContainer>
       <PageHeader
         title="Welcome back"
-        description={user ? `Signed in as ${user.email}` : undefined}
+        description={who ? `Signed in as ${who}` : undefined}
       />
       <MasterInventorySummary />
       <CollectionsSummary />

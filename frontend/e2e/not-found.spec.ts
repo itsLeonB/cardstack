@@ -40,7 +40,9 @@ test.describe("Not-found page", () => {
     "access-control-allow-credentials": "true",
   })
 
-  test("a missing Collection names what was not found, on its page and its edit page", async ({
+  // FIXME(ticket 09): needs a real Clerk session; the /auth/me stub below
+  // simulated one the API no longer has.
+  test.fixme("a missing Collection names what was not found, on its page and its edit page", async ({
     page,
   }) => {
     await page.route("**/auth/me", (route) =>

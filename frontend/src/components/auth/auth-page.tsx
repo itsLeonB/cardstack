@@ -1,28 +1,16 @@
 import { PageContainer } from "@/components/layout/page-container"
-import { PageHeader } from "@/components/layout/page-header"
-import { Card, CardContent } from "@/components/ui/card"
 
-/** Shared login/register card: narrow, with the page `h1` and a switch-form link below. The surrounding shell comes from `AuthShell`. */
-export function AuthPage({
-  title,
-  description,
-  footer,
-  children,
-}: {
-  title: string
-  description: string
-  footer: React.ReactNode
-  children: React.ReactNode
-}) {
+/**
+ * Body of the login and register pages: narrow and centred, holding Clerk's
+ * prebuilt component, which draws its own card, header and switch-form link.
+ * The surrounding shell comes from `AuthShell`. Clerk's header title is the
+ * page's `h1` (on every step), so this adds none: two would break the one-`h1`
+ * rule.
+ */
+export function AuthPage({ children }: { children: React.ReactNode }) {
   return (
-    <PageContainer variant="narrow" className="items-center gap-4">
-      <Card className="w-full">
-        <CardContent className="flex flex-col gap-6">
-          <PageHeader title={title} description={description} />
-          {children}
-        </CardContent>
-      </Card>
-      <p className="text-sm">{footer}</p>
+    <PageContainer variant="narrow" className="items-center">
+      {children}
     </PageContainer>
   )
 }

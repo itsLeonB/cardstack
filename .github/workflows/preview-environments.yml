@@ -12,8 +12,9 @@ name: Preview Environments
 #
 # Railway's own PR environment is torn down automatically by Railway when the
 # PR is merged/closed. This workflow owns the Neon branch lifecycle, the PR's
-# Vercel preview deployments and the branch-scoped VITE_API_BASE_URL env var
-# it adds to the Vercel project (neither is removed by Vercel on its own),
+# Vercel preview deployments and the branch-scoped VITE_API_BASE_URL and
+# VITE_CLERK_PUBLISHABLE_KEY env vars it adds to the Vercel project (neither
+# is removed by Vercel on its own),
 # and the cross-wiring between all three.
 
 on:
@@ -276,6 +277,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           RAILWAY_API_URL: ${{ steps.railway-domain.outputs.url }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
           # PR head ref is attacker-controlled (fork PRs); keep it out of
           # the shell command line entirely and pass it as data instead.
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -292,6 +294,14 @@ jobs:
           # frontend/.env.example's VITE_API_BASE_URL=http://localhost:8080.
           printf '%s' "${RAILWAY_API_URL}" | \
             vercel env add VITE_API_BASE_URL preview "$HEAD_REF" \
+              --token "$VERCEL_TOKEN" --force
+
+          # Previews use Clerk's development instance, so they get its
+          # publishable key (a public value; the Vercel project's own
+          # VITE_CLERK_PUBLISHABLE_KEY is Production-only). Without it the
+          # app renders a configuration error instead of signing anyone in.
+          printf '%s' "${CLERK_PUBLISHABLE_KEY}" | \
+            vercel env add VITE_CLERK_PUBLISHABLE_KEY preview "$HEAD_REF" \
               --token "$VERCEL_TOKEN" --force
 
           # Deliberately run from the repo root, not --cwd frontend: the
@@ -443,14 +453,15 @@ jobs:
             echo "No Vercel preview deployments found for branch $HEAD_REF."
           fi
 
-      - name: Delete this PR's Vercel env var
+      - name: Delete this PR's Vercel env vars
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          # Remove the branch-scoped VITE_API_BASE_URL that provision adds.
+          # Remove the branch-scoped VITE_API_BASE_URL and
+          # VITE_CLERK_PUBLISHABLE_KEY that provision adds.
           # Uses the REST API rather than `vercel env rm`: the CLI exits
           # non-zero both for "no such entry" and for real failures, so it
           # can't make this step idempotent without swallowing auth/API
@@ -470,13 +481,14 @@ jobs:
             --data-urlencode "gitBranch=$HEAD_REF")
           ids=$(echo "$page" | jq -r --arg branch "$HEAD_REF" \
             '.envs[]
-              | select(.key == "VITE_API_BASE_URL"
+              | select((.key == "VITE_API_BASE_URL"
+                  or .key == "VITE_CLERK_PUBLISHABLE_KEY")
                 and .gitBranch == $branch
                 and (.target | index("preview")))
               | .id')
 
           if [[ -z "$ids" ]]; then
-            echo "No VITE_API_BASE_URL env var found for branch $HEAD_REF."
+            echo "No VITE_* env vars found for branch $HEAD_REF."
             exit 0
           fi
 

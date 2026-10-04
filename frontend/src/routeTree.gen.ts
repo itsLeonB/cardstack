@@ -15,12 +15,14 @@ import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
 import { Route as CatalogSearchRouteImport } from './routes/catalog/search'
 import { Route as AuthenticatedCollectionsIndexRouteImport } from './routes/_authenticated/collections/index'
 import { Route as AuthenticatedCollectionsNewRouteImport } from './routes/_authenticated/collections/new'
+import { Route as AuthLoginIndexRouteImport } from './routes/auth/login/index'
+import { Route as AuthLoginSplatRouteImport } from './routes/auth/login/$'
+import { Route as AuthRegisterIndexRouteImport } from './routes/auth/register/index'
+import { Route as AuthRegisterSplatRouteImport } from './routes/auth/register/$'
 import { Route as CatalogSetsExpansionSetIdRouteImport } from './routes/catalog/sets/$expansionSetId'
 import { Route as AuthenticatedCollectionsCollectionIdIndexRouteImport } from './routes/_authenticated/collections/$collectionId/index'
 import { Route as AuthenticatedCollectionsCollectionIdEditRouteImport } from './routes/_authenticated/collections/$collectionId/edit'
@@ -55,16 +57,6 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthRouteRoute,
 } as any)
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthRegisterRoute = AuthRegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
 const CatalogIndexRoute = CatalogIndexRouteImport.update({
   id: '/catalog/',
   path: '/catalog/',
@@ -87,6 +79,26 @@ const AuthenticatedCollectionsNewRoute =
     path: '/collections/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthLoginIndexRoute = AuthLoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthLoginSplatRoute = AuthLoginSplatRouteImport.update({
+  id: '/login/$',
+  path: '/login/$',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthRegisterIndexRoute = AuthRegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthRegisterSplatRoute = AuthRegisterSplatRouteImport.update({
+  id: '/register/$',
+  path: '/register/$',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
 const CatalogSetsExpansionSetIdRoute =
   CatalogSetsExpansionSetIdRouteImport.update({
     id: '/catalog/sets/$expansionSetId',
@@ -117,14 +129,16 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteRouteWithChildren
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/register': typeof AuthRegisterRoute
   '/catalog/search': typeof CatalogSearchRoute
   '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
+  '/auth/login/$': typeof AuthLoginSplatRoute
+  '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/collections/': typeof AuthenticatedCollectionsIndexRoute
+  '/auth/login/': typeof AuthLoginIndexRoute
+  '/auth/register/': typeof AuthRegisterIndexRoute
   '/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
   '/catalog/cards/$expansionSetId/$localId': typeof CatalogCardsExpansionSetIdLocalIdRoute
   '/collections/$collectionId/': typeof AuthenticatedCollectionsCollectionIdIndexRoute
@@ -133,14 +147,16 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/register': typeof AuthRegisterRoute
   '/catalog/search': typeof CatalogSearchRoute
   '/auth': typeof AuthIndexRoute
   '/catalog': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
+  '/auth/login/$': typeof AuthLoginSplatRoute
+  '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/collections': typeof AuthenticatedCollectionsIndexRoute
+  '/auth/login': typeof AuthLoginIndexRoute
+  '/auth/register': typeof AuthRegisterIndexRoute
   '/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
   '/catalog/cards/$expansionSetId/$localId': typeof CatalogCardsExpansionSetIdLocalIdRoute
   '/collections/$collectionId': typeof AuthenticatedCollectionsCollectionIdIndexRoute
@@ -152,14 +168,16 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/register': typeof AuthRegisterRoute
   '/catalog/search': typeof CatalogSearchRoute
   '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/_authenticated/collections/new': typeof AuthenticatedCollectionsNewRoute
+  '/auth/login/$': typeof AuthLoginSplatRoute
+  '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/_authenticated/collections/': typeof AuthenticatedCollectionsIndexRoute
+  '/auth/login/': typeof AuthLoginIndexRoute
+  '/auth/register/': typeof AuthRegisterIndexRoute
   '/_authenticated/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
   '/catalog/cards/$expansionSetId/$localId': typeof CatalogCardsExpansionSetIdLocalIdRoute
   '/_authenticated/collections/$collectionId/': typeof AuthenticatedCollectionsCollectionIdIndexRoute
@@ -171,14 +189,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/account'
     | '/inventory'
-    | '/auth/login'
-    | '/auth/register'
     | '/catalog/search'
     | '/auth/'
     | '/catalog/'
     | '/collections/new'
+    | '/auth/login/$'
+    | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
     | '/collections/'
+    | '/auth/login/'
+    | '/auth/register/'
     | '/collections/$collectionId/edit'
     | '/catalog/cards/$expansionSetId/$localId'
     | '/collections/$collectionId/'
@@ -187,14 +207,16 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/inventory'
-    | '/auth/login'
-    | '/auth/register'
     | '/catalog/search'
     | '/auth'
     | '/catalog'
     | '/collections/new'
+    | '/auth/login/$'
+    | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
     | '/collections'
+    | '/auth/login'
+    | '/auth/register'
     | '/collections/$collectionId/edit'
     | '/catalog/cards/$expansionSetId/$localId'
     | '/collections/$collectionId'
@@ -205,14 +227,16 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_authenticated/account'
     | '/_authenticated/inventory'
-    | '/auth/login'
-    | '/auth/register'
     | '/catalog/search'
     | '/auth/'
     | '/catalog/'
     | '/_authenticated/collections/new'
+    | '/auth/login/$'
+    | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
     | '/_authenticated/collections/'
+    | '/auth/login/'
+    | '/auth/register/'
     | '/_authenticated/collections/$collectionId/edit'
     | '/catalog/cards/$expansionSetId/$localId'
     | '/_authenticated/collections/$collectionId/'
@@ -272,20 +296,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof AuthRouteRoute
     }
-    '/auth/login': {
-      id: '/auth/login'
-      path: '/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/register': {
-      id: '/auth/register'
-      path: '/register'
-      fullPath: '/auth/register'
-      preLoaderRoute: typeof AuthRegisterRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
     '/catalog/': {
       id: '/catalog/'
       path: '/catalog'
@@ -313,6 +323,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/collections/new'
       preLoaderRoute: typeof AuthenticatedCollectionsNewRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/auth/login/': {
+      id: '/auth/login/'
+      path: '/login'
+      fullPath: '/auth/login/'
+      preLoaderRoute: typeof AuthLoginIndexRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/login/$': {
+      id: '/auth/login/$'
+      path: '/login/$'
+      fullPath: '/auth/login/$'
+      preLoaderRoute: typeof AuthLoginSplatRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/register/': {
+      id: '/auth/register/'
+      path: '/register'
+      fullPath: '/auth/register/'
+      preLoaderRoute: typeof AuthRegisterIndexRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/register/$': {
+      id: '/auth/register/$'
+      path: '/register/$'
+      fullPath: '/auth/register/$'
+      preLoaderRoute: typeof AuthRegisterSplatRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/catalog/sets/$expansionSetId': {
       id: '/catalog/sets/$expansionSetId'
@@ -346,15 +384,19 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthRouteRouteChildren {
-  AuthLoginRoute: typeof AuthLoginRoute
-  AuthRegisterRoute: typeof AuthRegisterRoute
   AuthIndexRoute: typeof AuthIndexRoute
+  AuthLoginSplatRoute: typeof AuthLoginSplatRoute
+  AuthRegisterSplatRoute: typeof AuthRegisterSplatRoute
+  AuthLoginIndexRoute: typeof AuthLoginIndexRoute
+  AuthRegisterIndexRoute: typeof AuthRegisterIndexRoute
 }
 
 const AuthRouteRouteChildren: AuthRouteRouteChildren = {
-  AuthLoginRoute: AuthLoginRoute,
-  AuthRegisterRoute: AuthRegisterRoute,
   AuthIndexRoute: AuthIndexRoute,
+  AuthLoginSplatRoute: AuthLoginSplatRoute,
+  AuthRegisterSplatRoute: AuthRegisterSplatRoute,
+  AuthLoginIndexRoute: AuthLoginIndexRoute,
+  AuthRegisterIndexRoute: AuthRegisterIndexRoute,
 }
 
 const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(

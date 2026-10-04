@@ -182,7 +182,9 @@ async function openCollection(page: Page) {
 const scrollToBottom = (page: Page) =>
   page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
 
-test.describe("Collection entries infinite scroll", () => {
+// FIXME(ticket 09): both suites need a real Clerk session (Clerk Testing
+// Tokens); stubApi's /auth/me stub simulated one the API no longer has.
+test.describe.fixme("Collection entries infinite scroll", () => {
   test("keeps a quantity saved on page 3 after page 4 loads and after a focus refetch", async ({
     page,
   }) => {
@@ -280,7 +282,7 @@ test.describe("Collection entries infinite scroll", () => {
   })
 })
 
-test.describe("Master Inventory infinite scroll", () => {
+test.describe.fixme("Master Inventory infinite scroll", () => {
   test("loads every page on scroll without duplicates", async ({ page }) => {
     await stubApi(page)
     await navigateTo(page, "Master Inventory", "Master Inventory")

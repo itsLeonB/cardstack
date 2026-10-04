@@ -1,6 +1,5 @@
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { RiUserLine } from "@remixicon/react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -8,24 +7,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useLogoutMutation, useSession } from "@/lib/session"
-
-const LOGOUT_FAILED = "Could not log out. You are still signed in."
+import { useSession, useSignOut } from "@/lib/session"
 
 export function UserMenu() {
   const { user } = useSession()
-  const navigate = useNavigate()
-  const logoutMutation = useLogoutMutation()
-
-  function handleLogout() {
-    logoutMutation.mutate(undefined, {
-      onSuccess: (response) => {
-        if (response.status === 204) void navigate({ to: "/auth/login" })
-        else toast.error(LOGOUT_FAILED)
-      },
-      onError: () => toast.error(LOGOUT_FAILED),
-    })
-  }
+  const { signOut, isPending } = useSignOut()
+  const label = user?.name ?? user?.email
 
   return (
     <DropdownMenu>
@@ -33,21 +20,17 @@ export function UserMenu() {
         render={<Button variant="ghost" aria-label="User menu" />}
       >
         <RiUserLine />
-        <span className="hidden max-w-40 truncate sm:inline">
-          {user?.email}
-        </span>
+        <span className="hidden max-w-40 truncate sm:inline">{label}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <div className="px-2 py-1.5 text-sm text-muted-foreground">
-          {user?.email}
+        <div className="px-2 py-1.5 text-sm">
+          {user?.name && <p className="font-medium">{user.name}</p>}
+          <p className="text-muted-foreground">{user?.email}</p>
         </div>
         <DropdownMenuItem render={<Link to="/account" />}>
           Account
         </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={logoutMutation.isPending}
-          onClick={handleLogout}
-        >
+        <DropdownMenuItem disabled={isPending} onClick={() => void signOut()}>
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
