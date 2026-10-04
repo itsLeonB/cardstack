@@ -16,9 +16,16 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// sourceScheme and sourceHost are the only scheme and host the ingester
+// contacts, for pages and for image downloads alike.
+const (
+	sourceScheme = "https"
+	sourceHost   = "asia.pokemon-card.com"
+)
+
 // baseURL is the Indonesian ("id") locale of the live site. No auth/API key
 // required; the whole flow is plain server-rendered HTML over GET.
-const baseURL = "https://asia.pokemon-card.com/id"
+const baseURL = sourceScheme + "://" + sourceHost + "/id"
 
 // requestTimeout bounds each outgoing request so a hung response can't
 // block ingestion forever (the CLI passes context.Background()).
@@ -55,29 +62,15 @@ type client struct {
 	imageClient *http.Client
 }
 
-// sourceURL is the parsed baseURL constant. A malformed constant is a
-// programming error, so it fails loudly at startup rather than leaving the
-// image host allow-list empty.
-var sourceURL = mustParseURL(baseURL)
-
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(fmt.Sprintf("pokemonasia: invalid base URL %q: %v", raw, err))
-	}
-	return u
-}
-
 func newClient() *client {
-	c := &client{
-		baseURL:    baseURL,
-		httpClient: http.DefaultClient,
-		limiter:    rate.NewLimiter(rate.Every(requestInterval), 1),
+	return &client{
+		baseURL:     baseURL,
+		httpClient:  http.DefaultClient,
+		limiter:     rate.NewLimiter(rate.Every(requestInterval), 1),
+		imageHost:   sourceHost,
+		imageScheme: sourceScheme,
+		imageClient: newImageClient(sourceScheme, sourceHost),
 	}
-	c.imageHost = sourceURL.Host
-	c.imageScheme = sourceURL.Scheme
-	c.imageClient = newImageClient(c)
-	return c
 }
 
 // expansionListPage fetches one page of the Series/Expansion Set/release-

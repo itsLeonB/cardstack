@@ -15,6 +15,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	corestore "github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/otel"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 	_ "github.com/joho/godotenv/autoload"
@@ -60,7 +61,7 @@ func main() {
 
 	// A nil interface (not a nil *R2Store) is what tells the ingester that
 	// image hosting is off.
-	var store objectstore.ObjectStore
+	var store corestore.ObjectStore
 	if config.Global.R2.Configured() {
 		store = objectstore.NewR2Store(config.Global.R2)
 	}

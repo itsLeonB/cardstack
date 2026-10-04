@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	corestore "github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -22,7 +23,7 @@ type R2Store struct {
 	bucket string
 }
 
-var _ ObjectStore = (*R2Store)(nil)
+var _ corestore.ObjectStore = (*R2Store)(nil)
 
 // NewR2Store builds an R2Store from cfg, which the caller has checked with
 // cfg.Configured(). cfg.Endpoint, when set, replaces the address derived from

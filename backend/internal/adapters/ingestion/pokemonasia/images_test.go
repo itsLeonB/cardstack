@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore"
+	"github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
@@ -501,6 +501,7 @@ func newHTTPImageClient(t *testing.T, source *httptest.Server) *client {
 	c.baseURL = source.URL
 	c.imageHost = strings.TrimPrefix(source.URL, "http://")
 	c.imageScheme = "http"
+	c.imageClient = newImageClient(c.imageScheme, c.imageHost)
 	return c
 }
 

@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 
 	"github.com/google/uuid"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	"github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
 	"golang.org/x/sync/errgroup"

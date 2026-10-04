@@ -40,24 +40,24 @@ func expansionSetImageKey(id uuid.UUID) string { return "expansion-sets/" + id.S
 // newImageClient builds the HTTP client for image downloads. It is separate
 // from the page client so it can refuse any redirect that leaves the source
 // host, which would otherwise sidestep the allow-list.
-func newImageClient(c *client) *http.Client {
+func newImageClient(scheme, host string) *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) > maxImageRedirects {
 				return fmt.Errorf("stopped after %d redirects", maxImageRedirects)
 			}
-			return c.checkImageURL(req.URL)
+			return checkImageURL(req.URL, scheme, host)
 		},
 	}
 }
 
-// checkImageURL accepts only absolute addresses (https in production) on the one known source
-// host (the host of the production base address).
-func (c *client) checkImageURL(u *url.URL) error {
-	if u.Scheme != c.imageScheme {
-		return fmt.Errorf("image address must use %s, got scheme %q", c.imageScheme, u.Scheme)
+// checkImageURL accepts only absolute addresses on the one known source host,
+// over scheme (https in production).
+func checkImageURL(u *url.URL, scheme, host string) error {
+	if u.Scheme != scheme {
+		return fmt.Errorf("image address must use %s, got scheme %q", scheme, u.Scheme)
 	}
-	if u.User != nil || !strings.EqualFold(u.Host, c.imageHost) {
+	if u.User != nil || !strings.EqualFold(u.Host, host) {
 		return fmt.Errorf("image host %q is not the source host", u.Host)
 	}
 	return nil
@@ -77,7 +77,7 @@ func (c *client) fetchImage(ctx context.Context, rawURL string) ([]byte, string,
 		return nil, "", fmt.Errorf("invalid image address %q", rawURL)
 	}
 	target := base.ResolveReference(ref)
-	if err := c.checkImageURL(target); err != nil {
+	if err := checkImageURL(target, c.imageScheme, c.imageHost); err != nil {
 		return nil, "", err
 	}
 

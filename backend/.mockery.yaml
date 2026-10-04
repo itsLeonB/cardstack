@@ -6,7 +6,7 @@ dir: "internal/mocks"
 outpkg: mocks
 filename: "{{.InterfaceName}}.go"
 packages:
-  github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore:
+  github.com/itsLeonB/cardstack/backend/internal/core/objectstore:
     interfaces:
       ObjectStore:
   github.com/itsLeonB/cardstack/backend/internal/domain/repository:
