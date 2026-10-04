@@ -1,105 +1,109 @@
-import { describe, expect, it, vi } from "vitest"
-import { QueryClient } from "@tanstack/react-query"
+import { describe, expect, it } from "vitest"
 import { isRedirect } from "@tanstack/react-router"
+import type { AuthGate } from "./clerk-auth"
 import { isSameOriginPath, requireAuth, requireGuest } from "./route-guard"
 
-describe("requireAuth", () => {
-  it("returns the user when the session is authenticated", async () => {
-    const queryClient = new QueryClient()
-    vi.spyOn(queryClient, "ensureQueryData").mockResolvedValue({
-      status: 200,
-      data: { data: { id: "1", email: "a@b.com" } },
-    })
+function gate(signedIn: boolean): AuthGate {
+  return { isSignedIn: async () => signedIn }
+}
 
-    const result = await requireAuth({
-      context: { queryClient },
-      location: { pathname: "/account", searchStr: "" },
-    })
-
-    expect(result).toEqual({ user: { id: "1", email: "a@b.com" } })
+/** A gate whose answer arrives when `finishLoading` is called, as Clerk's does. */
+function loadingGate() {
+  let finishLoading: (signedIn: boolean) => void = () => {}
+  const loading = new Promise<boolean>((resolve) => {
+    finishLoading = resolve
   })
+  return { auth: { isSignedIn: () => loading }, finishLoading }
+}
 
-  it("redirects to /auth/login, preserving the attempted URL, when unauthenticated", async () => {
-    const queryClient = new QueryClient()
-    vi.spyOn(queryClient, "ensureQueryData").mockResolvedValue({
-      status: 401,
-      data: { detail: "Unauthorized" },
-    })
+async function redirectOf(run: () => Promise<void>) {
+  try {
+    await run()
+  } catch (err) {
+    if (isRedirect(err)) return err.options
+    throw err
+  }
+  return undefined
+}
 
-    try {
-      await requireAuth({
-        context: { queryClient },
+describe("requireAuth", () => {
+  it("lets a signed-in user through", async () => {
+    await expect(
+      requireAuth({
+        context: { auth: gate(true) },
         location: { pathname: "/account", searchStr: "" },
       })
-      expect.unreachable("requireAuth should have thrown a redirect")
-    } catch (err) {
-      if (!isRedirect(err)) throw err
-      expect(err.options).toMatchObject({
-        to: "/auth/login",
-        search: { redirect: "/account" },
-      })
-    }
+    ).resolves.toBeUndefined()
   })
-})
 
-describe("requireAuth redirect target", () => {
-  it("keeps the query string on the relative redirect path", async () => {
-    const queryClient = new QueryClient()
-    vi.spyOn(queryClient, "ensureQueryData").mockResolvedValue({
-      status: 401,
-      data: { detail: "Unauthorized" },
+  it("redirects to /auth/login, preserving the attempted URL, when nobody is signed in", async () => {
+    const options = await redirectOf(() =>
+      requireAuth({
+        context: { auth: gate(false) },
+        location: { pathname: "/account", searchStr: "" },
+      })
+    )
+
+    expect(options).toMatchObject({
+      to: "/auth/login",
+      search: { redirect: "/account" },
     })
+  })
 
-    try {
-      await requireAuth({
-        context: { queryClient },
+  it("keeps the query string on the relative redirect path", async () => {
+    const options = await redirectOf(() =>
+      requireAuth({
+        context: { auth: gate(false) },
         location: { pathname: "/collections", searchStr: "?sort=name&page=2" },
       })
-      expect.unreachable("requireAuth should have thrown a redirect")
-    } catch (err) {
-      if (!isRedirect(err)) throw err
-      expect(err.options.search).toEqual({
-        redirect: "/collections?sort=name&page=2",
-      })
-    }
+    )
+
+    expect(options?.search).toEqual({
+      redirect: "/collections?sort=name&page=2",
+    })
+  })
+
+  it("waits for Clerk to finish loading before deciding", async () => {
+    const { auth, finishLoading } = loadingGate()
+    let decided = false
+    const guard = requireAuth({
+      context: { auth },
+      location: { pathname: "/account", searchStr: "" },
+    }).then(() => {
+      decided = true
+    })
+
+    await Promise.resolve()
+    expect(decided).toBe(false)
+
+    finishLoading(true)
+    await guard
+    expect(decided).toBe(true)
   })
 })
 
 describe("requireGuest", () => {
-  function guestContext(result: "signed-in" | "guest" | "unreachable") {
-    const queryClient = new QueryClient()
-    const spy = vi.spyOn(queryClient, "ensureQueryData")
-    if (result === "unreachable") spy.mockRejectedValue(new Error("network"))
-    else if (result === "guest")
-      spy.mockResolvedValue({ status: 401, data: { detail: "Unauthorized" } })
-    else
-      spy.mockResolvedValue({
-        status: 200,
-        data: { data: { id: "1", email: "a@b.com" } },
-      })
-    return { queryClient }
-  }
-
   it("redirects a signed-in user to /", async () => {
-    try {
-      await requireGuest({ context: guestContext("signed-in") })
-      expect.unreachable("requireGuest should have thrown a redirect")
-    } catch (err) {
-      if (!isRedirect(err)) throw err
-      expect(err.options).toMatchObject({ to: "/" })
-    }
+    const options = await redirectOf(() =>
+      requireGuest({ context: { auth: gate(true) } })
+    )
+
+    expect(options).toMatchObject({ to: "/" })
   })
 
   it("lets a guest through", async () => {
     await expect(
-      requireGuest({ context: guestContext("guest") })
+      requireGuest({ context: { auth: gate(false) } })
     ).resolves.toBeUndefined()
   })
 
-  it("lets a visitor through when the session probe fails", async () => {
-    await expect(
-      requireGuest({ context: guestContext("unreachable") })
-    ).resolves.toBeUndefined()
+  it("waits for Clerk to finish loading, so a signed-in user is not shown the form", async () => {
+    const { auth, finishLoading } = loadingGate()
+    const pending = redirectOf(() => requireGuest({ context: { auth } }))
+
+    finishLoading(true)
+
+    expect(await pending).toMatchObject({ to: "/" })
   })
 })
 

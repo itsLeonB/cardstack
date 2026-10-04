@@ -3,7 +3,8 @@ import { QueryClient } from "@tanstack/react-query"
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query"
 import { CrashFallback } from "@/components/layout/crash-fallback"
 import { createAuthLostHandler } from "@/lib/auth-lost"
-import { setOnAuthLost } from "@/lib/http"
+import { clerkAuth, getSessionToken } from "@/lib/clerk-auth"
+import { setOnAuthLost, setTokenGetter } from "@/lib/http"
 import { isSameOriginPath } from "@/lib/route-guard"
 import { routeTree } from "./routeTree.gen"
 
@@ -12,7 +13,7 @@ export function getRouter() {
 
   const router = createTanStackRouter({
     routeTree,
-    context: { queryClient },
+    context: { queryClient, auth: clerkAuth },
 
     scrollRestoration: true,
     // Restored positions jump; never animate (reduced-motion users included).
@@ -24,10 +25,11 @@ export function getRouter() {
 
   setupRouterSsrQueryIntegration({ router, queryClient })
 
-  // `http.ts` is orval's mutator, so it owns the refresh but not the query
-  // cache or the router; hand it the app-level reaction to a session that
-  // could not be renewed. Same redirect shape as `requireAuth`: the current
-  // path and query, only while it stays on this origin.
+  // `http.ts` is orval's mutator, so it has no React context: hand it the
+  // Clerk token getter, and the app-level reaction to a session that stopped
+  // being accepted. Same redirect shape as `requireAuth`: the current path
+  // and query, only while it stays on this origin.
+  setTokenGetter(getSessionToken)
   setOnAuthLost(
     createAuthLostHandler(queryClient, () => {
       const { pathname, searchStr } = router.state.location

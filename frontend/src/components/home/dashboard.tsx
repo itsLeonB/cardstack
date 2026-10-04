@@ -19,7 +19,9 @@ export function Dashboard() {
     <PageContainer>
       <PageHeader
         title="Welcome back"
-        description={user ? `Signed in as ${user.email}` : undefined}
+        description={
+          user ? `Signed in as ${user.name ?? user.email}` : undefined
+        }
       />
       <MasterInventorySummary />
       <CollectionsSummary />

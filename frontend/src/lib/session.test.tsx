@@ -1,258 +1,196 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
-import { renderHook } from "@testing-library/react"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import type { ReactNode } from "react"
-import type * as AuthModule from "@/generated/endpoints/auth/auth"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { act, renderHook } from "@testing-library/react"
+import { QueryClient } from "@tanstack/react-query"
+import { useClerk, useUser } from "@clerk/react"
+import { toast } from "sonner"
 import {
-  useGetCurrentUser,
-  useLogin,
-  useLogout,
-  getGetCurrentUserQueryKey,
-} from "@/generated/endpoints/auth/auth"
-import type {
-  loginResponse,
-  logoutResponse,
-} from "@/generated/endpoints/auth/auth"
-import { useLoginMutation, useLogoutMutation, useSession } from "./session"
+  LOGOUT_FAILED,
+  handleSessionChange,
+  resetCache,
+  useSession,
+  useSignOut,
+} from "./session"
+import { customFetch, setOnAuthLost, setTokenGetter } from "./http"
 
-// The auth endpoints are generated orval/TanStack Query hooks with no
-// service layer to inject; mocking the generated module is the standard way
-// to isolate these wrappers from it in tests.
+// Clerk's hooks need a mounted ClerkProvider talking to Clerk's servers, so
+// they are the boundary to fake (as the generated client is elsewhere).
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual = await vi.importActual<typeof AuthModule>(
-    "@/generated/endpoints/auth/auth"
-  )
-  return {
-    ...actual,
-    useGetCurrentUser: vi.fn(),
-    useLogin: vi.fn(),
-    useLogout: vi.fn(),
-  }
+vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
+
+const mockUseUser = vi.mocked(useUser)
+const mockUseClerk = vi.mocked(useClerk)
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
-const mockUseGetCurrentUser = vi.mocked(useGetCurrentUser)
-const mockUseLogin = vi.mocked(useLogin)
-const mockUseLogout = vi.mocked(useLogout)
-
-function createWrapper() {
-  const queryClient = new QueryClient()
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    )
-  }
+function clerkUser(state: "loading" | "signed-out" | "signed-in") {
+  // SAFETY: partial hook results covering only the fields useSession reads.
+  mockUseUser.mockReturnValue(
+    (state === "loading"
+      ? { isLoaded: false, isSignedIn: undefined, user: undefined }
+      : state === "signed-out"
+        ? { isLoaded: true, isSignedIn: false, user: null }
+        : {
+            isLoaded: true,
+            isSignedIn: true,
+            user: {
+              id: "user_1",
+              fullName: "Ada Lovelace",
+              primaryEmailAddress: { emailAddress: "ada@example.com" },
+            },
+          }) as any
+  )
 }
 
 describe("useSession", () => {
-  it("reports authenticated with the user when /auth/me returns 200", () => {
-    // SAFETY: partial mock covering only the fields useSession reads
-    // (data, isPending); the real hook return has more.
-    mockUseGetCurrentUser.mockReturnValue({
-      data: { status: 200, data: { data: { id: "1", email: "a@b.com" } } },
-      isPending: false,
-    } as any)
+  it("is loading, and not authenticated, until Clerk has loaded", () => {
+    clerkUser("loading")
 
-    const { result } = renderHook(() => useSession(), {
-      wrapper: createWrapper(),
+    const { result } = renderHook(() => useSession())
+
+    expect(result.current).toEqual({
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
     })
-
-    expect(result.current.isAuthenticated).toBe(true)
-    expect(result.current.user).toEqual({ id: "1", email: "a@b.com" })
   })
 
-  it("reports logged out (not an error) when /auth/me returns 401", () => {
-    // SAFETY: partial mock covering only the fields useSession reads
-    // (data, isPending); the real hook return has more.
-    mockUseGetCurrentUser.mockReturnValue({
-      data: { status: 401, data: { detail: "Unauthorized" } },
-      isPending: false,
-    } as any)
+  it("reports a guest once Clerk has loaded with no session", () => {
+    clerkUser("signed-out")
 
-    const { result } = renderHook(() => useSession(), {
-      wrapper: createWrapper(),
+    const { result } = renderHook(() => useSession())
+
+    expect(result.current).toEqual({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
     })
-
-    expect(result.current.isAuthenticated).toBe(false)
-    expect(result.current.user).toBeNull()
   })
 
-  it("tunes the underlying query so a 401 never retries", () => {
-    // SAFETY: partial mock covering only the fields useSession reads
-    // (data, isPending); the real hook return has more.
-    mockUseGetCurrentUser.mockReturnValue({
-      data: undefined,
-      isPending: true,
+  it("reports the signed-in user's name and email from Clerk's user data", () => {
+    clerkUser("signed-in")
+
+    const { result } = renderHook(() => useSession())
+
+    expect(result.current).toEqual({
+      user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
+      isAuthenticated: true,
+      isLoading: false,
+    })
+  })
+
+  it("has a null name and email when Clerk has none", () => {
+    // SAFETY: partial hook result, see clerkUser().
+    mockUseUser.mockReturnValue({
+      isLoaded: true,
+      isSignedIn: true,
+      user: { id: "user_2", fullName: null, primaryEmailAddress: null },
     } as any)
 
-    renderHook(() => useSession(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useSession())
 
-    expect(mockUseGetCurrentUser).toHaveBeenCalledWith(
-      expect.objectContaining({
-        query: expect.objectContaining({ retry: false }),
-      })
+    expect(result.current.user).toEqual({
+      id: "user_2",
+      name: null,
+      email: null,
+    })
+  })
+})
+
+describe("resetCache", () => {
+  it("drops every cached query, so the next session never sees the last one's data", () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(["/collections"], { status: 200 })
+    queryClient.setQueryData(["/inventory"], { status: 200 })
+
+    resetCache(queryClient)
+
+    expect(queryClient.getQueryData(["/collections"])).toBeUndefined()
+    expect(queryClient.getQueryData(["/inventory"])).toBeUndefined()
+  })
+})
+
+describe("handleSessionChange", () => {
+  it("drops cached data and lets the next expiry be announced again", async () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(["/collections"], { status: 200 })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 401 }))
     )
+    setTokenGetter(async () => "token")
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
+    try {
+      await customFetch("https://api.example.com/x", { method: "GET" })
+      expect(onLost).toHaveBeenCalledTimes(1)
+
+      handleSessionChange(queryClient)
+      await customFetch("https://api.example.com/x", { method: "GET" })
+
+      expect(queryClient.getQueryData(["/collections"])).toBeUndefined()
+      expect(onLost).toHaveBeenCalledTimes(2)
+    } finally {
+      setTokenGetter(null)
+      setOnAuthLost(null)
+      vi.unstubAllGlobals()
+    }
   })
 })
 
-describe("useLoginMutation", () => {
-  beforeEach(() => {
-    mockUseLogin.mockReset()
-  })
-
-  it("resets the session query once login succeeds", () => {
-    let capturedOnSuccess: ((response: loginResponse) => void) | undefined
-    mockUseLogin.mockImplementation((options) => {
-      // SAFETY: mutation.onSuccess is a known field on the real useLogin
-      // options; only it is exercised by this mock.
-      capturedOnSuccess = options?.mutation?.onSuccess as never
-      // SAFETY: partial mock; only mutation.onSuccess is exercised here.
-      return {} as any
-    })
-
-    const queryClient = new QueryClient()
-    const resetSpy = vi.spyOn(queryClient, "resetQueries")
-
-    function Wrapper({ children }: { children: ReactNode }) {
-      return (
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      )
-    }
-
-    renderHook(() => useLoginMutation(), { wrapper: Wrapper })
-
-    capturedOnSuccess?.({
-      status: 200,
-      data: { data: { message: "ok" } },
-      headers: new Headers(),
-    })
-
-    expect(resetSpy).toHaveBeenCalledWith({
-      queryKey: getGetCurrentUserQueryKey(),
-    })
-  })
-
-  it("does not invalidate the session query on a failed login (e.g. 401)", () => {
-    let capturedOnSuccess: ((response: loginResponse) => void) | undefined
-    mockUseLogin.mockImplementation((options) => {
-      // SAFETY: mutation.onSuccess is a known field on the real useLogin
-      // options; only it is exercised by this mock.
-      capturedOnSuccess = options?.mutation?.onSuccess as never
-      // SAFETY: partial mock; only mutation.onSuccess is exercised here.
-      return {} as any
-    })
-
-    const queryClient = new QueryClient()
-    const resetSpy = vi.spyOn(queryClient, "resetQueries")
-
-    function Wrapper({ children }: { children: ReactNode }) {
-      return (
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      )
-    }
-
-    renderHook(() => useLoginMutation(), { wrapper: Wrapper })
-
-    capturedOnSuccess?.({
-      status: 401,
-      data: { detail: "bad creds" },
-      headers: new Headers(),
-    })
-
-    expect(resetSpy).not.toHaveBeenCalled()
-  })
-})
-
-describe("useLogoutMutation", () => {
-  beforeEach(() => {
-    mockUseLogout.mockReset()
-  })
-
-  it("resets the session query once logout succeeds (204)", () => {
-    let capturedOnSuccess: ((response: logoutResponse) => void) | undefined
-    mockUseLogout.mockImplementation((options) => {
-      // SAFETY: mutation.onSuccess is a known field on the real useLogout
-      // options; only it is exercised by this mock.
-      capturedOnSuccess = options?.mutation?.onSuccess as never
-      // SAFETY: partial mock; only mutation.onSuccess is exercised here.
-      return {} as any
-    })
-
-    const queryClient = new QueryClient()
-    const resetSpy = vi.spyOn(queryClient, "resetQueries")
-
-    function Wrapper({ children }: { children: ReactNode }) {
-      return (
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      )
-    }
-
-    renderHook(() => useLogoutMutation(), { wrapper: Wrapper })
-
-    capturedOnSuccess?.({
-      status: 204,
-      data: undefined,
-      headers: new Headers(),
-    })
-
-    expect(resetSpy).toHaveBeenCalledWith({
-      queryKey: getGetCurrentUserQueryKey(),
-    })
-  })
-})
-
-describe("cache reset across users", () => {
-  const collectionsKey = ["/collections"]
-
-  function setup(mock: typeof mockUseLogin | typeof mockUseLogout) {
-    const queryClient = new QueryClient()
-    queryClient.setQueryData(collectionsKey, { status: 200 })
-    let onSuccess: ((response: never) => void) | undefined
-    mock.mockImplementation((options) => {
-      // SAFETY: mutation.onSuccess is a known field on the real hook options.
-      onSuccess = options?.mutation?.onSuccess as never
-      // SAFETY: partial mock; only mutation.onSuccess is exercised here.
-      return {} as any
-    })
-    return {
-      queryClient,
-      fire: (response: loginResponse | logoutResponse) =>
-        // SAFETY: setup() is given the mock whose onSuccess matches the response.
-        onSuccess?.(response as never),
-    }
+describe("useSignOut", () => {
+  function clerkWithSignOut(signOut: () => Promise<void>) {
+    // SAFETY: partial hook result covering only `signOut`.
+    mockUseClerk.mockReturnValue({ signOut } as any)
   }
 
-  function wrapperFor(queryClient: QueryClient) {
-    return ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    )
-  }
+  it("signs out of Clerk and sends the user to the login page", async () => {
+    const signOut = vi.fn(async () => {})
+    clerkWithSignOut(signOut)
+    const error = vi.spyOn(toast, "error")
+    const { result } = renderHook(() => useSignOut())
 
-  it("drops cached collections when login succeeds", () => {
-    const { queryClient, fire } = setup(mockUseLogin)
-    renderHook(() => useLoginMutation(), { wrapper: wrapperFor(queryClient) })
+    await act(() => result.current.signOut())
 
-    fire({
-      status: 200,
-      data: { data: { message: "ok" } },
-      headers: new Headers(),
-    })
-
-    expect(queryClient.getQueryData(collectionsKey)).toBeUndefined()
+    expect(signOut).toHaveBeenCalledWith({ redirectUrl: "/auth/login" })
+    expect(error).not.toHaveBeenCalled()
+    expect(result.current.isPending).toBe(false)
   })
 
-  it("drops cached collections when logout succeeds", () => {
-    const { queryClient, fire } = setup(mockUseLogout)
-    renderHook(() => useLogoutMutation(), { wrapper: wrapperFor(queryClient) })
+  it("is pending while Clerk signs out", async () => {
+    let finish: () => void = () => {}
+    clerkWithSignOut(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+    )
+    const { result } = renderHook(() => useSignOut())
 
-    fire({ status: 204, data: undefined, headers: new Headers() })
+    let done: Promise<void> = Promise.resolve()
+    act(() => {
+      done = result.current.signOut()
+    })
+    expect(result.current.isPending).toBe(true)
 
-    expect(queryClient.getQueryData(collectionsKey)).toBeUndefined()
+    await act(async () => {
+      finish()
+      await done
+    })
+    expect(result.current.isPending).toBe(false)
+  })
+
+  it("toasts, rather than leaving, when Clerk fails to sign out", async () => {
+    clerkWithSignOut(async () => {
+      throw new Error("network")
+    })
+    const error = vi.spyOn(toast, "error")
+    const { result } = renderHook(() => useSignOut())
+
+    await act(() => result.current.signOut())
+
+    expect(error).toHaveBeenCalledWith(LOGOUT_FAILED)
+    expect(result.current.isPending).toBe(false)
   })
 })

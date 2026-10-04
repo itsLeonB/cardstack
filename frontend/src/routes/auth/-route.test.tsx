@@ -9,7 +9,7 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
-import { getGetCurrentUserQueryKey } from "@/generated/endpoints/auth/auth"
+import type { AuthGate } from "@/lib/clerk-auth"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Route as AuthRoute } from "./route"
 
@@ -24,12 +24,15 @@ vi.stubGlobal("matchMedia", () => ({
 
 // Mounts the real auth layout (guard + shell) over a stub child and a stub `/`.
 async function renderAuth(
-  session: { status: number; data: unknown },
+  signedIn: boolean | Promise<boolean>,
   url = "/auth/child"
 ) {
   const queryClient = new QueryClient()
-  queryClient.setQueryData(getGetCurrentUserQueryKey(), session)
-  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  const auth: AuthGate = { isSignedIn: async () => signedIn }
+  const root = createRootRouteWithContext<{
+    queryClient: QueryClient
+    auth: AuthGate
+  }>()({
     // ThemeProvider needs router context (ScriptOnce), so it sits inside the root.
     component: () => (
       <ThemeProvider>
@@ -57,7 +60,7 @@ async function renderAuth(
   const router = createRouter({
     routeTree: root.addChildren([layout.addChildren([child]), home]),
     history: createMemoryHistory({ initialEntries: [url] }),
-    context: { queryClient },
+    context: { queryClient, auth },
   })
   render(
     <QueryClientProvider client={queryClient}>
@@ -69,7 +72,7 @@ async function renderAuth(
 
 describe("auth layout", () => {
   it("renders a minimal shell: wordmark and theme toggle, one main, no nav or footer", async () => {
-    await renderAuth({ status: 401, data: {} })
+    await renderAuth(false)
     await screen.findByRole(
       "heading",
       { level: 1, name: "Child page" },
@@ -86,7 +89,7 @@ describe("auth layout", () => {
   })
 
   it("shows an unknown /auth path as not-found inside the auth shell", async () => {
-    await renderAuth({ status: 401, data: {} }, "/auth/nope")
+    await renderAuth(false, "/auth/nope")
     await screen.findByRole(
       "heading",
       { level: 1, name: "Page not found" },
@@ -100,15 +103,27 @@ describe("auth layout", () => {
   })
 
   it("sends a signed-in user to /", async () => {
-    const router = await renderAuth({
-      status: 200,
-      data: { data: { id: "1", email: "a@b.com" } },
-    })
+    const router = await renderAuth(true)
     await screen.findByRole(
       "heading",
       { level: 1, name: "Home" },
       { timeout: 5000 }
     )
     expect(router.state.location.pathname).toBe("/")
+  })
+
+  it("shows neither the form nor a redirect while Clerk is still loading", async () => {
+    let finishLoading: (signedIn: boolean) => void = () => {}
+    const loading = new Promise<boolean>((resolve) => {
+      finishLoading = resolve
+    })
+    const router = await renderAuth(loading)
+
+    expect(screen.queryByRole("heading", { name: "Child page" })).toBeNull()
+    expect(screen.queryByRole("heading", { name: "Home" })).toBeNull()
+    expect(router.state.location.pathname).toBe("/auth/child")
+
+    finishLoading(true)
+    await screen.findByRole("heading", { level: 1, name: "Home" })
   })
 })

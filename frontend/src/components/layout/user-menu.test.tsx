@@ -1,12 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react"
-import { toast } from "sonner"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   RouterProvider,
@@ -15,21 +8,18 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
-import type * as AuthModule from "@/generated/endpoints/auth/auth"
-import { useGetCurrentUser } from "@/generated/endpoints/auth/auth"
+import { toast } from "sonner"
+import { useClerk, useUser } from "@clerk/react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { clerkUserResult } from "@/test-clerk"
+import type { ClerkUserData } from "@/test-clerk"
 import { UserMenu } from "./user-menu"
 
-// Same session-probe boundary as site-header.test.tsx; logout itself goes
-// through the real generated hook with `fetch` stubbed.
+// Clerk's hooks need a ClerkProvider talking to Clerk's servers, so they are
+// the boundary to fake; the real `useSession` and `useSignOut` run on top.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual = await vi.importActual<typeof AuthModule>(
-    "@/generated/endpoints/auth/auth"
-  )
-  return { ...actual, useGetCurrentUser: vi.fn() }
-})
+vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
 
 afterEach(() => {
   cleanup()
@@ -37,27 +27,18 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function stubFetch(respond: () => Response | Promise<Response>) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => respond())
-  )
+async function renderMenu(
+  signOut: () => Promise<void> = async () => {},
+  user?: ClerkUserData
+) {
   vi.stubGlobal("matchMedia", () => ({
     matches: false,
     addEventListener: () => {},
     removeEventListener: () => {},
   }))
-}
-
-async function openAndLogOut() {
-  // SAFETY: partial mock covering only the fields useSession reads.
-  vi.mocked(useGetCurrentUser).mockReturnValue({
-    data: {
-      status: 200,
-      data: { data: { id: "1", email: "ada@example.com" } },
-    },
-    isPending: false,
-  } as any)
+  vi.mocked(useUser).mockReturnValue(clerkUserResult("signed-in", user))
+  // SAFETY: partial hook result covering only `signOut`.
+  vi.mocked(useClerk).mockReturnValue({ signOut } as any)
   const root = createRootRoute({
     component: () => (
       <ThemeProvider>
@@ -69,7 +50,7 @@ async function openAndLogOut() {
   const router = createRouter({
     routeTree: root.addChildren([
       createRoute({ getParentRoute: () => root, path: "/" }),
-      createRoute({ getParentRoute: () => root, path: "/auth/login" }),
+      createRoute({ getParentRoute: () => root, path: "/account" }),
     ]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   })
@@ -79,40 +60,53 @@ async function openAndLogOut() {
     </QueryClientProvider>
   )
   fireEvent.click(await screen.findByRole("button", { name: "User menu" }))
-  fireEvent.click(await screen.findByRole("menuitem", { name: "Log out" }))
-  return router
 }
 
-describe("UserMenu logout", () => {
-  it("shows a toast and stays put when the server rejects the logout", async () => {
-    stubFetch(
-      () => new Response(JSON.stringify({ detail: "nope" }), { status: 500 })
-    )
-    const router = await openAndLogOut()
+describe("UserMenu identity", () => {
+  it("shows the name and email from Clerk's user data", async () => {
+    await renderMenu()
 
-    expect(
-      await screen.findByText("Could not log out. You are still signed in.")
-    ).toBeTruthy()
-    expect(router.state.location.pathname).toBe("/")
+    await screen.findByRole("menuitem", { name: "Account" })
+    expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0)
+    expect(screen.getByText("ada@example.com")).toBeTruthy()
   })
 
-  it("shows a toast when the network request fails", async () => {
-    stubFetch(() => Promise.reject(new TypeError("Failed to fetch")))
-    await openAndLogOut()
+  it("falls back to the email alone when the account has no name", async () => {
+    await renderMenu(undefined, {
+      id: "user_2",
+      fullName: null,
+      primaryEmailAddress: { emailAddress: "grace@example.com" },
+    })
 
-    expect(
-      await screen.findByText("Could not log out. You are still signed in.")
-    ).toBeTruthy()
+    await screen.findByRole("menuitem", { name: "Account" })
+    expect(screen.getAllByText("grace@example.com").length).toBeGreaterThan(0)
+    expect(screen.queryByText("Ada Lovelace")).toBeNull()
   })
+})
 
-  it("navigates to login without a toast on success", async () => {
-    stubFetch(() => new Response(null, { status: 204 }))
+describe("UserMenu sign-out", () => {
+  it("ends the Clerk session and leaves for the login page, without a toast", async () => {
+    const signOut = vi.fn(async () => {})
     const error = vi.spyOn(toast, "error")
-    const router = await openAndLogOut()
+    await renderMenu(signOut)
 
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe("/auth/login")
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Log out" }))
+
+    await vi.waitFor(() =>
+      expect(signOut).toHaveBeenCalledWith({ redirectUrl: "/auth/login" })
     )
     expect(error).not.toHaveBeenCalled()
+  })
+
+  it("shows a toast when Clerk fails to sign out", async () => {
+    await renderMenu(async () => {
+      throw new Error("Failed to fetch")
+    })
+
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Log out" }))
+
+    expect(
+      await screen.findByText("Could not log out. You are still signed in.")
+    ).toBeTruthy()
   })
 })

@@ -9,23 +9,19 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
-import type * as AuthModule from "@/generated/endpoints/auth/auth"
-import { useGetCurrentUser } from "@/generated/endpoints/auth/auth"
+import { useClerk, useUser } from "@clerk/react"
 import { ThemeProvider } from "@/components/theme-provider"
+import { clerkUserResult } from "@/test-clerk"
+import type { ClerkState } from "@/test-clerk"
 import { SiteFooter } from "./site-footer"
 import { SiteHeader } from "./site-header"
 
-// Network boundary: the session probe is a generated orval hook with no
-// service layer to inject (same approach as lib/session.test.tsx).
+// Clerk's hooks need a ClerkProvider talking to Clerk's servers, so they are
+// the boundary to fake; the real `useSession` runs on top of them.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@/generated/endpoints/auth/auth", async () => {
-  const actual = await vi.importActual<typeof AuthModule>(
-    "@/generated/endpoints/auth/auth"
-  )
-  return { ...actual, useGetCurrentUser: vi.fn() }
-})
+vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
 
-const mockUseGetCurrentUser = vi.mocked(useGetCurrentUser)
+const mockUseUser = vi.mocked(useUser)
 
 afterEach(cleanup)
 
@@ -36,21 +32,10 @@ vi.stubGlobal("matchMedia", () => ({
   removeEventListener: () => {},
 }))
 
-function mockSession(session: "guest" | "signed-in" | "loading") {
-  // SAFETY: partial mock covering only the fields useSession reads.
-  mockUseGetCurrentUser.mockReturnValue(
-    session === "loading"
-      ? ({ data: undefined, isPending: true } as any)
-      : session === "guest"
-        ? ({ data: { status: 401 }, isPending: false } as any)
-        : ({
-            data: {
-              status: 200,
-              data: { data: { id: "1", email: "ada@example.com" } },
-            },
-            isPending: false,
-          } as any)
-  )
+function mockSession(session: ClerkState) {
+  mockUseUser.mockReturnValue(clerkUserResult(session))
+  // SAFETY: partial hook result; the user menu only reads `signOut`.
+  vi.mocked(useClerk).mockReturnValue({ signOut: async () => {} } as any)
 }
 
 async function renderShell(path = "/") {

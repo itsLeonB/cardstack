@@ -11,6 +11,8 @@ import { requireGuest } from "@/lib/route-guard"
  */
 export const Route = createFileRoute("/auth")({
   beforeLoad: requireGuest,
+  // Same reason as `_authenticated.tsx`: the guard needs Clerk, which is browser-only.
+  ssr: false,
   head: () => ({ meta: [NOINDEX_META] }),
   // Unknown `/auth/*` paths stay inside `AuthShell` instead of bubbling to the root.
   notFoundComponent: NotFound,

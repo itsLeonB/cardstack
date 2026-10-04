@@ -1,404 +1,303 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { customFetch, setCsrfToken, setOnAuthLost } from "./http"
+import {
+  customFetch,
+  rearmAuthLost,
+  setOnAuthLost,
+  setTokenGetter,
+} from "./http"
 
-// Regression coverage for the cross-origin CSRF fix: document.cookie can't
-// read a csrf_token cookie scoped to a different site (Vercel frontend,
-// Railway backend), so the in-memory token set from the login/refresh
-// response body must be what customFetch actually sends.
-describe("customFetch CSRF header", () => {
-  afterEach(() => {
-    setCsrfToken(null)
-    vi.unstubAllGlobals()
+const URL = "https://api.example.com/collections"
+
+function respond(status: number) {
+  return new Response("{}", { status })
+}
+
+function fetchStub(status: number) {
+  return vi.fn(async (_url: string, _init?: RequestInit) => respond(status))
+}
+
+/** The Authorization header each fetch call carried, in call order. */
+function sentAuthorization(fetchMock: ReturnType<typeof fetchStub>) {
+  return fetchMock.mock.calls.map(([, init]) =>
+    new Headers(init?.headers).get("Authorization")
+  )
+}
+
+beforeEach(() => {
+  // A new session re-arms the one-notice-per-expiry dedupe between tests.
+  rearmAuthLost()
+})
+
+afterEach(() => {
+  setTokenGetter(null)
+  setOnAuthLost(null)
+  vi.unstubAllGlobals()
+})
+
+describe("customFetch bearer token", () => {
+  it("sends the current Clerk token as a bearer header", async () => {
+    const fetchMock = fetchStub(200)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async () => "token-1")
+
+    await customFetch(URL, { method: "GET" })
+
+    expect(sentAuthorization(fetchMock)).toEqual(["Bearer token-1"])
   })
 
-  it("sends X-CSRF-Token from the in-memory token on a mutating request", async () => {
-    setCsrfToken("in-memory-token")
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response("{}", { status: 200 }))
+  it("sends no Authorization header for a guest", async () => {
+    const fetchMock = fetchStub(200)
     vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async () => null)
 
-    await customFetch("https://api.example.com/auth/logout", { method: "POST" })
+    await customFetch(URL, { method: "GET" })
 
-    // SAFETY: fetchMock is called exactly once per customFetch call above,
-    // with (url, init) — asserted implicitly by indexing call 0.
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    const headers = new Headers(init.headers)
-    expect(headers.get("X-CSRF-Token")).toBe("in-memory-token")
+    expect(sentAuthorization(fetchMock)).toEqual([null])
   })
 
-  it("does not set X-CSRF-Token on a GET request", async () => {
-    setCsrfToken("in-memory-token")
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response("{}", { status: 200 }))
+  it("sends no Authorization header before the app registered a token getter", async () => {
+    const fetchMock = fetchStub(200)
     vi.stubGlobal("fetch", fetchMock)
 
-    await customFetch("https://api.example.com/auth/me", { method: "GET" })
+    await customFetch(URL, { method: "GET" })
 
-    // SAFETY: fetchMock is called exactly once per customFetch call above,
-    // with (url, init) — asserted implicitly by indexing call 0.
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    const headers = new Headers(init.headers)
-    expect(headers.get("X-CSRF-Token")).toBeNull()
+    expect(sentAuthorization(fetchMock)).toEqual([null])
   })
 
-  it("prefers the readable cookie over a token left stale by another tab", async () => {
-    // A refresh in another tab rotated the cookie, so this tab's
-    // in-memory/sessionStorage copy is stale; sending it gets a 403 that a
-    // reload cannot clear, because the reload re-reads the same stale copy.
-    setCsrfToken("stale-from-another-tab")
-    document.cookie = "csrf_token=cookie-token"
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response("{}", { status: 200 }))
+  it("falls back to a guest request when Clerk cannot answer", async () => {
+    const fetchMock = fetchStub(200)
     vi.stubGlobal("fetch", fetchMock)
-
-    try {
-      await customFetch("https://api.example.com/auth/logout", {
-        method: "POST",
-      })
-
-      // SAFETY: fetchMock is called exactly once per customFetch call above,
-      // with (url, init) — asserted implicitly by indexing call 0.
-      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("cookie-token")
-    } finally {
-      document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-    }
-  })
-
-  it("recovers the CSRF token from sessionStorage after a page reload", async () => {
-    setCsrfToken("stored-token")
-
-    // vi.resetModules + a fresh dynamic import simulates a page reload:
-    // module-level state (inMemoryCsrfToken) resets, but sessionStorage
-    // (a jsdom global, not module-scoped) survives — the one difference
-    // that matters for this regression.
-    vi.resetModules()
-    const { customFetch: freshCustomFetch } = await import("./http")
-
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response("{}", { status: 200 }))
-    vi.stubGlobal("fetch", fetchMock)
-
-    await freshCustomFetch("https://api.example.com/auth/logout", {
-      method: "POST",
+    setTokenGetter(async () => {
+      throw new Error("Timeout waiting for Clerk to load.")
     })
 
-    // SAFETY: fetchMock is called exactly once per customFetch call above,
-    // with (url, init) — asserted implicitly by indexing call 0.
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    const headers = new Headers(init.headers)
-    expect(headers.get("X-CSRF-Token")).toBe("stored-token")
+    const response = await customFetch<{ status: number }>(URL, {
+      method: "GET",
+    })
 
-    sessionStorage.clear()
+    expect(response.status).toBe(200)
+    expect(sentAuthorization(fetchMock)).toEqual([null])
+  })
+
+  it("sends no cookies and no CSRF header", async () => {
+    const fetchMock = fetchStub(200)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async () => "token-1")
+
+    await customFetch(URL, { method: "POST", body: "{}" })
+
+    const init = fetchMock.mock.calls[0]?.[1]
+    expect(init?.credentials).toBeUndefined()
+    expect(new Headers(init?.headers).get("X-CSRF-Token")).toBeNull()
+  })
+
+  it("passes the caller's headers and body through", async () => {
+    const fetchMock = fetchStub(200)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async () => "token-1")
+
+    await customFetch(URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: '{"a":1}',
+    })
+
+    const init = fetchMock.mock.calls[0]?.[1]
+    expect(new Headers(init?.headers).get("Content-Type")).toBe(
+      "application/json"
+    )
+    expect(init?.body).toBe('{"a":1}')
   })
 })
 
-const API = "https://api.example.com"
-const REFRESH_URL = `${API}/auth/refresh`
-const COLLECTIONS_URL = `${API}/collections`
+describe("customFetch retry on 401", () => {
+  it("asks Clerk for a fresh token (skipping its cache) and retries once", async () => {
+    const fetchMock = vi
+      .fn<() => Promise<Response>>()
+      .mockResolvedValueOnce(respond(401))
+      .mockResolvedValueOnce(respond(200))
+    vi.stubGlobal("fetch", fetchMock)
+    const getter = vi
+      .fn<(options?: { skipCache?: boolean }) => Promise<string | null>>()
+      .mockResolvedValueOnce("stale")
+      .mockResolvedValueOnce("fresh")
+    setTokenGetter(getter)
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
 
-/** Response shape the mutator resolves to for every status; only `status` is read here. */
-interface ApiResult {
-  status: number
-}
-
-// The second element is optional in `vi.fn`'s recorded calls, since
-// customFetch's options argument is optional at the call site.
-type FetchCall = [url: string, init?: RequestInit | undefined]
-
-function jsonResponse(body: { data: object }, status = 200): Response {
-  return new Response(JSON.stringify(body), { status })
-}
-
-function unauthorized(): Response {
-  return new Response(null, { status: 401 })
-}
-
-function refreshSucceeds(csrfToken: string): Response {
-  return jsonResponse({ data: { csrfToken, message: "ok" } })
-}
-
-function stubFetch(respond: (url: string, method: string) => Response) {
-  const mock = vi.fn(async (url: string, init?: RequestInit) =>
-    respond(url, (init?.method ?? "GET").toUpperCase())
-  )
-  vi.stubGlobal("fetch", mock)
-  return mock
-}
-
-function callsTo(mock: ReturnType<typeof stubFetch>, url: string): FetchCall[] {
-  return mock.mock.calls.filter(([called]) => called === url)
-}
-
-function csrfHeaderOf(call: FetchCall): string | null {
-  return new Headers(call[1]?.headers).get("X-CSRF-Token")
-}
-
-// The backend rotates sessions on every /auth/refresh and the frontend used
-// to ignore 401s entirely, so an expired 15-minute access token meant a
-// silently dead session. These cover the retry flow that replaces it.
-describe("customFetch refresh on 401", () => {
-  beforeEach(() => {
-    // Setting a token is also what re-arms the once-per-expiry notice, the
-    // same way a login or a successful refresh does in the app.
-    setCsrfToken("csrf-before")
-  })
-
-  afterEach(() => {
-    setOnAuthLost(null)
-    setCsrfToken(null)
-    vi.unstubAllGlobals()
-  })
-
-  it("refreshes once and retries the original request with the rotated token", async () => {
-    let attempts = 0
-    const fetchMock = stubFetch((url) => {
-      if (url === REFRESH_URL) return refreshSucceeds("rotated-token")
-      attempts += 1
-      return attempts === 1 ? unauthorized() : jsonResponse({ data: [] })
-    })
-
-    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await customFetch<{ status: number }>(URL, {
+      method: "GET",
     })
 
     expect(response.status).toBe(200)
-    const refreshes = callsTo(fetchMock, REFRESH_URL)
-    expect(refreshes).toHaveLength(1)
-    expect(refreshes[0]?.[1]?.method).toBe("POST")
-    // Refreshing is itself a mutating call, so it needs the double-submit header.
-    expect(csrfHeaderOf(refreshes[0]!)).toBe("csrf-before")
-
-    const attemptsOnTarget = callsTo(fetchMock, COLLECTIONS_URL)
-    expect(attemptsOnTarget).toHaveLength(2)
-    expect(csrfHeaderOf(attemptsOnTarget[0]!)).toBe("csrf-before")
-    expect(csrfHeaderOf(attemptsOnTarget[1]!)).toBe("rotated-token")
+    expect(getter.mock.calls).toEqual([[], [{ skipCache: true }]])
+    expect(sentAuthorization(fetchMock)).toEqual([
+      "Bearer stale",
+      "Bearer fresh",
+    ])
+    expect(onLost).not.toHaveBeenCalled()
   })
 
-  it("keeps the rotated token for later mutating requests", async () => {
-    const fetchMock = stubFetch((url) =>
-      url === REFRESH_URL ? refreshSucceeds("rotated-token") : unauthorized()
-    )
+  it("reports a lost session when the retry is 401 too, and does not retry again", async () => {
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async (options) => (options?.skipCache ? "fresh" : "stale"))
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
 
-    await customFetch(COLLECTIONS_URL, { method: "GET" })
-    await customFetch(COLLECTIONS_URL, { method: "POST" })
-
-    // The second request 401s too, refreshes again and is retried; whatever
-    // the sequence, every mutating attempt after the first refresh must
-    // carry the token the refresh handed back.
-    const latest = callsTo(fetchMock, COLLECTIONS_URL).at(-1)
-    expect(csrfHeaderOf(latest!)).toBe("rotated-token")
-  })
-
-  it("shares one refresh between concurrent 401s", async () => {
-    let attempts = 0
-    const fetchMock = stubFetch((url) => {
-      if (url === REFRESH_URL) return refreshSucceeds("rotated-token")
-      attempts += 1
-      return attempts <= 2 ? unauthorized() : jsonResponse({ data: [] })
+    const response = await customFetch<{ status: number }>(URL, {
+      method: "GET",
     })
 
-    const [first, second] = await Promise.all([
-      customFetch<ApiResult>(COLLECTIONS_URL, { method: "GET" }),
-      customFetch<ApiResult>(COLLECTIONS_URL, { method: "GET" }),
+    expect(response.status).toBe(401)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it("reports a lost session, without retrying, when Clerk has no session left", async () => {
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async (options) => (options?.skipCache ? null : "stale"))
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
+
+    const response = await customFetch<{ status: number }>(URL, {
+      method: "GET",
+    })
+
+    expect(response.status).toBe(401)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it("stays silent when Clerk cannot be reached for a fresh token", async () => {
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async (options) => {
+      if (options?.skipCache) throw new Error("offline")
+      return "stale"
+    })
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
+
+    const response = await customFetch<{ status: number }>(URL, {
+      method: "GET",
+    })
+
+    expect(response.status).toBe(401)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onLost).not.toHaveBeenCalled()
+  })
+
+  it("shares one fresh-token request between concurrent 401s", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+      respond(
+        new Headers(init?.headers).get("Authorization") === "Bearer fresh"
+          ? 200
+          : 401
+      )
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const getter = vi.fn(async (options?: { skipCache?: boolean }) =>
+      options?.skipCache ? "fresh" : "stale"
+    )
+    setTokenGetter(getter)
+
+    const responses = await Promise.all([
+      customFetch<{ status: number }>(URL, { method: "GET" }),
+      customFetch<{ status: number }>(URL, { method: "GET" }),
+      customFetch<{ status: number }>(URL, { method: "GET" }),
     ])
 
-    expect(first.status).toBe(200)
-    expect(second.status).toBe(200)
-    expect(callsTo(fetchMock, REFRESH_URL)).toHaveLength(1)
-    expect(callsTo(fetchMock, COLLECTIONS_URL)).toHaveLength(4)
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200])
+    expect(getter.mock.calls.filter(([o]) => o?.skipCache)).toHaveLength(1)
   })
 
-  it.each(["/auth/login", "/auth/register", "/auth/logout", "/auth/refresh"])(
-    "never refreshes or retries %s",
-    async (path) => {
-      const onAuthLost = vi.fn()
-      setOnAuthLost(onAuthLost)
-      const fetchMock = stubFetch(() => unauthorized())
-
-      const response = await customFetch<ApiResult>(`${API}${path}`, {
-        method: "POST",
-      })
-
-      expect(response.status).toBe(401)
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(onAuthLost).not.toHaveBeenCalled()
-    }
-  )
-
-  it("retries exactly once, returning the retry's 401", async () => {
-    const fetchMock = stubFetch((url) =>
-      url === REFRESH_URL ? refreshSucceeds("rotated-token") : unauthorized()
-    )
-
-    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
-      method: "GET",
-    })
-
-    expect(response.status).toBe(401)
-    expect(callsTo(fetchMock, REFRESH_URL)).toHaveLength(1)
-    expect(callsTo(fetchMock, COLLECTIONS_URL)).toHaveLength(2)
-  })
-
-  it("returns the original 401 and reports a lost session when the refresh fails", async () => {
-    const onAuthLost = vi.fn()
-    setOnAuthLost(onAuthLost)
-    const fetchMock = stubFetch(() => unauthorized())
-
-    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
-      method: "GET",
-    })
-
-    expect(response.status).toBe(401)
-    expect(callsTo(fetchMock, COLLECTIONS_URL)).toHaveLength(1)
-    expect(onAuthLost).toHaveBeenCalledTimes(1)
-  })
-
-  it("stays silent when the refresh request itself fails (network/CORS)", async () => {
-    const onAuthLost = vi.fn()
-    setOnAuthLost(onAuthLost)
-    stubFetch((url) => {
-      if (url === REFRESH_URL) throw new TypeError("Failed to fetch")
-      return unauthorized()
-    })
-
-    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
-      method: "GET",
-    })
-
-    // A refresh the network couldn't deliver is not a dead session: the
-    // caller still gets its 401, but nothing is cleared or announced.
-    expect(response.status).toBe(401)
-    expect(onAuthLost).not.toHaveBeenCalled()
-  })
-
-  it("stays silent when the refresh fails with a server error", async () => {
-    const onAuthLost = vi.fn()
-    setOnAuthLost(onAuthLost)
-    stubFetch((url) =>
-      url === REFRESH_URL ? new Response(null, { status: 503 }) : unauthorized()
-    )
-
-    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
-      method: "GET",
-    })
-
-    expect(response.status).toBe(401)
-    expect(onAuthLost).not.toHaveBeenCalled()
-  })
-
-  it("reports a lost session once for concurrent failed refreshes", async () => {
-    const onAuthLost = vi.fn()
-    setOnAuthLost(onAuthLost)
-    const fetchMock = stubFetch(() => unauthorized())
+  it("reports a lost session once for concurrent failures", async () => {
+    vi.stubGlobal("fetch", fetchStub(401))
+    setTokenGetter(async () => "token")
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
 
     await Promise.all([
-      customFetch(COLLECTIONS_URL, { method: "GET" }),
-      customFetch(`${API}/inventory/cards`, { method: "GET" }),
-      customFetch(COLLECTIONS_URL, { method: "GET" }),
+      customFetch(URL, { method: "GET" }),
+      customFetch(URL, { method: "GET" }),
     ])
 
-    expect(callsTo(fetchMock, REFRESH_URL)).toHaveLength(1)
-    expect(onAuthLost).toHaveBeenCalledTimes(1)
+    expect(onLost).toHaveBeenCalledTimes(1)
   })
 
-  it("reports the next expiry after a new session is established", async () => {
-    const onAuthLost = vi.fn()
-    setOnAuthLost(onAuthLost)
-    stubFetch(() => unauthorized())
+  it("reports the next expiry once a new session re-arms the notice", async () => {
+    vi.stubGlobal("fetch", fetchStub(401))
+    setTokenGetter(async () => "token")
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
 
-    await customFetch(COLLECTIONS_URL, { method: "GET" })
-    await customFetch(COLLECTIONS_URL, { method: "GET" })
-    expect(onAuthLost).toHaveBeenCalledTimes(1)
+    await customFetch(URL, { method: "GET" })
+    await customFetch(URL, { method: "GET" })
+    expect(onLost).toHaveBeenCalledTimes(1)
 
-    // Logging back in issues a fresh CSRF token, which re-arms the notice.
-    setCsrfToken("new-session")
-    await customFetch(COLLECTIONS_URL, { method: "GET" })
-
-    expect(onAuthLost).toHaveBeenCalledTimes(2)
+    rearmAuthLost()
+    await customFetch(URL, { method: "GET" })
+    expect(onLost).toHaveBeenCalledTimes(2)
   })
 
-  it("refreshes /auth/me so an expired access token still reads as signed in", async () => {
-    let attempts = 0
-    const fetchMock = stubFetch((url) => {
-      if (url === REFRESH_URL) return refreshSucceeds("rotated-token")
-      attempts += 1
-      return attempts === 1
-        ? unauthorized()
-        : jsonResponse({ data: { id: "u1" } })
-    })
+  it("never retries or reports a lost session for a guest's 401", async () => {
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
+    const getter = vi.fn(async () => null)
+    setTokenGetter(getter)
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
 
-    const response = await customFetch<ApiResult>(`${API}/auth/me`, {
-      method: "GET",
-    })
-
-    expect(response.status).toBe(200)
-    expect(callsTo(fetchMock, REFRESH_URL)).toHaveLength(1)
-  })
-
-  it("stays silent when /auth/me's refresh fails", async () => {
-    const onAuthLost = vi.fn()
-    setOnAuthLost(onAuthLost)
-    stubFetch(() => unauthorized())
-
-    // A visitor who was never logged in: the route guard owns this 401.
-    const response = await customFetch<ApiResult>(`${API}/auth/me`, {
+    const response = await customFetch<{ status: number }>(URL, {
       method: "GET",
     })
 
     expect(response.status).toBe(401)
-    expect(onAuthLost).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(getter).toHaveBeenCalledTimes(1)
+    expect(onLost).not.toHaveBeenCalled()
   })
 
-  it("passes a successful response straight through", async () => {
-    const fetchMock = stubFetch(() => jsonResponse({ data: [] }))
+  it("passes a non-401 error straight through", async () => {
+    const fetchMock = fetchStub(500)
+    vi.stubGlobal("fetch", fetchMock)
+    setTokenGetter(async () => "token")
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
 
-    const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
+    const response = await customFetch<{ status: number }>(URL, {
       method: "GET",
     })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(500)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onLost).not.toHaveBeenCalled()
   })
+})
 
-  it("does not refresh during a server-side render, which has no cookie jar", async () => {
+describe("customFetch outside the browser realm", () => {
+  it("ignores token-getter and auth-lost registrations made during a server render", async () => {
     const savedDocument = globalThis.document
-    const fetchMock = stubFetch(() => unauthorized())
-
+    const getter = vi.fn(async () => "token")
+    const onLost = vi.fn()
     try {
       Reflect.deleteProperty(globalThis, "document")
-      const response = await customFetch<ApiResult>(COLLECTIONS_URL, {
-        method: "GET",
-      })
-      expect(response.status).toBe(401)
+      setTokenGetter(getter)
+      setOnAuthLost(onLost)
     } finally {
       Reflect.set(globalThis, "document", savedDocument)
     }
-
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it("ignores an auth-lost registration made outside the browser realm", async () => {
-    const savedDocument = globalThis.document
-    const onAuthLost = vi.fn()
-
-    try {
-      Reflect.deleteProperty(globalThis, "document")
-      setOnAuthLost(onAuthLost)
-    } finally {
-      Reflect.set(globalThis, "document", savedDocument)
-    }
-
-    // The realm check gates the *registration*, not the refresh that follows:
+    // The realm check gates the registration, not the request that follows:
     // a server render's per-request router must not reach this singleton.
-    stubFetch(() => unauthorized())
-    await customFetch<ApiResult>(COLLECTIONS_URL, { method: "GET" })
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
 
-    expect(onAuthLost).not.toHaveBeenCalled()
+    await customFetch(URL, { method: "GET" })
+
+    expect(getter).not.toHaveBeenCalled()
+    expect(onLost).not.toHaveBeenCalled()
+    expect(sentAuthorization(fetchMock)).toEqual([null])
   })
 })
