@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/ezutil/v2"
+	"github.com/itsLeonB/ungerr"
 )
 
 // defaultCardSearchLimit/maxCardSearchLimit bound CardFilter.Limit before it
@@ -20,7 +22,11 @@ const (
 	maxCardSearchLimit     = 100
 )
 
-// CatalogService answers the unauthenticated, read-only catalog
+// loginRequiredMsg is the client-safe text of the 401 a Guest gets for what the
+// catalog preview locks; the stable signal is the apperr.CodeLoginRequired code.
+const loginRequiredMsg = "sign in to use this part of the catalog"
+
+// CatalogService answers the read-only catalog
 // browse/search surface (ticket 05): listing Series/Expansion Sets to
 // browse, and searching/filtering Cards by name, Expansion Set + card
 // number, rarity, category, and tag. It never filters by ownership - that's
@@ -43,11 +49,15 @@ type CatalogService interface {
 	// alphabetically.
 	ListTags(ctx context.Context) ([]string, error)
 	// SearchCards returns the page of Cards matching filter, plus that
-	// page's pagination metadata.
+	// page's pagination metadata. A Guest (filter.Guest) gets a preview: one
+	// page, reduced to the standard size of 24 if more was asked, with the true
+	// total in the metadata. A later page, or a rarity, category or tag filter,
+	// is a 401 login_required.
 	SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error)
 	// ListFacets returns each filter's available options given filter: the
 	// values on Cards matching every other filter, plus the filter's own
-	// selected values (flagged unavailable when unreachable).
+	// selected values (flagged unavailable when unreachable). A Guest
+	// (filter.Guest) gets a 401 login_required: facets are the costliest query.
 	ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error)
 }
 
@@ -114,6 +124,14 @@ func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
 }
 
 func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {
+	if filter.Guest {
+		if filter.Page > 1 || len(filter.RarityIDs) > 0 || len(filter.Categories) > 0 || len(filter.Tags) > 0 {
+			return nil, dto.PaginationMeta{}, apperr.WithCode(ungerr.UnauthorizedError(loginRequiredMsg), apperr.CodeLoginRequired)
+		}
+		// One standard page is all a Guest sees; a smaller size is kept.
+		filter.Limit = min(filter.Limit, defaultCardSearchLimit)
+	}
+
 	repoFilter, page, limit := pagedRepoFilter(filter)
 
 	results, total, err := s.repo.SearchCards(ctx, repoFilter)
@@ -137,6 +155,10 @@ func pagedRepoFilter(filter dto.CardFilter) (repository.CardFilter, int, int) {
 }
 
 func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) (dto.CatalogFacets, error) {
+	if filter.Guest {
+		return dto.CatalogFacets{}, apperr.WithCode(ungerr.UnauthorizedError(loginRequiredMsg), apperr.CodeLoginRequired)
+	}
+
 	facets, err := s.repo.ListCardFacets(ctx, mapper.ToRepoCardFilter(filter))
 	if err != nil {
 		return dto.CatalogFacets{}, err

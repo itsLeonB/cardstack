@@ -76,6 +76,11 @@ type CardFilter struct {
 	CardIDs []uuid.UUID
 	Page    int
 	Limit   int
+	// Guest marks a caller with no account. The catalog service gives a Guest
+	// one page of the standard size and refuses the rest (see
+	// CatalogService.SearchCards). The zero value is a Guest, so a caller that
+	// forgets to set it gets the locked preview, never the full catalog.
+	Guest bool
 }
 
 // ExpansionSetFacetOption is one Expansion Set choice in GET

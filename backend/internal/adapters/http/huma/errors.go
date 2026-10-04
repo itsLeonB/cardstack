@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/ungerr"
 )
@@ -18,6 +19,14 @@ var logRedacted = func(err error) {
 	logger.Errorf("unclassified error redacted from response: %v", err)
 }
 
+// ErrorModel is Huma's error body plus the stable code an AppError may carry
+// (apperr). huma.NewError returns it, so Huma documents the code in the
+// OpenAPI schema of every error response.
+type ErrorModel struct {
+	huma.ErrorModel
+	Code string `json:"code,omitempty" example:"login_required" doc:"A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller."`
+}
+
 // installErrorClassifier makes huma.NewError the single seam that decides
 // what reaches the client (huma.NewErrorWithContext delegates to it): AppErrors
 // keep their status and safe detail, other raw errors are logged and dropped
@@ -26,6 +35,7 @@ var logRedacted = func(err error) {
 func installErrorClassifier() {
 	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
 		var details []*huma.ErrorDetail
+		var code string
 		for _, err := range errs {
 			if err == nil {
 				continue
@@ -37,6 +47,7 @@ func installErrorClassifier() {
 			if appErr, ok := errors.AsType[ungerr.AppError](err); ok {
 				status = appErr.HttpStatus()
 				msg = appErrorMessage(appErr)
+				code = apperr.CodeOf(appErr)
 				continue
 			}
 			logRedacted(err)
@@ -45,11 +56,14 @@ func installErrorClassifier() {
 			}
 		}
 
-		return &huma.ErrorModel{
-			Status: status,
-			Title:  http.StatusText(status),
-			Detail: msg,
-			Errors: details,
+		return &ErrorModel{
+			ErrorModel: huma.ErrorModel{
+				Status: status,
+				Title:  http.StatusText(status),
+				Detail: msg,
+				Errors: details,
+			},
+			Code: code,
 		}
 	}
 }

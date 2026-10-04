@@ -5,17 +5,18 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	"github.com/itsLeonB/ungerr"
 )
 
-// CatalogHandler serves the unauthenticated, read-only catalog browse/search
-// surface (ticket 05): listing Series/Expansion Sets to browse, and
-// searching/filtering Cards. None of its routes are Secured - catalog
-// browsing includes Cards the caller doesn't own, since Collections/
-// Inventory (ownership) don't exist yet (tickets 06/07).
+// CatalogHandler serves the read-only catalog browse/search surface (ticket
+// 05): listing Series/Expansion Sets to browse, and searching/filtering Cards.
+// Its routes are registered with the guest-allowed guard, so a caller with no
+// token reaches them; the card search and facets tell a Guest apart through
+// authpkg.CallerFrom and the catalog service applies the preview lock.
 type CatalogHandler struct {
 	catalogSvc service.CatalogService
 }
@@ -65,8 +66,8 @@ type CardFilterParams struct {
 // searchCardsInput is GET /catalog/cards's query string.
 type searchCardsInput struct {
 	CardFilterParams
-	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
-	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required."`
+	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size. A Guest gets at most 24."`
 }
 
 // listFacetsInput is GET /catalog/facets's query string: the same filters
@@ -121,6 +122,7 @@ func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) (
 	}
 	filter.Page = in.Page
 	filter.Limit = in.Limit
+	filter.Guest = authpkg.CallerFrom(ctx).IsGuest()
 
 	return h.catalogSvc.SearchCards(ctx, filter)
 }
@@ -130,6 +132,7 @@ func (h *CatalogHandler) listFacets(ctx context.Context, in listFacetsInput) (dt
 	if err != nil {
 		return dto.CatalogFacets{}, err
 	}
+	filter.Guest = authpkg.CallerFrom(ctx).IsGuest()
 
 	return h.catalogSvc.ListFacets(ctx, filter)
 }
@@ -179,7 +182,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			OperationID: "search-catalog-cards",
 			Method:      http.MethodGet,
 			Path:        "/catalog/cards",
-			Summary:     "Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag",
+			Summary:     "Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required",
 			Tags:        []string{"catalog"},
 			SuccessCode: http.StatusOK,
 			Secured:     false,
@@ -189,7 +192,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			OperationID: "list-catalog-facets",
 			Method:      http.MethodGet,
 			Path:        "/catalog/facets",
-			Summary:     "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)",
+			Summary:     "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included). A Guest gets 401 login_required",
 			Tags:        []string{"catalog"},
 			SuccessCode: http.StatusOK,
 			Secured:     false,

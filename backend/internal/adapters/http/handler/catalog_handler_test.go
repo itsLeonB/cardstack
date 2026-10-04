@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
+	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
@@ -119,6 +121,7 @@ func TestCatalogHandler_SearchCards_ParsesFilters(t *testing.T) {
 		Tags:            []string{"Basic"},
 		Page:            2,
 		Limit:           10,
+		Guest:           true,
 	}
 	svc.EXPECT().SearchCards(mock.Anything, want).Return(nil, dto.PaginationMeta{}, nil)
 
@@ -207,6 +210,7 @@ func TestCatalogHandler_SearchCards_AcceptsRepeatedParams(t *testing.T) {
 		Tags:            []string{"Basic", "ex"},
 		Page:            1,
 		Limit:           24,
+		Guest:           true,
 	}).Return(nil, dto.PaginationMeta{}, nil)
 
 	resp := api.Get("/catalog/cards?expansionSetId=" + setA.String() + "&expansionSetId=" + setB.String() +
@@ -225,6 +229,7 @@ func TestCatalogHandler_ListFacets(t *testing.T) {
 		RarityIDs:       []uuid.UUID{rarityID},
 		Name:            "pika",
 		Tags:            []string{"Basic"},
+		Guest:           true,
 	}).Return(dto.CatalogFacets{
 		Tags: []dto.StringFacetOption{{Value: "Basic", Available: false}},
 	}, nil)
@@ -238,6 +243,23 @@ func TestCatalogHandler_ListFacets(t *testing.T) {
 	}
 }
 
+// TestCatalogHandler_CallerDecidesGuest: the lock applies to a request with no
+// caller and not to one the guard authenticated.
+func TestCatalogHandler_CallerDecidesGuest(t *testing.T) {
+	svc := mocks.NewMockCatalogService(t)
+	_, api := humatest.New(t, httpapi.NewConfig())
+	signedIn := func(ctx huma.Context, next func(huma.Context)) {
+		next(authpkg.WithCaller(ctx, authpkg.Caller{UserID: uuid.New(), ProfileID: uuid.New()}))
+	}
+	endpoint.RegisterAll(api, NewCatalogHandler(svc).Routes(), signedIn)
+
+	svc.EXPECT().SearchCards(mock.Anything, dto.CardFilter{Page: 1, Limit: 24}).Return(nil, dto.PaginationMeta{}, nil)
+	svc.EXPECT().ListFacets(mock.Anything, dto.CardFilter{}).Return(dto.CatalogFacets{}, nil)
+
+	assert.Equal(t, http.StatusOK, api.Get("/catalog/cards").Code)
+	assert.Equal(t, http.StatusOK, api.Get("/catalog/facets").Code)
+}
+
 func TestCatalogHandler_ListFacets_InvalidID(t *testing.T) {
 	_, api := newTestCatalogHandler(t)
 
@@ -249,7 +271,7 @@ func TestCatalogHandler_ListFacets_InvalidID(t *testing.T) {
 
 func TestCatalogHandler_SearchCards_EmptyIDParamsAreIgnored(t *testing.T) {
 	svc, api := newTestCatalogHandler(t)
-	svc.EXPECT().SearchCards(mock.Anything, dto.CardFilter{Page: 1, Limit: 24}).Return(nil, dto.PaginationMeta{}, nil)
+	svc.EXPECT().SearchCards(mock.Anything, dto.CardFilter{Page: 1, Limit: 24, Guest: true}).Return(nil, dto.PaginationMeta{}, nil)
 
 	resp := api.Get("/catalog/cards?rarityId=&expansionSetId=")
 	if resp.Code != http.StatusOK {
