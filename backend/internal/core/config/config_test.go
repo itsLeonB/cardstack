@@ -58,3 +58,33 @@ func TestR2_Configured_NeedsEveryField(t *testing.T) {
 		assert.False(t, r2.Configured(), name)
 	}
 }
+
+func TestRateLimitDefaultsAndEnvVarNames(t *testing.T) {
+	defaults := DefaultRateLimit()
+	require.NoError(t, envconfig.Process(defaults.Prefix(), &defaults))
+	assert.Equal(t, RateLimit{User: Tier{PerMinute: 300, Burst: 100}, Search: Tier{PerMinute: 60, Burst: 30}, Facets: Tier{PerMinute: 30, Burst: 15}}, defaults)
+	assert.NoError(t, defaults.ValidateRateLimit())
+
+	t.Setenv("RATE_LIMIT_USER_PER_MINUTE", "1")
+	t.Setenv("RATE_LIMIT_USER_BURST", "2")
+	t.Setenv("RATE_LIMIT_SEARCH_PER_MINUTE", "3")
+	t.Setenv("RATE_LIMIT_SEARCH_BURST", "4")
+	t.Setenv("RATE_LIMIT_FACETS_PER_MINUTE", "5")
+	t.Setenv("RATE_LIMIT_FACETS_BURST", "6")
+
+	set := DefaultRateLimit()
+	require.NoError(t, envconfig.Process(set.Prefix(), &set))
+	assert.Equal(t, RateLimit{User: Tier{PerMinute: 1, Burst: 2}, Search: Tier{PerMinute: 3, Burst: 4}, Facets: Tier{PerMinute: 5, Burst: 6}}, set)
+}
+
+func TestRateLimit_ValidateRateLimit_NeedsEveryLimitPositive(t *testing.T) {
+	assert.NoError(t, DefaultRateLimit().ValidateRateLimit())
+
+	zero := DefaultRateLimit()
+	zero.Search.Burst = 0
+	assert.Error(t, zero.ValidateRateLimit())
+
+	negative := DefaultRateLimit()
+	negative.User.PerMinute = -1
+	assert.Error(t, negative.ValidateRateLimit())
+}

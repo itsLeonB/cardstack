@@ -137,6 +137,12 @@ func (h *CatalogHandler) listFacets(ctx context.Context, in listFacetsInput) (dt
 	return h.catalogSvc.ListFacets(ctx, filter)
 }
 
+// Operation IDs the router gives the tighter per-user rate-limit tiers.
+const (
+	OpSearchCatalogCards = "search-catalog-cards"
+	OpListCatalogFacets  = "list-catalog-facets"
+)
+
 // Routes returns every route CatalogHandler exposes, for registration via
 // endpoint.RegisterAll.
 func (h *CatalogHandler) Routes() []endpoint.Registrable {
@@ -179,7 +185,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			HandlerFunc: h.listTags,
 		}),
 		endpoint.NewWithMeta(endpoint.EndpointWithMeta[searchCardsInput, []dto.CardSummary, dto.PaginationMeta]{
-			OperationID: "search-catalog-cards",
+			OperationID: OpSearchCatalogCards,
 			Method:      http.MethodGet,
 			Path:        "/catalog/cards",
 			Summary:     "Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required",
@@ -189,7 +195,7 @@ func (h *CatalogHandler) Routes() []endpoint.Registrable {
 			HandlerFunc: h.searchCards,
 		}),
 		endpoint.New(endpoint.Endpoint[listFacetsInput, dto.CatalogFacets]{
-			OperationID: "list-catalog-facets",
+			OperationID: OpListCatalogFacets,
 			Method:      http.MethodGet,
 			Path:        "/catalog/facets",
 			Summary:     "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included). A Guest gets 401 login_required",

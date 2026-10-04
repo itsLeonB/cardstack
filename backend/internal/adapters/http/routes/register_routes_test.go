@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2/humatest"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/ratelimit"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 )
@@ -22,7 +23,7 @@ func (stubHealthService) Check() service.HealthStatus {
 func TestRegisterRoutes_Health(t *testing.T) {
 	_, api := humatest.New(t, httpapi.NewConfig())
 
-	RegisterRoutes(api, &provider.Services{Health: stubHealthService{}})
+	RegisterRoutes(api, &provider.Services{Health: stubHealthService{}}, ratelimit.Limits{})
 
 	resp := api.Get("/health")
 

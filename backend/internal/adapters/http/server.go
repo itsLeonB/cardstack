@@ -2,10 +2,12 @@ package http
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humagin"
 	"github.com/gin-gonic/gin"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/ratelimit"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/routes"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
@@ -16,6 +18,9 @@ import (
 
 func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	if err := configs.ValidateClerk(); err != nil {
+		return nil, nil, err
+	}
+	if err := configs.ValidateRateLimit(); err != nil {
 		return nil, nil, err
 	}
 	if len(configs.ClientUrls) == 0 {
@@ -42,7 +47,7 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 
 	api := humagin.New(r, httpapi.NewServerConfig(configs.Env))
 	httpapi.UseRecovery(api)
-	routes.RegisterRoutes(api, providers.Services)
+	routes.RegisterRoutes(api, providers.Services, ratelimit.NewLimits(configs.RateLimit, time.Now))
 
 	httpCfg := httpserver.ProductionConfig()
 	httpCfg.LoggerConfig = &httpserver.LoggerConfig{
