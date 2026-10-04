@@ -578,3 +578,102 @@ func TestClient_FetchImage_OverRealHTTP(t *testing.T) {
 		assert.Zero(t, offHostHits.Load())
 	})
 }
+
+// hostMissingFixture is one Expansion Set and one card under it, both with a
+// scraped source address and no hosted key, as after the hosted-images
+// migration.
+type hostMissingFixture struct {
+	hostingFixture
+	cardID uuid.UUID
+}
+
+func newHostMissingFixture(t *testing.T) hostMissingFixture {
+	t.Helper()
+	f := newHostingFixture(t)
+	ctx := context.Background()
+
+	f.set.SourceImageURL = coverURL
+	set, err := f.in.sets.Update(ctx, f.set)
+	require.NoError(t, err)
+	f.set = set
+
+	// Ingest the card with hosting off, so it has a source address and no key.
+	store := f.in.store
+	f.in.store = nil
+	require.NoError(t, f.in.ingestCard(ctx, f.set.ID, f.set.Code, "16488", "SAR"))
+	f.in.store = store
+	card := f.card(t)
+	require.Empty(t, card.ImageKey)
+	return hostMissingFixture{hostingFixture: f, cardID: card.ID}
+}
+
+func (f hostMissingFixture) reload(t *testing.T) (entity.ExpansionSet, entity.Card) {
+	t.Helper()
+	ctx := context.Background()
+	set, err := f.in.sets.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{Model: entity.ExpansionSet{GameID: f.in.gameID, Code: f.set.Code}})
+	require.NoError(t, err)
+	card, err := f.in.cards.FindFirst(ctx, crud.Specification[entity.Card]{Model: entity.Card{ExpansionSetID: f.set.ID, LocalID: "001"}})
+	require.NoError(t, err)
+	return set, card
+}
+
+func TestIngester_HostMissingImages_HostsCoverAndCardsWithoutCrawling(t *testing.T) {
+	f := newHostMissingFixture(t)
+	rt := useSourceImages(f.in, servePNG)
+	f.store.EXPECT().Put(mock.Anything, "expansion-sets/"+f.set.ID.String(), "image/png", pngBytes).Return(nil).Once()
+	f.store.EXPECT().Put(mock.Anything, "cards/"+f.cardID.String(), "image/png", pngBytes).Return(nil).Once()
+
+	summary, err := f.in.HostMissingImages(context.Background(), f.set.Code)
+
+	require.NoError(t, err)
+	set, card := f.reload(t)
+	assert.Equal(t, "expansion-sets/"+f.set.ID.String(), set.ImageKey)
+	assert.Equal(t, "cards/"+f.cardID.String(), card.ImageKey)
+	assert.Equal(t, 2, summary.ImagesHosted)
+	assert.Empty(t, summary.Failures)
+	assert.Len(t, rt.hosts(), 2, "only images are fetched, never a listing or detail page")
+}
+
+func TestIngester_HostMissingImages_SkipsHostedRowsOnRerun(t *testing.T) {
+	f := newHostMissingFixture(t)
+	rt := useSourceImages(f.in, servePNG)
+	f.store.EXPECT().Put(mock.Anything, mock.Anything, "image/png", pngBytes).Return(nil).Twice() // first run only
+
+	_, err := f.in.HostMissingImages(context.Background(), f.set.Code)
+	require.NoError(t, err)
+	summary, err := f.in.HostMissingImages(context.Background(), f.set.Code)
+
+	require.NoError(t, err)
+	assert.Zero(t, summary.ImagesHosted)
+	assert.Len(t, rt.hosts(), 2, "hosted rows are not downloaded again")
+}
+
+func TestIngester_HostMissingImages_FailureLeavesKeyEmptyAndContinues(t *testing.T) {
+	f := newHostMissingFixture(t)
+	useSourceImages(f.in, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/id/products/cover.png" {
+			http.Error(w, "gone", http.StatusNotFound)
+			return
+		}
+		servePNG(w, r)
+	})
+	f.store.EXPECT().Put(mock.Anything, "cards/"+f.cardID.String(), "image/png", pngBytes).Return(nil).Once()
+
+	summary, err := f.in.HostMissingImages(context.Background(), f.set.Code)
+
+	require.NoError(t, err)
+	set, card := f.reload(t)
+	assert.Empty(t, set.ImageKey, "the failed cover stays unhosted so a later run retries it")
+	assert.NotEmpty(t, card.ImageKey, "one failure does not stop the rest")
+	require.Len(t, summary.Failures, 1)
+	assert.Equal(t, f.set.Code, summary.Failures[0].ExpansionCode)
+	assert.Equal(t, "hosting expansion set cover", summary.Failures[0].Stage)
+}
+
+func TestIngester_HostMissingImages_RequiresObjectStore(t *testing.T) {
+	in := testIngester(t)
+
+	_, err := in.HostMissingImages(context.Background(), "")
+
+	require.Error(t, err)
+}
