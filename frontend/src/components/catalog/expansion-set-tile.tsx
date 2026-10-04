@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { formatReleaseDate } from "@/lib/date"
+import { imageSources } from "@/lib/image"
 
 export function ExpansionSetTile({
   expansionSet,
@@ -18,6 +19,7 @@ export function ExpansionSetTile({
   const [imageFailed, setImageFailed] = useState(false)
   const releaseDate = formatReleaseDate(expansionSet.releaseDate)
   const showImage = Boolean(expansionSet.imageUrl) && !imageFailed
+  const { src } = imageSources(expansionSet.imageUrl, "setCover")
 
   return (
     <Link
@@ -36,7 +38,7 @@ export function ExpansionSetTile({
           // beside it); fixed width/height reserve the slot so loading doesn't shift the tile.
           <div className="ml-6 shrink-0">
             <img
-              src={expansionSet.imageUrl}
+              src={src}
               alt=""
               width={64}
               height={64}

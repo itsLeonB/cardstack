@@ -4,7 +4,10 @@ import type * as TanStackRouter from "@tanstack/react-router"
 import { ExpansionSetTile } from "./expansion-set-tile"
 import type { ExpansionSetSummary } from "@/generated/models"
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  vi.unstubAllEnvs()
+})
 
 // `Link` needs a <RouterProvider>; swap it for a plain anchor (same approach as card-results.test.tsx).
 // oxlint-disable-next-line anti-slop/no-module-mocking
@@ -35,6 +38,25 @@ describe("ExpansionSetTile", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
       expansionSet.imageUrl
     )
+  })
+
+  it("requests a 128 wide cover from the image host and keeps the 64px slot", () => {
+    vi.stubEnv("VITE_IMAGE_HOST", "https://img.example.com")
+    const { container } = render(
+      <ExpansionSetTile
+        expansionSet={{
+          ...expansionSet,
+          imageUrl: "https://img.example.com/expansion-sets/set-1",
+        }}
+      />
+    )
+    const img = container.querySelector("img")!
+
+    expect(img.getAttribute("src")).toBe(
+      "https://img.example.com/cdn-cgi/image/width=128,format=auto,onerror=redirect/expansion-sets/set-1"
+    )
+    expect(img.getAttribute("width")).toBe("64")
+    expect(img.getAttribute("height")).toBe("64")
   })
 
   it("renders a text-only tile when imageUrl is empty", () => {
