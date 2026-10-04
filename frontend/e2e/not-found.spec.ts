@@ -1,6 +1,12 @@
 import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 
+import {
+  SIGNED_IN_TAG,
+  signInAsTestUser,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
 test.describe("Not-found page", () => {
   test("an unknown URL shows the not-found page inside the shell", async ({
     page,
@@ -40,40 +46,35 @@ test.describe("Not-found page", () => {
     "access-control-allow-credentials": "true",
   })
 
-  // FIXME(ticket 09): needs a real Clerk session; the /auth/me stub below
-  // simulated one the API no longer has.
-  test.fixme("a missing Collection names what was not found, on its page and its edit page", async ({
-    page,
-  }) => {
-    await page.route("**/auth/me", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        headers: cors(route.request().headers().origin),
-        body: JSON.stringify({ data: { id: "u1", email: "ada@example.com" } }),
+  test.describe("signed in", { tag: SIGNED_IN_TAG }, () => {
+    useSignedInSuite()
+
+    test("a missing Collection names what was not found, on its page and its edit page", async ({
+      page,
+    }) => {
+      await page.route(/\/collections\/missing-id$/, (route) => {
+        if (route.request().resourceType() !== "fetch") return route.fallback()
+        return route.fulfill({
+          status: 404,
+          contentType: "application/json",
+          headers: cors(route.request().headers().origin),
+          body: JSON.stringify({ detail: "collection not found" }),
+        })
       })
-    )
-    await page.route(/\/collections\/missing-id$/, (route) => {
-      if (route.request().resourceType() !== "fetch") return route.fallback()
-      return route.fulfill({
-        status: 404,
-        contentType: "application/json",
-        headers: cors(route.request().headers().origin),
-        body: JSON.stringify({ detail: "collection not found" }),
-      })
+      await signInAsTestUser(page)
+
+      for (const path of [
+        "/collections/missing-id",
+        "/collections/missing-id/edit",
+      ]) {
+        await page.goto(path)
+
+        await expect(
+          page.getByRole("heading", { level: 1, name: "Collection not found" })
+        ).toBeVisible()
+        await expect(page.getByRole("banner")).toBeVisible()
+      }
     })
-
-    for (const path of [
-      "/collections/missing-id",
-      "/collections/missing-id/edit",
-    ]) {
-      await page.goto(path)
-
-      await expect(
-        page.getByRole("heading", { level: 1, name: "Collection not found" })
-      ).toBeVisible()
-      await expect(page.getByRole("banner")).toBeVisible()
-    }
   })
 
   test("a missing Card names what was not found", async ({ page }) => {

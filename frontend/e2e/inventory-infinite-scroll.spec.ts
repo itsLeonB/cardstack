@@ -1,9 +1,17 @@
 import { test, expect } from "playwright/test"
 import type { Page, Route } from "playwright/test"
 
-// Stubs a signed-in user with one Collection of 350 entries (100 per page, so
-// four pages) and the same 350 cards as the Master Inventory, instead of the
-// seeded fixture, which is too small to scroll.
+import {
+  SIGNED_IN_TAG,
+  signInAsTestUser,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
+// Stubs one Collection of 350 entries (100 per page, so four pages) and the
+// same 350 cards as the Master Inventory, instead of the seeded fixture, which
+// is too small to scroll. The user is signed in through Clerk's real
+// development instance (see support/clerk-auth.ts) and the suites skip without
+// its credentials; the stubbed lists are what the real session token reads.
 const entry = (index: number, quantity = 3) => ({
   quantity,
   card: {
@@ -21,13 +29,13 @@ const entry = (index: number, quantity = 3) => ({
 
 type Entry = ReturnType<typeof entry>
 
-// Credentialed cross-origin calls need the caller's exact origin echoed back.
+// Cross-origin calls need the caller's exact origin echoed back.
 function cors(route: Route) {
   return {
     "access-control-allow-origin": route.request().headers()["origin"] ?? "",
     "access-control-allow-credentials": "true",
     "access-control-allow-methods": "GET, PATCH, OPTIONS",
-    "access-control-allow-headers": "content-type, x-csrf-token",
+    "access-control-allow-headers": "authorization, content-type",
   }
 }
 
@@ -68,9 +76,6 @@ async function stubApi(page: Page) {
   const pageFour = new Promise<void>((resolve) => (releasePageFour = resolve))
   let holdPageFour = false
 
-  await page.route("**/auth/me", (route) =>
-    json(route, { data: { id: "u1", email: "ada@example.com" } })
-  )
   await page.route("**/catalog/series", (route) =>
     json(route, { data: { series: [], ungroupedExpansionSets: [] } })
   )
@@ -182,128 +187,142 @@ async function openCollection(page: Page) {
 const scrollToBottom = (page: Page) =>
   page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
 
-// FIXME(ticket 09): both suites need a real Clerk session (Clerk Testing
-// Tokens); stubApi's /auth/me stub simulated one the API no longer has.
-test.describe.fixme("Collection entries infinite scroll", () => {
-  test("keeps a quantity saved on page 3 after page 4 loads and after a focus refetch", async ({
-    page,
-  }) => {
-    const api = await stubApi(page)
-    api.holdPageFour()
-    await openCollection(page)
-    await expect(page.getByText("100 of 350 cards loaded")).toBeVisible()
+test.describe(
+  "Collection entries infinite scroll",
+  { tag: SIGNED_IN_TAG },
+  () => {
+    useSignedInSuite()
 
-    // Scroll until page 3 is in; page 4 is requested but held.
-    await expect
-      .poll(
-        async () => {
-          await scrollToBottom(page)
-          return page.getByText("300 of 350 cards loaded").count()
-        },
-        { timeout: 15_000 }
-      )
-      .toBe(1)
+    test("keeps a quantity saved on page 3 after page 4 loads and after a focus refetch", async ({
+      page,
+    }) => {
+      const api = await stubApi(page)
+      api.holdPageFour()
+      await signInAsTestUser(page)
+      await openCollection(page)
+      await expect(page.getByText("100 of 350 cards loaded")).toBeVisible()
 
-    // Card 299 is on page 3, in the last rendered row.
-    const quantity = page.getByLabel("Quantity of Card 299", { exact: true })
-    await expect(async () => {
-      await scrollToBottom(page)
-      await expect(quantity).toHaveValue("3", { timeout: 1000 })
-    }).toPass()
-    await page
-      .getByRole("button", { name: "Increase quantity of Card 299" })
-      .click()
-    await expect(quantity).toHaveValue("4")
-    await expect.poll(() => api.bulkBodies.length).toBe(1)
-    expect(api.bulkBodies[0]).toEqual({
-      items: [{ cardId: "card-299", quantity: 4 }],
-    })
+      // Scroll until page 3 is in; page 4 is requested but held.
+      await expect
+        .poll(
+          async () => {
+            await scrollToBottom(page)
+            return page.getByText("300 of 350 cards loaded").count()
+          },
+          { timeout: 15_000 }
+        )
+        .toBe(1)
 
-    api.releasePageFour()
-    await expect
-      .poll(
-        async () => {
-          await scrollToBottom(page)
-          return page.getByText("350 of 350 cards loaded").count()
-        },
-        { timeout: 15_000 }
-      )
-      .toBe(1)
-
-    // Every page was requested (the dev server's StrictMode remount can
-    // repeat one, so counts are not asserted), and the URL has no page.
-    await expect(async () => {
-      await scrollToBottom(page)
-      await expect(page.getByTitle("Card 349")).toBeVisible({ timeout: 1000 })
-    }).toPass()
-    const pages = api.entryRequests.map((url) => url.searchParams.get("page"))
-    expect(new Set(pages)).toEqual(new Set(["1", "2", "3", "4"]))
-    expect(page.url()).not.toContain("page=")
-
-    // Scroll back to card 199: still 4, not the stale 3 from page 3's first read.
-    await page.evaluate(() => window.scrollTo(0, 0))
-    await expect
-      .poll(async () => {
+      // Card 299 is on page 3, in the last rendered row.
+      const quantity = page.getByLabel("Quantity of Card 299", { exact: true })
+      await expect(async () => {
         await scrollToBottom(page)
-        return page.getByText("350 of 350 cards loaded").count()
+        await expect(quantity).toHaveValue("3", { timeout: 1000 })
+      }).toPass()
+      await page
+        .getByRole("button", { name: "Increase quantity of Card 299" })
+        .click()
+      await expect(quantity).toHaveValue("4")
+      await expect.poll(() => api.bulkBodies.length).toBe(1)
+      expect(api.bulkBodies[0]).toEqual({
+        items: [{ cardId: "card-299", quantity: 4 }],
       })
-      .toBe(1)
-    await page.evaluate(() => {
-      const row = document.querySelector('[aria-posinset="300"]')
-      row?.scrollIntoView({ block: "center" })
-    })
-    await expect(
-      page.getByLabel("Quantity of Card 299", { exact: true })
-    ).toHaveValue("4")
 
-    // Refocusing the tab refetches every loaded page; the saved value is the server's.
-    const before = api.entryRequests.length
-    await page.evaluate(() => {
-      const setVisibility = (state: string) => {
-        Object.defineProperty(document, "visibilityState", {
-          configurable: true,
-          get: () => state,
-        })
-        document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
-      }
-      setVisibility("hidden")
-      setVisibility("visible")
-    })
-    await expect
-      .poll(() => api.entryRequests.length - before, { timeout: 15_000 })
-      .toBeGreaterThanOrEqual(4)
-    await page.evaluate(() => {
-      const row = document.querySelector('[aria-posinset="300"]')
-      row?.scrollIntoView({ block: "center" })
-    })
-    await expect(
-      page.getByLabel("Quantity of Card 299", { exact: true })
-    ).toHaveValue("4")
-  })
-})
+      api.releasePageFour()
+      await expect
+        .poll(
+          async () => {
+            await scrollToBottom(page)
+            return page.getByText("350 of 350 cards loaded").count()
+          },
+          { timeout: 15_000 }
+        )
+        .toBe(1)
 
-test.describe.fixme("Master Inventory infinite scroll", () => {
-  test("loads every page on scroll without duplicates", async ({ page }) => {
-    await stubApi(page)
-    await navigateTo(page, "Master Inventory", "Master Inventory")
-    await expect(page.getByText("100 of 350 cards loaded")).toBeVisible()
+      // Every page was requested (the dev server's StrictMode remount can
+      // repeat one, so counts are not asserted), and the URL has no page.
+      await expect(async () => {
+        await scrollToBottom(page)
+        await expect(page.getByTitle("Card 349")).toBeVisible({ timeout: 1000 })
+      }).toPass()
+      const pages = api.entryRequests.map((url) => url.searchParams.get("page"))
+      expect(new Set(pages)).toEqual(new Set(["1", "2", "3", "4"]))
+      expect(page.url()).not.toContain("page=")
 
-    await expect
-      .poll(
-        async () => {
+      // Scroll back to card 199: still 4, not the stale 3 from page 3's first read.
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await expect
+        .poll(async () => {
           await scrollToBottom(page)
           return page.getByText("350 of 350 cards loaded").count()
-        },
-        { timeout: 15_000 }
-      )
-      .toBe(1)
+        })
+        .toBe(1)
+      await page.evaluate(() => {
+        const row = document.querySelector('[aria-posinset="300"]')
+        row?.scrollIntoView({ block: "center" })
+      })
+      await expect(
+        page.getByLabel("Quantity of Card 299", { exact: true })
+      ).toHaveValue("4")
 
-    await expect(page.getByText("×350", { exact: true })).toBeVisible()
-    expect(page.url()).not.toContain("page=")
-    const names = await page
-      .getByRole("listitem")
-      .locator("p[title]")
-      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title")))
-    expect(new Set(names).size).toBe(names.length)
-  })
-})
+      // Refocusing the tab refetches every loaded page; the saved value is the server's.
+      const before = api.entryRequests.length
+      await page.evaluate(() => {
+        const setVisibility = (state: string) => {
+          Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            get: () => state,
+          })
+          document.dispatchEvent(
+            new Event("visibilitychange", { bubbles: true })
+          )
+        }
+        setVisibility("hidden")
+        setVisibility("visible")
+      })
+      await expect
+        .poll(() => api.entryRequests.length - before, { timeout: 15_000 })
+        .toBeGreaterThanOrEqual(4)
+      await page.evaluate(() => {
+        const row = document.querySelector('[aria-posinset="300"]')
+        row?.scrollIntoView({ block: "center" })
+      })
+      await expect(
+        page.getByLabel("Quantity of Card 299", { exact: true })
+      ).toHaveValue("4")
+    })
+  }
+)
+
+test.describe(
+  "Master Inventory infinite scroll",
+  { tag: SIGNED_IN_TAG },
+  () => {
+    useSignedInSuite()
+
+    test("loads every page on scroll without duplicates", async ({ page }) => {
+      await stubApi(page)
+      await signInAsTestUser(page)
+      await navigateTo(page, "Master Inventory", "Master Inventory")
+      await expect(page.getByText("100 of 350 cards loaded")).toBeVisible()
+
+      await expect
+        .poll(
+          async () => {
+            await scrollToBottom(page)
+            return page.getByText("350 of 350 cards loaded").count()
+          },
+          { timeout: 15_000 }
+        )
+        .toBe(1)
+
+      await expect(page.getByText("×350", { exact: true })).toBeVisible()
+      expect(page.url()).not.toContain("page=")
+      const names = await page
+        .getByRole("listitem")
+        .locator("p[title]")
+        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title")))
+      expect(new Set(names).size).toBe(names.length)
+    })
+  }
+)
