@@ -46,7 +46,11 @@ describe("waiting for Clerk", () => {
     auth.publish(fakeClerk("sess_1", getJwt).clerk)
 
     await expect(signedIn).resolves.toBe(true)
-    await expect(token).resolves.toBe("jwt")
+    await expect(token).resolves.toEqual({
+      token: "jwt",
+      sessionId: "sess_1",
+    })
+    expect(auth.currentSessionId()).toBe("sess_1")
     expect(getJwt).toHaveBeenCalledWith({ skipCache: true })
   })
 
@@ -56,6 +60,7 @@ describe("waiting for Clerk", () => {
 
     await expect(auth.isSignedIn()).resolves.toBe(false)
     await expect(auth.getToken()).resolves.toBeNull()
+    expect(auth.currentSessionId()).toBeNull()
   })
 
   it("waits for a Clerk that is slow to load, within the bound", async () => {
@@ -94,7 +99,10 @@ describe("waiting for Clerk", () => {
     auth.publish(fakeClerk("sess_1").clerk)
 
     await expect(auth.isSignedIn()).resolves.toBe(true)
-    await expect(auth.getToken()).resolves.toBe("jwt")
+    await expect(auth.getToken()).resolves.toEqual({
+      token: "jwt",
+      sessionId: "sess_1",
+    })
   })
 })
 

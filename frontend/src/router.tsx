@@ -31,7 +31,7 @@ export function getRouter() {
   // Clerk token getter, and the app-level reaction to a lost session. Same
   // redirect shape as `requireAuth`: the current path and query, only while
   // it stays on this origin.
-  setTokenGetter(clerkAuth.getToken)
+  setTokenGetter(clerkAuth.getToken, clerkAuth.currentSessionId)
   setOnAuthLost(
     createAuthLostHandler(queryClient, {
       endSession: clerkAuth.endSession,

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { TokenGetter } from "./http"
 import {
   customFetch,
   rearmAuthLost,
@@ -10,6 +11,11 @@ const URL = "https://api.example.com/collections"
 
 function respond(status: number) {
   return new Response("{}", { status })
+}
+
+/** What the token getter resolves for a signed-in user. */
+function tok(token: string, sessionId = "sess_1") {
+  return { token, sessionId }
 }
 
 function fetchStub(status: number) {
@@ -38,7 +44,7 @@ describe("customFetch bearer token", () => {
   it("sends the current Clerk token as a bearer header", async () => {
     const fetchMock = fetchStub(200)
     vi.stubGlobal("fetch", fetchMock)
-    setTokenGetter(async () => "token-1")
+    setTokenGetter(async () => tok("token-1"))
 
     await customFetch(URL, { method: "GET" })
 
@@ -82,7 +88,7 @@ describe("customFetch bearer token", () => {
   it("sends no cookies and no CSRF header", async () => {
     const fetchMock = fetchStub(200)
     vi.stubGlobal("fetch", fetchMock)
-    setTokenGetter(async () => "token-1")
+    setTokenGetter(async () => tok("token-1"))
 
     await customFetch(URL, { method: "POST", body: "{}" })
 
@@ -94,7 +100,7 @@ describe("customFetch bearer token", () => {
   it("passes the caller's headers and body through", async () => {
     const fetchMock = fetchStub(200)
     vi.stubGlobal("fetch", fetchMock)
-    setTokenGetter(async () => "token-1")
+    setTokenGetter(async () => tok("token-1"))
 
     await customFetch(URL, {
       method: "POST",
@@ -118,9 +124,9 @@ describe("customFetch retry on 401", () => {
       .mockResolvedValueOnce(respond(200))
     vi.stubGlobal("fetch", fetchMock)
     const getter = vi
-      .fn<(options?: { skipCache?: boolean }) => Promise<string | null>>()
-      .mockResolvedValueOnce("stale")
-      .mockResolvedValueOnce("fresh")
+      .fn<TokenGetter>()
+      .mockResolvedValueOnce(tok("stale"))
+      .mockResolvedValueOnce(tok("fresh"))
     setTokenGetter(getter)
     const onLost = vi.fn()
     setOnAuthLost(onLost)
@@ -141,7 +147,9 @@ describe("customFetch retry on 401", () => {
   it("reports a lost session when the retry is 401 too, and does not retry again", async () => {
     const fetchMock = fetchStub(401)
     vi.stubGlobal("fetch", fetchMock)
-    setTokenGetter(async (options) => (options?.skipCache ? "fresh" : "stale"))
+    setTokenGetter(async (options) =>
+      tok(options?.skipCache ? "fresh" : "stale")
+    )
     const onLost = vi.fn()
     setOnAuthLost(onLost)
 
@@ -157,7 +165,9 @@ describe("customFetch retry on 401", () => {
   it("reports a lost session, without retrying, when Clerk has no session left", async () => {
     const fetchMock = fetchStub(401)
     vi.stubGlobal("fetch", fetchMock)
-    setTokenGetter(async (options) => (options?.skipCache ? null : "stale"))
+    setTokenGetter(async (options) =>
+      options?.skipCache ? null : tok("stale")
+    )
     const onLost = vi.fn()
     setOnAuthLost(onLost)
 
@@ -175,7 +185,7 @@ describe("customFetch retry on 401", () => {
     vi.stubGlobal("fetch", fetchMock)
     setTokenGetter(async (options) => {
       if (options?.skipCache) throw new Error("offline")
-      return "stale"
+      return tok("stale")
     })
     const onLost = vi.fn()
     setOnAuthLost(onLost)
@@ -199,7 +209,7 @@ describe("customFetch retry on 401", () => {
     )
     vi.stubGlobal("fetch", fetchMock)
     const getter = vi.fn(async (options?: { skipCache?: boolean }) =>
-      options?.skipCache ? "fresh" : "stale"
+      tok(options?.skipCache ? "fresh" : "stale")
     )
     setTokenGetter(getter)
 
@@ -215,7 +225,7 @@ describe("customFetch retry on 401", () => {
 
   it("reports a lost session once for concurrent failures", async () => {
     vi.stubGlobal("fetch", fetchStub(401))
-    setTokenGetter(async () => "token")
+    setTokenGetter(async () => tok("token"))
     const onLost = vi.fn()
     setOnAuthLost(onLost)
 
@@ -229,7 +239,7 @@ describe("customFetch retry on 401", () => {
 
   it("reports the next expiry once a new session re-arms the notice", async () => {
     vi.stubGlobal("fetch", fetchStub(401))
-    setTokenGetter(async () => "token")
+    setTokenGetter(async () => tok("token"))
     const onLost = vi.fn()
     setOnAuthLost(onLost)
 
@@ -263,7 +273,7 @@ describe("customFetch retry on 401", () => {
   it("passes a non-401 error straight through", async () => {
     const fetchMock = fetchStub(500)
     vi.stubGlobal("fetch", fetchMock)
-    setTokenGetter(async () => "token")
+    setTokenGetter(async () => tok("token"))
     const onLost = vi.fn()
     setOnAuthLost(onLost)
 
@@ -277,10 +287,88 @@ describe("customFetch retry on 401", () => {
   })
 })
 
+describe("customFetch when the session changes under a request", () => {
+  // Session A's request is in flight when the user ends up in session B.
+  function switchableSession() {
+    let current = "sess_A"
+    // Tokens are minted for whoever is signed in at the time, as Clerk does.
+    setTokenGetter(
+      async (options) =>
+        tok(`${options?.skipCache ? "fresh" : "token"}-${current}`, current),
+      () => current
+    )
+    return {
+      switchTo(id: string) {
+        current = id
+      },
+    }
+  }
+
+  it("does not retry A's request as B, and does not announce anything", async () => {
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
+    const session = switchableSession()
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
+    fetchMock.mockImplementationOnce(async () => {
+      session.switchTo("sess_B")
+      return respond(401)
+    })
+
+    const response = await customFetch<{ status: number }>(URL, {
+      method: "GET",
+    })
+
+    expect(response.status).toBe(401)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onLost).not.toHaveBeenCalled()
+  })
+
+  it("ignores A's second 401 when B took over during the retry, leaving the notice unspent", async () => {
+    const fetchMock = fetchStub(401)
+    vi.stubGlobal("fetch", fetchMock)
+    const session = switchableSession()
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
+    fetchMock
+      .mockImplementationOnce(async () => respond(401))
+      .mockImplementationOnce(async () => {
+        session.switchTo("sess_B")
+        return respond(401)
+      })
+
+    await customFetch(URL, { method: "GET" })
+
+    expect(sentAuthorization(fetchMock)).toEqual([
+      "Bearer token-sess_A",
+      "Bearer fresh-sess_A",
+    ])
+    expect(onLost).not.toHaveBeenCalled()
+
+    // B's own refusal is still announced: A's did not spend the notice.
+    await customFetch(URL, { method: "GET" })
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it("still announces a session that ended with nobody signed in after it", async () => {
+    vi.stubGlobal("fetch", fetchStub(401))
+    setTokenGetter(
+      async (options) => (options?.skipCache ? null : tok("token-A")),
+      () => null
+    )
+    const onLost = vi.fn()
+    setOnAuthLost(onLost)
+
+    await customFetch(URL, { method: "GET" })
+
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe("customFetch outside the browser realm", () => {
   it("ignores token-getter and auth-lost registrations made during a server render", async () => {
     const savedDocument = globalThis.document
-    const getter = vi.fn(async () => "token")
+    const getter = vi.fn(async () => tok("token"))
     const onLost = vi.fn()
     try {
       Reflect.deleteProperty(globalThis, "document")

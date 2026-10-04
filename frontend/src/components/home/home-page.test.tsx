@@ -181,6 +181,21 @@ describe("signed-in dashboard", () => {
     ).toBeTruthy()
   })
 
+  it("shows no 'Signed in as' line for an account with neither name nor email", async () => {
+    mockSession.mockReturnValue(
+      clerkUserResult("signed-in", {
+        id: "user_3",
+        fullName: "",
+        primaryEmailAddress: null,
+      })
+    )
+    dashboardData([], 0)
+    await renderHome()
+
+    await screen.findByRole("heading", { level: 1, name: "Welcome back" })
+    expect(screen.queryByText(/Signed in as/)).toBeNull()
+  })
+
   it("explains what to do first when there are no Collections", async () => {
     session("signed-in")
     dashboardData([], 0)

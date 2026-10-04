@@ -8,7 +8,7 @@ import { AuthPage } from "./auth-page"
 export function SignUpPage() {
   const { redirect } = useSearch({ strict: false })
   return (
-    <AuthPage title="Create an account">
+    <AuthPage>
       <SignUp
         routing="path"
         path={REGISTER_PATH}

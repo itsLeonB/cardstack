@@ -12,8 +12,19 @@ export interface TokenOptions {
   skipCache?: boolean
 }
 
-/** Resolves the current Clerk session token, or null when nobody is signed in. */
-export type TokenGetter = (options?: TokenOptions) => Promise<string | null>
+/** A Clerk token with the id of the session it was issued for. */
+export interface SessionToken {
+  token: string
+  sessionId: string
+}
+
+/** Resolves the current Clerk session's token, or null when nobody is signed in. */
+export type TokenGetter = (
+  options?: TokenOptions
+) => Promise<SessionToken | null>
+
+/** The id of the session Clerk holds right now, or null when there is none. */
+export type CurrentSessionId = () => string | null
 
 interface FetchResponse {
   data: object
@@ -29,13 +40,29 @@ function inBrowser(): boolean {
 }
 
 let getToken: TokenGetter | null = null
+let currentSessionId: CurrentSessionId = () => null
 
 /**
  * This module is orval's mutator and has no React context, so the app
- * registers its Clerk token getter here (`router.tsx`).
+ * registers its Clerk token getter here (`router.tsx`), with a way to read the
+ * current session id: a request's failure is only held against the session
+ * that made it (a late 401 from a session that has since been replaced must
+ * not sign out the new one).
  */
-export function setTokenGetter(getter: TokenGetter | null): void {
+export function setTokenGetter(
+  getter: TokenGetter | null,
+  readSessionId: CurrentSessionId = () => null
+): void {
   getToken = inBrowser() ? getter : null
+  currentSessionId = inBrowser() ? readSessionId : () => null
+}
+
+// True when Clerk now holds a different, signed-in session than the one a
+// request was made with. No session at all is not "replaced": that session
+// ended, which is the case worth reporting.
+function replacedBy(sessionId: string): boolean {
+  const now = currentSessionId()
+  return now !== null && now !== sessionId
 }
 
 let onAuthLost: (() => void) | null = null
@@ -71,7 +98,7 @@ export function reportAuthLost(): void {
 
 // A token the caller cannot get (Clerk blocked, timed out) must not break
 // public pages: the request goes out as a guest and the API decides.
-async function currentToken(): Promise<string | null> {
+async function currentToken(): Promise<SessionToken | null> {
   try {
     return (await getToken?.()) ?? null
   } catch {
@@ -82,11 +109,11 @@ async function currentToken(): Promise<string | null> {
 // Concurrent 401s after one expiry all want the same new token, so they share
 // a single request. `undefined` means Clerk could not answer (offline, timeout),
 // which is not the same as Clerk saying there is no session (`null`).
-let inFlightFresh: Promise<string | null | undefined> | null = null
+let inFlightFresh: Promise<SessionToken | null | undefined> | null = null
 
-function freshToken(): Promise<string | null | undefined> {
+function freshToken(): Promise<SessionToken | null | undefined> {
   inFlightFresh ??= Promise.resolve(getToken?.({ skipCache: true }))
-    .then((token) => token ?? null)
+    .then((fresh) => fresh ?? null)
     .catch(() => undefined)
     .finally(() => {
       inFlightFresh = null
@@ -125,23 +152,35 @@ export const customFetch = async <T>(
   options: RequestInit
 ): Promise<T> => {
   const method = (options.method ?? "GET").toUpperCase()
-  const token = await currentToken()
-  const response = await sendRequest(url, method, options, token)
+  const session = await currentToken()
+  const response = await sendRequest(
+    url,
+    method,
+    options,
+    session?.token ?? null
+  )
 
-  if (response.status !== 401 || token === null) return asResponse<T>(response)
+  if (response.status !== 401 || session === null) {
+    return asResponse<T>(response)
+  }
 
   const fresh = await freshToken()
-  // Clerk could not answer: the caller gets the 401 it would have gotten
-  // without this wrapper, and nothing is announced.
-  if (fresh === undefined) return asResponse<T>(response)
+  // Clerk could not answer, or the session this request was made with has been
+  // replaced by another one in the meantime (neither the new token nor the
+  // failure belongs to this request): the caller gets the 401 it would have
+  // gotten without this wrapper, and nothing is announced.
+  if (fresh === undefined || replacedBy(session.sessionId)) {
+    return asResponse<T>(response)
+  }
   if (fresh === null) {
     reportAuthLost()
     return asResponse<T>(response)
   }
+  if (fresh.sessionId !== session.sessionId) return asResponse<T>(response)
 
   // Exactly one retry; a second 401 is returned as-is rather than retried.
-  const retry = await sendRequest(url, method, options, fresh)
-  if (retry.status === 401) reportAuthLost()
+  const retry = await sendRequest(url, method, options, fresh.token)
+  if (retry.status === 401 && !replacedBy(session.sessionId)) reportAuthLost()
   return asResponse<T>(retry)
 }
 

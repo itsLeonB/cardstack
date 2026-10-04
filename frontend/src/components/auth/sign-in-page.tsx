@@ -14,7 +14,7 @@ import { AuthPage } from "./auth-page"
 export function SignInPage() {
   const { redirect } = useSearch({ strict: false })
   return (
-    <AuthPage title="Log in">
+    <AuthPage>
       <SignIn
         routing="path"
         path={LOGIN_PATH}

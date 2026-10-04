@@ -139,9 +139,15 @@ jobs:
         working-directory: frontend
         env:
           # The dev server bakes this in; the app needs Clerk to load before it
-          # treats anyone as a guest. Forks get no variables, so their run
-          # shows the app's "not configured" error and the guest specs fail.
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          # treats anyone as a guest. Fork pull requests get no variables, so
+          # they fall back to this project's Clerk development instance's
+          # publishable key (public by design: it only encodes the instance's
+          # Frontend API domain, the same one the issuer derived above comes
+          # from on pushes). Guest specs then run; only real sign-in (ticket
+          # 09) needs the secrets, and the API keeps its placeholder issuer.
+          VITE_CLERK_PUBLISHABLE_KEY: >-
+            ${{ vars.VITE_CLERK_PUBLISHABLE_KEY ||
+            'pk_test_d29ya2luZy1jaGltcC01NzcxLmNsZXJrLmFjY291bnRzLmRldiQ=' }}
         run: bunx playwright test
 
       - name: Upload Playwright report
