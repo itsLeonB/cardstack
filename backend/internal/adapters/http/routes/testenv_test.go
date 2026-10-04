@@ -18,6 +18,8 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/ratelimit"
+	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
@@ -53,8 +55,20 @@ type testAPI struct {
 
 // newTestAPI deliberately truncates no tables: this database is shared with
 // other packages' tests, which `go test ./...` runs concurrently in separate
-// processes. Each test uses uuid-suffixed subjects and emails instead.
+// processes. Each test uses uuid-suffixed subjects and emails instead. Its
+// per-user limits are high enough that no other test meets them.
 func newTestAPI(t *testing.T) testAPI {
+	t.Helper()
+
+	const unreachable = 1_000_000
+	return newTestAPIWithLimits(t, ratelimit.NewLimits(config.RateLimit{
+		UserPerMinute: unreachable, UserBurst: unreachable,
+		SearchPerMinute: unreachable, SearchBurst: unreachable,
+		FacetsPerMinute: unreachable, FacetsBurst: unreachable,
+	}, time.Now))
+}
+
+func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 	t.Helper()
 
 	db, sqlDB := openTestDB(t)
@@ -77,7 +91,7 @@ func newTestAPI(t *testing.T) testAPI {
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services)
+	RegisterRoutes(api, services, limits)
 
 	return testAPI{TestAPI: api, db: db, key: key}
 }

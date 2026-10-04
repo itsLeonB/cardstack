@@ -14,6 +14,7 @@ type Config struct {
 	Clerk
 	Image
 	R2
+	RateLimit
 }
 
 var Global *Config
@@ -51,11 +52,16 @@ func Load() error {
 		errs = errors.Join(errs, err)
 	}
 
+	var rateLimit RateLimit
+	if err := envconfig.Process(rateLimit.Prefix(), &rateLimit); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
 	if errs != nil {
 		return fmt.Errorf("error loading config: %w", errs)
 	}
 
-	Global = &Config{app, db, otel, clerk, image, r2}
+	Global = &Config{app, db, otel, clerk, image, r2, rateLimit}
 
 	return nil
 }

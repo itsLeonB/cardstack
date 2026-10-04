@@ -4,6 +4,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/handler"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/ratelimit"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 )
@@ -11,7 +12,7 @@ import (
 // RegisterRoutes mounts every Huma operation on api. It takes the already
 // constructed *provider.Services rather than the full *provider.Providers
 // so cmd/genspec can register routes without booting a DB connection.
-func RegisterRoutes(api huma.API, services *provider.Services) {
+func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.Limits) {
 	healthHandler := handler.NewHealthHandler(services.Health)
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
@@ -22,9 +23,15 @@ func RegisterRoutes(api huma.API, services *provider.Services) {
 	// is a 401 on both.
 	guestsAllowed := authpkg.Guard(api, services.Verifier, services.Users, true)
 	private := authpkg.Guard(api, services.Verifier, services.Users, false)
+	// Name search and facets are the costliest queries, so they get their own
+	// tighter buckets.
+	perUser := ratelimit.PerUser(api, limits, map[string]*ratelimit.Limiter{
+		"search-catalog-cards": limits.Search,
+		"list-catalog-facets":  limits.Facets,
+	})
 
 	endpoint.RegisterAll(api, healthHandler.Routes())
-	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed)
-	endpoint.RegisterAll(api, collectionHandler.Routes(), private)
-	endpoint.RegisterAll(api, inventoryHandler.Routes(), private)
+	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser)
+	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
+	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 }
