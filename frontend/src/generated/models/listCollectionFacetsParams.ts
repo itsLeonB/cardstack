@@ -7,11 +7,13 @@
 
 export type ListCollectionFacetsParams = {
 /**
- * Case-insensitive substring match on the Card's name.
+ * Case-insensitive substring match on the Card's name (at most 64 characters).
+ * @maxLength 64
  */
 name?: string;
 /**
- * Only Cards in any of these Expansion Sets (repeatable).
+ * Only Cards in any of these Expansion Sets (repeatable, at most 20).
+ * @maxItems 20
  */
 expansionSetId?: string[];
 /**
@@ -19,15 +21,18 @@ expansionSetId?: string[];
  */
 localId?: string;
 /**
- * Only Cards with any of these Rarities (repeatable).
+ * Only Cards with any of these Rarities (repeatable, at most 20).
+ * @maxItems 20
  */
 rarityId?: string[];
 /**
- * Only Cards with any of these exact categories (repeatable; e.g. Pokémon, Trainer, Energi).
+ * Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).
+ * @maxItems 20
  */
 category?: string[];
 /**
- * Only Cards carrying any of these tags (repeatable).
+ * Only Cards carrying any of these tags (repeatable, at most 20).
+ * @maxItems 20
  */
 tag?: string[];
 };

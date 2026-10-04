@@ -32,7 +32,7 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 		return nil, nil, err
 	}
 
-	api := humagin.New(r, httpapi.NewConfig())
+	api := humagin.New(r, httpapi.NewServerConfig(configs.Env))
 	httpapi.UseRecovery(api)
 	routes.RegisterRoutes(api, providers.Services)
 

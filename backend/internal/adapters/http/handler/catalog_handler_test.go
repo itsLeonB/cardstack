@@ -14,6 +14,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -253,5 +254,66 @@ func TestCatalogHandler_SearchCards_EmptyIDParamsAreIgnored(t *testing.T) {
 	resp := api.Get("/catalog/cards?rarityId=&expansionSetId=")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func repeatedParam(name string, n int) string {
+	parts := make([]string, n)
+	for i := range parts {
+		parts[i] = name + "=" + uuid.NewString()
+	}
+	return strings.Join(parts, "&")
+}
+
+func oversizedFilterQueries() map[string]string {
+	return map[string]string{
+		"name":           "name=" + strings.Repeat("a", 65),
+		"expansionSetId": repeatedParam("expansionSetId", 21),
+		"rarityId":       repeatedParam("rarityId", 21),
+		"category":       repeatedParam("category", 21),
+		"tag":            repeatedParam("tag", 21),
+	}
+}
+
+func TestCatalogHandler_BoundsSearchInput(t *testing.T) {
+	atLimit := "name=" + strings.Repeat("a", 64) + "&" + repeatedParam("expansionSetId", 20) + "&" +
+		repeatedParam("rarityId", 20) + "&" + repeatedParam("category", 20) + "&" + repeatedParam("tag", 20)
+
+	for _, path := range []string{"/catalog/cards", "/catalog/facets"} {
+		for param, query := range oversizedFilterQueries() {
+			t.Run(path+" "+param, func(t *testing.T) {
+				_, api := newTestCatalogHandler(t)
+
+				resp := api.Get(path + "?" + query)
+				assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+			})
+		}
+	}
+
+	t.Run("limits are inclusive", func(t *testing.T) {
+		svc, api := newTestCatalogHandler(t)
+		svc.EXPECT().SearchCards(mock.Anything, mock.Anything).Return(nil, dto.PaginationMeta{}, nil)
+		svc.EXPECT().ListFacets(mock.Anything, mock.Anything).Return(dto.CatalogFacets{}, nil)
+
+		for _, path := range []string{"/catalog/cards", "/catalog/facets"} {
+			resp := api.Get(path + "?" + atLimit)
+			assert.Equal(t, http.StatusOK, resp.Code, path+": "+resp.Body.String())
+		}
+	})
+}
+
+func TestCatalogHandler_InvalidIDDoesNotEchoInput(t *testing.T) {
+	const secret = "caller-supplied-secret"
+
+	for _, path := range []string{"/catalog/cards", "/catalog/facets"} {
+		for _, param := range []string{"expansionSetId", "rarityId"} {
+			t.Run(path+" "+param, func(t *testing.T) {
+				_, api := newTestCatalogHandler(t)
+
+				resp := api.Get(path + "?" + param + "=" + secret)
+				assert.Equal(t, http.StatusBadRequest, resp.Code, resp.Body.String())
+				assert.NotContains(t, resp.Body.String(), secret)
+			})
+		}
 	}
 }
