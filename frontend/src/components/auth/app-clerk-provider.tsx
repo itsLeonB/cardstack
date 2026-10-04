@@ -1,7 +1,8 @@
 import { ClerkProvider } from "@clerk/react"
 import { useRouter } from "@tanstack/react-router"
 import { clerkAppearance } from "@/lib/clerk-appearance"
-import { SessionSync } from "./session-sync"
+import { AFTER_SIGN_IN_PATH, LOGIN_PATH, REGISTER_PATH } from "@/lib/auth-paths"
+import { ClerkBridge } from "./clerk-bridge"
 
 /**
  * Wraps the app in Clerk. With no publishable key it renders a plain error
@@ -25,17 +26,17 @@ export function AppClerkProvider({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       publishableKey={publishableKey}
       appearance={clerkAppearance}
-      signInUrl="/auth/login"
-      signUpUrl="/auth/register"
-      signInFallbackRedirectUrl="/account"
-      signUpFallbackRedirectUrl="/account"
+      signInUrl={LOGIN_PATH}
+      signUpUrl={REGISTER_PATH}
+      signInFallbackRedirectUrl={AFTER_SIGN_IN_PATH}
+      signUpFallbackRedirectUrl={AFTER_SIGN_IN_PATH}
       afterSignOutUrl="/"
       // The router, not a full page load, so Clerk's steps and redirects keep
       // the SPA's state. `history.push` takes the query string `navigate({ to })` can't.
       routerPush={(to) => router.history.push(to)}
       routerReplace={(to) => router.history.replace(to)}
     >
-      <SessionSync />
+      <ClerkBridge />
       {children}
     </ClerkProvider>
   )

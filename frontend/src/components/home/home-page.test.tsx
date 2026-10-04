@@ -25,7 +25,9 @@ import { HomePage } from "./home-page"
 // Network boundary: the generated orval hooks have no service layer to inject,
 // and Clerk's hooks need a ClerkProvider talking to Clerk's servers.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/collections/collections", async () => {
   const actual = await vi.importActual<typeof CollectionsModule>(

@@ -13,6 +13,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { useClerk, useUser } from "@clerk/react"
 import type { AuthGate } from "@/lib/clerk-auth"
 import { clerkUserResult } from "@/test-clerk"
+import type { ClerkComponentProps } from "@/test-clerk"
 import { Route as AuthenticatedRoute } from "./_authenticated"
 import { Route as AccountRoute } from "./_authenticated/account"
 import { Route as AuthRoute } from "./auth/route"
@@ -27,16 +28,9 @@ import { Route as AuthIndexRoute } from "./auth/index"
 // its edge: its hooks, and its prebuilt components, which are stubbed to show
 // the props they were given. The shell around them has its own tests.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@clerk/react", () => ({
-  useUser: vi.fn(),
-  useClerk: vi.fn(),
-  SignIn: (props: ClerkComponentProps) => (
-    <div data-testid="sign-in" data-props={JSON.stringify(props)} />
-  ),
-  SignUp: (props: ClerkComponentProps) => (
-    <div data-testid="sign-up" data-props={JSON.stringify(props)} />
-  ),
-}))
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 
 afterEach(() => {
   cleanup()
@@ -68,14 +62,6 @@ function pick(options: RouteBits): any {
     ssr,
   } = options
   return { beforeLoad, head, validateSearch, component, notFoundComponent, ssr }
-}
-
-interface ClerkComponentProps {
-  routing?: string
-  path?: string
-  forceRedirectUrl?: string
-  signUpUrl?: string
-  signInUrl?: string
 }
 
 function clerkProps(testId: "sign-in" | "sign-up"): ClerkComponentProps {

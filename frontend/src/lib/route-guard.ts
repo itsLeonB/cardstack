@@ -1,5 +1,6 @@
 import { redirect } from "@tanstack/react-router"
 import { z } from "zod"
+import { LOGIN_PATH } from "./auth-paths"
 import type { AuthGate } from "./clerk-auth"
 
 interface GuardContext {
@@ -59,7 +60,7 @@ export function withRedirect(path: string, target: string | undefined) {
 export async function requireAuth({ context, location }: RequireAuthArgs) {
   if (!(await context.auth.isSignedIn())) {
     throw redirect({
-      to: "/auth/login",
+      to: LOGIN_PATH,
       search: { redirect: location.pathname + location.searchStr },
     })
   }

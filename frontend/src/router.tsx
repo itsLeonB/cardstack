@@ -3,9 +3,11 @@ import { QueryClient } from "@tanstack/react-query"
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query"
 import { CrashFallback } from "@/components/layout/crash-fallback"
 import { createAuthLostHandler } from "@/lib/auth-lost"
-import { clerkAuth, getSessionToken } from "@/lib/clerk-auth"
+import { LOGIN_PATH } from "@/lib/auth-paths"
+import { clerkAuth } from "@/lib/clerk-auth"
 import { setOnAuthLost, setTokenGetter } from "@/lib/http"
 import { isSameOriginPath } from "@/lib/route-guard"
+import { createSessionChangeHandler } from "@/lib/session"
 import { routeTree } from "./routeTree.gen"
 
 export function getRouter() {
@@ -26,23 +28,36 @@ export function getRouter() {
   setupRouterSsrQueryIntegration({ router, queryClient })
 
   // `http.ts` is orval's mutator, so it has no React context: hand it the
-  // Clerk token getter, and the app-level reaction to a session that stopped
-  // being accepted. Same redirect shape as `requireAuth`: the current path
-  // and query, only while it stays on this origin.
-  setTokenGetter(getSessionToken)
+  // Clerk token getter, and the app-level reaction to a lost session. Same
+  // redirect shape as `requireAuth`: the current path and query, only while
+  // it stays on this origin.
+  setTokenGetter(clerkAuth.getToken)
   setOnAuthLost(
-    createAuthLostHandler(queryClient, () => {
-      const { pathname, searchStr } = router.state.location
-      const attempted = pathname + searchStr
-      // `navigate` rather than `history.push` (the convention for string-URL
-      // redirects): the typed `search` object carries the redirect param.
-      void router.navigate({
-        to: "/auth/login",
-        search: {
-          redirect: isSameOriginPath(attempted) ? attempted : undefined,
-        },
-      })
+    createAuthLostHandler(queryClient, {
+      endSession: clerkAuth.endSession,
+      attemptedPath: () => {
+        const { pathname, searchStr } = router.state.location
+        return pathname + searchStr
+      },
+      redirectToLogin: (attempted) => {
+        // `navigate` rather than `history.push` (the convention for string-URL
+        // redirects): the typed `search` object carries the redirect param.
+        void router.navigate({
+          to: LOGIN_PATH,
+          search: {
+            redirect: isSameOriginPath(attempted) ? attempted : undefined,
+          },
+        })
+      },
     })
+  )
+  clerkAuth.onSessionChange(
+    createSessionChangeHandler(queryClient, () =>
+      // The pathless layout every private route lives under (`_authenticated.tsx`).
+      router.state.matches.some((match) =>
+        match.routeId.startsWith("/_authenticated")
+      )
+    )
   )
 
   return router

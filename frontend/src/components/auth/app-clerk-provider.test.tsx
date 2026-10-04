@@ -12,12 +12,9 @@ import { AppClerkProvider } from "./app-clerk-provider"
 
 // The real provider loads Clerk's script from the network.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@clerk/react", () => ({
-  ClerkProvider: vi.fn(({ children }: { children: React.ReactNode }) => (
-    <div data-testid="clerk">{children}</div>
-  )),
-  useAuth: () => ({ isLoaded: false, sessionId: null }),
-}))
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 
 afterEach(() => {
   cleanup()

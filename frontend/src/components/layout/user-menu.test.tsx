@@ -19,7 +19,9 @@ import { UserMenu } from "./user-menu"
 // Clerk's hooks need a ClerkProvider talking to Clerk's servers, so they are
 // the boundary to fake; the real `useSession` and `useSignOut` run on top.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 
 afterEach(() => {
   cleanup()

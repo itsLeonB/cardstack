@@ -5,17 +5,19 @@ import { useClerk, useUser } from "@clerk/react"
 import { toast } from "sonner"
 import {
   LOGOUT_FAILED,
-  handleSessionChange,
+  createSessionChangeHandler,
   resetCache,
   useSession,
   useSignOut,
 } from "./session"
-import { customFetch, setOnAuthLost, setTokenGetter } from "./http"
+import { rearmAuthLost, reportAuthLost, setOnAuthLost } from "./http"
 
 // Clerk's hooks need a mounted ClerkProvider talking to Clerk's servers, so
 // they are the boundary to fake (as the generated client is elsewhere).
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 
 const mockUseUser = vi.mocked(useUser)
 const mockUseClerk = vi.mocked(useClerk)
@@ -111,31 +113,102 @@ describe("resetCache", () => {
   })
 })
 
-describe("handleSessionChange", () => {
-  it("drops cached data and lets the next expiry be announced again", async () => {
+describe("createSessionChangeHandler", () => {
+  const KEY = ["/collections"]
+
+  function setup({ onPrivatePage = true } = {}) {
     const queryClient = new QueryClient()
-    queryClient.setQueryData(["/collections"], { status: 200 })
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("{}", { status: 401 }))
-    )
-    setTokenGetter(async () => "token")
+    queryClient.setQueryData(KEY, { status: 200 })
     const onLost = vi.fn()
+    rearmAuthLost()
     setOnAuthLost(onLost)
-    try {
-      await customFetch("https://api.example.com/x", { method: "GET" })
-      expect(onLost).toHaveBeenCalledTimes(1)
+    const handler = createSessionChangeHandler(queryClient, () => onPrivatePage)
+    return { queryClient, onLost, handler }
+  }
 
-      handleSessionChange(queryClient)
-      await customFetch("https://api.example.com/x", { method: "GET" })
+  afterEach(() => {
+    setOnAuthLost(null)
+  })
 
-      expect(queryClient.getQueryData(["/collections"])).toBeUndefined()
-      expect(onLost).toHaveBeenCalledTimes(2)
-    } finally {
-      setTokenGetter(null)
-      setOnAuthLost(null)
-      vi.unstubAllGlobals()
-    }
+  it("drops cached data on sign-in, and leaves data loaded afterwards alone", () => {
+    const { queryClient, handler } = setup()
+
+    handler("sess_1", null)
+    expect(queryClient.getQueryData(KEY)).toBeUndefined()
+
+    // Clerk reports the change before it navigates, so what the next page
+    // loads lands after the reset and is not touched by it.
+    queryClient.setQueryData(KEY, { status: 200, fresh: true })
+    expect(queryClient.getQueryData(KEY)).toEqual({ status: 200, fresh: true })
+  })
+
+  it("announces a session Clerk dropped under a private page, once", () => {
+    const { queryClient, onLost, handler } = setup()
+
+    handler(null, "sess_1")
+    handler(null, "sess_1")
+
+    expect(queryClient.getQueryData(KEY)).toBeUndefined()
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not announce a session dropped while a public page is open", () => {
+    const { queryClient, onLost, handler } = setup({ onPrivatePage: false })
+
+    handler(null, "sess_1")
+
+    expect(queryClient.getQueryData(KEY)).toBeUndefined()
+    expect(onLost).not.toHaveBeenCalled()
+  })
+
+  it("does not re-open the notice on sign-out, so a lost session is not announced twice", () => {
+    const { onLost, handler } = setup()
+    reportAuthLost()
+
+    // The auth-lost handler signs Clerk out, which is itself a sign-out change.
+    handler(null, "sess_1")
+
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it("re-opens the notice when a new session starts", () => {
+    const { onLost, handler } = setup()
+    reportAuthLost()
+
+    handler("sess_2", null)
+    handler(null, "sess_2")
+
+    expect(onLost).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not announce the sign-out the user asked for, only the next one", async () => {
+    const { onLost, handler } = setup()
+    // SAFETY: partial hook result covering only `signOut`.
+    mockUseClerk.mockReturnValue({ signOut: async () => {} } as any)
+    const { result } = renderHook(() => useSignOut())
+
+    await act(() => result.current.signOut())
+    handler(null, "sess_1")
+    expect(onLost).not.toHaveBeenCalled()
+
+    handler(null, "sess_2")
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not remember a sign-out that failed", async () => {
+    const { onLost, handler } = setup()
+    // SAFETY: partial hook result covering only `signOut`.
+    mockUseClerk.mockReturnValue({
+      signOut: async () => {
+        throw new Error("network")
+      },
+    } as any)
+    const { result } = renderHook(() => useSignOut())
+
+    await act(() => result.current.signOut())
+    handler(null, "sess_1")
+
+    expect(onLost).toHaveBeenCalledTimes(1)
   })
 })
 

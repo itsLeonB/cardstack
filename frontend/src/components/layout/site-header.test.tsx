@@ -19,7 +19,9 @@ import { SiteHeader } from "./site-header"
 // Clerk's hooks need a ClerkProvider talking to Clerk's servers, so they are
 // the boundary to fake; the real `useSession` runs on top of them.
 // oxlint-disable-next-line anti-slop/no-module-mocking
-vi.mock("@clerk/react", () => ({ useUser: vi.fn(), useClerk: vi.fn() }))
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
 
 const mockUseUser = vi.mocked(useUser)
 

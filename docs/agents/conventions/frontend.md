@@ -13,9 +13,9 @@ These apply to every frontend change, whether made by the root agent or a subage
 
 ## Routing and layout
 
-- On public routes, read auth state with `useSession()` (derived from Clerk, no redirect) and gate features on `isAuthenticated`; only `requireAuth` under `_authenticated/` redirects. Guards run in `beforeLoad`, outside React, so they ask `context.auth` (`lib/clerk-auth.ts`), which waits for Clerk to load, and a layout whose guard needs Clerk sets `ssr: false`.
+- On public routes, read auth state with `useSession()` (no redirect) and gate features on `isAuthenticated`; only `requireAuth` under `_authenticated/` redirects. Guards read Clerk through `context.auth`, and a layout with such a guard sets `ssr: false`.
 - Every redirect target must pass `isSameOriginPath` (`lib/route-guard.ts`) and is followed with `router.history.push`, since `navigate({ to })` doesn't take a query string.
-- Drop user-scoped query data on a session change through `handleSessionChange` (`lib/session.ts`), which `SessionSync` calls when Clerk's session id changes, not from a mutation's `onSuccess`: sign-in and sign-out happen inside Clerk, so no mutation of ours sees them. Never store the Clerk session token; `http.ts` asks `getSessionToken` for it on each request.
+- Drop user-scoped query data in `createSessionChangeHandler` (`lib/session.ts`), which reacts to Clerk's session changes, not in a mutation's `onSuccess`. Never store the Clerk session token.
 - Lay out every page with `PageContainer` and `PageHeader` (`components/layout/`). Pages never render their own `main`, wrapper `div` or `h1`: each shell owns its single `main` landmark.
 - Every route sets its document title with `head: () => pageHead("<Name>")` (`lib/site.ts`); detail routes use the entity name from their `loader`. Indexing and Open Graph decisions are in ADR-0014.
 - Name test files under `src/routes/` `-<name>.test.tsx`: the router plugin treats the `-` prefix as "not a route" and warns on any other file that doesn't export a `Route`.

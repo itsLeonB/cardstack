@@ -1,5 +1,6 @@
 import { SignUp } from "@clerk/react"
 import { useSearch } from "@tanstack/react-router"
+import { AFTER_SIGN_IN_PATH, LOGIN_PATH, REGISTER_PATH } from "@/lib/auth-paths"
 import { withRedirect } from "@/lib/route-guard"
 import { AuthPage } from "./auth-page"
 
@@ -10,9 +11,9 @@ export function SignUpPage() {
     <AuthPage title="Create an account">
       <SignUp
         routing="path"
-        path="/auth/register"
-        signInUrl={withRedirect("/auth/login", redirect)}
-        forceRedirectUrl={redirect ?? "/account"}
+        path={REGISTER_PATH}
+        signInUrl={withRedirect(LOGIN_PATH, redirect)}
+        forceRedirectUrl={redirect ?? AFTER_SIGN_IN_PATH}
       />
     </AuthPage>
   )

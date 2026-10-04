@@ -21,21 +21,20 @@ interface FetchResponse {
   headers: Headers
 }
 
-/**
- * This module is orval's mutator and has no React context, so the app
- * registers its Clerk token getter here (`router.tsx`). Browser-only side
- * effects (toast, navigation) also must not run during a render.
- */
+// A server render builds a fresh router per request, so a registration made
+// there would leave these process-wide singletons holding one request's state
+// for the next: only the browser realm may register.
 function inBrowser(): boolean {
   return "document" in globalThis
 }
 
 let getToken: TokenGetter | null = null
 
+/**
+ * This module is orval's mutator and has no React context, so the app
+ * registers its Clerk token getter here (`router.tsx`).
+ */
 export function setTokenGetter(getter: TokenGetter | null): void {
-  // A server render builds a fresh router per request, so a registration made
-  // there would leave this process-wide singleton holding one request's state
-  // for the next. Only the browser realm may register.
   getToken = inBrowser() ? getter : null
 }
 
@@ -59,7 +58,12 @@ export function rearmAuthLost(): void {
   authLostNotified = false
 }
 
-function notifyAuthLost(): void {
+/**
+ * Announces a lost session once per expiry. Used here for a request that was
+ * still refused after a fresh token, and by the app when Clerk itself drops
+ * the session under a mounted private page.
+ */
+export function reportAuthLost(): void {
   if (authLostNotified) return
   authLostNotified = true
   onAuthLost?.()
@@ -131,13 +135,13 @@ export const customFetch = async <T>(
   // without this wrapper, and nothing is announced.
   if (fresh === undefined) return asResponse<T>(response)
   if (fresh === null) {
-    notifyAuthLost()
+    reportAuthLost()
     return asResponse<T>(response)
   }
 
   // Exactly one retry; a second 401 is returned as-is rather than retried.
   const retry = await sendRequest(url, method, options, fresh)
-  if (retry.status === 401) notifyAuthLost()
+  if (retry.status === 401) reportAuthLost()
   return asResponse<T>(retry)
 }
 
