@@ -17,6 +17,7 @@ Get the live origins from the Vercel and Railway dashboards or CLIs, not from th
 Vite bakes `VITE_*` vars into the bundle at build time, so a changed value needs a new build.
 
 - `VITE_SITE_URL`: absolute origin of the frontend, used for the sitemap, `robots.txt` and social-preview URLs. Set it in the Vercel production environment. When it is unset, `bun run build` exits non-zero if `VERCEL_ENV=production` (`frontend/tools/seo-files.ts`), and warns and continues elsewhere.
+- `VITE_CLERK_PUBLISHABLE_KEY`: the Clerk instance's publishable key (public; `pk_test_...` or `pk_live_...`). The frontend cannot sign anyone in without it: when it is unset the app renders a "not configured" error instead of running as a guest, and the build still passes. Set it in Vercel for Production only, with the production instance's key, which needs a domain the owner controls (a `*.vercel.app` address will not work). Preview deployments, CI and local development use the development instance: the preview workflow sets the branch-scoped value from the GitHub variable `VITE_CLERK_PUBLISHABLE_KEY` (also read by the frontend CI and end-to-end workflows), and `scripts/clerk-setup.sh` writes the local value to `frontend/.env`. Local value: `frontend/.env.example`.
 - `VITE_API_BASE_URL`: the API origin. When it is unset the generated client falls back to `http://localhost:8080`, so a production build without it calls localhost. Local value: `frontend/.env.example`.
 
 ## Backend sign-in (Clerk)
@@ -65,6 +66,6 @@ If production shows stale behavior (missing images, old UI), suspect a failed Ve
 
 - A Neon branch `preview/pr-<number>`, forked from `production`.
 - Neon credentials and the Clerk development instance's `CLERK_SECRET_KEY` and `CLERK_ISSUER` pushed into the Railway PR environment, which Railway creates and deletes itself. After the Vercel preview deploys, its URL is set as `APP_CLIENT_URLS` on that API.
-- A Vercel preview deployment with a branch-scoped `VITE_API_BASE_URL` pointing at that Railway environment. Closing the PR deletes the Neon branch, the preview deployments and that env var.
+- A Vercel preview deployment with a branch-scoped `VITE_API_BASE_URL` pointing at that Railway environment and a branch-scoped `VITE_CLERK_PUBLISHABLE_KEY` (the development instance's). Closing the PR deletes the Neon branch, the preview deployments and those env vars.
 
 Provisioning skips fork and Dependabot PRs because they get no repo secrets.

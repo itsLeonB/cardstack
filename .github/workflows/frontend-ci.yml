@@ -86,3 +86,7 @@ jobs:
         with:
           working-directory: frontend
       - run: bun run build
+        env:
+          # Public. The build passes without it (the app then renders a
+          # configuration error), but a build meant to run needs it.
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}

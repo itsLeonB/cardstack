@@ -137,6 +137,11 @@ jobs:
       # VITE_API_BASE_URL (http://localhost:8080).
       - name: Run Playwright e2e tests
         working-directory: frontend
+        env:
+          # The dev server bakes this in; the app needs Clerk to load before it
+          # treats anyone as a guest. Forks get no variables, so their run
+          # shows the app's "not configured" error and the guest specs fail.
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
         run: bunx playwright test
 
       - name: Upload Playwright report
