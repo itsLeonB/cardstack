@@ -16,6 +16,8 @@ const (
 	// keyRefetchInterval spaces fetches so tokens with forged kids cannot make
 	// every request call Clerk.
 	keyRefetchInterval = time.Minute
+	// keyFetchTimeout bounds how long FindKey holds its lock on a Clerk call.
+	keyFetchTimeout = 5 * time.Second
 )
 
 // ClerkKeys is the KeySource backed by the instance's JWKS, fetched with the
@@ -54,7 +56,12 @@ func (c *ClerkKeys) FindKey(ctx context.Context, keyID string) (*clerk.JSONWebKe
 	}
 
 	c.attemptedAt = now
-	set, err := c.client.Get(ctx, &jwks.GetParams{})
+	// Detached from the caller: one aborted request must not fail the fetch and
+	// so poison the throttled error for everyone, and the timeout bounds how long
+	// this holds the lock.
+	fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), keyFetchTimeout)
+	defer cancel()
+	set, err := c.client.Get(fetchCtx, &jwks.GetParams{})
 	if err != nil {
 		c.lastErr = ungerr.Wrap(err, "fetching clerk signing keys")
 		return nil, c.lastErr

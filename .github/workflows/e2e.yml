@@ -56,9 +56,6 @@ jobs:
       DB_USER: cardstack
       DB_PASSWORD: cardstack
       DB_NAME: cardstack
-      # The API refuses to boot without these. Real sign-in is wired up with
-      # the Clerk end-to-end tests (security-hardening ticket 09).
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       APP_CLIENT_URLS: http://localhost:3000
 
     steps:
@@ -102,7 +99,17 @@ jobs:
 
       - name: Start the backend API
         working-directory: backend
+        env:
+          # The API refuses to boot without these. Fork pull requests get no
+          # secrets or variables, so they fall back to placeholders: the API
+          # starts, and only real sign-in (security-hardening ticket 09) needs
+          # the real values. Scoped to this step so the migration and the other
+          # steps never see the secret.
+          CLERK_SECRET_KEY: >-
+            ${{ secrets.CLERK_SECRET_KEY || 'sk_test_placeholder' }}
         run: |
+          : "${CLERK_ISSUER:=https://placeholder.clerk.accounts.dev}"
+          export CLERK_ISSUER
           go build -o bin/api ./cmd/api
           ./bin/api &
           for i in $(seq 1 30); do

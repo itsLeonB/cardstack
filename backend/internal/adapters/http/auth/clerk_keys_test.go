@@ -55,6 +55,17 @@ func TestClerkKeys_CachesTheKeySet(t *testing.T) {
 	assert.Equal(t, int32(1), fetches.Load())
 }
 
+func TestClerkKeys_AbortedRequestDoesNotFailTheFetch(t *testing.T) {
+	keys, _, _ := newTestKeys(t, http.StatusOK)
+	aborted, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	key, err := keys.FindKey(aborted, testKeyID)
+
+	require.NoError(t, err, "a client that disconnected must not poison the shared key cache")
+	assert.NotNil(t, key)
+}
+
 func TestClerkKeys_UnknownKeyDoesNotRefetchWithinTheInterval(t *testing.T) {
 	keys, fetches, now := newTestKeys(t, http.StatusOK)
 

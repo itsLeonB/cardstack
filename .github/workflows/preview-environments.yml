@@ -2,10 +2,13 @@ name: Preview Environments
 
 # Provisions a temporary preview stack for every pull request:
 #   1. a Neon database branch, forked from the production branch
-#   2. Neon's credentials pushed into Railway's PR environment for this PR
-#      (Railway auto-creates that environment once "PR Deploys" is enabled
-#      on the project)
-#   3. a fresh Vercel preview deployment pointed at that Railway environment
+#   2. Neon's credentials and the Clerk development instance's settings
+#      (CLERK_SECRET_KEY, CLERK_ISSUER) pushed into Railway's PR environment
+#      for this PR (Railway auto-creates that environment once "PR Deploys" is
+#      enabled on the project)
+#   3. a fresh Vercel preview deployment pointed at that Railway environment,
+#      whose URL is then set as APP_CLIENT_URLS on the Railway API, so the API
+#      accepts tokens minted for that preview
 #
 # Railway's own PR environment is torn down automatically by Railway when the
 # PR is merged/closed. This workflow owns the Neon branch lifecycle, the PR's
