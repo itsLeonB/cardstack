@@ -448,6 +448,13 @@
       "ErrorModel": {
         "additionalProperties": false,
         "properties": {
+          "code": {
+            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller.",
+            "examples": [
+              "login_required"
+            ],
+            "type": "string"
+          },
           "detail": {
             "description": "A human-readable explanation specific to this occurrence of the problem.",
             "examples": [
@@ -930,26 +937,26 @@
             }
           },
           {
-            "description": "1-indexed page number.",
+            "description": "1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required.",
             "explode": false,
             "in": "query",
             "name": "page",
             "schema": {
               "default": 1,
-              "description": "1-indexed page number.",
+              "description": "1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required.",
               "format": "int64",
               "minimum": 1,
               "type": "integer"
             }
           },
           {
-            "description": "Page size.",
+            "description": "Page size. A Guest gets at most 24.",
             "explode": false,
             "in": "query",
             "name": "limit",
             "schema": {
               "default": 24,
-              "description": "Page size.",
+              "description": "Page size. A Guest gets at most 24.",
               "format": "int64",
               "maximum": 100,
               "minimum": 1,
@@ -979,7 +986,7 @@
             "description": "Error"
           }
         },
-        "summary": "Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag",
+        "summary": "Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required",
         "tags": [
           "catalog"
         ]
@@ -1140,7 +1147,7 @@
             "description": "Error"
           }
         },
-        "summary": "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)",
+        "summary": "List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included). A Guest gets 401 login_required",
         "tags": [
           "catalog"
         ]

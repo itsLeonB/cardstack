@@ -36,12 +36,12 @@ category?: string[];
  */
 tag?: string[];
 /**
- * 1-indexed page number.
+ * 1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required.
  * @minimum 1
  */
 page?: number;
 /**
- * Page size.
+ * Page size. A Guest gets at most 24.
  * @minimum 1
  * @maximum 100
  */

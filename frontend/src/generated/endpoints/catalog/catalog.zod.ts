@@ -8,7 +8,7 @@ import * as zod from 'zod';
 
 
 /**
- * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag
+ * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required
  */
 export const searchCatalogCardsQueryNameMax = 64;
 
@@ -34,8 +34,8 @@ export const SearchCatalogCardsQueryParams = zod.object({
   "rarityId": zod.array(zod.string()).max(searchCatalogCardsQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
   "category": zod.array(zod.string()).max(searchCatalogCardsQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
   "tag": zod.array(zod.string()).max(searchCatalogCardsQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).'),
-  "page": zod.int().min(1).default(searchCatalogCardsQueryPageDefault).describe('1-indexed page number.'),
-  "limit": zod.int().min(1).max(searchCatalogCardsQueryLimitMax).default(searchCatalogCardsQueryLimitDefault).describe('Page size.')
+  "page": zod.int().min(1).default(searchCatalogCardsQueryPageDefault).describe('1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required.'),
+  "limit": zod.int().min(1).max(searchCatalogCardsQueryLimitMax).default(searchCatalogCardsQueryLimitDefault).describe('Page size. A Guest gets at most 24.')
 })
 
 export const SearchCatalogCardsResponse = zod.object({
@@ -75,7 +75,7 @@ export const ListCatalogCategoriesResponse = zod.object({
 })
 
 /**
- * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)
+ * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included). A Guest gets 401 login_required
  */
 export const listCatalogFacetsQueryNameMax = 64;
 

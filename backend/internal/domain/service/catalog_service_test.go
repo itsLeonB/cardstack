@@ -3,15 +3,18 @@ package service
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -342,4 +345,94 @@ func TestCatalogService_ListFacets_ZeroMatchesYieldsEmptySlices(t *testing.T) {
 	assert.NotNil(t, got.Rarities)
 	assert.NotNil(t, got.Categories)
 	assert.NotNil(t, got.Tags)
+}
+
+func TestCatalogService_GuestSearch_IsOnePageOfTheStandardSize(t *testing.T) {
+	ctx := context.Background()
+
+	for name, requested := range map[string]int{"omitted": 0, "above the standard page": 100, "the standard page": defaultCardSearchLimit} {
+		t.Run(name, func(t *testing.T) {
+			repo := mocks.NewMockCatalogRepository(t)
+			repo.EXPECT().
+				SearchCards(ctx, repository.CardFilter{Name: "pika", Limit: defaultCardSearchLimit, Offset: 0}).
+				Return(nil, 80, nil).
+				Once()
+
+			_, meta, err := NewCatalogService(repo, testImages).SearchCards(ctx, dto.CardFilter{Name: "pika", Limit: requested, Guest: true})
+
+			require.NoError(t, err)
+			assert.Equal(t, dto.PaginationMeta{Total: 80, Page: 1, Limit: defaultCardSearchLimit}, meta, "the true total, not the capped one")
+		})
+	}
+}
+
+func TestCatalogService_GuestSearch_KeepsASmallerPageSizeAndTheOpenFilters(t *testing.T) {
+	ctx := context.Background()
+	setID := uuid.New()
+
+	repo := mocks.NewMockCatalogRepository(t)
+	repo.EXPECT().
+		SearchCards(ctx, repository.CardFilter{Name: "pika", ExpansionSetIDs: []uuid.UUID{setID}, LocalID: "001", Limit: 5, Offset: 0}).
+		Return(nil, 0, nil).
+		Once()
+
+	_, _, err := NewCatalogService(repo, testImages).SearchCards(ctx, dto.CardFilter{
+		Name: "pika", ExpansionSetIDs: []uuid.UUID{setID}, LocalID: "001", Page: 1, Limit: 5, Guest: true,
+	})
+
+	require.NoError(t, err)
+}
+
+func TestCatalogService_GuestSearch_RefusesWhatIsLocked(t *testing.T) {
+	ctx := context.Background()
+
+	locked := map[string]dto.CardFilter{
+		"a later page": {Page: 2},
+		"a rarity":     {RarityIDs: []uuid.UUID{uuid.New()}},
+		"a category":   {Categories: []string{"Trainer"}},
+		"a tag":        {Tags: []string{"ex"}},
+	}
+	for name, filter := range locked {
+		t.Run(name, func(t *testing.T) {
+			filter.Guest = true
+			repo := mocks.NewMockCatalogRepository(t) // no expectation: the repository is never reached
+
+			_, _, err := NewCatalogService(repo, testImages).SearchCards(ctx, filter)
+
+			require.Error(t, err)
+			assert.Equal(t, apperr.CodeLoginRequired, apperr.CodeOf(err))
+			appErr, ok := errors.AsType[ungerr.AppError](err)
+			require.True(t, ok)
+			assert.Equal(t, http.StatusUnauthorized, appErr.HttpStatus())
+		})
+	}
+}
+
+func TestCatalogService_SignedInSearch_IsNotLocked(t *testing.T) {
+	ctx := context.Background()
+	rarityID := uuid.New()
+
+	repo := mocks.NewMockCatalogRepository(t)
+	repo.EXPECT().
+		SearchCards(ctx, repository.CardFilter{
+			RarityIDs: []uuid.UUID{rarityID}, Categories: []string{"Trainer"}, Tags: []string{"ex"},
+			Limit: maxCardSearchLimit, Offset: maxCardSearchLimit,
+		}).
+		Return(nil, 0, nil).
+		Once()
+
+	_, _, err := NewCatalogService(repo, testImages).SearchCards(ctx, dto.CardFilter{
+		RarityIDs: []uuid.UUID{rarityID}, Categories: []string{"Trainer"}, Tags: []string{"ex"}, Page: 2, Limit: 1000,
+	})
+
+	require.NoError(t, err)
+}
+
+func TestCatalogService_ListFacets_RefusesAGuest(t *testing.T) {
+	repo := mocks.NewMockCatalogRepository(t) // no expectation: the repository is never reached
+
+	_, err := NewCatalogService(repo, testImages).ListFacets(context.Background(), dto.CardFilter{Guest: true})
+
+	require.Error(t, err)
+	assert.Equal(t, apperr.CodeLoginRequired, apperr.CodeOf(err))
 }

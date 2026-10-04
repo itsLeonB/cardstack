@@ -7,6 +7,8 @@
 import type { ErrorDetail } from './errorDetail.ts';
 
 export interface ErrorModel {
+  /** A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. */
+  code?: string;
   /** A human-readable explanation specific to this occurrence of the problem. */
   detail?: string;
   /**

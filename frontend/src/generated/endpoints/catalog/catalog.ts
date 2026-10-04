@@ -107,7 +107,7 @@ export const getSearchCatalogCardsUrl = (params?: SearchCatalogCardsParams,) => 
 }
 
 /**
- * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag
+ * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required
  */
 export const searchCatalogCards = async (params?: SearchCatalogCardsParams, options?: Parameters<typeof customFetch>[1]): Promise<searchCatalogCardsResponse> => {
 
@@ -184,7 +184,7 @@ export function useSearchCatalogCardsInfinite<TData = InfiniteData<Awaited<Retur
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag
+ * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required
  */
 
 export function useSearchCatalogCardsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof searchCatalogCards>>, SearchCatalogCardsParams['page']>, TError = ErrorModel>(
@@ -251,7 +251,7 @@ export function useSearchCatalogCards<TData = Awaited<ReturnType<typeof searchCa
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag
+ * @summary Search/browse Cards by name, Expansion Set + card number, rarity, category, and tag. A Guest gets one page of at most 24; a later page or a rarity, category or tag filter is 401 login_required
  */
 
 export function useSearchCatalogCards<TData = Awaited<ReturnType<typeof searchCatalogCards>>, TError = ErrorModel>(
@@ -433,7 +433,7 @@ export const getListCatalogFacetsUrl = (params?: ListCatalogFacetsParams,) => {
 }
 
 /**
- * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)
+ * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included). A Guest gets 401 login_required
  */
 export const listCatalogFacets = async (params?: ListCatalogFacetsParams, options?: Parameters<typeof customFetch>[1]): Promise<listCatalogFacetsResponse> => {
 
@@ -504,7 +504,7 @@ export function useListCatalogFacets<TData = Awaited<ReturnType<typeof listCatal
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included)
+ * @summary List each search filter's available options given the active filters (a filter's own selection is excluded from its options' calculation; selected values are always included). A Guest gets 401 login_required
  */
 
 export function useListCatalogFacets<TData = Awaited<ReturnType<typeof listCatalogFacets>>, TError = ErrorModel>(

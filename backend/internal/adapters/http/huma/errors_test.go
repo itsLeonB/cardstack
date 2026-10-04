@@ -10,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
 )
@@ -84,6 +85,28 @@ func TestAppErrorKeepsStatusAndDetails(t *testing.T) {
 	if len(*logged) != 0 {
 		t.Fatalf("app errors must not be logged as redacted: %v", *logged)
 	}
+}
+
+func TestAppErrorCodeReachesTheBody(t *testing.T) {
+	logged := captureLogs(t)
+	coded := apperr.WithCode(ungerr.UnauthorizedError("sign in to continue"), apperr.CodeLoginRequired)
+	api := newErrAPI(t, func(context.Context, *struct{}) (*errOutput, error) {
+		return nil, coded
+	})
+
+	resp := api.Get("/boom")
+	assert.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
+	assert.JSONEq(t, `{"title":"Unauthorized","status":401,"detail":"sign in to continue","code":"login_required"}`, resp.Body.String())
+	assert.Empty(t, *logged, "a coded app error is client-safe, not a redacted failure")
+}
+
+func TestAppErrorWithoutCodeHasNoCodeField(t *testing.T) {
+	captureLogs(t)
+	api := newErrAPI(t, func(context.Context, *struct{}) (*errOutput, error) {
+		return nil, ungerr.NotFoundError("card not found")
+	})
+
+	assert.NotContains(t, api.Get("/boom").Body.String(), `"code"`)
 }
 
 func TestWrappedAppErrorIsRecognised(t *testing.T) {
