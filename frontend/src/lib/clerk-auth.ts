@@ -8,7 +8,7 @@
 // working as a guest. A Clerk that loads after all is picked up: its session
 // then counts as a change, because everything cached meanwhile was fetched
 // as a guest.
-import type { TokenOptions } from "./http"
+import type { SessionToken, TokenOptions } from "./http"
 
 export interface ClerkSession {
   id: string
@@ -108,10 +108,21 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
       listen()
     },
 
-    /** Resolves a fresh or cached token; null when nobody is signed in. Rejects when Clerk cannot fetch one (offline). */
-    async getToken(options?: TokenOptions): Promise<string | null> {
-      const loaded = await whenLoaded()
-      return loaded?.session ? loaded.session.getToken(options) : null
+    /**
+     * Resolves a fresh or cached token with the id of the session it was
+     * issued for (read before the fetch, so it is that session's even if the
+     * user switches meanwhile); null when nobody is signed in. Rejects when
+     * Clerk cannot fetch one (offline).
+     */
+    async getToken(options?: TokenOptions): Promise<SessionToken | null> {
+      const session = (await whenLoaded())?.session
+      if (!session) return null
+      const token = await session.getToken(options)
+      return token ? { token, sessionId: session.id } : null
+    },
+
+    currentSessionId(): string | null {
+      return clerk?.session?.id ?? null
     },
 
     // Reads the session Clerk holds, never a token: fetching one fails

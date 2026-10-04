@@ -188,7 +188,8 @@ describe("guest on a protected page", () => {
       forceRedirectUrl: "/collections?q=binder",
       signUpUrl: "/auth/register?redirect=%2Fcollections%3Fq%3Dbinder",
     })
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Log in")
+    // Clerk's own header is the page's h1; the page must not add a second.
+    expect(screen.queryAllByRole("heading")).toHaveLength(0)
   })
 
   it("defaults the post-sign-in destination to /account", async () => {
@@ -228,9 +229,7 @@ describe("sign-in and sign-up addresses", () => {
       forceRedirectUrl: "/inventory",
       signInUrl: "/auth/login?redirect=%2Finventory",
     })
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Create an account"
-    )
+    expect(screen.queryAllByRole("heading")).toHaveLength(0)
   })
 
   it.each([
