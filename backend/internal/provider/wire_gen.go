@@ -25,9 +25,10 @@ func InitializeProviders() (*Providers, func(), error) {
 	userRepository := ProvideUserRepository(dataSources)
 	identityCache := ProvideIdentityCache()
 	userService := ProvideUserService(dataSources, userRepository, identityCache)
-	catalogService := ProvideCatalogService(dataSources)
+	imageHost := ProvideImageHost()
+	catalogService := ProvideCatalogService(dataSources, imageHost)
 	collectionService := ProvideCollectionService(dataSources)
-	inventoryService := ProvideInventoryService(dataSources)
+	inventoryService := ProvideInventoryService(dataSources, imageHost)
 	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService)
 	providers := &Providers{
 		DataSources: dataSources,

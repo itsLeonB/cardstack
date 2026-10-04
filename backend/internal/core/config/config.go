@@ -12,6 +12,8 @@ type Config struct {
 	DB
 	OTel
 	Clerk
+	Image
+	R2
 }
 
 var Global *Config
@@ -39,11 +41,21 @@ func Load() error {
 		errs = errors.Join(errs, err)
 	}
 
+	var image Image
+	if err := envconfig.Process(image.Prefix(), &image); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
+	var r2 R2
+	if err := envconfig.Process(r2.Prefix(), &r2); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
 	if errs != nil {
 		return fmt.Errorf("error loading config: %w", errs)
 	}
 
-	Global = &Config{app, db, otel, clerk}
+	Global = &Config{app, db, otel, clerk, image, r2}
 
 	return nil
 }

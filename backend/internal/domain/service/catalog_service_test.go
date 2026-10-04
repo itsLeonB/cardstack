@@ -8,12 +8,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testImageBase = "https://img.example.test"
+
+var testImages = mapper.NewImageHost(testImageBase)
 
 func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
 	seriesID := uuid.New()
@@ -37,7 +42,7 @@ func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
 	repo.EXPECT().ListSeries(ctx).Return(series, nil).Once()
 	repo.EXPECT().ListExpansionSets(ctx, []uuid.UUID{seriesID, otherSeriesID}).Return(sets, nil).Once()
 	repo.EXPECT().ListUngroupedExpansionSets(ctx).Return(ungrouped, nil).Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	got, err := svc.ListSeries(ctx)
 	if err != nil {
@@ -63,7 +68,7 @@ func TestCatalogService_ListSeries_PropagatesRepositoryError(t *testing.T) {
 
 	repo := mocks.NewMockCatalogRepository(t)
 	repo.EXPECT().ListSeries(ctx).Return(nil, wantErr).Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	_, err := svc.ListSeries(ctx)
 	if !errors.Is(err, wantErr) {
@@ -79,7 +84,7 @@ func TestCatalogService_ListSeries_PropagatesUngroupedExpansionSetsError(t *test
 	repo.EXPECT().ListSeries(ctx).Return(nil, nil).Once()
 	repo.EXPECT().ListExpansionSets(ctx, []uuid.UUID{}).Return(nil, nil).Once()
 	repo.EXPECT().ListUngroupedExpansionSets(ctx).Return(nil, wantErr).Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	_, err := svc.ListSeries(ctx)
 	if !errors.Is(err, wantErr) {
@@ -93,7 +98,7 @@ func TestCatalogService_ListRarities(t *testing.T) {
 
 	repo := mocks.NewMockCatalogRepository(t)
 	repo.EXPECT().ListRarities(ctx).Return([]entity.Rarity{{BaseEntity: baseEntity(rarityID), Code: "SR", Name: "Super Rare"}}, nil).Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	got, err := svc.ListRarities(ctx)
 	if err != nil {
@@ -111,7 +116,7 @@ func TestCatalogService_ListCategoriesAndTags(t *testing.T) {
 	repo := mocks.NewMockCatalogRepository(t)
 	repo.EXPECT().ListDistinctCategories(ctx).Return([]string{"Pokémon", "Trainer"}, nil).Once()
 	repo.EXPECT().ListDistinctTags(ctx).Return([]string{"Basic", "Stage 1"}, nil).Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	categories, err := svc.ListCategories(ctx)
 	if err != nil {
@@ -138,19 +143,20 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 
 	searchResults := []repository.CardResult{
 		{
-			ID:               cardID,
-			LocalID:          "001",
-			Name:             "Pikachu",
-			Category:         "Pokémon",
-			Illustrator:      "Someone",
-			Tags:             []string{"Basic"},
-			ImageURL:         "https://example.com/pikachu.png",
-			RarityID:         rarityID,
-			RarityCode:       "C",
-			RarityName:       "Common",
-			ExpansionSetID:   setID,
-			ExpansionSetCode: "sv1",
-			ExpansionSetName: "Scarlet ex",
+			ID:                   cardID,
+			LocalID:              "001",
+			Name:                 "Pikachu",
+			Category:             "Pokémon",
+			Illustrator:          "Someone",
+			Tags:                 []string{"Basic"},
+			ImageKey:             "cards/pikachu",
+			RarityID:             rarityID,
+			RarityCode:           "C",
+			RarityName:           "Common",
+			ExpansionSetID:       setID,
+			ExpansionSetCode:     "sv1",
+			ExpansionSetName:     "Scarlet ex",
+			ExpansionSetImageKey: "expansion-sets/sv1",
 		},
 	}
 
@@ -159,7 +165,7 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 		SearchCards(ctx, repository.CardFilter{Name: "pika", Limit: defaultCardSearchLimit, Offset: 0}).
 		Return(searchResults, 1, nil).
 		Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	// Page/limit both unset (zero value) - should be normalized to page 1,
 	// the default limit.
@@ -178,9 +184,10 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 	want := dto.CardSummary{
 		ID: cardID,
 		ExpansionSet: dto.ExpansionSetSummary{
-			ID:   setID,
-			Code: "sv1",
-			Name: "Scarlet ex",
+			ID:       setID,
+			Code:     "sv1",
+			Name:     "Scarlet ex",
+			ImageURL: testImageBase + "/expansion-sets/sv1",
 		},
 		LocalID:  "001",
 		Name:     "Pikachu",
@@ -192,11 +199,12 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 			Name: "Common",
 		},
 		Illustrator: "Someone",
-		ImageURL:    "https://example.com/pikachu.png",
+		ImageURL:    testImageBase + "/cards/pikachu",
 	}
 	if cards[0].ID != want.ID ||
 		cards[0].ExpansionSet != want.ExpansionSet ||
 		cards[0].LocalID != want.LocalID ||
+		cards[0].ImageURL != want.ImageURL ||
 		cards[0].Rarity != want.Rarity {
 		t.Fatalf("expected mapped card %+v, got %+v", want, cards[0])
 	}
@@ -210,7 +218,7 @@ func TestCatalogService_SearchCards_ClampsLimitAndComputesOffset(t *testing.T) {
 		SearchCards(ctx, repository.CardFilter{Limit: maxCardSearchLimit, Offset: 2 * maxCardSearchLimit}).
 		Return(nil, 0, nil).
 		Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	_, _, err := svc.SearchCards(ctx, dto.CardFilter{Page: 3, Limit: 1000})
 	if err != nil {
@@ -226,7 +234,7 @@ func TestCatalogService_SearchCards_NegativePageDefaultsToOne(t *testing.T) {
 		SearchCards(ctx, repository.CardFilter{Limit: defaultCardSearchLimit, Offset: 0}).
 		Return(nil, 0, nil).
 		Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	_, _, err := svc.SearchCards(ctx, dto.CardFilter{Page: -5})
 	if err != nil {
@@ -243,7 +251,7 @@ func TestCatalogService_SearchCards_PropagatesRepositoryError(t *testing.T) {
 		SearchCards(ctx, repository.CardFilter{Limit: defaultCardSearchLimit, Offset: 0}).
 		Return(nil, 0, wantErr).
 		Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	_, _, err := svc.SearchCards(ctx, dto.CardFilter{})
 	if !errors.Is(err, wantErr) {
@@ -270,7 +278,7 @@ func TestCatalogService_SearchCards_PassesMultiValueFilter(t *testing.T) {
 		}).
 		Return(nil, 0, nil).
 		Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	_, _, err := svc.SearchCards(ctx, dto.CardFilter{
 		ExpansionSetIDs: []uuid.UUID{setA, setB},
@@ -299,7 +307,7 @@ func TestCatalogService_ListFacets_MapsOptionsAndAvailability(t *testing.T) {
 			Tags:       []repository.StringFacetOption{{Value: "gone", Available: false}},
 		}, nil).
 		Once()
-	svc := NewCatalogService(repo)
+	svc := NewCatalogService(repo, testImages)
 
 	got, err := svc.ListFacets(ctx, filter)
 	require.NoError(t, err)
@@ -319,7 +327,7 @@ func TestCatalogService_ListFacets_PropagatesRepositoryError(t *testing.T) {
 	repo := mocks.NewMockCatalogRepository(t)
 	repo.EXPECT().ListCardFacets(ctx, repository.CardFilter{}).Return(repository.CardFacets{}, errors.New("boom")).Once()
 
-	_, err := NewCatalogService(repo).ListFacets(ctx, dto.CardFilter{})
+	_, err := NewCatalogService(repo, testImages).ListFacets(ctx, dto.CardFilter{})
 	assert.EqualError(t, err, "boom")
 }
 
@@ -328,7 +336,7 @@ func TestCatalogService_ListFacets_ZeroMatchesYieldsEmptySlices(t *testing.T) {
 	repo := mocks.NewMockCatalogRepository(t)
 	repo.EXPECT().ListCardFacets(ctx, repository.CardFilter{}).Return(repository.CardFacets{}, nil).Once()
 
-	got, err := NewCatalogService(repo).ListFacets(ctx, dto.CardFilter{})
+	got, err := NewCatalogService(repo, testImages).ListFacets(ctx, dto.CardFilter{})
 	require.NoError(t, err)
 	assert.NotNil(t, got.ExpansionSets)
 	assert.NotNil(t, got.Rarities)

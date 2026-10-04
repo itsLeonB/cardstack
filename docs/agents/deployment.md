@@ -31,6 +31,17 @@ The Clerk session token must carry the `email` and `name` custom claims (`script
 
 The first authenticated request creates the user and profile; the migration that introduced this deletes every existing user, with their Collections and Inventory Entries, once, when it first runs on a database.
 
+## Image hosting
+
+Card and Expansion Set images live in a Cloudflare R2 bucket and are served from our own image host (ADR-0016). Two sides read separate settings:
+
+- API (Railway): `IMAGE_BASE_URL`, the public address of the image host with no trailing path (for example `https://img.example.com`). The API serves `IMAGE_BASE_URL` plus a row's hosted key as its image address. With it unset, or on a row with no key, the address is empty. It never falls back to the scraped source address.
+- Ingester (`go run ./cmd/ingest-pokemon-asia`, run by hand, never on Railway): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET` from an R2 API token scoped to that bucket. `R2_ENDPOINT` is optional and replaces the address derived from the account id. Unless all four of the first group are set, the ingester logs a warning and hosts nothing, so a local ingest of one small set needs no credentials.
+
+Keys are `cards/<card id>` and `expansion-sets/<expansion set id>`, so re-running either command is the backfill: it copies only rows whose key is empty, and a failed download or upload is logged and retried by the next run. To migrate rows that are already in the database without crawling the source site at all, run `make host-images` (`go run ./cmd/host-images`, optionally with `-set <code>`): it reads every Expansion Set and card with a source address and no key, downloads each image under the same rules as the ingester, uploads it to R2, and saves the key. It needs the four `R2_*` settings and exits 1 if any image failed, so re-run it to retry just those. The ingester still hosts images for the rows it ingests, and `go run ./cmd/ingest-pokemon-asia -sync-expansion-sets` hosts Expansion Set covers without crawling any card. Hosted originals are uploaded with `Cache-Control: public, max-age=31536000, immutable`, which is safe because a key always maps to the same bytes.
+
+Rollout order matters, because nothing enforces it. `preserve()` in `railway.ts` keeps an existing `IMAGE_BASE_URL` but never creates one, so set it in Railway first. `make host-images` reads the columns the hosted-images migration adds, so apply the migration before running it: run `make job` against the production database, then `make host-images`, and deploy the API right after the migration. That migration drops `image_url` in the same step, so replicas still running the old API fail on catalog queries from the moment it runs until the new API is live. Until `host-images` has hosted a row, that row's image address is empty and the frontend shows its placeholder.
+
 ## Backend edge secret
 
 - `APP_EDGE_SECRET` (Railway production): when set, the API rejects every request without a matching `X-Edge-Secret` header (403, except `/health`) and takes the client address from `CF-Connecting-IP`, ignoring `X-Forwarded-For` and `X-Real-IP`. Configure a Cloudflare Transform Rule on the API's proxied domain that adds `X-Edge-Secret: <value>` to every request.

@@ -12,8 +12,10 @@ import (
 	"os"
 
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/pokemonasia"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	corestore "github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/otel"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 	_ "github.com/joho/godotenv/autoload"
@@ -30,7 +32,7 @@ func main() {
 	syncExpansionSets := flag.Bool(
 		"sync-expansion-sets",
 		false,
-		"lightweight opt-in: enumerate listings and upsert only Series/Expansion Sets (e.g. to backfill expansion_sets.image_url), skipping every card/rarity crawl. Honors -series/-set. Ignored if -cleanup-stale-rarities is also passed.",
+		"lightweight opt-in: enumerate listings and upsert only Series/Expansion Sets (e.g. to backfill Expansion Set covers into R2), skipping every card/rarity crawl. Honors -series/-set. Ignored if -cleanup-stale-rarities is also passed.",
 	)
 	flag.Parse()
 
@@ -57,7 +59,13 @@ func main() {
 	}
 	defer cleanup()
 
-	ingester := pokemonasia.NewIngester(providers.Gorm)
+	// A nil interface (not a nil *R2Store) is what tells the ingester that
+	// image hosting is off.
+	var store corestore.ObjectStore
+	if config.Global.Configured() {
+		store = objectstore.NewR2Store(config.Global.R2)
+	}
+	ingester := pokemonasia.NewIngester(providers.Gorm, store)
 
 	if *cleanupStaleRarities {
 		results, err := ingester.CleanupStaleRarities(ctx)

@@ -8,6 +8,7 @@ These apply to every backend change, whether made by the root agent or a subagen
 - Return known, client-safe failures as `ungerr.XxxError(...)` AppErrors. Handlers return AppError types rather than calling `huma.ErrorXXX(...)` with ad hoc messages (ADR-0013).
 - Construct each `ungerr.XxxError(...)` at its return site, because ungerr records the line that built it. Share only the message as a constant.
 - Handle every error. Log a non-blocking one with `logger.Error`/`logger.Errorf` (`backend/internal/core/logger`, whose `Global` is a safe no-op until `Init` runs) and carry on; return the rest. Never discard with `_ =`.
+- Never `panic` in application code, including to guard a "can't happen" constant or a failed startup step. Return the error, or make the value a constant so there is nothing to fail (a host and scheme constant instead of parsing a URL constant at init). Startup code in a `main` logs and exits with `logger.Fatal`. The only panics are in generated mocks and the Huma recovery middleware (`UseRecovery`), which converts a stray one into a redacted 500.
 
 ## Layout
 

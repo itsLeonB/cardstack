@@ -8,14 +8,46 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestToExpansionSetSummary_CopiesImageURL(t *testing.T) {
-	got := ToExpansionSetSummary(entity.ExpansionSet{Code: "MA6", ImageURL: "https://example.test/x.png"})
+const testImageBase = "https://img.example.test"
 
-	assert.Equal(t, "https://example.test/x.png", got.ImageURL)
+func TestImageHost_URL(t *testing.T) {
+	tests := []struct {
+		name string
+		base string
+		key  string
+		want string
+	}{
+		{"base plus key", testImageBase, "cards/abc", testImageBase + "/cards/abc"},
+		{"trailing slash on base", testImageBase + "/", "cards/abc", testImageBase + "/cards/abc"},
+		{"leading slash on key", testImageBase, "/cards/abc", testImageBase + "/cards/abc"},
+		{"no key is empty, never a fallback", testImageBase, "", ""},
+		{"no base is empty", "", "cards/abc", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, NewImageHost(tt.base).URL(tt.key))
+		})
+	}
 }
 
-func TestToCardSummary_CopiesExpansionSetImageURL(t *testing.T) {
-	got := ToCardSummary(repository.CardResult{ExpansionSetImageURL: "https://example.test/x.png"})
+func TestToExpansionSetSummary_BuildsImageURLFromKey(t *testing.T) {
+	host := NewImageHost(testImageBase)
 
-	assert.Equal(t, "https://example.test/x.png", got.ExpansionSet.ImageURL)
+	hosted := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", ImageKey: "expansion-sets/x", SourceImageURL: "https://source.test/x.png"})
+	assert.Equal(t, testImageBase+"/expansion-sets/x", hosted.ImageURL)
+
+	unhosted := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", SourceImageURL: "https://source.test/x.png"})
+	assert.Empty(t, unhosted.ImageURL, "a set with no key must not fall back to its source address")
+}
+
+func TestToCardSummary_BuildsImageURLsFromKeys(t *testing.T) {
+	host := NewImageHost(testImageBase)
+
+	got := ToCardSummary(host, repository.CardResult{ImageKey: "cards/c1", ExpansionSetImageKey: "expansion-sets/s1"})
+	assert.Equal(t, testImageBase+"/cards/c1", got.ImageURL)
+	assert.Equal(t, testImageBase+"/expansion-sets/s1", got.ExpansionSet.ImageURL)
+
+	unhosted := ToCardSummary(host, repository.CardResult{})
+	assert.Empty(t, unhosted.ImageURL)
+	assert.Empty(t, unhosted.ExpansionSet.ImageURL)
 }

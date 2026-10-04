@@ -18,6 +18,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 	"github.com/pressly/goose/v3"
@@ -27,6 +28,10 @@ import (
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
+
+// testImageBase is the configured image base address (IMAGE_BASE_URL) the
+// feature tests serve hosted keys under.
+const testImageBase = "https://img.example.test"
 
 const (
 	testIssuer = "https://cardstack.clerk.accounts.dev"
@@ -62,12 +67,13 @@ func newTestAPI(t *testing.T) testAPI {
 		Return(&clerk.JSONWebKey{Key: &key.PublicKey, KeyID: testKeyID, Algorithm: "RS256", Use: "sig"}, nil).Maybe()
 
 	ds := &provider.DataSources{Gorm: db, SQL: sqlDB}
+	images := mapper.NewImageHost(testImageBase)
 	services := provider.ProvideServices(
 		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, keys),
 		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
-		provider.ProvideCatalogService(ds),
+		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
-		provider.ProvideInventoryService(ds),
+		provider.ProvideInventoryService(ds, images),
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())

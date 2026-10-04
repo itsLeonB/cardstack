@@ -52,12 +52,14 @@ type CatalogService interface {
 }
 
 type catalogService struct {
-	repo repository.CatalogRepository
+	repo   repository.CatalogRepository
+	images mapper.ImageHost
 }
 
-// NewCatalogService builds a CatalogService backed by repo.
-func NewCatalogService(repo repository.CatalogRepository) CatalogService {
-	return &catalogService{repo: repo}
+// NewCatalogService builds a CatalogService backed by repo, serving hosted
+// images through images.
+func NewCatalogService(repo repository.CatalogRepository, images mapper.ImageHost) CatalogService {
+	return &catalogService{repo: repo, images: images}
 }
 
 func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error) {
@@ -81,14 +83,16 @@ func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult
 		if set.SeriesID == nil {
 			continue
 		}
-		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], mapper.ToExpansionSetSummary(set))
+		setsBySeries[*set.SeriesID] = append(setsBySeries[*set.SeriesID], mapper.ToExpansionSetSummary(s.images, set))
 	}
 
 	return dto.SeriesBrowseResult{
 		Series: ezutil.MapSlice(series, func(sr entity.Series) dto.SeriesSummary {
 			return mapper.ToSeriesSummary(sr, setsBySeries[sr.ID])
 		}),
-		UngroupedExpansionSets: ezutil.MapSlice(ungrouped, mapper.ToExpansionSetSummary),
+		UngroupedExpansionSets: ezutil.MapSlice(ungrouped, func(set entity.ExpansionSet) dto.ExpansionSetSummary {
+			return mapper.ToExpansionSetSummary(s.images, set)
+		}),
 	}, nil
 }
 
@@ -117,7 +121,7 @@ func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter)
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, mapper.ToCardSummary), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+	return ezutil.MapSlice(results, func(r repository.CardResult) dto.CardSummary { return mapper.ToCardSummary(s.images, r) }), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 // pagedRepoFilter maps filter to the repository filter with its page's
@@ -138,7 +142,7 @@ func (s *catalogService) ListFacets(ctx context.Context, filter dto.CardFilter) 
 		return dto.CatalogFacets{}, err
 	}
 
-	return mapper.ToCatalogFacets(facets), nil
+	return mapper.ToCatalogFacets(s.images, facets), nil
 }
 
 // normalizePagination fills in CardFilter's page/limit defaults and clamps

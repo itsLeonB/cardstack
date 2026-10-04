@@ -4,14 +4,16 @@ import (
 	"github.com/google/wire"
 	coreservice "github.com/itsLeonB/cardstack/backend/internal/adapters/core/service"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
+	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	catalogrepository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	crud "github.com/itsLeonB/go-crud"
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -31,10 +33,21 @@ func ProvideUserService(ds *DataSources, users catalogrepository.UserRepository,
 	return service.NewUserService(crud.NewTransactor(ds.Gorm), users, crud.NewRepository[entity.UserProfile](ds.Gorm), cache)
 }
 
-// ProvideCatalogService builds the catalog service over ds's DB, for the same
-// reason ProvideUserService is its own provider.
-func ProvideCatalogService(ds *DataSources) service.CatalogService {
-	return service.NewCatalogService(catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)))
+// ProvideImageHost builds the host that turns hosted-image keys into public
+// addresses from IMAGE_BASE_URL (docs/adr/0016). An unset base address yields
+// empty image addresses, never source addresses.
+func ProvideImageHost() mapper.ImageHost {
+	return mapper.NewImageHost(config.Global.BaseURL)
+}
+
+// ProvideCatalogService builds the catalog service over ds's DB. It's a
+// separate provider (rather than being built inline in ProvideServices,
+// like Health is) because it needs a DataSources to build its repository —
+// ProvideServices otherwise takes only already-built, DB-free dependencies
+// so cmd/genspec can call it without a DB (see ProvideServices's own doc
+// comment).
+func ProvideCatalogService(ds *DataSources, images mapper.ImageHost) service.CatalogService {
+	return service.NewCatalogService(catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)), images)
 }
 
 // ProvideCollectionService builds the collection service over ds's DB, for
@@ -44,13 +57,14 @@ func ProvideCollectionService(ds *DataSources) service.CollectionService {
 }
 
 // ProvideInventoryService builds the inventory service over ds's DB.
-func ProvideInventoryService(ds *DataSources) service.InventoryService {
+func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.InventoryService {
 	return service.NewInventoryService(
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
 		crud.NewRepository[entity.Card](ds.Gorm),
+		images,
 	)
 }
 
