@@ -2,6 +2,13 @@ import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Page, Route } from "playwright/test"
 
+import {
+  expectShowsTestUserEmail,
+  signInAsTestUser,
+  SIGNED_IN_TAG,
+  useSignedInSuite,
+} from "./support/clerk-auth"
+
 // Credentialed cross-origin reads need the caller's exact origin echoed back,
 // which keeps these stubs independent of the port the app is served on.
 type StubBody = {
@@ -21,18 +28,16 @@ function json(route: Route, body: StubBody) {
   }
 }
 
-// Stubs the two reads the dashboard makes, so it can be asserted without a
-// seeded user. The signed-in tests are `fixme` until ticket 09's Clerk Testing
-// Tokens layer can create a real session (the /auth/me stub below simulated the
-// session the API no longer has). Guests need no setup, as in app-shell.spec.ts.
+// Stubs the two reads the dashboard makes, so it can be asserted without
+// depending on what the backend holds for the test user, then signs in through
+// Clerk's real development instance (see support/clerk-auth.ts). The signed-in
+// tests skip without its credentials. Guests need no setup, as in
+// app-shell.spec.ts.
 async function signIn(
   page: Page,
   collections: { id: string; title: string }[],
   total: number
 ) {
-  await page.route("**/auth/me", (route) =>
-    route.fulfill(json(route, { data: { id: "u1", email: "ada@example.com" } }))
-  )
   await page.route("**/collections", (route) => {
     if (route.request().resourceType() !== "fetch") return route.fallback()
     return route.fulfill(json(route, { data: collections }))
@@ -40,6 +45,7 @@ async function signIn(
   await page.route("**/inventory/cards?*", (route) =>
     route.fulfill(json(route, { data: [], meta: { total, page: 1, limit: 1 } }))
   )
+  await signInAsTestUser(page)
 }
 
 test.describe("Home: guest", () => {
@@ -64,7 +70,9 @@ test.describe("Home: guest", () => {
   })
 })
 
-test.describe.fixme("Home: signed in", () => {
+test.describe("Home: signed in", { tag: SIGNED_IN_TAG }, () => {
+  useSignedInSuite()
+
   test("shows the dashboard, not the landing", async ({ page }) => {
     await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
     await page.goto("/")
@@ -112,7 +120,7 @@ test.describe.fixme("Home: signed in", () => {
     await expect(
       main.getByRole("heading", { level: 1, name: "Account" })
     ).toBeVisible()
-    await expect(main).toContainText("ada@example.com")
+    await expectShowsTestUserEmail(main)
     await expect(main.getByRole("link")).toHaveCount(0)
     await expect(main.getByRole("button", { name: "Log out" })).toBeVisible()
   })
@@ -130,18 +138,21 @@ test.describe("Home: mobile", () => {
     expect(overflow).toBeLessThanOrEqual(0)
   })
 
-  // FIXME(ticket 09): needs a real Clerk session; see signIn() above.
-  test.fixme("dashboard has no horizontal scroll at phone width", async ({
-    page,
-  }) => {
-    await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
-    await page.goto("/")
-    await expect(
-      page.getByRole("heading", { name: "Welcome back" })
-    ).toBeVisible()
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth
-    )
-    expect(overflow).toBeLessThanOrEqual(0)
+  test.describe("signed in", { tag: SIGNED_IN_TAG }, () => {
+    useSignedInSuite()
+
+    test("dashboard has no horizontal scroll at phone width", async ({
+      page,
+    }) => {
+      await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
+      await page.goto("/")
+      await expect(
+        page.getByRole("heading", { name: "Welcome back" })
+      ).toBeVisible()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth
+      )
+      expect(overflow).toBeLessThanOrEqual(0)
+    })
   })
 })

@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@clerk/testing": "^2.2.42",
     "@oxlint/plugins": "^1.83.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@tanstack/devtools-vite": "^0.8.5",
