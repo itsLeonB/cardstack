@@ -52,6 +52,7 @@ type inventoryService struct {
 	entries     repository.InventoryRepository
 	catalog     repository.CatalogRepository
 	cards       crud.Repository[entity.Card]
+	images      mapper.ImageHost
 }
 
 func NewInventoryService(
@@ -60,8 +61,9 @@ func NewInventoryService(
 	entries repository.InventoryRepository,
 	catalog repository.CatalogRepository,
 	cards crud.Repository[entity.Card],
+	images mapper.ImageHost,
 ) InventoryService {
-	return &inventoryService{transactor: transactor, collections: collections, entries: entries, catalog: catalog, cards: cards}
+	return &inventoryService{transactor: transactor, collections: collections, entries: entries, catalog: catalog, cards: cards, images: images}
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -77,7 +79,7 @@ func (s *inventoryService) List(ctx context.Context, req dto.InventoryListReques
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, mapper.ToInventoryItem), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+	return ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) }), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
@@ -93,7 +95,7 @@ func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryList
 		return dto.CatalogFacets{}, err
 	}
 
-	return mapper.ToCatalogFacets(facets), nil
+	return mapper.ToCatalogFacets(s.images, facets), nil
 }
 
 func (s *inventoryService) ListMasterInventory(ctx context.Context, req dto.MasterInventoryRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -110,7 +112,7 @@ func (s *inventoryService) ListMasterInventory(ctx context.Context, req dto.Mast
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, mapper.ToInventoryItem), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+	return ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) }), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func (s *inventoryService) ListMasterFacets(ctx context.Context, req dto.MasterInventoryRequest) (dto.CatalogFacets, error) {
@@ -127,7 +129,7 @@ func (s *inventoryService) ListMasterFacets(ctx context.Context, req dto.MasterI
 		return dto.CatalogFacets{}, err
 	}
 
-	return mapper.ToCatalogFacets(facets), nil
+	return mapper.ToCatalogFacets(s.images, facets), nil
 }
 
 func (s *inventoryService) ListCardHoldings(ctx context.Context, req dto.CardHoldingsRequest) ([]dto.CardHolding, error) {

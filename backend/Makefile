@@ -3,6 +3,7 @@ http \
 http-hot \
 job \
 ingest-pokemon-asia \
+host-images \
 wire \
 lint \
 vulncheck \
@@ -21,6 +22,7 @@ help:
 	@echo "  make http-hot                - Start the HTTP server with hot reload (requires air)"
 	@echo "  make job                     - Run migrations (production)"
 	@echo "  make ingest-pokemon-asia     - Ingest Pokémon Asia catalog data (manual, no scheduler)"
+	@echo "  make host-images             - Copy images missing from R2 straight from the database (manual)"
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
@@ -44,6 +46,9 @@ job:
 
 ingest-pokemon-asia:
 	go run ./cmd/ingest-pokemon-asia
+
+host-images:
+	go run ./cmd/host-images
 
 wire:
 	go generate ./internal/provider/...

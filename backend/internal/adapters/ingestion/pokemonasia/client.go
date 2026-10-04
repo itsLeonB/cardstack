@@ -16,9 +16,16 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// sourceScheme and sourceHost are the only scheme and host the ingester
+// contacts, for pages and for image downloads alike.
+const (
+	sourceScheme = "https"
+	sourceHost   = "asia.pokemon-card.com"
+)
+
 // baseURL is the Indonesian ("id") locale of the live site. No auth/API key
 // required; the whole flow is plain server-rendered HTML over GET.
-const baseURL = "https://asia.pokemon-card.com/id"
+const baseURL = sourceScheme + "://" + sourceHost + "/id"
 
 // requestTimeout bounds each outgoing request so a hung response can't
 // block ingestion forever (the CLI passes context.Background()).
@@ -45,13 +52,24 @@ type client struct {
 	baseURL    string
 	httpClient *http.Client
 	limiter    *rate.Limiter
+
+	// imageHost is the only host image downloads may contact, over imageScheme,
+	// and imageClient refuses redirects away from it (see images.go). They stay
+	// the production host and https even when tests point baseURL at a local
+	// server; only tests that serve images over real HTTP override them.
+	imageHost   string
+	imageScheme string
+	imageClient *http.Client
 }
 
 func newClient() *client {
 	return &client{
-		baseURL:    baseURL,
-		httpClient: http.DefaultClient,
-		limiter:    rate.NewLimiter(rate.Every(requestInterval), 1),
+		baseURL:     baseURL,
+		httpClient:  http.DefaultClient,
+		limiter:     rate.NewLimiter(rate.Every(requestInterval), 1),
+		imageHost:   sourceHost,
+		imageScheme: sourceScheme,
+		imageClient: newImageClient(sourceScheme, sourceHost),
 	}
 }
 

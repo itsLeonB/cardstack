@@ -29,9 +29,10 @@ func InitializeProviders() (*Providers, func(), error) {
 		return nil, nil, err
 	}
 	profileLookup := ProvideProfileLookup(dataSources)
-	catalogService := ProvideCatalogService(dataSources)
+	imageHost := ProvideImageHost()
+	catalogService := ProvideCatalogService(dataSources, imageHost)
 	collectionService := ProvideCollectionService(dataSources)
-	inventoryService := ProvideInventoryService(dataSources)
+	inventoryService := ProvideInventoryService(dataSources, imageHost)
 	services := ProvideServices(authKit, profileLookup, catalogService, collectionService, inventoryService)
 	providers := &Providers{
 		DataSources: dataSources,

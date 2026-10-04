@@ -249,7 +249,7 @@ type CardResult struct {
 	Category                string
 	Illustrator             string
 	Tags                    datatypes.JSONSlice[string]
-	ImageURL                string
+	ImageKey                string
 	RarityID                uuid.UUID
 	RarityCode              string
 	RarityName              string
@@ -257,7 +257,7 @@ type CardResult struct {
 	ExpansionSetCode        string
 	ExpansionSetName        string
 	ExpansionSetReleaseDate *time.Time
-	ExpansionSetImageURL    string
+	ExpansionSetImageKey    string
 	// Quantity is set only when searching within a Collection or a profile's Master Inventory.
 	Quantity int
 }
@@ -268,7 +268,7 @@ const cardResultColumns = `cards.id AS id,
 	cards.category AS category,
 	cards.illustrator AS illustrator,
 	cards.tags AS tags,
-	cards.image_url AS image_url,
+	cards.image_key AS image_key,
 	cards.rarity_id AS rarity_id,
 	rarities.code AS rarity_code,
 	rarities.name AS rarity_name,
@@ -276,7 +276,7 @@ const cardResultColumns = `cards.id AS id,
 	expansion_sets.code AS expansion_set_code,
 	expansion_sets.name AS expansion_set_name,
 	expansion_sets.release_date AS expansion_set_release_date,
-	expansion_sets.image_url AS expansion_set_image_url`
+	expansion_sets.image_key AS expansion_set_image_key`
 
 // likeEscaper escapes ILIKE's own wildcard characters (%, _) and its default
 // escape character (\) in a single pass, so a literal % or _ in user input

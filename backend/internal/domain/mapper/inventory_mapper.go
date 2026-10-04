@@ -10,8 +10,8 @@ func ToInventoryEntry(e entity.InventoryEntry) dto.InventoryEntry {
 	return dto.InventoryEntry{CardID: e.CardID, Quantity: e.Quantity}
 }
 
-func ToInventoryItem(r repository.CardResult) dto.InventoryItem {
-	return dto.InventoryItem{Card: ToCardSummary(r), Quantity: r.Quantity}
+func ToInventoryItem(host ImageHost, r repository.CardResult) dto.InventoryItem {
+	return dto.InventoryItem{Card: ToCardSummary(host, r), Quantity: r.Quantity}
 }
 
 func ToCardHolding(h repository.CardHolding) dto.CardHolding {
