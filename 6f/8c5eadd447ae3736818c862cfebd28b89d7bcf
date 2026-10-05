@@ -1,0 +1,21 @@
+.scratch/cardstack-mvp/issues/38-expansion-set-cover-pre-sized.md
+  s_c2be332f8a77fb::t_d5882d6bb9ef20 6
+docs/agents/deployment/images.md
+  s_c2be332f8a77fb::t_33df48023fb551 6,16-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6f8c5eadd447ae3736818c862cfebd28b89d7bcf",
+  "prompts": {},
+  "sessions": {
+    "s_c2be332f8a77fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c2be332f8a77fb",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
