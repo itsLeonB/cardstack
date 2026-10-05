@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/issues/15-series-image-source-research.md
+  s_e0cd41d73007f0::t_223c24a45cde23 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "27d626a35b7f6e4fdaadf481e116f00de004bc53",
+  "prompts": {},
+  "sessions": {
+    "s_e0cd41d73007f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e0cd41d73007f0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
