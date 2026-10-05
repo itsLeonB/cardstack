@@ -1,0 +1,19 @@
+backend/scripts/build-series-logos.sh
+  s_cd618288f93517::t_9233d20e05955c 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e908447554f5155cfe3a84974cf9719be932b83d",
+  "prompts": {},
+  "sessions": {
+    "s_cd618288f93517": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cd618288f93517",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
