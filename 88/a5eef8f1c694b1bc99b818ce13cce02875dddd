@@ -1,0 +1,19 @@
+docs/agents/orchestration.md
+  s_8e94778d49db1c::t_9163a4f7445b71 21,31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "88a5eef8f1c694b1bc99b818ce13cce02875dddd",
+  "prompts": {},
+  "sessions": {
+    "s_8e94778d49db1c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8e94778d49db1c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
