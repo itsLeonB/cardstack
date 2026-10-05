@@ -1,0 +1,25 @@
+.claude/agents/backend-agent.md
+  s_3a23b4b47b83da::t_db639aeba700da 5
+.claude/agents/frontend-agent.md
+  s_3a23b4b47b83da::t_b79200ae719359 5
+.claude/settings.json
+  s_3a23b4b47b83da::t_bb97081caeab0b 9
+docs/agents/conventions/serena.md
+  s_3a23b4b47b83da::t_464217542a7981 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "34d2d6c976d0f8febba5705d1c9c7afc4eff2edf",
+  "prompts": {},
+  "sessions": {
+    "s_3a23b4b47b83da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3a23b4b47b83da",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
