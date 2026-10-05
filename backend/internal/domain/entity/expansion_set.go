@@ -25,6 +25,10 @@ type ExpansionSet struct {
 	// SourceImageURL and ImageKey mean the same as on Card.
 	SourceImageURL string `gorm:"not null;default:''"`
 	ImageKey       string `gorm:"not null;default:''"`
+	// CoverKey is the object-store key of the cover pre-sized to 128px from
+	// the ImageKey original (docs/adr/0017); "" until cmd/presize-images has
+	// run. It is the only cover address the API serves.
+	CoverKey string `gorm:"not null;default:''"`
 }
 
 func (ExpansionSet) TableName() string { return "expansion_sets" }

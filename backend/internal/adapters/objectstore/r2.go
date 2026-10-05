@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	corestore "github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/ungerr"
 )
@@ -16,6 +18,10 @@ import (
 // immutableCacheControl lets Cloudflare and browsers keep an original for a
 // year: a key always maps to the same bytes because it derives from the row id.
 const immutableCacheControl = "public, max-age=31536000, immutable"
+
+// maxGetBytes caps what Get reads into memory: a hosted original is a few
+// hundred KB, so anything near this is not an image we put there.
+const maxGetBytes = 32 << 20
 
 // R2Store is the Cloudflare R2 adapter, speaking R2's S3-compatible API.
 type R2Store struct {
@@ -57,4 +63,24 @@ func (s *R2Store) Put(ctx context.Context, key, contentType string, body []byte)
 		return ungerr.Wrapf(err, "putting object %q", key)
 	}
 	return nil
+}
+
+func (s *R2Store) Get(ctx context.Context, key string) ([]byte, error) {
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	if err != nil {
+		return nil, ungerr.Wrapf(err, "getting object %q", key)
+	}
+	defer func() {
+		if err := out.Body.Close(); err != nil {
+			logger.Errorf("closing object %q: %v", key, err)
+		}
+	}()
+	body, err := io.ReadAll(io.LimitReader(out.Body, maxGetBytes+1))
+	if err != nil {
+		return nil, ungerr.Wrapf(err, "reading object %q", key)
+	}
+	if len(body) > maxGetBytes {
+		return nil, ungerr.Unknownf("object %q is larger than %d bytes", key, maxGetBytes)
+	}
+	return body, nil
 }

@@ -21,6 +21,65 @@ func (_m *MockObjectStore) EXPECT() *MockObjectStore_Expecter {
 	return &MockObjectStore_Expecter{mock: &_m.Mock}
 }
 
+// Get provides a mock function with given fields: ctx, key
+func (_m *MockObjectStore) Get(ctx context.Context, key string) ([]byte, error) {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Get")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]byte, error)); ok {
+		return rf(ctx, key)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
+		r0 = rf(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockObjectStore_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
+type MockObjectStore_Get_Call struct {
+	*mock.Call
+}
+
+// Get is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockObjectStore_Expecter) Get(ctx interface{}, key interface{}) *MockObjectStore_Get_Call {
+	return &MockObjectStore_Get_Call{Call: _e.mock.On("Get", ctx, key)}
+}
+
+func (_c *MockObjectStore_Get_Call) Run(run func(ctx context.Context, key string)) *MockObjectStore_Get_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_Get_Call) Return(_a0 []byte, _a1 error) *MockObjectStore_Get_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockObjectStore_Get_Call) RunAndReturn(run func(context.Context, string) ([]byte, error)) *MockObjectStore_Get_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Put provides a mock function with given fields: ctx, key, contentType, body
 func (_m *MockObjectStore) Put(ctx context.Context, key string, contentType string, body []byte) error {
 	ret := _m.Called(ctx, key, contentType, body)
