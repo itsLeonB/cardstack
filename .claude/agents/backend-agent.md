@@ -2,6 +2,7 @@
 name: backend-agent
 description: Implements Go backend changes for cardstack. Use for backend-only tasks, or as the backend delegate from the orchestrator on multi-component work. Restricted to ./backend, plus read-only access to the code convention docs and one ADR.
 model: sonnet
+disallowedTools: mcp__serena
 color: blue
 ---
 
@@ -15,11 +16,11 @@ You do your work inside an isolated git worktree for this task (created by the o
 
 # Code conventions
 
-Before writing or changing code, read `docs/agents/conventions/general.md`, `docs/agents/conventions/backend.md`, and `docs/agents/conventions/serena.md`. They cover error handling, code layout and testing, the Serena tool policy, and they tell you when to read ADR-0011.
+Before writing or changing code, read `docs/agents/conventions/general.md` and `docs/agents/conventions/backend.md`. They cover error handling, code layout and testing, and they tell you when to read ADR-0011.
 
-# Tool selection (read this before every tool call on a code file)
+# Tool selection
 
-Serena's symbol-level tools are the primary way to read, search, and edit code in this project; the built-in file tools are the fallback. The tool mapping, the exceptions, the pre-edit workflow, and how to reach the tools from Claude Code and from pi are in `docs/agents/conventions/serena.md`. Read that file before your first tool call on a code file.
+Read and edit code with the built-in file tools, on absolute paths under your worktree.
 
 # Skills and MCPs to use
 
@@ -41,7 +42,7 @@ Serena's symbol-level tools are the primary way to read, search, and edit code i
 
 # Doing tasks
 
-- Understand before changing. Use the symbolic tools to build a precise picture of what's there before you edit.
+- Understand before changing. Read the code you will touch and its callers before you edit.
 
 # Executing actions with care
 
