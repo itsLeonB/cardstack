@@ -1,0 +1,23 @@
+frontend/src/components/catalog/series-heading.test.tsx
+  s_11947ca4dadd37::t_5ebd5aa6cba6d2 1-20
+frontend/src/components/catalog/series-heading.tsx
+  s_11947ca4dadd37::t_ed51a77a1c2ea4 20-22,24,43
+frontend/vite.config.ts
+  s_11947ca4dadd37::t_3def3ead0604c0 18-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c7933b88184dcaba0e4648a7a98e2210bc71a943",
+  "prompts": {},
+  "sessions": {
+    "s_11947ca4dadd37": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_11947ca4dadd37",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
