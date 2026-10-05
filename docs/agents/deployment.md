@@ -7,7 +7,7 @@ Where cardstack runs, which env vars each deploy needs, and how to find out why 
 | Piece | Host |
 | --- | --- |
 | Frontend (`frontend/`) | Vercel |
-| Backend API (`backend/`) | Railway, single `cardstack` service |
+| Backend API (`backend/`) | Railway, single `api` service in the `cardstack` project |
 | Database | Neon, `production` branch |
 
 Get the live origins from the Vercel and Railway dashboards or CLIs, not from this doc.

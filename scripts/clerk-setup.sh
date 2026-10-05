@@ -566,7 +566,7 @@ run_production() {
 
   stage "Railway: secret key and allowed frontend origins"
   if ! skip_done railway; then
-    local env="${RAILWAY_ENVIRONMENT:-production}" svc="${RAILWAY_SERVICE:-cardstack}" origins="" current="" cli=0
+    local env="${RAILWAY_ENVIRONMENT:-production}" svc="${RAILWAY_SERVICE:-api}" origins="" current="" cli=0
     if command -v railway >/dev/null 2>&1 && railway whoami >/dev/null 2>&1; then
       cli=1
       current=$(railway variables -k -e "$env" -s "$svc" 2>/dev/null | sed -n 's/^APP_CLIENT_URLS=//p' || true)
