@@ -1,0 +1,29 @@
+frontend/e2e/catalog-infinite-scroll.spec.ts
+  s_96418180197e45::t_240c45b8b24c97 103-105
+frontend/e2e/sign-in.spec.ts
+  s_96418180197e45::t_780918f68958a6 50-53
+frontend/e2e/support/clerk-auth.ts
+  s_96418180197e45::t_fe0a9251b21d06 98-102,105-113,115-141
+frontend/src/components/auth/app-clerk-provider.tsx
+  s_96418180197e45::t_3e1e2a24dc214f 5,37-45
+frontend/src/lib/route-guard.test.ts
+  s_96418180197e45::t_4902258e36334e 4-9,138-169
+frontend/src/lib/route-guard.ts
+  s_96418180197e45::t_7400ee3f959fea 3,44-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ac2d56e2171ee7c1789361ff705b7322cde96869",
+  "prompts": {},
+  "sessions": {
+    "s_96418180197e45": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_96418180197e45",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
