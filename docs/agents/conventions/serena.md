@@ -1,14 +1,18 @@
 # Serena tool policy
 
-Serena is an MCP server that exposes semantic, symbol-aware tools for reading, searching, and editing code. Its tools are the PRIMARY tools for code work in this project. Built-in file tools are SECONDARY and must not be used on code files when a Serena equivalent exists. This applies to the root agent and to subagents, in both Claude Code and pi.
+Serena is an MCP server that exposes semantic, symbol-aware tools for reading, searching, and editing code. For the root agent its tools are the PRIMARY tools for code work in this project. Built-in file tools are SECONDARY and must not be used on code files when a Serena equivalent exists.
 
-Read it before the first tool call on a code file.
+## Who uses Serena
+
+- **Root agent** (the main session, including the orchestrator): everything below applies. Read it before the first tool call on a code file.
+- **Subagents** (`backend-agent`, `frontend-agent`, any Agent-tool child) use the built-in Read, Grep, Glob and Edit tools on absolute paths under their worktree, and they never read this file. When you delegate, tell them to use the built-in tools; never point them at Serena or at this file. The reason: Serena is rooted at the main checkout and subagents still see the shared server, so a read in a worktree returns `[]` with no error and an edit lands in the wrong tree.
+
+Giving each worktree its own Serena instance is open research: `.scratch/agent-tooling/issues/01-serena-per-worktree-subagents.md`.
 
 ## Reaching the tools
 
 - **Claude Code**: Serena's tools are `mcp__serena__*` and arrive deferred, so a direct call fails until loaded. Before your first code tool call, load them in one `ToolSearch` with `select:mcp__serena__initial_instructions,mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols,mcp__serena__replace_symbol_body,mcp__serena__replace_content`, then call `initial_instructions`.
 - **pi**: reach them through the `mcp` proxy, `mcp({ tool: "find_symbol", args: { ... } })`, or run `tool_search` and call the activated `mcp__serena__*` tool. The same rule covers every other MCP server: `mcp({ tool: "..." })` in pi, `mcp__<server>__<tool>` in Claude Code.
-- **pi subagents**: Serena is only reachable in a background child, because the `mcp` proxy comes from an ambient extension that foreground children do not load. The orchestrator's launches are background by default; do not pass `async: false` for a child that needs code tools.
 - Both clients start Serena with `--project-from-cwd` under a single-project context, so the project is already active. Do not call `activate_project`; that tool does not exist in these configurations.
 
 ## Mapping (use the right column, not the left)

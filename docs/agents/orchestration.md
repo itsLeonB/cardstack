@@ -30,7 +30,7 @@ Never commit or merge onto `main` directly. Before any other step, check `git br
 
 The orchestrator owns every edit outside `./backend` and `./frontend` (`docs/`, `GLOSSARY.md`, ADRs, the ticket's `Status:` line under `.scratch/`), because each component agent is scoped to its own directory.
 
-Both component subagents reference their relevant skills/MCPs internally (Serena for all code edits, context7 for library docs, plus stack-specific skills — see each agent file). The orchestrator itself should load Serena for any direct edits it makes in step 8, and context7 for any library-specific question it needs to resolve itself.
+Both component subagents reference their relevant skills/MCPs internally (context7 for library docs, plus stack-specific skills — see each agent file; they edit with the built-in tools, Serena is root-agent only). The orchestrator itself should load Serena for any direct edits it makes in step 8, and context7 for any library-specific question it needs to resolve itself.
 
 ## Small, one component task
 
