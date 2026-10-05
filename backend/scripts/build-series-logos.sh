@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds assets/series/<series code>.webp from the Bulbagarden Archives
-# originals (docs/adr/0017): WebP with alpha, 80px tall, width by aspect ratio.
+# originals (docs/adr/0017): WebP with alpha, 120px tall, width by aspect ratio.
 # Needs curl and vips. Run from anywhere; commit the resulting files, then
 # upload them with `make host-series-images`.
 #
@@ -28,10 +28,16 @@ fetch matahari-bulan 7/71/First_Impact_Logo_Indonesian.png
 vips crop "$tmp/matahari-bulan.png" "$tmp/matahari-bulan-crop.png" 0 0 1177 182
 mv "$tmp/matahari-bulan-crop.png" "$tmp/matahari-bulan.png"
 
+# Scarlet & Violet: the era logo stacks the Pokemon logo (rows 0-122) and the
+# Game Kartu Koleksi bar (rows 126-170) above the series wordmark. Rows
+# 170-193 are a fully transparent gap; keep only rows 193-249 of 398x249.
+vips crop "$tmp/scarlet-violet.png" "$tmp/scarlet-violet-crop.png" 0 193 398 56
+mv "$tmp/scarlet-violet-crop.png" "$tmp/scarlet-violet.png"
+
 for f in "$tmp"/*.png; do
   code="$(basename "$f" .png)"
-  # The huge width means the 80px height is the binding constraint, so the
+  # The huge width means the 120px height is the binding constraint, so the
   # width follows the aspect ratio. The webp saver keeps alpha (no flatten).
-  vips thumbnail "$f" "$out/$code.webp[Q=90]" 100000 --height 80
+  vips thumbnail "$f" "$out/$code.webp[Q=90]" 100000 --height 120
   echo "$code: $(vipsheader -f width "$out/$code.webp")x$(vipsheader -f height "$out/$code.webp"), $(vipsheader -f bands "$out/$code.webp") bands"
 done
