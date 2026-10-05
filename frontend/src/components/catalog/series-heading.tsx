@@ -17,9 +17,11 @@ export function SeriesHeading({
   name: string
   imageUrl: string
 }) {
-  const [imageFailed, setImageFailed] = useState(false)
+  // The failed address, not a flag: a refetch that returns a new hashed address
+  // (a re-cropped logo) gets a fresh try.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
 
-  if (!imageUrl || imageFailed) {
+  if (!imageUrl || failedUrl === imageUrl) {
     return (
       <h2 id={id} className="font-heading text-lg font-medium">
         {name}
@@ -38,7 +40,7 @@ export function SeriesHeading({
         height={40}
         loading="lazy"
         className="h-10 w-auto max-w-full"
-        onError={() => setImageFailed(true)}
+        onError={() => setFailedUrl(imageUrl)}
       />
     </h2>
   )
