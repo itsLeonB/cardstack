@@ -1,0 +1,43 @@
+backend/Makefile
+  s_8dd5e7dfe080f7::t_4423ff976b3479 7,27,55-57
+backend/cmd/host-series-images/logos.go
+  s_8dd5e7dfe080f7::t_3c0699495e9b29 1-106
+backend/cmd/host-series-images/logos_test.go
+  s_8dd5e7dfe080f7::t_e8bf0f9409e580 1-129
+backend/cmd/host-series-images/main.go
+  s_8dd5e7dfe080f7::t_3ae251198f2920 1-49
+backend/internal/adapters/db/postgres/migrations/20261006000000_series_image_key.sql
+  s_8dd5e7dfe080f7::t_3172e12d807daf 1-8
+backend/internal/adapters/ingestion/pokemonasia/ingest_test.go
+  s_8dd5e7dfe080f7::t_6b4cb0f7b78c97 69-94
+backend/internal/adapters/ingestion/pokemonasia/mapper_test.go
+  s_8dd5e7dfe080f7::t_e16c0b21ac98b9 305-308
+backend/internal/domain/dto/catalog_dto.go
+  s_8dd5e7dfe080f7::t_dacdefcd26dfa7 26
+backend/internal/domain/entity/series.go
+  s_8dd5e7dfe080f7::t_d7f739f1b450f8 17-19
+backend/internal/domain/mapper/catalog_mapper.go
+  s_8dd5e7dfe080f7::t_03a90a62b8d145 44-45
+backend/internal/domain/mapper/catalog_mapper_test.go
+  s_8dd5e7dfe080f7::t_fe125bfb2e9032 43-52
+backend/internal/domain/service/catalog_service.go
+  s_8dd5e7dfe080f7::t_856b5b20714318 100
+backend/openapi.json
+  s_8dd5e7dfe080f7::t_9041a4338babe7 787-789,798
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a0bf50f1eb9cad20af5d58dac6a0ae65ff111315",
+  "prompts": {},
+  "sessions": {
+    "s_8dd5e7dfe080f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8dd5e7dfe080f7",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
