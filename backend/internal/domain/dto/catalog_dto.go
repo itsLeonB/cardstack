@@ -23,6 +23,7 @@ type SeriesSummary struct {
 	ID            uuid.UUID             `json:"id"`
 	Code          string                `json:"code"`
 	Name          string                `json:"name"`
+	ImageURL      string                `json:"imageUrl"`
 	ExpansionSets []ExpansionSetSummary `json:"expansionSets"`
 }
 

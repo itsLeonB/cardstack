@@ -41,8 +41,8 @@ func ToExpansionSetSummary(host ImageHost, set entity.ExpansionSet) dto.Expansio
 
 // ToSeriesSummary converts an entity.Series plus its already-mapped
 // Expansion Sets into the browsable summary DTO.
-func ToSeriesSummary(sr entity.Series, sets []dto.ExpansionSetSummary) dto.SeriesSummary {
-	return dto.SeriesSummary{ID: sr.ID, Code: sr.Code, Name: sr.Name, ExpansionSets: sets}
+func ToSeriesSummary(host ImageHost, sr entity.Series, sets []dto.ExpansionSetSummary) dto.SeriesSummary {
+	return dto.SeriesSummary{ID: sr.ID, Code: sr.Code, Name: sr.Name, ImageURL: host.URL(sr.ImageKey), ExpansionSets: sets}
 }
 
 // ToRaritySummary converts an entity.Rarity into its summary DTO.

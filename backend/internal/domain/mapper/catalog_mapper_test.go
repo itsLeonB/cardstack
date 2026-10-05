@@ -40,6 +40,16 @@ func TestToExpansionSetSummary_BuildsImageURLFromKey(t *testing.T) {
 	assert.Empty(t, unhosted.ImageURL, "a set with no key must not fall back to its source address")
 }
 
+func TestToSeriesSummary_BuildsImageURLFromKey(t *testing.T) {
+	host := NewImageHost(testImageBase)
+
+	withLogo := ToSeriesSummary(host, entity.Series{Code: "evolusi-mega", ImageKey: "series/evolusi-mega.0123abcd.webp"}, nil)
+	assert.Equal(t, testImageBase+"/series/evolusi-mega.0123abcd.webp", withLogo.ImageURL)
+
+	// No key means no logo: the frontend renders the text heading.
+	assert.Empty(t, ToSeriesSummary(host, entity.Series{Code: "evolusi-mega"}, nil).ImageURL)
+}
+
 func TestToCardSummary_BuildsImageURLsFromKeys(t *testing.T) {
 	host := NewImageHost(testImageBase)
 

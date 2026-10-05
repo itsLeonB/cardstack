@@ -97,7 +97,7 @@ func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult
 
 	return dto.SeriesBrowseResult{
 		Series: ezutil.MapSlice(series, func(sr entity.Series) dto.SeriesSummary {
-			return mapper.ToSeriesSummary(sr, setsBySeries[sr.ID])
+			return mapper.ToSeriesSummary(s.images, sr, setsBySeries[sr.ID])
 		}),
 		UngroupedExpansionSets: ezutil.MapSlice(ungrouped, func(set entity.ExpansionSet) dto.ExpansionSetSummary {
 			return mapper.ToExpansionSetSummary(s.images, set)
