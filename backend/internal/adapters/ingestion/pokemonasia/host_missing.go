@@ -43,10 +43,16 @@ func (in *Ingester) HostMissingImages(ctx context.Context, setFilter string) (Su
 	}
 	setCodes := make(map[uuid.UUID]string, len(sets))
 	setIDs := make([]uuid.UUID, 0, len(sets))
-	for _, set := range sets {
+	for i, set := range sets {
 		setCodes[set.ID] = set.Code
 		setIDs = append(setIDs, set.ID)
+		before := in.imagesHosted.Load()
 		in.hostSetCover(ctx, set, set.Code)
+		if in.imagesHosted.Load() > before {
+			logger.Infof("[%d/%d] set %s: cover hosted", i+1, len(sets), set.Code)
+		} else {
+			logger.Infof("[%d/%d] set %s: no cover hosted (already hosted, no source address, or failed)", i+1, len(sets), set.Code)
+		}
 	}
 
 	if err := in.hostMissingCards(ctx, setIDs, setCodes); err != nil {
@@ -90,6 +96,15 @@ func (in *Ingester) hostMissingCards(ctx context.Context, setIDs []uuid.UUID, se
 		return fmt.Errorf("getting database handle: %w", err)
 	}
 
+	var total int64
+	if err := db.WithContext(ctx).Model(&entity.Card{}).
+		Where(hostMissingWhere+" AND expansion_set_id IN ?", setIDs).
+		Count(&total).Error; err != nil {
+		return fmt.Errorf("counting cards without a hosted image: %w", err)
+	}
+	logger.Infof("%d card(s) to host", total)
+
+	done := 0
 	cursor := uuid.Nil
 	for ctx.Err() == nil {
 		var batch []entity.Card
@@ -110,6 +125,8 @@ func (in *Ingester) hostMissingCards(ctx context.Context, setIDs []uuid.UUID, se
 			in.hostCardImage(ctx, card, setCodes[card.ExpansionSetID], card.LocalID)
 		}
 		cursor = batch[len(batch)-1].ID
+		done += len(batch)
+		logger.Infof("processed %d/%d card(s)", done, total)
 	}
 	return nil
 }
