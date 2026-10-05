@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -12,8 +13,10 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/go-jose/go-jose/v3"
 	josejwt "github.com/go-jose/go-jose/v3/jwt"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
+	"github.com/itsLeonB/ezutil/v2"
 	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -145,6 +148,34 @@ func TestClerkVerifier_RejectsBadTokens(t *testing.T) {
 
 		requireUnauthorized(t, err)
 	})
+}
+
+// recordingLogger captures Warnf so a test can see why a token was refused.
+type recordingLogger struct {
+	ezutil.Logger
+	warnings []string
+}
+
+func (r *recordingLogger) Warnf(format string, args ...any) {
+	r.warnings = append(r.warnings, fmt.Sprintf(format, args...))
+}
+
+// A 401 with a valid-looking token is otherwise undiagnosable in production:
+// the client only ever sees the generic message, so the reason must be logged.
+func TestClerkVerifier_LogsWhyATokenWasRefused(t *testing.T) {
+	key := newRSAKey(t)
+	claims := validClaims()
+	claims["azp"] = "https://www.cardstack.example"
+	recorder := &recordingLogger{Logger: logger.Global}
+	t.Cleanup(func(previous ezutil.Logger) func() { return func() { logger.Global = previous } }(logger.Global))
+	logger.Global = recorder
+
+	_, err := newTestVerifier(t, key).Verify(context.Background(), signToken(t, key, jose.RS256, claims))
+
+	requireUnauthorized(t, err)
+	require.Len(t, recorder.warnings, 1)
+	assert.Contains(t, recorder.warnings[0], "authorized party")
+	assert.Contains(t, recorder.warnings[0], "https://www.cardstack.example")
 }
 
 func TestClerkVerifier_RejectsAnUnknownKeyID(t *testing.T) {

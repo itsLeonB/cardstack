@@ -26,7 +26,7 @@ The API authenticates only by an `Authorization: Bearer` Clerk session token (AD
 
 - `CLERK_SECRET_KEY`: the instance's secret key, used to fetch its signing keys. Keep it out of the frontend.
 - `CLERK_ISSUER`: the instance's Frontend API URL, the `iss` claim of its tokens (for example `https://example.clerk.accounts.dev`). It is also the base64 payload of the publishable key, which is how the preview and end-to-end workflows derive it.
-- `APP_CLIENT_URLS`: the frontend origins, comma-separated, also used for CORS. A token minted for any other origin is rejected with 401. The preview workflow sets it to the Vercel preview URL after deploying it.
+- `APP_CLIENT_URLS`: the frontend origins, comma-separated, also used for CORS. A token minted for any other origin is rejected with 401, and the match is an exact string comparison: list every origin the site is served from (`https://www.example.com` and `https://example.com` are two), with no trailing slash and no space after a comma. The API logs `refusing token: ... authorized party "<origin>"` for a rejected origin, so a 401 with a valid-looking token is diagnosable from the Railway logs. The preview workflow sets it to the Vercel preview URL after deploying it.
 
 Rollout order matters, because nothing enforces it. `preserve()` in `railway.ts` keeps an existing `CLERK_SECRET_KEY` and `CLERK_ISSUER` but never creates them, and the migration runs before the new API starts. Set `CLERK_SECRET_KEY`, `CLERK_ISSUER` and `APP_CLIENT_URLS` (the production frontend origin) in Railway production before merging, or the migration deletes every user and drops the old auth tables while the new API exits at boot and the old one keeps running against the changed schema.
 

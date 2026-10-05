@@ -8,6 +8,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/jwt"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/ungerr"
 )
@@ -48,6 +49,10 @@ func NewClerkVerifier(issuer string, authorizedParties []string, keys KeySource)
 func (v *ClerkVerifier) Verify(ctx context.Context, token string) (dto.AuthIdentity, error) {
 	identity, err := v.verify(ctx, token)
 	if errors.Is(err, errInvalidToken) {
+		// The client only gets the generic message; without this a 401 for a
+		// well-formed token is undiagnosable (e.g. an origin missing from
+		// APP_CLIENT_URLS).
+		logger.Warnf("refusing token: %v", err)
 		return dto.AuthIdentity{}, ungerr.UnauthorizedError(invalidTokenMsg)
 	}
 
@@ -87,12 +92,12 @@ func (v *ClerkVerifier) verify(ctx context.Context, token string) (dto.AuthIdent
 	// Verify only checks that the issuer looks like a Clerk one, not that it is
 	// ours.
 	if claims.Issuer != v.issuer {
-		return dto.AuthIdentity{}, fmt.Errorf("%w: issuer", errInvalidToken)
+		return dto.AuthIdentity{}, fmt.Errorf("%w: issuer %q", errInvalidToken, claims.Issuer)
 	}
 	// A token without azp was not minted for any origin, so it is rejected
 	// rather than skipped.
 	if !slices.Contains(v.authorizedParties, claims.AuthorizedParty) {
-		return dto.AuthIdentity{}, fmt.Errorf("%w: authorized party", errInvalidToken)
+		return dto.AuthIdentity{}, fmt.Errorf("%w: authorized party %q", errInvalidToken, claims.AuthorizedParty)
 	}
 
 	custom, _ := claims.Custom.(*customClaims)
