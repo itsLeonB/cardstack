@@ -1,0 +1,21 @@
+backend/cmd/host-series-images/logos.go
+  s_fb2f326410532b::t_0106fd77799bab 96-97,102-103
+backend/cmd/host-series-images/logos_test.go
+  s_fb2f326410532b::t_7701acc334f0d9 122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "cd663271fda9db2a195121b17e5ed23835d07046",
+  "prompts": {},
+  "sessions": {
+    "s_fb2f326410532b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fb2f326410532b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
