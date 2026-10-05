@@ -50,8 +50,9 @@ func hostLogos(ctx context.Context, dir string, series crud.Repository[entity.Se
 
 	var sum summary
 	var errs error
-	for _, file := range files {
+	for i, file := range files {
 		code := strings.TrimSuffix(filepath.Base(file), ".webp")
+		logger.Infof("[%d/%d] series %q", i+1, len(files), code)
 		matched, uploaded, err := hostLogo(ctx, file, code, series, store)
 		sum.Matched += matched
 		if uploaded {

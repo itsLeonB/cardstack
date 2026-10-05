@@ -451,7 +451,8 @@ func TestCatalogRepository_SearchCards_CarriesImageKeys(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
 	set := fixture.newExpansionSet(t, db, nil, nil)
-	require.NoError(t, db.Model(&set).Update("image_key", "expansion-sets/set1").Error)
+	// The set's original (image_key) must not leak into the cover.
+	require.NoError(t, db.Model(&set).Updates(map[string]any{"image_key": "expansion-sets/set1", "cover_key": "expansion-sets/set1.0123abcd.webp"}).Error)
 	card := fixture.newCard(t, db, set.ID, nil)
 	require.NoError(t, db.Model(&card).Update("image_key", "cards/card1").Error)
 
@@ -462,7 +463,7 @@ func TestCatalogRepository_SearchCards_CarriesImageKeys(t *testing.T) {
 	require.Len(t, results, 1)
 	assert.Equal(t, card.ID, results[0].ID)
 	assert.Equal(t, "cards/card1", results[0].ImageKey)
-	assert.Equal(t, "expansion-sets/set1", results[0].ExpansionSetImageKey)
+	assert.Equal(t, "expansion-sets/set1.0123abcd.webp", results[0].ExpansionSetCoverKey)
 }
 
 func containsString(haystack []string, needle string) bool {

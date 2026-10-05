@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { formatReleaseDate } from "@/lib/date"
-import { imageSources } from "@/lib/image"
 
 export function ExpansionSetTile({
   expansionSet,
@@ -19,7 +18,6 @@ export function ExpansionSetTile({
   const [imageFailed, setImageFailed] = useState(false)
   const releaseDate = formatReleaseDate(expansionSet.releaseDate)
   const showImage = Boolean(expansionSet.imageUrl) && !imageFailed
-  const { src } = imageSources(expansionSet.imageUrl, "setCover")
 
   return (
     <Link
@@ -35,10 +33,11 @@ export function ExpansionSetTile({
       >
         {showImage && (
           // Wrapped so Card's `img:first-child` rules (zero top padding) don't apply. Decorative (the name sits
-          // beside it); fixed width/height reserve the slot so loading doesn't shift the tile.
+          // beside it); the cover is already 128px at host time (used as-is, no
+          // read-time rewrite); fixed width/height reserve the slot so loading doesn't shift the tile.
           <div className="ml-6 shrink-0">
             <img
-              src={src}
+              src={expansionSet.imageUrl}
               alt=""
               width={64}
               height={64}

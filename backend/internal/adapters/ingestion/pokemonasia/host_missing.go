@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/ungerr"
 	"gorm.io/gorm"
 )
 
@@ -43,10 +44,28 @@ func (in *Ingester) HostMissingImages(ctx context.Context, setFilter string) (Su
 	}
 	setCodes := make(map[uuid.UUID]string, len(sets))
 	setIDs := make([]uuid.UUID, 0, len(sets))
-	for _, set := range sets {
+	for i, set := range sets {
 		setCodes[set.ID] = set.Code
 		setIDs = append(setIDs, set.ID)
-		in.hostSetCover(ctx, set, set.Code)
+		switch {
+		case set.ImageKey != "":
+			logger.Infof("[%d/%d] set %s: cover already hosted", i+1, len(sets), set.Code)
+		case set.SourceImageURL == "":
+			logger.Infof("[%d/%d] set %s: no source address, nothing to host", i+1, len(sets), set.Code)
+		default:
+			in.failuresMu.Lock()
+			failedBefore := len(in.failures)
+			in.failuresMu.Unlock()
+			in.hostSetCover(ctx, set, set.Code)
+			in.failuresMu.Lock()
+			failed := len(in.failures) > failedBefore
+			in.failuresMu.Unlock()
+			if failed {
+				logger.Warnf("[%d/%d] set %s: cover failed (see the failure above), re-run to retry", i+1, len(sets), set.Code)
+			} else {
+				logger.Infof("[%d/%d] set %s: cover hosted", i+1, len(sets), set.Code)
+			}
+		}
 	}
 
 	if err := in.hostMissingCards(ctx, setIDs, setCodes); err != nil {
@@ -90,6 +109,15 @@ func (in *Ingester) hostMissingCards(ctx context.Context, setIDs []uuid.UUID, se
 		return fmt.Errorf("getting database handle: %w", err)
 	}
 
+	var total int64
+	if err := db.WithContext(ctx).Model(&entity.Card{}).
+		Where(hostMissingWhere+" AND expansion_set_id IN ?", setIDs).
+		Count(&total).Error; err != nil {
+		return ungerr.Wrap(err, "counting cards without a hosted image")
+	}
+	logger.Infof("%d card(s) to host", total)
+
+	done := 0
 	cursor := uuid.Nil
 	for ctx.Err() == nil {
 		var batch []entity.Card
@@ -110,6 +138,8 @@ func (in *Ingester) hostMissingCards(ctx context.Context, setIDs []uuid.UUID, se
 			in.hostCardImage(ctx, card, setCodes[card.ExpansionSetID], card.LocalID)
 		}
 		cursor = batch[len(batch)-1].ID
+		done += len(batch)
+		logger.Infof("processed %d/%d card(s)", done, total)
 	}
 	return nil
 }

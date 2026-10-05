@@ -48,3 +48,42 @@ func TestR2Store_Put_ReturnsErrorOnFailureStatus(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestR2Store_Get_ReadsObject(t *testing.T) {
+	var gotMethod, gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath = r.Method, r.URL.Path
+		_, _ = w.Write([]byte("png-bytes"))
+	}))
+	t.Cleanup(server.Close)
+
+	body, err := NewR2Store(r2TestConfig(server.URL)).Get(context.Background(), "expansion-sets/abc")
+
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodGet, gotMethod)
+	assert.Equal(t, "/images/expansion-sets/abc", gotPath)
+	assert.Equal(t, []byte("png-bytes"), body)
+}
+
+func TestR2Store_Get_ReturnsErrorOnMissingObject(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := NewR2Store(r2TestConfig(server.URL)).Get(context.Background(), "expansion-sets/abc")
+
+	assert.Error(t, err)
+}
+
+func TestR2Store_Get_RejectsObjectOverSizeCap(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(make([]byte, maxGetBytes+1))
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := NewR2Store(r2TestConfig(server.URL)).Get(context.Background(), "expansion-sets/huge")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "larger than")
+}
