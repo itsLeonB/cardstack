@@ -1,0 +1,23 @@
+backend/cmd/host-series-images/logos.go
+  s_a7e52e11466286::t_cde7e929232122 53,55
+backend/internal/adapters/ingestion/pokemonasia/host_missing.go
+  s_a7e52e11466286::t_374fcdeb4ed499 46,49,51-55,99-107,128-129
+docs/agents/conventions/backend.md
+  s_a7e52e11466286::t_219a01d089661d 32-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "912ec40c48232cd479bdb4afbe7c71cdaaae9b2b",
+  "prompts": {},
+  "sessions": {
+    "s_a7e52e11466286": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a7e52e11466286",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
