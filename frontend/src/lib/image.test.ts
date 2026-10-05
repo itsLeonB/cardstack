@@ -24,12 +24,6 @@ describe("imageSources", () => {
     })
   })
 
-  it("sizes an Expansion Set cover at 128 with no source set", () => {
-    expect(imageSources(`${HOST}/expansion-sets/set-1`, "setCover")).toEqual({
-      src: `${HOST}/cdn-cgi/image/width=128,format=auto,onerror=redirect/expansion-sets/set-1`,
-    })
-  })
-
   it("returns an empty address unchanged", () => {
     expect(imageSources("", "cardTile")).toEqual({ src: "" })
   })

@@ -40,21 +40,16 @@ describe("ExpansionSetTile", () => {
     )
   })
 
-  it("requests a 128 wide cover from the image host and keeps the 64px slot", () => {
+  it("loads the hosted cover as-is, even from the image host, and keeps the 64px slot", () => {
     vi.stubEnv("VITE_IMAGE_HOST", "https://img.example.com")
+    const imageUrl =
+      "https://img.example.com/expansion-sets/set-1.ab12cd34.webp"
     const { container } = render(
-      <ExpansionSetTile
-        expansionSet={{
-          ...expansionSet,
-          imageUrl: "https://img.example.com/expansion-sets/set-1",
-        }}
-      />
+      <ExpansionSetTile expansionSet={{ ...expansionSet, imageUrl }} />
     )
     const img = container.querySelector("img")!
 
-    expect(img.getAttribute("src")).toBe(
-      "https://img.example.com/cdn-cgi/image/width=128,format=auto,onerror=redirect/expansion-sets/set-1"
-    )
+    expect(img.getAttribute("src")).toBe(imageUrl)
     expect(img.getAttribute("width")).toBe("64")
     expect(img.getAttribute("height")).toBe("64")
   })
