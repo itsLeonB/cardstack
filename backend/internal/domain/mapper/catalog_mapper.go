@@ -35,7 +35,7 @@ func ToExpansionSetSummary(host ImageHost, set entity.ExpansionSet) dto.Expansio
 		Code:        set.Code,
 		Name:        set.Name,
 		ReleaseDate: set.ReleaseDate,
-		ImageURL:    host.URL(set.ImageKey),
+		ImageURL:    host.URL(set.CoverKey),
 	}
 }
 
@@ -61,7 +61,7 @@ func ToCardSummary(host ImageHost, r repository.CardResult) dto.CardSummary {
 			Code:        r.ExpansionSetCode,
 			Name:        r.ExpansionSetName,
 			ReleaseDate: r.ExpansionSetReleaseDate,
-			ImageURL:    host.URL(r.ExpansionSetImageKey),
+			ImageURL:    host.URL(r.ExpansionSetCoverKey),
 		},
 		LocalID:  r.LocalID,
 		Name:     r.Name,

@@ -13,6 +13,7 @@ packages:
     interfaces:
       CatalogRepository:
       CollectionRepository:
+      ExpansionSetRepository:
       InventoryRepository:
       UserRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:

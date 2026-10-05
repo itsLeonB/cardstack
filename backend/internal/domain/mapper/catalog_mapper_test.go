@@ -33,11 +33,11 @@ func TestImageHost_URL(t *testing.T) {
 func TestToExpansionSetSummary_BuildsImageURLFromKey(t *testing.T) {
 	host := NewImageHost(testImageBase)
 
-	hosted := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", ImageKey: "expansion-sets/x", SourceImageURL: "https://source.test/x.png"})
-	assert.Equal(t, testImageBase+"/expansion-sets/x", hosted.ImageURL)
+	hosted := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", CoverKey: "expansion-sets/x.0123abcd.webp", ImageKey: "expansion-sets/orig", SourceImageURL: "https://source.test/x.png"})
+	assert.Equal(t, testImageBase+"/expansion-sets/x.0123abcd.webp", hosted.ImageURL)
 
-	unhosted := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", SourceImageURL: "https://source.test/x.png"})
-	assert.Empty(t, unhosted.ImageURL, "a set with no key must not fall back to its source address")
+	unhosted := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", ImageKey: "expansion-sets/orig", SourceImageURL: "https://source.test/x.png"})
+	assert.Empty(t, unhosted.ImageURL, "a set with no cover key must not fall back to its original or source address")
 }
 
 func TestToSeriesSummary_BuildsImageURLFromKey(t *testing.T) {
@@ -53,9 +53,9 @@ func TestToSeriesSummary_BuildsImageURLFromKey(t *testing.T) {
 func TestToCardSummary_BuildsImageURLsFromKeys(t *testing.T) {
 	host := NewImageHost(testImageBase)
 
-	got := ToCardSummary(host, repository.CardResult{ImageKey: "cards/c1", ExpansionSetImageKey: "expansion-sets/s1"})
+	got := ToCardSummary(host, repository.CardResult{ImageKey: "cards/c1", ExpansionSetCoverKey: "expansion-sets/s1.0123abcd.webp"})
 	assert.Equal(t, testImageBase+"/cards/c1", got.ImageURL)
-	assert.Equal(t, testImageBase+"/expansion-sets/s1", got.ExpansionSet.ImageURL)
+	assert.Equal(t, testImageBase+"/expansion-sets/s1.0123abcd.webp", got.ExpansionSet.ImageURL)
 
 	unhosted := ToCardSummary(host, repository.CardResult{})
 	assert.Empty(t, unhosted.ImageURL)

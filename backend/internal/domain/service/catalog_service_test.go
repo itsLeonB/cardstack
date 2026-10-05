@@ -159,7 +159,7 @@ func TestCatalogService_SearchCards_MapsResultsAndNormalizesPagination(t *testin
 			ExpansionSetID:       setID,
 			ExpansionSetCode:     "sv1",
 			ExpansionSetName:     "Scarlet ex",
-			ExpansionSetImageKey: "expansion-sets/sv1",
+			ExpansionSetCoverKey: "expansion-sets/sv1",
 		},
 	}
 

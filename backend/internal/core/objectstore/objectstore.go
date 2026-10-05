@@ -11,4 +11,7 @@ type ObjectStore interface {
 	// Put writes body under key with the given content type, replacing any
 	// existing object, so a retry after a partial failure is safe.
 	Put(ctx context.Context, key, contentType string, body []byte) error
+	// Get reads the object stored under key. It fails, rather than
+	// truncating, when the object exceeds the store's size cap.
+	Get(ctx context.Context, key string) ([]byte, error)
 }

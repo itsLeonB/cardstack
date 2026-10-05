@@ -45,7 +45,7 @@ func TestCatalogImageURLs(t *testing.T) {
 
 	hostedSet := entity.ExpansionSet{GameID: game.ID, Code: "hosted-" + s, Name: "Hosted " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png"}
 	require.NoError(t, db.Create(&hostedSet).Error)
-	require.NoError(t, db.Model(&hostedSet).Update("image_key", "expansion-sets/"+hostedSet.ID.String()).Error)
+	require.NoError(t, db.Model(&hostedSet).Updates(map[string]any{"image_key": "expansion-sets/" + hostedSet.ID.String(), "cover_key": "expansion-sets/" + hostedSet.ID.String() + ".0123abcd.webp"}).Error)
 	unhostedSet := entity.ExpansionSet{GameID: game.ID, Code: "unhosted-" + s, Name: "Unhosted " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png"}
 	require.NoError(t, db.Create(&unhostedSet).Error)
 
@@ -70,7 +70,7 @@ func TestCatalogImageURLs(t *testing.T) {
 		}
 		require.Len(t, byID, 2)
 		assert.Equal(t, testImageBase+"/cards/hosted-"+s, byID[hostedCard.ID].ImageURL)
-		assert.Equal(t, testImageBase+"/expansion-sets/"+hostedSet.ID.String(), byID[hostedCard.ID].ExpansionSet.ImageURL)
+		assert.Equal(t, testImageBase+"/expansion-sets/"+hostedSet.ID.String()+".0123abcd.webp", byID[hostedCard.ID].ExpansionSet.ImageURL)
 		assert.Empty(t, byID[unhostedCard.ID].ImageURL, "no key means no image, never the source address")
 		assert.Empty(t, byID[unhostedCard.ID].ExpansionSet.ImageURL)
 	})
@@ -85,7 +85,7 @@ func TestCatalogImageURLs(t *testing.T) {
 		for _, set := range body.Data.UngroupedExpansionSets {
 			urls[set.ID] = set.ImageURL
 		}
-		assert.Equal(t, testImageBase+"/expansion-sets/"+hostedSet.ID.String(), urls[hostedSet.ID])
+		assert.Equal(t, testImageBase+"/expansion-sets/"+hostedSet.ID.String()+".0123abcd.webp", urls[hostedSet.ID])
 		assert.Empty(t, urls[unhostedSet.ID])
 		_, listed := urls[unhostedSet.ID]
 		assert.True(t, listed, "the unhosted set is still listed")
