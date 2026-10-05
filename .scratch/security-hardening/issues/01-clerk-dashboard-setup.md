@@ -33,4 +33,4 @@
 
 **Clerk development settings (wizard run 2026-10-03):** lockout: enabled; enumeration: enabled; bot: enabled.
 
-**Clerk development settings (wizard run 2026-10-05):** lockout: enabled; enumeration: enabled; bot: enabled.
+**Clerk production settings (wizard run 2026-10-05):** lockout: enabled; enumeration: enabled; bot: enabled.
