@@ -1,0 +1,31 @@
+.claude/agents/backend-agent.md
+  s_597d96847c8cff::t_b05cabcdce8d00 18,20,22,44
+.claude/agents/frontend-agent.md
+  s_597d96847c8cff::t_bec5310e6f1742 16,18,22,46
+.claude/hooks/remind-serena-for-code-reads.sh
+  s_597d96847c8cff::t_15f37f8cea5be8 4-7
+.scratch/agent-tooling/issues/01-serena-per-worktree-subagents.md
+  s_597d96847c8cff::t_d146092ffc1fe5 1-84
+AGENTS.md
+  s_597d96847c8cff::t_1f56449f49e42c 41
+docs/agents/conventions/serena.md
+  s_597d96847c8cff::t_8e6b48c3072bca 3,5-10
+docs/agents/orchestration.md
+  s_597d96847c8cff::t_25631b63574beb 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "55732ec2febb7d7376132fa57d2393e710e211b3",
+  "prompts": {},
+  "sessions": {
+    "s_597d96847c8cff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_597d96847c8cff",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
