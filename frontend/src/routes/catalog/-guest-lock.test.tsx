@@ -67,7 +67,13 @@ const facets = {
 }
 const series = {
   series: [
-    { id: "sr1", code: "SV", name: "Scarlet", expansionSets: [expansionSet] },
+    {
+      id: "sr1",
+      code: "SV",
+      name: "Scarlet",
+      imageUrl: "",
+      expansionSets: [expansionSet],
+    },
   ],
   ungroupedExpansionSets: [],
 }
