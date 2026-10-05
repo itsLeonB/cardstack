@@ -62,4 +62,4 @@ Grilling round (maintainer-confirmed):
 - Existing scattered mappings (`auth_handler.go`'s switch) get migrated onto the same taxonomy — one consistent path, not two.
 - Raw errors are always logged server-side in full even when the client response is redacted; trace-id correlation is a nice-to-have.
 
-Recorded as ADR-0013 (`docs/adr/0013-error-classification-via-ungerr-at-a-huma-level-seam.md`). No `CONTEXT.md` entry — this is infrastructure/technical, not business-domain vocabulary.
+Recorded as ADR-0013 (`docs/adr/0013-error-classification-via-ungerr-at-a-huma-level-seam.md`). No `GLOSSARY.md` entry — this is infrastructure/technical, not business-domain vocabulary.

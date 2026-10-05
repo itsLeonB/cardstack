@@ -27,7 +27,7 @@
 - `CatalogRepository.ListSeries`: must order by each Series's derived earliest Expansion Set `release_date`, descending, unknown-last, tied-broken by name ascending — instead of today's `name ASC` only. This requires joining/aggregating against Expansion Sets rather than querying `Series` alone.
 - `CatalogRepository.ListExpansionSets` / `ListUngroupedExpansionSets`: flip from `release_date ASC NULLS LAST` to `release_date DESC NULLS LAST`; existing name tie-breaker stays ascending.
 - `CatalogRepository.SearchCards`: flip its Expansion-Set-release-date ordering component from ascending to `DESC NULLS LAST`; all of its other existing tie-breakers stay ascending.
-- `Series` entity: no new field. Its release date for ordering purposes is derived, never persisted (see `CONTEXT.md`'s Series entry, updated during triage to record this).
+- `Series` entity: no new field. Its release date for ordering purposes is derived, never persisted (see `GLOSSARY.md`'s Series entry, updated during triage to record this).
 - Database schema: a new index on `expansion_sets.release_date`.
 
 **Acceptance criteria:**
@@ -65,4 +65,4 @@ Grilling round (maintainer-confirmed decisions):
 - All existing tie-breakers stay ascending; only the release-date axis flips.
 - An index on `expansion_sets.release_date` is added proactively per the maintainer's standing preference ("good engineering behavior to index a sortable column on a growing table"), not because current data volume demands it.
 
-Domain modeling: added one sentence to `CONTEXT.md`'s Series glossary entry recording that Series's release date is derived (not stored), cross-referencing ADR-0008. No new ADR — this is a query-ordering decision, not a hard-to-reverse architectural one (ADR-0008 already covers the "Series as first-class entity" decision this builds on).
+Domain modeling: added one sentence to `GLOSSARY.md`'s Series glossary entry recording that Series's release date is derived (not stored), cross-referencing ADR-0008. No new ADR — this is a query-ordering decision, not a hard-to-reverse architectural one (ADR-0008 already covers the "Series as first-class entity" decision this builds on).

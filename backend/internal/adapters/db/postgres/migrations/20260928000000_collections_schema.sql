@@ -1,7 +1,7 @@
 -- +goose Up
 
 -- Collections (ticket 06): a profile-owned, named grouping of Cards with
--- quantities (a binder/box/deck; see CONTEXT.md's Collection entry).
+-- quantities (a binder/box/deck; see GLOSSARY.md's Collection entry).
 -- max_card_count is an optional hard cap (0 = no limit) on the collection's summed
 -- Inventory Entry quantities, enforced when Inventory Entries are written
 -- (a later ticket) - nothing in this schema tracks quantities yet.

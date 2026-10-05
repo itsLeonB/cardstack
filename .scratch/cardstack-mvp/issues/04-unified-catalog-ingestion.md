@@ -31,7 +31,7 @@ Planning/grilling session, 2026-09-23 — full plan at `.scratch/cardstack-mvp/p
 - **Rarity**: promoted to a first-class `rarities` lookup table (`(game_id, code)`, find-or-create, not seeded) rather than a plain `cards.rarity TEXT` column — raw source codes (`SSR`/`BWR`/`MUR`/...) are illegible without a name attached. See ADR-0009 and the new checklist item above.
 - **Regulation**: captured into `cards.attributes.regulation` (site's own label text) via 3 partitioned scrape passes (`regulation=1/2/3`) per Expansion Set instead of 1 (`=all`) — same total request volume, gets the field for free. Not filterable/indexed for now.
 - **Pokémon special markers** (`ex`/`V`/`GX`/`VMAX`/...): not modeled as Card Tag — the source only bakes them into the card's display name, no structured field. Captured best-effort into `cards.attributes` via a cheap name-suffix heuristic; exact extraction (per-marker query-bucketing) was rejected as ~15-20x the list-page request volume for a field nothing filters on yet.
-- `CONTEXT.md` and `docs/adr/0009-...md` updated accordingly; `spec.md`'s Domain shape bullet and ADR count updated.
+- `GLOSSARY.md` and `docs/adr/0009-...md` updated accordingly; `spec.md`'s Domain shape bullet and ADR count updated.
 
 Implementation, 2026-09-23 — `backend-agent` in worktree, commit `0981352` (`feat(backend): replace tcgdex ingestion with pokemon-asia scraper`), merged into `feat/pokemon-asia-scraping`. `go build/vet/gofmt/test ./...` clean; mapper/client/idempotency tests pass against real local Postgres; architecture-level Standards + Spec review (two-axis, scoped to the full commit diff) found no hard issues.
 

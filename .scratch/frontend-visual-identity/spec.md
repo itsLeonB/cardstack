@@ -126,7 +126,7 @@ Give the app a coherent, mobile-first visual identity and one shared way to lay 
 - Server rendering, per-route Open Graph images, and a sitemap of individual cards.
 - Token refresh and the session-expired notice (existing ticket 31); collection card counts and clickable cards (19); guest catalog locking (24); catalog set images, ordering and infinite scroll (13, 14, 25); backend auth error sanitizing (30). These stay as separate tickets and may merge-conflict mildly with the layout migration.
 - Privacy policy, terms, forgot-password, email verification, social login (ADR-0004).
-- New game or region support, wishlist, or any domain-model change. No `CONTEXT.md` or ADR change is needed.
+- New game or region support, wishlist, or any domain-model change. No `GLOSSARY.md` or ADR change is needed.
 
 ## Further Notes
 

@@ -8,7 +8,7 @@ import (
 )
 
 // ExpansionSet is a released batch of cards within a Game, scoped to one
-// print edition/region (see CONTEXT.md — never assumed shared across
+// print edition/region (see GLOSSARY.md — never assumed shared across
 // regions). Code is the upstream source's own set ID (e.g. TCGDex's
 // "SV1V"); LocaleID is descriptive source metadata, not part of the natural
 // key, which is (GameID, Code). SeriesID optionally groups this set under a

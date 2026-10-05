@@ -69,7 +69,7 @@ Without a virtualizer (the recommended baseline) the same trigger is an Intersec
 
 **Confirmed.** Results render as `ul.grid` with `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4` (viewport breakpoints) inside `PageContainer variant="wide"` (`max-w-6xl`, i.e. 1152 px). Each tile is a `Card` with a lazy `<img loading="lazy">` (`aspect-[5/7] w-full`), a name link, a set link, rarity and category badges, optional tag badges, and an optional control slot (the `QuantityControl`: two buttons with SVG icons and a number input). Source: `frontend/src/components/catalog/card-results.tsx`, `card-tile.tsx`, `components/collections/quantity-control.tsx`, `components/layout/page-container.tsx`. The app shell uses window scrolling with a `sticky top-0 z-40` header: `components/layout/app-shell.tsx`, `site-header.tsx:39`.
 
-**Confirmed.** The data sizes: the catalog holds 12,119 distinct cards (`issues/04-unified-catalog-ingestion.md`, manual verification section); a Collection is bounded by the user's own data and an optional `maxCardCount` (hundreds at most per the ticket; `CONTEXT.md` Collection definition).
+**Confirmed.** The data sizes: the catalog holds 12,119 distinct cards (`issues/04-unified-catalog-ingestion.md`, manual verification section); a Collection is bounded by the user's own data and an optional `maxCardCount` (hundreds at most per the ticket; `GLOSSARY.md` Collection definition).
 
 ### 2.2 The pattern: virtualize rows, chunk items into columns
 

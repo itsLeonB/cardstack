@@ -21,7 +21,7 @@ CREATE TABLE locales (
 CREATE UNIQUE INDEX idx_locales_code ON locales (code);
 
 -- locale_id is descriptive source metadata, not part of the natural key: see
--- docs/adr/0001 and CONTEXT.md's Expansion Set entry. (game_id, code) is
+-- docs/adr/0001 and GLOSSARY.md's Expansion Set entry. (game_id, code) is
 -- already unique per confirmed source behavior — a set code like "SV1V"
 -- only ever exists under one locale for a given upstream source. No
 -- ON DELETE CASCADE on locale_id: locales is shared reference data, so

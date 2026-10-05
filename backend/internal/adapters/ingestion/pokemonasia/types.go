@@ -17,7 +17,7 @@ type expansionListing struct {
 
 // cardDetail is the parsed content of one GET /card-search/detail/{id}/
 // page. RegulationMark is this page's own section.expansionColumn span.alpha
-// field — a format-legality control (see CONTEXT.md's Regulation Mark
+// field — a format-legality control (see GLOSSARY.md's Regulation Mark
 // entry / ADR-0010), not a rarity. The card's actual print rarity isn't on
 // this page at all; it's resolved separately via the results-list rarity
 // filter (see ingest.go's sweepRarities) and passed straight to

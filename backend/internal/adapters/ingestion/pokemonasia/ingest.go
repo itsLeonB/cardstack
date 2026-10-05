@@ -611,7 +611,7 @@ func (in *Ingester) resolveRarityID(ctx context.Context, code string) (uuid.UUID
 }
 
 // staleRegulationMarkCodes is the set of single-letter Regulation Mark
-// codes (see CONTEXT.md) the pre-fix ingester mistakenly wrote into
+// codes (see GLOSSARY.md) the pre-fix ingester mistakenly wrote into
 // rarities.code instead of a real Kelangkaan rarity code (ticket 11 /
 // ADR-0010). "A" and "C" are deliberately excluded even though the same bug
 // produced them too: both are also genuine, currently-valid Kelangkaan

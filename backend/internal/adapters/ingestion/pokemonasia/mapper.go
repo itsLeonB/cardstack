@@ -189,7 +189,7 @@ func parseCardDetail(doc *goquery.Document) cardDetail {
 	}
 
 	// section.expansionColumn span.alpha is the card's Regulation Mark, not
-	// its rarity (see cardDetail's doc comment / CONTEXT.md's Regulation
+	// its rarity (see cardDetail's doc comment / GLOSSARY.md's Regulation
 	// Mark entry) — the selector is unchanged from the pre-fix ingester,
 	// only what it's called and stored as.
 	regulationMark := strings.TrimSpace(doc.Find("section.expansionColumn span.alpha").First().Text())

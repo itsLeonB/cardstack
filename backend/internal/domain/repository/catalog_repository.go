@@ -119,7 +119,7 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 // nil, ordered the same way ListExpansionSets orders each Series's sets: by
 // release date, most recent first (sets with an unknown release date sort
 // last), then name. A series-less Expansion Set is a legitimate domain state
-// (see CONTEXT.md's Series entry), not an edge case to special-case away -
+// (see GLOSSARY.md's Series entry), not an edge case to special-case away -
 // this is how it's surfaced through GET /catalog/series alongside the grouped
 // Series.
 func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {

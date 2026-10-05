@@ -28,7 +28,7 @@ type SeriesSummary struct {
 
 // SeriesBrowseResult is GET /catalog/series's response. Series is optional
 // on Expansion Set - "a Game with no Series data simply has Expansion Sets
-// belonging to none, not a special case to work around" (see CONTEXT.md's
+// belonging to none, not a special case to work around" (see GLOSSARY.md's
 // Series entry) - so UngroupedExpansionSets surfaces every Expansion Set
 // with no Series directly, rather than nesting it under a fake Series
 // record just to fit the same shape as the rest.

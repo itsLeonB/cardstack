@@ -7,7 +7,7 @@ import (
 )
 
 // Card is a specific printed card design within exactly one ExpansionSet
-// (see CONTEXT.md); number and rarity are scoped to that set, not shared
+// (see GLOSSARY.md); number and rarity are scoped to that set, not shared
 // across regions. LocalID is the upstream source's own per-set card number
 // (e.g. pokemon-card.com's collector number "001" out of "001/126") —
 // stored as text since it's zero-padded and some sets carry non-numeric

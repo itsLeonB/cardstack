@@ -6,7 +6,7 @@ import (
 )
 
 // Collection is a profile-owned, named grouping of Cards with quantities (a
-// binder, box, or deck; see CONTEXT.md's Collection entry). MaxCardCount is
+// binder, box, or deck; see GLOSSARY.md's Collection entry). MaxCardCount is
 // an optional hard cap on the collection's summed Inventory Entry
 // quantities - 0 means no limit. It's only a validation ceiling for later
 // Inventory Entry writes (a later ticket); nothing here tracks quantities.

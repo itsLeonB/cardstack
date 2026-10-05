@@ -22,7 +22,7 @@ Same shape as #14: `Series` gains a non-nullable `ImageURL` string (default `""`
 This ticket was investigated during triage and one candidate was found, but it comes with a judgment call this repo's own domain model says not to make lightly:
 
 - TCGdex's API has a documented, stable `logo` field on its `Serie` object. Verified live: under TCGdex's **English/international locale**, all 4 target series (`sv`, `swsh`, `sm`, `me`) return working logo URLs.
-- TCGdex also has an **Indonesian locale** (`id`), which would be the locale-correct match for this codebase's Indonesian-only Series/Expansion Set data (CONTEXT.md: "a Series is not assumed shared across regions"). But verified live, TCGdex's `id` locale only has 2 of the 4 target series at all (`SV` = Scarlet & Violet, `S` = Pedang & Perisai — missing Sun & Moon and Mega Evolution entirely), and **neither of those two has a `logo` field populated**.
+- TCGdex also has an **Indonesian locale** (`id`), which would be the locale-correct match for this codebase's Indonesian-only Series/Expansion Set data (GLOSSARY.md: "a Series is not assumed shared across regions"). But verified live, TCGdex's `id` locale only has 2 of the 4 target series at all (`SV` = Scarlet & Violet, `S` = Pedang & Perisai — missing Sun & Moon and Mega Evolution entirely), and **neither of those two has a `logo` field populated**.
 - So the only asset that actually exists for all 4 series is the English/international one — not Indonesian-sourced. Whether that's an acceptable proxy (same underlying artwork/wordmark reused globally, vs. a real locale mismatch worth avoiding) is a call the maintainer should make, not one an agent should infer silently.
 - TCGdex was also this project's *former* ingestion source, fully replaced and removed per ADR-0008. Reintroducing it — even read-only, even just for 4 logo lookups — is a dependency decision worth a maintainer's eyes, not something to decide implicitly inside an agent brief.
 
@@ -39,6 +39,6 @@ Triage session, 2026-09-28 — split out from the same `/triage` request as #14 
 Investigated during triage:
 - Live-fetched pokemonasia's `/card-search` page: confirmed no image/icon anywhere for Series, only the free-text `span.series` label — consistent with ADR-0008.
 - Live-queried TCGdex's API (`api.tcgdex.net/v2/en/series` and `/v2/id/series`, plus individual serie detail endpoints): EN locale has a working `logo` per series for all 4 targets; Indonesian locale has only 2 of 4 series and no logo field on either.
-- Maintainer flagged the locale mismatch as a real concern before this was written up as `ready-for-agent`, consistent with CONTEXT.md's standing regional-scoping invariant. Maintainer's direction: park this for now, research further later — recording the finding here rather than committing to the EN-locale proxy or discarding it.
+- Maintainer flagged the locale mismatch as a real concern before this was written up as `ready-for-agent`, consistent with GLOSSARY.md's standing regional-scoping invariant. Maintainer's direction: park this for now, research further later — recording the finding here rather than committing to the EN-locale proxy or discarding it.
 
 No `.out-of-scope/` entry: this isn't a rejection, it's parked pending more research — do not treat this as "won't do."
