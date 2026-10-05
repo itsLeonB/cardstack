@@ -100,6 +100,9 @@ async function stubCatalog(
 async function openCatalog(page: Page) {
   await stubEmptyLists(page)
   await signInAsTestUser(page)
+  // Below the md breakpoint the header links live behind the menu button.
+  const menu = page.getByRole("button", { name: "Menu", exact: true })
+  if (await menu.isVisible()) await menu.click()
   await page
     .getByRole("banner")
     .getByRole("link", { name: "Catalog", exact: true })

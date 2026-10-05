@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/react"
 import { useRouter } from "@tanstack/react-router"
 import { clerkAppearance } from "@/lib/clerk-appearance"
 import { AFTER_SIGN_IN_PATH, LOGIN_PATH, REGISTER_PATH } from "@/lib/auth-paths"
+import { carryRedirect } from "@/lib/route-guard"
 import { ClerkBridge } from "./clerk-bridge"
 
 /**
@@ -33,8 +34,15 @@ export function AppClerkProvider({ children }: { children: React.ReactNode }) {
       afterSignOutUrl="/"
       // The router, not a full page load, so Clerk's steps and redirects keep
       // the SPA's state. `history.push` takes the query string `navigate({ to })` can't.
-      routerPush={(to) => router.history.push(to)}
-      routerReplace={(to) => router.history.replace(to)}
+      // `carryRedirect`: Clerk's own steps would otherwise drop `?redirect=`.
+      routerPush={(to) =>
+        router.history.push(carryRedirect(to, router.history.location.search))
+      }
+      routerReplace={(to) =>
+        router.history.replace(
+          carryRedirect(to, router.history.location.search)
+        )
+      }
     >
       <ClerkBridge />
       {children}

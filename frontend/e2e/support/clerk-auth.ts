@@ -95,11 +95,50 @@ export async function signInThroughForm(
   // Clerk shows the password on the same step as the email or on a second one,
   // depending on the instance's settings.
   const passwordField = page.getByLabel("Password", { exact: true })
-  const continueButton = page.getByRole("button", { name: "Continue" })
+  const continueButton = page.getByRole("button", {
+    name: "Continue",
+    // Not a substring match: "Continue with Google" is on the same form.
+    exact: true,
+  })
   await passwordField.or(continueButton).first().waitFor({ state: "visible" })
   if (!(await passwordField.isVisible())) await continueButton.click()
-  await fillSecret(passwordField, password ?? testUser.password)
+  const typed = password ?? testUser.password
+  await fillSecret(passwordField, typed)
+  // Registered before the click so the response cannot be missed. The code
+  // field shows up before Clerk has sent the code, and a code typed in that
+  // gap is refused ("send a verification code before attempting to verify").
+  const codeSent = page.waitForResponse((res) =>
+    res.url().includes("/prepare_second_factor")
+  )
+  codeSent.catch(() => {}) // only awaited when a code is asked for
   await continueButton.click()
+
+  // Clerk submits a password typed on the first step straight away. When it is
+  // wrong, Clerk drops to an explicit password step with no error, so type it
+  // again there to get the error. A device Clerk has not seen (every CI run)
+  // asks for an emailed code; the test user's +clerk_test address accepts
+  // 424242. Neither prompt shows when Clerk trusts the device.
+  const passwordStep = page.getByRole("heading", {
+    name: "Enter your password",
+  })
+  const codeField = page.getByRole("textbox", {
+    name: "Enter verification code",
+  })
+  const prompted = await passwordStep
+    .or(codeField)
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(
+      () => true,
+      () => false
+    )
+  if (!prompted) return
+  if (await passwordStep.isVisible()) {
+    await fillSecret(passwordField, typed)
+    await continueButton.click()
+    return
+  }
+  await codeSent
+  await codeField.fill("424242")
 }
 
 // A plain toContainText would print the email in a failure message.
