@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/ungerr"
 )
 
@@ -33,7 +34,11 @@ func vipsResize(ctx context.Context, original []byte) ([]byte, error) {
 	if err != nil {
 		return nil, ungerr.Wrap(err, "creating temp dir")
 	}
-	defer os.RemoveAll(dir) //nolint:errcheck // best-effort cleanup of a temp dir
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			logger.Errorf("removing temp dir %s: %v", dir, err)
+		}
+	}()
 
 	in, out := filepath.Join(dir, "original"), filepath.Join(dir, "cover.webp")
 	if err := os.WriteFile(in, original, 0o600); err != nil {
