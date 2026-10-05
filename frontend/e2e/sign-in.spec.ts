@@ -47,8 +47,10 @@ test.describe("Sign-in with Clerk", { tag: SIGNED_IN_TAG }, () => {
       password: "definitely-not-the-password-1A!",
     })
 
-    await expect(page.getByText(/password is incorrect/i)).toBeVisible()
-    await expect(page).toHaveURL(/\/auth\/login$/)
+    // `.first()`: Clerk repeats the message in a screen-reader live region.
+    await expect(page.getByText(/password is incorrect/i).first()).toBeVisible()
+    // Still on sign-in, possibly on its explicit password step (`factor-one`).
+    await expect(page).toHaveURL(/\/auth\/login(\/factor-one)?$/)
 
     // Still a guest: a private page bounces back to sign-in.
     await page.goto("/collections")

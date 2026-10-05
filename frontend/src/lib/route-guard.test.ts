@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 import { isRedirect } from "@tanstack/react-router"
 import type { AuthGate } from "./clerk-auth"
-import { isSameOriginPath, requireAuth, requireGuest } from "./route-guard"
+import {
+  carryRedirect,
+  isSameOriginPath,
+  requireAuth,
+  requireGuest,
+} from "./route-guard"
 
 function gate(signedIn: boolean): AuthGate {
   return { isSignedIn: async () => signedIn }
@@ -128,5 +133,37 @@ describe("isSameOriginPath", () => {
     "/ok\u0000",
   ])("rejects %s", (path) => {
     expect(isSameOriginPath(path)).toBe(false)
+  })
+})
+
+describe("carryRedirect", () => {
+  const search = "?redirect=%2Fcollections%3Fq%3Dbinder"
+
+  it.each([
+    "/auth/login/client-trust",
+    "/auth/login/factor-one",
+    "/auth/register/verify-email-address",
+  ])("keeps the redirect when Clerk steps to %s", (to) => {
+    expect(carryRedirect(to, search)).toBe(
+      `${to}?redirect=%2Fcollections%3Fq%3Dbinder`
+    )
+  })
+
+  it.each([
+    [
+      "a step that names its own redirect",
+      "/auth/login/x?redirect=%2Fa",
+      search,
+    ],
+    ["a page outside the auth flow", "/account", search],
+    ["a step with no redirect to carry", "/auth/login/client-trust", ""],
+    [
+      "an off-site redirect",
+      "/auth/login/client-trust",
+      "?redirect=%2F%2Fevil.example",
+    ],
+    ["an absolute address", "https://x.example/auth/login/y", search],
+  ])("leaves %s alone", (_name, to, current) => {
+    expect(carryRedirect(to, current)).toBe(to)
   })
 })

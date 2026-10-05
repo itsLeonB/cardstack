@@ -1,6 +1,6 @@
 import { redirect } from "@tanstack/react-router"
 import { z } from "zod"
-import { LOGIN_PATH } from "./auth-paths"
+import { LOGIN_PATH, REGISTER_PATH } from "./auth-paths"
 import type { AuthGate } from "./clerk-auth"
 
 interface GuardContext {
@@ -40,6 +40,28 @@ const redirectSchema = z
 
 /** `validateSearch` for login and register. */
 export const redirectSearchSchema = z.object({ redirect: redirectSchema })
+
+/**
+ * Clerk moves between its steps (`client-trust`, `factor-one`, ...) by pushing
+ * a bare path, which drops the `redirect` the sign-in started with. Re-adds the
+ * current one, if it is a safe same-origin path, to a step beneath login or
+ * register that does not name its own.
+ */
+export function carryRedirect(to: string, currentSearch: string) {
+  const [path = "", query = ""] = to.split("?")
+  const isStep = [LOGIN_PATH, REGISTER_PATH].some((base) =>
+    path.startsWith(`${base}/`)
+  )
+  const target = new URLSearchParams(currentSearch).get("redirect") ?? undefined
+  if (
+    !isStep ||
+    new URLSearchParams(query).has("redirect") ||
+    !isSameOriginPath(target)
+  ) {
+    return to
+  }
+  return `${to}${query ? "&" : "?"}${new URLSearchParams({ redirect: target })}`
+}
 
 /** Carries a validated `redirect` target across the login/register switch link. */
 export function withRedirect(path: string, target: string | undefined) {
