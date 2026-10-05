@@ -1,0 +1,25 @@
+backend/scripts/build-series-logos.sh
+  s_200de526126fe6::t_df48ce4f5e65c8 3,31-36,39,41
+docs/adr/0017-series-logos-and-expansion-set-covers-are-pre-sized-at-host-time.md
+  s_200de526126fe6::t_585c57b09070c2 7
+docs/agents/deployment/images.md
+  s_200de526126fe6::t_86eebb2312b9da 11
+frontend/src/components/catalog/series-heading.tsx
+  s_200de526126fe6::t_2487a7c178d4ef 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "818d82fc56f816af8e4fdb1a4c5a39033370a220",
+  "prompts": {},
+  "sessions": {
+    "s_200de526126fe6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_200de526126fe6",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
