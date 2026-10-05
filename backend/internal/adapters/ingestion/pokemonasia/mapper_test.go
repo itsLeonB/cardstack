@@ -302,6 +302,10 @@ func TestCardImageURL(t *testing.T) {
 func TestSlugifySeries(t *testing.T) {
 	assert.Equal(t, "scarlet-violet", slugifySeries("Scarlet & Violet"))
 	assert.Equal(t, "evolusi-mega", slugifySeries("Evolusi Mega"))
+	// cmd/host-series-images names its files by these codes; a wrong one
+	// matches no row.
+	assert.Equal(t, "pedang-perisai", slugifySeries("Pedang & Perisai"))
+	assert.Equal(t, "matahari-bulan", slugifySeries("Matahari & Bulan"))
 }
 
 func TestMapCard(t *testing.T) {
