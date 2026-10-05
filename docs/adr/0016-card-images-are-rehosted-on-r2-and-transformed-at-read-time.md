@@ -1,5 +1,7 @@
 # Card and Expansion Set images are rehosted on R2 and transformed at read time
 
+Partly superseded by ADR-0017: Expansion Set covers (and Series logos) are pre-sized at host time. Cards are unchanged.
+
 The ingester used to store the third-party image address verbatim, and every tile hot-linked a full-size PNG from that host. We now copy each original, unmodified, into our own R2 bucket during ingestion and serve it from a Cloudflare-proxied subdomain, where Cloudflare Image Transformations resize it and pick a modern format at read time. Keys are deterministic from the row identifier, so re-running the ingester is the backfill and skips what is already hosted. The row stores a hosted-image key and keeps the scraped source address in its own column; the API builds its image address from a configured base address plus the key and returns an empty address when there is no key.
 
 A failed download or upload leaves the key empty and the frontend shows its existing name placeholder. We do not fall back to the source address, because the point is to stop hot-linking and a silent fallback would keep it alive forever. The ingester only fetches from the known source host, enforces a size limit and checks the content is an image, since the address comes from scraped markup.
