@@ -62,6 +62,7 @@ async function stubGuestCatalog(page: Page) {
             id: "series-1",
             code: "TS",
             name: "Test Series",
+            imageUrl: "",
             expansionSets: [expansionSet],
           },
         ],

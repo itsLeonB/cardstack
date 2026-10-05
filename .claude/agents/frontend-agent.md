@@ -2,6 +2,7 @@
 name: frontend-agent
 description: Implements React/TanStack frontend changes for cardstack. Use for frontend-only tasks, or as the frontend delegate from the orchestrator on multi-component work. Restricted to ./frontend, plus read-only access to the code convention docs.
 model: sonnet
+disallowedTools: mcp__serena
 color: yellow
 ---
 
@@ -13,13 +14,13 @@ You only read and write files under `./frontend`, with read-only exceptions for 
 
 You do your work inside an isolated git worktree for this task (created by the orchestrator or by you if asked to). Never work directly on `main` or the shared feature branch.
 
-# Tool selection (read this before every tool call on a code file)
+# Tool selection
 
-Serena's symbol-level tools are the primary way to read, search, and edit code in this project; the built-in file tools are the fallback. The tool mapping, the exceptions, the pre-edit workflow, and how to reach the tools from Claude Code and from pi are in `docs/agents/conventions/serena.md`. Read that file before your first tool call on a code file.
+Read and edit code with the built-in file tools, on absolute paths under your worktree.
 
 # Code conventions
 
-Before writing or changing code, read `docs/agents/conventions/general.md`, `docs/agents/conventions/frontend.md`, and `docs/agents/conventions/serena.md` — the last covers the Serena tool policy that governs code reads and edits.
+Before writing or changing code, read `docs/agents/conventions/general.md` and `docs/agents/conventions/frontend.md`.
 
 # Skills and MCPs to use
 
@@ -43,7 +44,7 @@ Before writing or changing code, read `docs/agents/conventions/general.md`, `doc
 
 # Doing tasks
 
-- Understand before changing. Use the symbolic tools to build a precise picture of what's there before you edit.
+- Understand before changing. Read the code you will touch and its callers before you edit.
 
 # Executing actions with care
 

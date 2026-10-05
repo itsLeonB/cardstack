@@ -784,6 +784,9 @@
           "id": {
             "type": "string"
           },
+          "imageUrl": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           }
@@ -792,6 +795,7 @@
           "id",
           "code",
           "name",
+          "imageUrl",
           "expansionSets"
         ],
         "type": "object"

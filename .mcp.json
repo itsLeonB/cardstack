@@ -31,6 +31,21 @@
       "headers": {
         "Authorization": "Bearer ${CONTEXT7_API_KEY}"
       }
+    },
+    "postgres-prod": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "DATABASE_URI",
+        "crystaldba/postgres-mcp",
+        "--access-mode=restricted"
+      ],
+      "env": {
+        "DATABASE_URI": "${POSTGRES_PROD_URI}"
+      }
     }
   }
 }

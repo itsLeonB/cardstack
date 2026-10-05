@@ -11,5 +11,6 @@ export interface SeriesSummary {
   /** @nullable */
   expansionSets: ExpansionSetSummary[] | null;
   id: string;
+  imageUrl: string;
   name: string;
 }

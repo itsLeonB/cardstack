@@ -4,6 +4,7 @@ http-hot \
 job \
 ingest-pokemon-asia \
 host-images \
+host-series-images \
 wire \
 lint \
 vulncheck \
@@ -23,6 +24,7 @@ help:
 	@echo "  make job                     - Run migrations (production)"
 	@echo "  make ingest-pokemon-asia     - Ingest Pokémon Asia catalog data (manual, no scheduler)"
 	@echo "  make host-images             - Copy images missing from R2 straight from the database (manual)"
+	@echo "  make host-series-images      - Upload assets/series logos to R2 and set series.image_key (manual)"
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
@@ -49,6 +51,9 @@ ingest-pokemon-asia:
 
 host-images:
 	go run ./cmd/host-images
+
+host-series-images:
+	go run ./cmd/host-series-images
 
 wire:
 	go generate ./internal/provider/...

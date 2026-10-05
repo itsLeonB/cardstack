@@ -15,6 +15,8 @@ const config = defineConfig({
   ],
   test: {
     environment: "jsdom",
+    // Cold route-module imports in a test can pass 5s when the suite runs in parallel.
+    testTimeout: 15_000,
     setupFiles: ["./src/test-setup.ts"],
     // Playwright e2e specs live under e2e/ and run via `playwright test`,
     // not vitest — exclude them so vitest's default *.spec.ts glob doesn't

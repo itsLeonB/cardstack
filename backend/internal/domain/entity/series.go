@@ -14,6 +14,9 @@ type Series struct {
 	GameID uuid.UUID `gorm:"type:uuid;not null;index"`
 	Code   string    `gorm:"not null"`
 	Name   string    `gorm:"not null"`
+	// ImageKey is the object-store key of the hosted logo (docs/adr/0017); ""
+	// means none. Only cmd/host-series-images writes it, never the ingester.
+	ImageKey string `gorm:"not null;default:''"`
 }
 
 func (Series) TableName() string { return "series" }

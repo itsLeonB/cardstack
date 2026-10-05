@@ -66,6 +66,32 @@ func TestIngester_UpsertSeries_IdempotentAndUpdates(t *testing.T) {
 	assert.Len(t, rows, 1)
 }
 
+func TestIngester_UpsertSeries_LeavesImageKeyAlone(t *testing.T) {
+	in := testIngester(t)
+	ctx := context.Background()
+
+	game, err := in.upsertGame(ctx)
+	require.NoError(t, err)
+
+	name := "Test Series " + uniqueCode(t)
+	row, err := in.upsertSeries(ctx, game.ID, name)
+	require.NoError(t, err)
+
+	// A later host-series-images run sets the key; a rename (the only update
+	// upsertSeries makes) must not clobber it.
+	row.ImageKey = "series/x.0123abcd.webp"
+	_, err = in.series.Update(ctx, row)
+	require.NoError(t, err)
+
+	renamed, err := in.upsertSeries(ctx, game.ID, name+" ")
+	require.NoError(t, err)
+	assert.Equal(t, row.ImageKey, renamed.ImageKey)
+
+	again, err := in.upsertSeries(ctx, game.ID, name+" ")
+	require.NoError(t, err)
+	assert.Equal(t, row.ImageKey, again.ImageKey)
+}
+
 func TestIngester_Series_UniqueConstraint(t *testing.T) {
 	in := testIngester(t)
 	ctx := context.Background()

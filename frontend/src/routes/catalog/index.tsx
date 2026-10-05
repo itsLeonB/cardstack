@@ -8,6 +8,7 @@ import type { ExpansionSetSummary } from "@/generated/models"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { ExpansionSetTile } from "@/components/catalog/expansion-set-tile"
+import { SeriesHeading } from "@/components/catalog/series-heading"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 
@@ -82,12 +83,11 @@ function CatalogSeriesPage() {
             aria-labelledby={`series-${oneSeries.id}`}
             className="flex flex-col gap-3"
           >
-            <h2
+            <SeriesHeading
               id={`series-${oneSeries.id}`}
-              className="font-heading text-lg font-medium"
-            >
-              {oneSeries.name}
-            </h2>
+              name={oneSeries.name}
+              imageUrl={oneSeries.imageUrl}
+            />
             <Separator />
             <ExpansionSetList expansionSets={oneSeries.expansionSets ?? []} />
           </section>
