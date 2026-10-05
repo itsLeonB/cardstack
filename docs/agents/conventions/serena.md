@@ -30,7 +30,7 @@ Pattern replace inside a file           replace_content
 Rename / move / delete a symbol         rename_symbol / safe_delete_symbol
 Diagnostics for a file or symbol        get_diagnostics_for_file
 
-In Go, a method is a top-level symbol, not a child of its receiver type: `find_symbol` with `ClerkKeys/FindKey` returns nothing and `ClerkVerifier` at depth 1 lists no methods, so search the bare method name (`FindKey`) and narrow with `relative_path`. A `cat`, `head`, `tail`, `nl` or `sed -n` on a `.go`, `.ts` or `.tsx` file through Bash counts as a built-in read, and a PreToolUse hook (`.claude/hooks/remind-serena-for-code-reads.sh`) reminds you of this policy when you run one.
+In Go, a method is a top-level symbol, not a child of its receiver type: `find_symbol` with `ClerkKeys/FindKey` returns nothing and `ClerkVerifier` at depth 1 lists no methods, so search the bare method name (`FindKey`) and narrow with `relative_path`. A `cat`, `head`, `tail`, `nl` or `sed -n` on a `.go`, `.ts` or `.tsx` file through Bash counts as a built-in read, and Serena's `serena-hooks remind` PreToolUse hook nudges you after a streak of them.
 
 Built-in read/edit/glob/grep are permitted on code files ONLY when:
 

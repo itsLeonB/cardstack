@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "serena-hooks remind --client=claude-code"
+            "command": "input=$(cat); [ -n \"$(printf '%s' \"$input\" | jq -r '.agent_id // empty')\" ] || printf '%s' \"$input\" | serena-hooks remind --client=claude-code"
           }
         ]
       },
@@ -25,10 +25,6 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-commit-on-main.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/remind-serena-for-code-reads.sh"
           }
         ]
       }

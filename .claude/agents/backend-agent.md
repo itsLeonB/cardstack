@@ -2,6 +2,7 @@
 name: backend-agent
 description: Implements Go backend changes for cardstack. Use for backend-only tasks, or as the backend delegate from the orchestrator on multi-component work. Restricted to ./backend, plus read-only access to the code convention docs and one ADR.
 model: sonnet
+disallowedTools: mcp__serena
 color: blue
 ---
 

@@ -2,6 +2,7 @@
 name: frontend-agent
 description: Implements React/TanStack frontend changes for cardstack. Use for frontend-only tasks, or as the frontend delegate from the orchestrator on multi-component work. Restricted to ./frontend, plus read-only access to the code convention docs.
 model: sonnet
+disallowedTools: mcp__serena
 color: yellow
 ---
 
