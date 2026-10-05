@@ -1,0 +1,19 @@
+.scratch/cardstack-mvp/research/series-logo-hires-sources.md
+  s_31e5eb607d2849::t_b546e6276fea28 1-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6cc1aa009611ab29cef1a3be105c58f57f70795c",
+  "prompts": {},
+  "sessions": {
+    "s_31e5eb607d2849": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_31e5eb607d2849",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
