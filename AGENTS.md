@@ -32,7 +32,7 @@ Provisioning a local Postgres for backend tests is environment-conditional (clou
 
 ### Deployment
 
-Deploy, production, or preview-environment questions (stale prod bundle, `VITE_*` env vars, failed Vercel build): `docs/agents/deployment.md`.
+Deploy, production, or preview-environment questions (stale prod bundle, `VITE_*` env vars, failed Vercel build, production 401/403/429, missing images): `docs/agents/deployment.md`, which routes to a file per backend setting.
 
 ### Code conventions
 

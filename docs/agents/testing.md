@@ -90,6 +90,6 @@ go run ./cmd/ingest-pokemon-asia -set SVAL
 
 To backfill listing-derived Expansion Set fields (e.g. the Expansion Set cover image) on existing rows without crawling any cards, use `go run ./cmd/ingest-pokemon-asia -sync-expansion-sets` (optionally with `-set`/`-series`).
 
-With no `R2_*` variables set the ingester logs a warning and skips image hosting, so this needs no credentials; catalog image addresses stay empty. See `docs/agents/deployment.md` ("Image hosting") for the settings.
+With no `R2_*` variables set the ingester logs a warning and skips image hosting, so this needs no credentials; catalog image addresses stay empty. See `docs/agents/deployment/images.md` for the settings.
 
 `SVAL` is a small set (~23 cards) — fast enough for quick iteration. Reserve the full multi-series scrape for when a ticket's acceptance criteria actually require verifying against the complete four-Series dataset.

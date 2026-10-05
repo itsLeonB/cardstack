@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kelseyhightower/envconfig"
@@ -87,4 +88,34 @@ func TestRateLimit_ValidateRateLimit_NeedsEveryLimitPositive(t *testing.T) {
 	negative := DefaultRateLimit()
 	negative.User.PerMinute = -1
 	assert.Error(t, negative.ValidateRateLimit())
+}
+
+// A token's authorized party is compared to each entry as an exact string, so
+// an entry that is not a bare origin makes every sign-in fail with a 401.
+func TestApp_ValidateClientUrls_RejectsEntriesThatCanNeverMatchAnOrigin(t *testing.T) {
+	for _, ok := range [][]string{
+		nil, // a preview has none until its frontend is deployed
+		{"http://localhost:3000"},
+		{"https://www.cardstack.my.id", "https://cardstack.my.id"},
+	} {
+		assert.NoError(t, App{ClientUrls: ok}.ValidateClientUrls(), "%q", ok)
+	}
+
+	for bad, entries := range map[string][]string{
+		"https://cardstack.my.id/":       {"https://cardstack.my.id/"},
+		"https://cardstack.my.id/app":    {"https://cardstack.my.id/app"},
+		"https://cardstack.my.id?x=1":    {"https://cardstack.my.id?x=1"},
+		"https://cardstack.my.id#top":    {"https://cardstack.my.id#top"},
+		" https://cardstack.my.id":       {"https://x.example", " https://cardstack.my.id"},
+		"https://cardstack.my.id ":       {"https://cardstack.my.id "},
+		"":                               {"https://cardstack.my.id", ""},
+		"cardstack.my.id":                {"cardstack.my.id"},
+		"ftp://cardstack.my.id":          {"ftp://cardstack.my.id"},
+		"https://":                       {"https://"},
+		"\"https://cardstack.my.id\"":    {"\"https://cardstack.my.id\""},
+		"https://user@cardstack.my.id":   {"https://user@cardstack.my.id"},
+		"https://cardstack.my.id:99999x": {"https://cardstack.my.id:99999x"},
+	} {
+		assert.ErrorContains(t, App{ClientUrls: entries}.ValidateClientUrls(), fmt.Sprintf("%q", bad))
+	}
 }
