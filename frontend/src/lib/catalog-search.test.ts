@@ -56,8 +56,20 @@ describe("guestFacets", () => {
   })
   const browse: SeriesBrowseResult = {
     series: [
-      { id: "sr1", code: "SV", name: "Scarlet", expansionSets: [set("a")] },
-      { id: "sr2", code: "SW", name: "Sword", expansionSets: null },
+      {
+        id: "sr1",
+        code: "SV",
+        name: "Scarlet",
+        imageUrl: "",
+        expansionSets: [set("a")],
+      },
+      {
+        id: "sr2",
+        code: "SW",
+        name: "Sword",
+        imageUrl: "",
+        expansionSets: null,
+      },
     ],
     ungroupedExpansionSets: [set("b")],
   }

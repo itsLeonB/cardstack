@@ -152,6 +152,7 @@ export const ListCatalogSeriesResponse = zod.object({
   "releaseDate": zod.iso.datetime({"offset":true}).optional()
 })).nullable(),
   "id": zod.string(),
+  "imageUrl": zod.string(),
   "name": zod.string()
 })).nullable(),
   "ungroupedExpansionSets": zod.array(zod.object({
