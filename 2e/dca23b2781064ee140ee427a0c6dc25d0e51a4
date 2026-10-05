@@ -1,0 +1,23 @@
+frontend/src/components/catalog/expansion-set-tile.test.tsx
+  s_c0012d1363e723::t_303a90f7dcd3b7 43,45-46,48,52
+frontend/src/components/catalog/expansion-set-tile.tsx
+  s_c0012d1363e723::t_214e82c62883a1 36-37,40
+frontend/src/lib/image.ts
+  s_c0012d1363e723::t_f1385081d0a075 5-7,10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2edca23b2781064ee140ee427a0c6dc25d0e51a4",
+  "prompts": {},
+  "sessions": {
+    "s_c0012d1363e723": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c0012d1363e723",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
