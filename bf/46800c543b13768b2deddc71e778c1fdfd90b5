@@ -1,0 +1,21 @@
+backend/cmd/presize-images/vips.go
+  s_45d65a1ec672ca::t_c4e6abb616d43a 10,37-41
+backend/internal/adapters/ingestion/pokemonasia/host_missing.go
+  s_45d65a1ec672ca::t_c06e20a0aa3f35 11,50-67,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "bf46800c543b13768b2deddc71e778c1fdfd90b5",
+  "prompts": {},
+  "sessions": {
+    "s_45d65a1ec672ca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_45d65a1ec672ca",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
