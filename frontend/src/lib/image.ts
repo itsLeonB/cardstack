@@ -2,16 +2,17 @@
  * Turns the API's hosted-image address into Cloudflare Image Transformations
  * addresses (ADR-0016). Only addresses on `VITE_IMAGE_HOST` are rewritten; an
  * empty address, an off-host one (local development) or an unset host comes
- * back unchanged, so nothing breaks where hosting isn't configured.
+ * back unchanged, so nothing breaks where hosting isn't configured. Only cards
+ * are rewritten: Expansion Set covers are pre-sized at host time and used as-is
+ * (ADR-0017).
  */
 
-export type ImageVariant = "cardTile" | "cardDetail" | "setCover"
+export type ImageVariant = "cardTile" | "cardDetail"
 
 // Widths per variant. A card tile gets a second, 2x source for high-density screens.
 const WIDTHS = {
   cardTile: [240, 480],
   cardDetail: [720],
-  setCover: [128],
 } satisfies Record<ImageVariant, number[]>
 
 export type ImageSources = { src: string; srcSet?: string }
