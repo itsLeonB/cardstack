@@ -5,7 +5,7 @@ import { useState } from "react"
  * as text. The name stays in the heading either way (visually hidden behind a
  * logo), so the heading, the section's `aria-labelledby` and the outline don't
  * change. The logo is the hosted file as-is, never through `imageSources()`:
- * it is pre-sized (80px tall at source, shown at 40px for 2x screens) and a
+ * it is pre-sized (120px tall at source, shown at 40px for 3x screens) and a
  * `/cdn-cgi/image/` rewrite would transform it again.
  */
 export function SeriesHeading({
