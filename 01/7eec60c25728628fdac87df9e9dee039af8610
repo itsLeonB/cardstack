@@ -1,0 +1,61 @@
+backend/.mockery.yaml
+  s_9b2bb6782865e4::t_512cfbc3cc2b1e 16
+backend/Makefile
+  s_9b2bb6782865e4::t_6e21a9da43a39a 8,29,60-62
+backend/cmd/presize-images/covers.go
+  s_9b2bb6782865e4::t_5d5b06172c8de9 1-82
+backend/cmd/presize-images/covers_test.go
+  s_9b2bb6782865e4::t_77c6152e23616c 1-135
+backend/cmd/presize-images/main.go
+  s_9b2bb6782865e4::t_ef2c57f37eeff6 1-87
+backend/cmd/presize-images/vips.go
+  s_9b2bb6782865e4::t_172a60840990d6 1-57
+backend/cmd/presize-images/vips_test.go
+  s_9b2bb6782865e4::t_c81360039aaae2 1-112
+backend/internal/adapters/db/postgres/migrations/20261007000000_expansion_set_cover_key.sql
+  s_9b2bb6782865e4::t_29c98a8ac637c2 1-9
+backend/internal/adapters/http/routes/catalog_routes_test.go
+  s_9b2bb6782865e4::t_90234a3006e7ca 48,73,88
+backend/internal/adapters/objectstore/r2.go
+  s_9b2bb6782865e4::t_c9988c1c7dc214 7,13,22-25,67-86
+backend/internal/adapters/objectstore/r2_test.go
+  s_9b2bb6782865e4::t_bd7c8613c30666 51-89
+backend/internal/core/objectstore/objectstore.go
+  s_9b2bb6782865e4::t_7847a38884ce7e 14-16
+backend/internal/domain/entity/expansion_set.go
+  s_9b2bb6782865e4::t_871ad2e3452bf3 28-31
+backend/internal/domain/mapper/catalog_mapper.go
+  s_9b2bb6782865e4::t_a0e62eb4db084a 38,64
+backend/internal/domain/mapper/catalog_mapper_test.go
+  s_9b2bb6782865e4::t_79149366eccf8b 36-37,39-40,56,58
+backend/internal/domain/repository/catalog_repository.go
+  s_9b2bb6782865e4::t_476875fe9e1654 260,279
+backend/internal/domain/repository/catalog_repository_test.go
+  s_9b2bb6782865e4::t_3456bcd2eac46a 454-455,466
+backend/internal/domain/repository/expansion_set_repository.go
+  s_9b2bb6782865e4::t_e548dece7c71c6 1-45
+backend/internal/domain/repository/expansion_set_repository_test.go
+  s_9b2bb6782865e4::t_3057ba1c2d3f79 1-49
+backend/internal/domain/service/catalog_service_test.go
+  s_9b2bb6782865e4::t_841d3710609f63 162
+backend/internal/mocks/ExpansionSetRepository.go
+  s_9b2bb6782865e4::t_1be818e222232d 1-600
+backend/internal/mocks/ObjectStore.go
+  s_9b2bb6782865e4::t_3436dc504bc42e 23-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "017eec60c25728628fdac87df9e9dee039af8610",
+  "prompts": {},
+  "sessions": {
+    "s_9b2bb6782865e4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_9b2bb6782865e4",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
