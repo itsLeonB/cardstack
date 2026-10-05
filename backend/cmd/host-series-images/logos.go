@@ -93,12 +93,14 @@ func hostLogo(ctx context.Context, file, code string, series crud.Repository[ent
 	}
 
 	if err := store.Put(ctx, key, logoContentType, content); err != nil {
-		return len(rows), false, fmt.Errorf("series %q: uploading %s: %w", code, key, err)
+		logger.Errorf("series %q: uploading %s failed", code, key)
+		return len(rows), false, err
 	}
 	for _, row := range stale {
 		row.ImageKey = key
 		if _, err := series.Update(ctx, row); err != nil {
-			return len(rows), true, fmt.Errorf("series %q: saving key %s: %w", code, key, err)
+			logger.Errorf("series %q: saving key %s failed", code, key)
+			return len(rows), true, err
 		}
 	}
 	logger.Infof("series %q: hosted %s", code, key)

@@ -119,7 +119,7 @@ func TestHostLogos_UploadFailureKeepsGoingAndFails(t *testing.T) {
 
 	sum, err := hostLogos(context.Background(), dir, rows, store)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "a-bad")
+	assert.Contains(t, err.Error(), "r2 down")
 	assert.Equal(t, 1, sum.Uploaded, "the other logo is still hosted")
 }
 
