@@ -3,7 +3,7 @@
 # 26: Catalog filters: dropdown multi-selects with chips instead of always-open checkbox lists
 
 **Category:** enhancement
-**Status:** done — implemented (frontend `91cf9b0` + `e2a8bdb`), merged into `feat/inventory-entries`, not yet merged to `main`. E2E, browser and keyboard checks not yet run.
+**Status:** done — implemented (frontend `91cf9b0` + `e2a8bdb`), merged to `main`.
 
 **Blocked by:** None (can start immediately)
 

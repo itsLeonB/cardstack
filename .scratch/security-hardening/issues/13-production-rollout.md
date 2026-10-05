@@ -6,7 +6,7 @@
 
 **Blocked by:** 01 (production half), 02, 04, 05, 06, 07, 08, 09, 10, 11, 12.
 
-**Status:** ready-for-human
+**Status:** done — rollout confirmed by the owner (2026-10-05), checklist and acceptance criteria included.
 
 ## Checklist
 
@@ -19,9 +19,9 @@
 
 ## Acceptance criteria
 
-- [ ] Every checklist step is done and the smoke test passes.
-- [ ] No catalog row still points at the source host for its image, or the remaining failures are recorded here.
-- [ ] The raw hosting address rejects requests without the secret header; the health check still works.
-- [ ] The deployment doc describes the final topology (domains, edge, image host, Clerk instances).
+- [x] Every checklist step is done and the smoke test passes.
+- [x] No catalog row still points at the source host for its image, or the remaining failures are recorded here.
+- [x] The raw hosting address rejects requests without the secret header; the health check still works.
+- [x] The deployment doc describes the final topology (domains, edge, image host, Clerk instances).
 
 ## Comments

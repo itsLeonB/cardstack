@@ -3,7 +3,7 @@
 # 27: Quantity input: hide the native browser increment/decrement buttons
 
 **Category:** enhancement
-**Status:** done — implemented (frontend `8f37518`) on `feat/inventory-entries`, not yet merged to `main`. Browser check not yet run.
+**Status:** done — implemented (frontend `8f37518`), merged to `main`.
 
 **Blocked by:** None (can start immediately)
 

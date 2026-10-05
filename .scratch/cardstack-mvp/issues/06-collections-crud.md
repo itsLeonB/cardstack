@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Auth: registration & login)
 
-**Status:** completed
+**Status:** done
 
 - [x] Authenticated user can create a Collection with a title, optional description, and optional maximum card-count limit (summed quantity, not distinct-card count)
 - [x] Authenticated user can list their own Collections

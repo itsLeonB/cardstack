@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Card catalog schema + TCGDex (SV) ingestion) — done; this ticket adds a new migration against the schema ticket 03 created. Originally planned as an in-place edit of `20260922000000_catalog_schema.sql` on the assumption it was never deployed anywhere — corrected during planning (see Comments): that migration is already merged into `main` (PR #7), so it is **not** edited in place; a new additive migration handles the schema rework instead.
 
-**Status:** done — implemented (commit `0981352`), merged into `feat/pokemon-asia-scraping`, not yet merged to `main`.
+**Status:** done — implemented (commit `0981352`), merged to `main`.
 
 - [x] TCGDex ingestion code is fully removed: `internal/adapters/ingestion/tcgdex/`, `cmd/ingest-tcgdex/`, its Makefile target, and the `golang.org/x/sync` direct dependency if nothing else uses it (survives — still used by the new ingester's `errgroup`)
 - [x] `card_variants` and `finishes` tables are dropped (via new additive migration `20260923000000_rework_catalog_schema.sql`, not an in-place edit — see Blocked-by note and Comments)

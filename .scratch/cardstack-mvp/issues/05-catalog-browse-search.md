@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 (Unified catalog ingestion via Pokémon Asia scraper)
 
-**Status:** done — implemented (backend `95d7b1b` + follow-up `8b9ed62`, frontend `b0e4171` + follow-up `6bcb954`), merged into `claude/nice-shannon-ssa4oc`, not yet merged to `main`.
+**Status:** done — implemented (backend `95d7b1b` + follow-up `8b9ed62`, frontend `b0e4171` + follow-up `6bcb954`), merged to `main`.
 
 - [x] API endpoint supports searching cards by name
 - [x] Search supports filtering by Expansion Set/card number, rarity, category, and tag

@@ -3,7 +3,7 @@
 # 21: Catalog filters: multi-value checkboxes with dependent (faceted) options
 
 **Category:** enhancement
-**Status:** done — implemented (backend `f906977` + `1166d16`, frontend `8871fc2` + `a03b5a2`), merged into `feat/inventory-entries`, not yet merged to `main`.
+**Status:** done — implemented (backend `f906977` + `1166d16`, frontend `8871fc2` + `a03b5a2`), merged to `main`.
 
 **Blocked by:** None (can start immediately)
 

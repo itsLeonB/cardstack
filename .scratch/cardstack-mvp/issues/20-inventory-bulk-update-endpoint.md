@@ -3,7 +3,7 @@
 # 20: Inventory bulk update endpoint
 
 **Category:** enhancement
-**Status:** done — implemented (backend `6fb8865` + review fixes `3a7bd76`), merged into `feat/inventory-entries`, not yet merged to `main`.
+**Status:** done — implemented (backend `6fb8865` + review fixes `3a7bd76`), merged to `main`.
 
 **Blocked by:** None (can start immediately)
 

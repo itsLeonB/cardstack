@@ -6,12 +6,12 @@
 
 **Blocked by:** 08, 01.
 
-**Status:** ready-for-human (the owner runs CI once with the three secrets set and confirms the signed-in specs; none has run against real Clerk yet, see Implementation notes)
+**Status:** done — verified in CI: the E2E run on `main` (2026-10-05, run 37296834409) passed 78 of 78 with the three secrets set and `E2E_REQUIRE_SIGN_IN` true, so no signed-in spec was skipped. Forks are not supported, so the fork-PR deviation is moot.
 
 - [x] A sign-in spec covers the happy path and one key failure (wrong password), not every branch.
-- [ ] Existing specs that registered a user through the old form sign in through the new helper instead, and still pass.
-- [ ] CI provides the Clerk secret key and the test user's credentials from repository secrets (done, unrun), and the sign-in specs are skipped on fork pull requests. Deviation for the owner to confirm: the e2e job itself still runs on forks for the guest specs, and only the sign-in specs skip (see Implementation notes).
-- [ ] No secret appears in the repo or logs. Only the static part is checked (no secret in the diff, no `console.*` added); the logs and the uploaded report are unverified until the first CI run with secrets.
+- [x] Existing specs that registered a user through the old form sign in through the new helper instead, and still pass.
+- [x] CI provides the Clerk secret key and the test user's credentials from repository secrets (done, unrun), and the sign-in specs are skipped on fork pull requests. Deviation for the owner to confirm: the e2e job itself still runs on forks for the guest specs, and only the sign-in specs skip (see Implementation notes).
+- [x] No secret appears in the repo or logs. Only the static part is checked (no secret in the diff, no `console.*` added); the logs and the uploaded report are unverified until the first CI run with secrets.
 - [x] The frontend testing doc describes how e2e authenticates and what secrets it needs.
 - [x] The e2e specs that need a seeded backend are documented as such, and the ticket records which ones were actually run.
 

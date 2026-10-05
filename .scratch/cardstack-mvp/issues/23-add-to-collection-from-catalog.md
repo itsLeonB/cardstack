@@ -3,7 +3,7 @@
 # 23: Add cards to a Collection from the catalog page (authenticated users)
 
 **Category:** enhancement
-**Status:** done — implemented (frontend `8aa4a57` + `c4ab905`), merged into `feat/inventory-entries`, not yet merged to `main`.
+**Status:** done — implemented (frontend `8aa4a57` + `c4ab905`), merged to `main`.
 
 **Blocked by:** 20 (Inventory bulk update endpoint), 22 (Collection detail page on the shared catalog layout)
 

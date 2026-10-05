@@ -3,7 +3,7 @@
 # 22: Collection detail page on the shared catalog layout, with filters and stepper editing
 
 **Category:** enhancement
-**Status:** done — implemented (backend `682c0fa`, frontend `eae627a` + `d670f20`), merged into `feat/inventory-entries`, not yet merged to `main`.
+**Status:** done — implemented (backend `682c0fa`, frontend `eae627a` + `d670f20`), merged to `main`.
 
 **Blocked by:** 20 (Inventory bulk update endpoint), 21 (Catalog faceted multi-value filters)
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (needs the backend Dockerfile/build and frontend build the workflow deploys)
 
-**Status:** completed
+**Status:** done
 
 - [x] `.github/workflows/preview-environments.yml` ported from cashus, adjusted to cardstack's single Railway service and repo/service names
 - [x] `scripts/setup-preview-environments.sh` (one-time wizard) ported and adjusted the same way
