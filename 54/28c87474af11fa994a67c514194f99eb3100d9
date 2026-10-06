@@ -1,0 +1,41 @@
+.claude/agents/backend-agent.md
+  s_8aac1e68ecc907::t_66edf28e0d92c0 12
+.claude/agents/frontend-agent.md
+  s_8aac1e68ecc907::t_5e6bd0ae2417e7 12
+.scratch/agent-tooling/issues/02-t3-small-task-and-advisor-role.md
+  s_8aac1e68ecc907::t_6edc73ef3e859c 11-18
+.scratch/agent-tooling/issues/04-component-agents-in-worktrees.md
+  s_8aac1e68ecc907::t_efb67e9442b29c 11-20
+.scratch/agent-tooling/issues/05-dry-run-parallel-happy-path.md
+  s_8aac1e68ecc907::t_37ddbef1fe972d 14
+.scratch/agent-tooling/issues/06-review-loop-and-failure-recovery.md
+  s_8aac1e68ecc907::t_80fb76c0bbe77b 9-14
+.scratch/agent-tooling/issues/07-dry-run-review-loop-silent-death-long-wait.md
+  s_8aac1e68ecc907::t_10adcb9839b489 18
+.scratch/agent-tooling/issues/08-research-notes-cleanup.md
+  s_8aac1e68ecc907::t_8f06ca75c1a632 9-13
+.scratch/agent-tooling/issues/09-advisor-harness-write-denial-check.md
+  s_8aac1e68ecc907::t_ee89e7a6c6c12b 27-31
+.scratch/agent-tooling/research/serena-per-worktree-subagents.md
+  s_8aac1e68ecc907::t_8593238900fef9 17
+docs/agents/orchestration.md
+  s_8aac1e68ecc907::t_68ef1dc772e4e3 40
+docs/agents/serena.md
+  s_8aac1e68ecc907::t_1f27faba0ef15c 24,28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5428c87474af11fa994a67c514194f99eb3100d9",
+  "prompts": {},
+  "sessions": {
+    "s_8aac1e68ecc907": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8aac1e68ecc907",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
