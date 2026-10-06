@@ -125,7 +125,8 @@ Each is to be confirmed by the dry-run tickets in `.scratch/agent-tooling/spec.m
 - To be confirmed by the dry run: the project settings environment block (`CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`) disables the native advisor tool inside a launched thread. This relies on T3 loading project settings, which is the SDK default when no setting sources are given (see Q4).
 - To be confirmed by the dry run: a launched Claude thread sees the agent files through Claude Code itself. Irrelevant to the design, which tells the child to read the role files explicitly.
 - To be confirmed by the dry run: auto-accept-edits runtime mode combined with plan mode lets the advisor run read-only shell commands such as a git diff without stalling.
-- To be confirmed by the dry run: `medium` is accepted as the effort value in the launch's model options.
+- To be confirmed by the dry run: `medium` is accepted as the effort value in the launch's `modelSelection.options`. The live launch schema types `options` only as an open value, so the exact shape (the catalog lists the option with id `effort`) is not established.
+- To be confirmed by the dry run: the full worktree path. T3 names the directory after the branch with slashes replaced by dashes, and `~/.t3/worktrees/<project>/` exists on this machine, but no source read states the parent directory, so the docs have the orchestrator read the path with `t3_worktree_list` after the launch.
 - To be confirmed by the dry run: a long wait by the orchestrator does not trigger the idle release described in #15173.
 - To be confirmed by the dry run: the always-on Serena reminder hook fires in launched threads.
 - Also unverified: the installed T3 Code Nightly build may differ from the source commit `0ecb78ed0d351b65ef68262f632359223f9c389b` (see Source baseline).

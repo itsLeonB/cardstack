@@ -1,6 +1,6 @@
 # Backend code conventions
 
-These apply to every backend change, whether made by the root agent or a subagent. Read `general.md` in this folder as well.
+These apply to every backend change, whether made by the orchestrator or a component agent. Read `general.md` in this folder as well.
 
 ## Errors
 

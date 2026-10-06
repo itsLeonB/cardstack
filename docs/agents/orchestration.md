@@ -26,23 +26,23 @@ Run from the component directory, and fix every failure before committing.
 
 ## Big/multiple components task
 
-The orchestrator stays on the main checkout and the feature branch, launches one child thread per component touched (only those), and never edits `./backend` or `./frontend` itself during a big task. Each child is a top-level T3 thread in its own worktree with its own Serena rooted there, launched from the role files `.claude/agents/backend-agent.md` and `.claude/agents/frontend-agent.md`. Use `t3_thread_launch` for component work, never `delegate_task`: a delegated child cannot be bound to a worktree.
+The orchestrator stays on the main checkout and the feature branch, launches one child thread per component touched (only those), and never edits `./backend` or `./frontend` itself during a big task. Each child is a top-level T3 thread in its own worktree with its own Serena rooted there, launched from the role files `.claude/agents/backend-agent.md` and `.claude/agents/frontend-agent.md`. Use `t3_thread_launch` for component work, never `delegate_task`: a delegated child cannot be bound to a worktree. The orchestrator thread must run in `full-access` runtime mode: launching requires a full-access (or default) calling thread, and a message's target cannot have broader permissions than its sender, so a weaker orchestrator can neither launch children nor send to them.
 
 1. **Commit first.** Commit everything on the feature branch (tickets, docs, earlier merges) before launching. A new worktree contains only commits, so uncommitted changes never reach the child.
 2. **Order by contract.** When the backend change alters `backend/openapi.json`, launch the backend first, merge its branch into the feature branch, then launch the frontend from that merged state, so the frontend regenerates its client from the new contract. Otherwise launch both at once.
-3. **Look up identifiers.** Call `orchestrator_capabilities` and take the Sonnet model identifier from its catalog, confirming `medium` is an accepted effort value, plus your own thread ID (`parentThreadId`). Never hard-code either.
+3. **Look up identifiers.** Call `orchestrator_capabilities` and take the Sonnet model identifier from its catalog, confirming `medium` is an accepted value of the model's `effort` option, plus your own thread ID, which is the `parentThreadId` field of its result (not a `t3_thread_launch` parameter: it goes into the launch message). Never hard-code either.
 4. **Launch each child** with `t3_thread_launch`, setting every value explicitly because omitted ones inherit from the orchestrator:
    - `workspaceStrategy`: `{type: "worktree", baseRef: "<feature branch>", branch: "<type>/<feature>-<component>", startFromOrigin: false}`. The branch follows the [branch naming convention](#branch-naming-conventions), with the component appended after a dash (`feat/users-management-backend`). Never nest it under the feature branch (`<feature branch>/<component>`): git cannot hold a branch and a directory of the same name. Never fetch from origin; the base is the local feature branch.
-   - `modelSelection`: the Sonnet identifier from step 3 at `medium` effort. `runtimeMode`: `full-access`, so the child runs builds, tests and commits unattended.
+   - `modelSelection`: `model` is the Sonnet identifier from step 3, and `options` sets the catalog's `effort` option to `medium`. `runtimeMode`: `full-access`, so the child runs builds, tests and commits unattended.
    - `message`: the [launch message](#launch-message).
-5. **Derive the worktree path.** T3 chooses it, and its directory name is the branch name with slashes replaced by dashes. Confirm the absolute path with `t3_worktree_list` before the first git command against it, then run `git -C <path> ...` for diffs and logs without asking T3.
-6. **Wait and collect.** Wait on each child with `t3_thread_wait` and a 30-minute `timeoutMs` per child turn (a shorter value may be used for testing), in addition to its own report: T3 sends no completion signal for launched threads, and a child can end failed without any message. A report arrives as a queued message and starts a new orchestrator turn when you are idle. Treat the [report](#report-protocol) as the signal that work is ready; treat a failed run or an expired wait as a child that needs [recovery](#failure-recovery).
+5. **Find the worktree path.** T3 chooses it after the launch call, so the launch message carries the branch and no path. The directory name is the branch name with slashes replaced by dashes, but the parent directory is T3's, so read the absolute path with `t3_worktree_list` (pass the child's `threadId`) before the first git command against it, then run `git -C <path> ...` for diffs and logs without asking T3.
+6. **Wait and collect.** Wait on each child with `t3_thread_wait` and a 30-minute `timeoutMs` per child turn (a shorter value may be used for testing), in addition to its own report: T3 sends no completion signal for launched threads, and a child can end failed without any message. A report arrives as a queued message and starts a new orchestrator turn when you are idle. Treat the [report](#report-protocol) as the signal that work is ready. A failed run starts [recovery](#failure-recovery). An expired wait does not interrupt the child, so it starts only the read-first check there.
 7. **Check scope.** Diff the changed file names against the component directory: `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under `backend/` or only under `frontend/`. Tool restrictions no longer enforce scope, so this check does.
 8. **Review.** Run the [review loop](#review-loop) until the child's diff has no finding left to fix.
 9. **Merge and clean up**, per child once it is done, in this order, because T3 has no tool for removing worktrees or branches:
    1. Merge the child's branch into the feature branch.
    2. Archive the thread: `t3_thread_organize` with `action: "archive"` and the child's `threadId`.
-   3. Remove the worktree: `git worktree remove <path>`.
+   3. Remove the worktree: `git worktree remove <path>`. If it refuses because the worktree is dirty, inspect it: the work is already merged, so what remains is leftover state. Report it to the maintainer instead of using `--force`.
    4. Delete the branch with a safe delete: `git branch -d <branch>`, which refuses an unmerged branch. Never use `-D`.
 10. **Architecture review.** Once every child is merged, the orchestrator runs the `code-review` skill scoped to the full feature branch diff, focused on cross-component integration and architecture, not on re-litigating what the component-level reviews checked. Every child is archived and its branch deleted by then, so findings in component code go to a fresh child launched as in step 4 on a new branch from the feature branch and merged as in step 9; the orchestrator fixes only what lies outside the component directories, then re-runs the relevant [verification commands](#verification-commands).
 11. Commit the merge on the feature branch (never on `main`) and push, confirming with the maintainer before pushing.
@@ -60,9 +60,9 @@ The child does not run its own `code-review` pass, and the skill itself is manag
 
 ### Failure recovery
 
-A child needs recovery when its run ends failed, or when the wait for its turn expires without a report. Recover in this order:
+A child needs recovery when its run ends failed. When the wait for its turn expires without a report, the child may still be working, so read first and recover only if the read shows it failed, dead or stuck. Recover in this order:
 
-1. **Read first.** Read the thread with `t3_thread_read`, and the worktree's git state with `git -C <path> log <feature branch>..HEAD` and `git -C <path> status`. If the thread is still running, stop it with `t3_thread_interrupt` first, so two threads never write to one worktree.
+1. **Read first.** Read the thread with `t3_thread_read`, and the worktree's git state with `git -C <path> log <feature branch>..HEAD` and `git -C <path> status`. A thread still making progress (new messages, tool calls or commits) is healthy: wait again. Interrupt with `t3_thread_interrupt` only a thread that is failed or confirmed dead or stuck, and before relaunching, so two threads never write to one worktree.
 2. **Keep committed work.** Commits on the child's branch are never discarded. If the task is complete and verified there, carry on with the review loop as if the child had reported.
 3. **Relaunch when work is uncommitted or missing.** Launch a replacement as in step 4 of the big-task steps, with `workspaceStrategy` `{type: "existing_worktree", worktreePath: "<path>", branch: "<child branch>"}` in place of the new-worktree strategy, and the same model, runtime mode and [launch message](#launch-message). Open the message with a "continue from this state" prompt: the commits already on the branch, what `git status` shows, what remains of the task, and what the thread revealed about why the first run failed.
 4. **Stop after a second failure.** If the replacement also fails or times out on the same task, stop and ask the maintainer. Recovery never includes editing `./backend` or `./frontend` yourself, even for a small remainder.
@@ -76,7 +76,7 @@ Every child gets the same message, in this order:
 1. **Role.** Read `.claude/agents/<component>-agent.md` and follow it, then read `docs/agents/conventions/general.md` and `docs/agents/conventions/<component>.md`.
 2. **Task.** The ticket path under `.scratch/`, or the task text.
 3. **Orchestrator.** Your thread ID, for reports and questions.
-4. **Workspace.** Your branch and absolute worktree path.
+4. **Workspace.** Your branch. Your worktree is the repository root you start in: confirm it with `git rev-parse --show-toplevel`.
 5. **Scope.** The component directory you may edit, and the read-only files the role file lists.
 6. **Verification.** The [verification commands](#verification-commands) for the component.
 7. **Commit.** The [commit naming convention](#commit-naming-conventions), on your own branch.
@@ -112,7 +112,7 @@ The advisor is an independent reviewer on a stronger model, launched as its own 
 **Launch.** One thread per run:
 
 1. Call `orchestrator_capabilities` and take the Opus model identifier from its catalog, confirming `medium` is an accepted effort value. Never hard-code the identifier.
-2. Call `t3_thread_launch` with no `workspaceStrategy` (the advisor runs on the main checkout), `interactionMode: "plan"`, `runtimeMode: "auto-accept-edits"` (reads and `git diff` run without stalling), and `modelSelection` set to that Opus identifier at `medium` effort. Set all of these explicitly, because omitted values inherit from the orchestrator.
+2. Call `t3_thread_launch` with no `workspaceStrategy` (the advisor runs on the main checkout), `interactionMode: "plan"`, `runtimeMode: "auto-accept-edits"` (reads and `git diff` run without stalling), and `modelSelection` with `model` set to that Opus identifier and `options` setting the `effort` option to `medium`. Set all of these explicitly, because omitted values inherit from the orchestrator.
 3. The launch message tells the advisor to read `.claude/agents/advisor.md` and follow it, then states the question, the ticket path, and the branches or absolute worktree paths to read. The advisor uses Serena for reads in the main checkout and reads a child's worktree by absolute path.
 4. Wait with `t3_thread_wait`, then read the reply with `t3_thread_read`.
 
@@ -125,8 +125,8 @@ The advisor is an independent reviewer on a stronger model, launched as its own 
 | Role | Model | Effort | Set |
 | --- | --- | --- | --- |
 | Orchestrator | Sonnet | high | by the maintainer in the thread |
-| Component agents | Sonnet | medium | at launch |
-| Advisor | Opus | medium | at launch |
+| Component agents | Sonnet | medium | at launch, in `modelSelection` |
+| Advisor | Opus | medium | at launch, in `modelSelection` |
 
 ## pi caveat
 
