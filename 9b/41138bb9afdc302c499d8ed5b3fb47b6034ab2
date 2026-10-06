@@ -1,0 +1,19 @@
+.scratch/agent-tooling/issues/11-dry-run-idle-orchestrator-receives-report.md
+  s_d2ab0125155c64::t_dcf16f21809f98 7,11-13,18-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9b41138bb9afdc302c499d8ed5b3fb47b6034ab2",
+  "prompts": {},
+  "sessions": {
+    "s_d2ab0125155c64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d2ab0125155c64",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
