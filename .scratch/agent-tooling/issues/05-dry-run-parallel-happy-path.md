@@ -11,7 +11,7 @@ The maintainer runs this in a T3 orchestrator thread (Sonnet, high effort), on a
 Case 1: one backend and one frontend marker symbol (fresh function names), each added in its own worktree through that thread's own Serena, verified, committed, reported by queued message, reviewed with the `code-review` skill, merged into the feature branch and cleaned up. Repeatable check from ticket 01: each child finds its marker through Serena and edits it so its worktree changes and the main checkout does not.
 
 - [x] Case 1 has a result under "Results": pass, or fail with the exact symptom and thread IDs.
-- [x] Recorded: worktree paths match the documented derivation from the branch name; the scope check passes; the four-part report arrives as a new orchestrator turn; the Serena reminder hook fires in a launched thread; after cleanup no thread, worktree or branch is left behind.
+- [x] Recorded: worktree paths match the documented derivation from the branch name; the scope check passes; the four-part report arrives as a new orchestrator turn; after cleanup no thread, worktree or branch is left behind. The Serena reminder hook was inconclusive in this run (neither child made a streak of built-in code reads); ticket 10 confirmed it.
 - [x] Every failure becomes a doc fix in ticket 04's files or a new ticket.
 - [x] The throwaway branch and any leftover worktrees are removed. The maintainer had `chore/t3-orchestration-dryrun` force-deleted with `git branch -D` (unmerged by design); no dry-run worktree is left.
 

@@ -15,7 +15,7 @@ Cases:
 
 - [x] Each case has a result under "Results": pass, or fail with the exact symptom and thread IDs.
 - [x] Every failure becomes a doc fix in ticket 06's files or a new ticket.
-- [ ] The throwaway branch and any leftover worktrees are removed. No dry-run worktree is left; the branch `chore/t3-orchestration-dryrun` is unmerged by design and needs a force delete.
+- [x] The throwaway branch and any leftover worktrees are removed. No dry-run worktree is left; the maintainer approved the force delete and `chore/t3-orchestration-dryrun` was removed with `git branch -D` (unmerged by design).
 
 ## Comments
 

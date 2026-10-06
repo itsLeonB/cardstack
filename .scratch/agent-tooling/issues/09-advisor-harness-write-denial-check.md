@@ -12,10 +12,6 @@ The maintainer runs this: it needs a T3 orchestrator thread. Launch a throwaway 
 - [x] If it succeeded, a doc or launch-parameter fix is made, or the maintainer accepts in writing that read-only is behavioral only. The write did not succeed, but harness denial is unverified; the maintainer accepted behavioral-only (see Comments).
 - [x] The probe file and the throwaway thread are removed. The file was never created; the thread is archived (T3 has no delete tool).
 
-## Comments
-
-2026-10-06, maintainer, in the orchestrator thread: "accept". Accepted that harness-level write denial for the advisor is unverified and its read-only duty rests on the plan-mode prompt and `advisor.md`, not on a harness block.
-
 ## Results
 
 Run 2026-10-06 by the orchestrator thread `67c3469d-d263-41da-aea7-8ca82fe32bca` (Sonnet 5.5, full-access). Probe thread `mcp:f670de83-d569-44c1-859f-ea5623b47c80`, launched with `t3_thread_launch`: no `workspaceStrategy`, `interactionMode: "plan"`, `runtimeMode: "auto-accept-edits"`, `claude-opus-5-5`, `effort: medium`, no role file.
@@ -28,4 +24,8 @@ Run 2026-10-06 by the orchestrator thread `67c3469d-d263-41da-aea7-8ca82fe32bca`
 
 What this shows: the plan-mode instruction in the model's own system prompt stops the write before any tool runs, even against an explicit instruction, so the read-only duty holds in practice. What it does not show: whether T3 or Claude Code would deny a `Write` if the model ever attempted one. Prompting cannot force the attempt, so a further probe through a thread would give the same result.
 
-Open decision for the maintainer: accept in writing that harness-level denial is unverified and read-only is behavioral (plan-mode prompt plus `advisor.md`), or ask for a different probe (for example a plain Claude Code session started with `--permission-mode plan`, which tests Claude Code's own plan-mode enforcement but not T3's launch path).
+Decision: the maintainer accepted that harness-level denial is unverified and that read-only is behavioral (plan-mode prompt plus `advisor.md`); see Comments. A different probe (for example a plain Claude Code session started with `--permission-mode plan`) was not requested.
+
+## Comments
+
+2026-10-06, maintainer, in the orchestrator thread: "accept". Accepted that harness-level write denial for the advisor is unverified and its read-only duty rests on the plan-mode prompt and `advisor.md`, not on a harness block.
