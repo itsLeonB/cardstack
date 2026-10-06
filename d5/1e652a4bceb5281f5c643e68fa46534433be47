@@ -1,0 +1,19 @@
+.scratch/agent-tooling/spec.md
+  s_aec2161db0e4b5::t_aac33802022851 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d51e652a4bceb5281f5c643e68fa46534433be47",
+  "prompts": {},
+  "sessions": {
+    "s_aec2161db0e4b5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_aec2161db0e4b5",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
