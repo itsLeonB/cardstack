@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** done pending the maintainer deleting the throwaway branch — both cases pass, two doc fixes applied, finding 4 moved to ticket 09 (see Results)
+**Status:** done — both cases pass, two doc fixes applied, finding 4 moved to ticket 09 (see Results)
 
 The maintainer runs this: it needs a T3 orchestrator thread (Sonnet, high effort), which plain Claude Code cannot provide. Use a throwaway branch (`chore/t3-orchestration-dryrun`, from `main`, deleted afterwards). Tell the orchestrator only "follow the workflow doc". Marker changes follow the 2026-10-06 probes in ticket 01: a fresh function name that did not exist before.
 
@@ -15,7 +15,7 @@ Cases (from the spec's Testing Decisions):
 - [x] Each case has a result under "Results": pass, or fail with the exact symptom and thread IDs.
 - [x] Recorded as confirmed or refuted: the project environment entry disables the native advisor tool inside a launched thread; `medium` is accepted as the effort value; the advisor can run a git diff without stalling under auto-accept-edits and plan mode.
 - [x] Every failure becomes a doc fix in ticket 02's files or a new ticket.
-- [ ] The throwaway branch, the advisor thread and any leftover worktree are removed. Thread archived and no worktree was created; the branch `chore/t3-orchestration-dryrun` (commit `2941967`) is still there because the workflow forbids `git branch -D` and the commit is unmerged by design.
+- [x] The throwaway branch, the advisor thread and any leftover worktree are removed. Both advisor threads archived, no worktree was created, and the maintainer had `chore/t3-orchestration-dryrun` (commit `2941967`, unmerged by design) force-deleted with `git branch -D`.
 
 ## Comments
 
