@@ -1,0 +1,19 @@
+backend/internal/core/otel/otel.go
+  s_a8291388291a2c::t_c30aa85e884bf6 115-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6067344fe72a4cbfcc4709801557a2d8edc29d42",
+  "prompts": {},
+  "sessions": {
+    "s_a8291388291a2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "76525761-59c3-4281-ab9b-beffedae1cd4",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
