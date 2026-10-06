@@ -1,6 +1,6 @@
 ---
 name: advisor
-description: Independent reviewer for the orchestrator. Read-only; replies with an APPROVE, CHANGES or BLOCK verdict. Launched as its own T3 thread by the orchestrator only; component agents never call it. The frontmatter is documentation, because T3 does not read agent files and the launch message points here.
+description: Independent reviewer for the orchestrator. Read-only; replies with an APPROVE, CHANGES or BLOCK verdict. Launched as its own T3 thread by the orchestrator only; component agents never call it. The frontmatter is documentation, because T3 does not read agent files and the launch message points here. Claude Code lists this file as an Agent-tool subagent type; the orchestrator must never spawn it that way.
 model: opus
 color: purple
 ---

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** done — both cases pass; one doc fix applied, two observations open (see Results)
+**Status:** done pending the maintainer deleting the throwaway branch — both cases pass, two doc fixes applied, finding 4 moved to ticket 09 (see Results)
 
 The maintainer runs this: it needs a T3 orchestrator thread (Sonnet, high effort), which plain Claude Code cannot provide. Use a throwaway branch (`chore/t3-orchestration-dryrun`, from `main`, deleted afterwards). Tell the orchestrator only "follow the workflow doc". Marker changes follow the 2026-10-06 probes in ticket 01: a fresh function name that did not exist before.
 
@@ -44,6 +44,8 @@ Run 2026-10-06 by the orchestrator thread `92335930-c690-46f0-a594-8d030847c456`
 
 **Findings:**
 1. Doc fix applied: in plan mode the advisor wrote its verdict to a plan file (`~/.claude/plans/...`) before giving it as its final message, which contradicts "never create files". `advisor.md` now says to write the verdict in the final message, not a plan file, and not to call `ExitPlanMode`. The stray plan file was deleted.
-2. Open, for the maintainer: the Agent tool in Claude Code lists `advisor` (and the two component agents) as subagent types, because Claude Code reads `.claude/agents/*.md`. The `advisor.md` description says "T3 does not read agent files", which is true of T3 but not of Claude Code. The workflow forbids calling the advisor as a subagent, so decide whether to leave it or rename the file.
-3. Open, minor: `git log --all -S <name>` in the advisor thread hit a `t3 checkpoint` commit (`refs/t3/orchestration-v2/checkpoints/...`) that snapshots the working tree. Harmless, but a "is this name new" check should search `main` and the feature branch, not `--all`.
-4. Not exercised: a harness-level write denial for the advisor. Settle it with a plan-mode thread that has no role file, asked to write a file.
+2. Doc fix applied: the Agent tool in Claude Code lists `advisor` (and the two component agents) as subagent types, because Claude Code reads `.claude/agents/*.md`, while the `advisor.md` description said T3 does not read agent files. The description now also says Claude Code lists the file as a subagent type and the orchestrator must never spawn it that way.
+3. Note only: `git log --all -S <name>` in the advisor thread hit a `t3 checkpoint` commit (`refs/t3/orchestration-v2/checkpoints/...`) that snapshots the working tree. Harmless, but an "is this name new" check should search `main` and the feature branch, not `--all`.
+4. New ticket: a harness-level write denial for the advisor was not exercised. See `.scratch/agent-tooling/issues/09-advisor-harness-write-denial-check.md`.
+
+**Retest of finding 1, 2026-10-06:** a fresh advisor thread `mcp:33da8915-dacb-4846-9cb4-1f24edd4e571` (same launch parameters, reading the updated `advisor.md`) answered a consult with `CHANGES` in its final message. No `file_change` item, no `ExitPlanMode` call, no new file in `~/.claude/plans/`. The thread's own account: its system prompt told it to write a plan file and the new line overrode that. One sample, so confirmed but not proven. The same consult also found the Status/checkbox mismatch and the missing ticket for finding 4, both fixed above.
