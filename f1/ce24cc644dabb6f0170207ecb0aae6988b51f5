@@ -1,0 +1,23 @@
+.scratch/agent-tooling/issues/07-dry-run-review-loop-silent-death-long-wait.md
+  s_eabf5a172073d4::t_72932b7beb5fa5 7,16-18,23-43
+.scratch/agent-tooling/issues/11-dry-run-idle-orchestrator-receives-report.md
+  s_eabf5a172073d4::t_0cfa89a17247ff 1-17
+docs/agents/orchestration.md
+  s_eabf5a172073d4::t_2b956ad94ac2b7 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f1ce24cc644dabb6f0170207ecb0aae6988b51f5",
+  "prompts": {},
+  "sessions": {
+    "s_eabf5a172073d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_eabf5a172073d4",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
