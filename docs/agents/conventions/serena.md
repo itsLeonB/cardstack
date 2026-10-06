@@ -10,7 +10,7 @@ Everyone in a T3 thread uses Serena: the orchestrator, the component agents and 
 - A component agent runs as its own T3 thread in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the main checkout.
 - The advisor uses Serena for reads in the main checkout, and reads a child's worktree by absolute path with the built-in tools, because its Serena is rooted at the main checkout.
 
-Launched threads are top-level threads, not subagents, so the always-on `serena-hooks remind` hook applies to them too. The dry run in `.scratch/agent-tooling/issues/05-dry-run-parallel-happy-path.md` checks this.
+Launched threads are top-level threads, not subagents, so the always-on `serena-hooks remind` hook applies to them too. Dry run 10 (`.scratch/agent-tooling/issues/10-dry-run-serena-hook-in-launched-thread.md`) confirmed it: the third consecutive built-in code read in a launched thread came back as a `PreToolUse:Read hook error` telling the agent to use symbolic tools, and a retry of the same read then went through. Native subagents are skipped by the hook.
 
 Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md` and `.scratch/agent-tooling/research/t3-code-worktree-orchestration-sources.md`.
 
