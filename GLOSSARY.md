@@ -43,6 +43,10 @@ A user-owned, named grouping of Cards with quantities (a binder, box, or deck). 
 The atomic record of how many of one Card a user holds within one Collection. This is where quantity actually lives — Collections and Master Inventory are both just views over Inventory Entries.
 _Avoid_: "Inventory" alone — ambiguous between this (atomic, per-Collection) and Master Inventory (aggregate, per-user). Always say which one.
 
+**Draft Addition**:
+An unsaved, transient list of Cards, each with a quantity to add, that a user builds by scanning, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals.
+_Avoid_: "inventory" or "collection" for the draft — it is neither; it is a pending change to one Collection's Inventory Entries.
+
 **Master Inventory**:
 Not a stored entity. The aggregate of a user's Inventory Entries across *all* their Collections, grouped by Card — "how many of this card do I own in total, anywhere." Computed on read, not written to.
 
