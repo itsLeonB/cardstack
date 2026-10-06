@@ -12,6 +12,8 @@ Keep the built-in-tools fallback for subagents (`docs/agents/conventions/serena.
 - The one route that works is a separate headless `claude -p` process started in the worktree. It works, but adopting it for the component agents means launching them through Bash instead of the Agent tool. That gives up background notifications, SendMessage and the agent-file tool restrictions.
 - That child also loads the project hooks from the worktree. `require-advisor.py` refused its Serena edit, so every headless edit agent would hit the same block unless the hook changes.
 
+**Update 2026-10-06 (T3 Code Nightly):** two of the costs above no longer hold. A thread started with `t3_thread_launch` and a worktree `workspaceStrategy` gets its own Serena rooted at the worktree, and it exchanges messages with the orchestrator through `t3_thread_send` in both directions. `require-advisor.py` has been removed. What remains: the agent-file frontmatter (tool restrictions, model) does not apply, and the child reports completion only if it sends the report itself. Details: `t3-code-worktree-orchestration-sources.md` and the ticket's "Comments (T3 Code follow-up)".
+
 The maintainer can override this and take the headless route. That decision needs changes to `orchestration.md` and the hook.
 
 ## Answers to the open questions

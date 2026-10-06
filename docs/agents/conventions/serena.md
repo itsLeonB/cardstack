@@ -7,7 +7,7 @@ Serena is an MCP server that exposes semantic, symbol-aware tools for reading, s
 - **Root agent** (the main session, including the orchestrator): everything below applies. Read it before the first tool call on a code file.
 - **Subagents** (`backend-agent`, `frontend-agent`, any Agent-tool child) use the built-in Read, Grep, Glob and Edit tools on absolute paths under their worktree, and they never read this file. When you delegate, tell them to use the built-in tools; never point them at Serena or at this file. The reason: Serena is rooted at the main checkout and subagents still see the shared server, so a read in a worktree returns `[]` with no error and an edit lands in the wrong tree.
 
-Giving each worktree its own Serena instance was tested and does not work for Agent-tool subagents, because inline `mcpServers` in agent frontmatter never start. Only a separate headless `claude -p` process started in the worktree gets its own instance. Findings: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md`.
+Giving each worktree its own Serena instance was tested and does not work for Agent-tool subagents, because inline `mcpServers` in agent frontmatter never start. Only a separate Claude Code process started in the worktree gets its own instance. That can be a headless `claude -p` process, or under T3 Code a thread started with `t3_thread_launch` and a worktree `workspaceStrategy`, which reports back through `t3_thread_send`. Neither route is adopted for the component agents yet. Findings: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md` and `.scratch/agent-tooling/research/t3-code-worktree-orchestration-sources.md`.
 
 ## Reaching the tools
 
