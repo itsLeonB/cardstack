@@ -1,0 +1,23 @@
+.mcp.json
+  s_e806fac0eafa89::t_dc77a152eddb8e 25-27
+.pi/mcp-adapter.json
+  s_e806fac0eafa89::t_a49515bae0e413 5
+docs/agents/serena.md
+  s_e806fac0eafa89::t_e395706d1ab453 39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "64174bf0618e45b913ec8a54658a729546558d09",
+  "prompts": {},
+  "sessions": {
+    "s_e806fac0eafa89": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e806fac0eafa89",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
