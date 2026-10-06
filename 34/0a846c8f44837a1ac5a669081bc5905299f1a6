@@ -1,0 +1,19 @@
+backend/internal/core/apperr/apperr.go
+  s_d6931765b0f3c8::t_0dd0cb3b870926 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "340a846c8f44837a1ac5a669081bc5905299f1a6",
+  "prompts": {},
+  "sessions": {
+    "s_d6931765b0f3c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d6931765b0f3c8",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
