@@ -162,5 +162,5 @@ Keep the built-in-tools fallback for subagents; revisit if inline `mcpServers` i
 - Inline frontmatter servers never started (no tools, no prompt, no log), so questions 2 and 3 are moot and question 1's cause is unknown.
 - Question 4: a per-worktree `--project` config works, but only for a separate `claude -p` process. Adopting that for the component agents is the maintainer's call, because it changes `orchestration.md` and loses notifications, SendMessage and the tool restrictions, and the child hits `require-advisor.py`.
 - Question 5: `isolation: "worktree"` branches are named `worktree-agent-<id>`, which does not match `<semantic branch>/<branch name>` in `orchestration.md`.
-- Acceptance criterion 4 does not apply, since no approach is adopted. One follow-up remains: `docs/agents/conventions/serena.md` (line 10) still says per-worktree Serena is "open research" and should link to the note instead.
+- Acceptance criterion 4 does not apply, since no approach is adopted. One follow-up remains: `docs/agents/conventions/serena.md` (line 10) still says per-worktree Serena is "open research" and should link to the note instead. Done by the work in ticket 04 (`.scratch/agent-tooling/issues/04-component-agents-in-worktrees.md`).
 - The probe worktree, its branch and `.claude/agents/serena-probe.md` were deleted after the run.
