@@ -36,7 +36,7 @@ The `claude-code` context excludes `search_for_pattern`, which pi wants, and exi
   "mcpServers": {
     "serena": {
       "command": "serena",
-      "args": ["start-mcp-server", "--context", "ide", "--project-from-cwd"],
+      "args": ["start-mcp-server", "--context", "ide", "--project-from-cwd", "--open-web-dashboard", "false"],
       "directTools": "search"
     }
   }
