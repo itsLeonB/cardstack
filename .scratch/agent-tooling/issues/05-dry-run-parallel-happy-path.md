@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-human
+**Status:** done
 
 The maintainer runs this in a T3 orchestrator thread (Sonnet, high effort), on a throwaway branch (`chore/t3-orchestration-dryrun`, from `main`, deleted afterwards). Tell the orchestrator only "follow the workflow doc".
 
@@ -13,7 +13,7 @@ Case 1: one backend and one frontend marker symbol (fresh function names), each 
 - [x] Case 1 has a result under "Results": pass, or fail with the exact symptom and thread IDs.
 - [x] Recorded: worktree paths match the documented derivation from the branch name; the scope check passes; the four-part report arrives as a new orchestrator turn; the Serena reminder hook fires in a launched thread; after cleanup no thread, worktree or branch is left behind.
 - [x] Every failure becomes a doc fix in ticket 04's files or a new ticket.
-- [ ] The throwaway branch and any leftover worktrees are removed.
+- [x] The throwaway branch and any leftover worktrees are removed. The maintainer had `chore/t3-orchestration-dryrun` force-deleted with `git branch -D` (unmerged by design); no dry-run worktree is left.
 
 ## Comments
 
