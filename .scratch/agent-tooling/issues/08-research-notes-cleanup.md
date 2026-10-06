@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `docs/t3-orchestration-workflow`
 
 - [ ] Every reference in the research notes to the "Comments (T3 Code follow-up)" section of ticket 01 and to tickets 02 to 06 of the earlier plan is removed or replaced by a pointer to this spec's tickets.
 - [ ] The research note records upstream issues #15136, #15135, #15173, #13490 and #15082 on `pingdotgg/t3code`, each with a one-line summary and the rule in the docs it explains.

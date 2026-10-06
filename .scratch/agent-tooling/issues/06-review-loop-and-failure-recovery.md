@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 (both tickets edit the workflow doc).
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `docs/t3-orchestration-workflow`
 
 - [ ] The review loop is documented: the orchestrator runs the `code-review` skill on a child's worktree diff, sends the findings to the same child thread by queued message, and the child fixes, re-verifies, commits and reports again. A fresh thread is not used for fixes.
 - [ ] The failure policy is documented: on a failed child or a wait timeout, the orchestrator reads the thread and the worktree's git state first; committed work is kept; if work is uncommitted or missing it relaunches a replacement into the same worktree (existing-worktree strategy) with a "continue from this state" prompt.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (both tickets edit the workflow doc).
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `docs/t3-orchestration-workflow`
 
 Work on the same branch as ticket 02 or a branch from it.
 

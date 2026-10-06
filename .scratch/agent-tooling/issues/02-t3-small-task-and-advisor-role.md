@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `docs/t3-orchestration-workflow`
 
 Work on a branch such as `docs/t3-orchestration-workflow`. Docs, one agent file and one settings key only; no backend or frontend code. The big-task section of the workflow doc is rewritten by ticket 04, so leave it as it is.
 
