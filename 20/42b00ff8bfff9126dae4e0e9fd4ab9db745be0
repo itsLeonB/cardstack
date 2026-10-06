@@ -1,0 +1,19 @@
+.scratch/agent-tooling/issues/09-advisor-harness-write-denial-check.md
+  s_f65f48c2fcc357::t_98e770bbb176fe 7,12,17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2042b00ff8bfff9126dae4e0e9fd4ab9db745be0",
+  "prompts": {},
+  "sessions": {
+    "s_f65f48c2fcc357": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f65f48c2fcc357",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
