@@ -27,7 +27,7 @@ Run 2026-10-06 in orchestrator thread `32987e2d-95f0-4557-8624-cf471d84b53d` (So
 - Worktree paths: `/home/leon/.t3/worktrees/cardstack/chore-dryrun-parallel-backend` and `...-frontend`, matching the documented derivation (slashes become dashes) under T3's parent directory.
 - Scope check: `git diff --name-only <feature>...HEAD` listed only `backend/internal/core/apperr/apperr.go` and `frontend/src/lib/date.ts`.
 - Serena repeatable check: each child found its marker with `find_symbol` and edited it with `replace_symbol_body` to the `-v2` value. Its worktree changed, and the main checkout stayed clean (`git status` empty).
-- Report: the backend report arrived as a new orchestrator turn (run ordinal 2) after the orchestrator ended its turn. The frontend report was queued behind it. While the orchestrator was busy, `t3_thread_wait` completing was the only visible signal.
+- Report: both four-part reports arrived as new orchestrator turns, backend first (run ordinal 2), then frontend, after the orchestrator ended its turn. While the orchestrator was busy, `t3_thread_wait` completing was the only visible signal. Both reports carried all four parts (status, SHAs, verification, deviations).
 - Review: `code-review` run inline (not as two sub-agents, because each diff is a 4-line marker): no findings. No fix round was needed, so the send-findings-to-child path was not exercised.
 - Merge and cleanup: both branches merged `--no-ff` into the feature branch, threads archived, worktrees removed, branches deleted with `git branch -d`. `git worktree list` and `git branch` show nothing left from the children.
 - Serena reminder hook: **inconclusive**. Neither child saw it, but neither made a streak of built-in code reads, so it was never due. Ticket 10 checks it directly.
@@ -38,5 +38,6 @@ Findings:
 1. `t3_thread_launch` rejected `modelSelection` without `instanceId`, so the first launch call failed for both children. Fixed in `docs/agents/orchestration.md` (big-task launch step 4 and advisor launch step 2), including the accepted `options` shape.
 2. Serena hook not exercised: new ticket 10.
 3. The throwaway branch was cut from `docs/t3-orchestration-workflow`, not `main`, for the same reason as ticket 03 (`main` lacks the workflow doc and role files).
-4. The throwaway branch `chore/t3-orchestration-dryrun` holds the two merge commits and is unmerged by design, so a safe `git branch -d` refuses it. The fourth criterion stays open until the maintainer force-deletes it.
+4. A fresh frontend worktree has no `node_modules`; the frontend child ran `bun install` (the orchestrator's launch message told it to). Fixed in `docs/agents/orchestration.md`, Verification commands.
+5. The throwaway branch `chore/t3-orchestration-dryrun` holds the two merge commits and is unmerged by design, so a safe `git branch -d` refuses it. The fourth criterion stays open until the maintainer force-deletes it.
 

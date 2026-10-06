@@ -22,7 +22,7 @@ Never commit or merge onto `main` directly. Before any other step, check `git br
 Run from the component directory, and fix every failure before committing.
 
 - Backend: `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test ./...`.
-- Frontend: `bun run lint`, `bun run check` (prettier; `bun run format` fixes it), `bun run typecheck`, `bun run test`, `bun run build`.
+- Frontend: `bun install` first in a fresh worktree (it has no `node_modules`), then `bun run lint`, `bun run check` (prettier; `bun run format` fixes it), `bun run typecheck`, `bun run test`, `bun run build`.
 
 ## Big/multiple components task
 
