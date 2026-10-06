@@ -36,18 +36,38 @@ The orchestrator stays on the main checkout and the feature branch, launches one
    - `modelSelection`: the Sonnet identifier from step 3 at `medium` effort. `runtimeMode`: `full-access`, so the child runs builds, tests and commits unattended.
    - `message`: the [launch message](#launch-message).
 5. **Derive the worktree path.** T3 chooses it, and its directory name is the branch name with slashes replaced by dashes. Confirm the absolute path with `t3_worktree_list` before the first git command against it, then run `git -C <path> ...` for diffs and logs without asking T3.
-6. **Wait and collect.** Wait on each child with `t3_thread_wait` and a 30-minute `timeoutMs`, in addition to its own report: T3 sends no completion signal for launched threads, and a child can end failed without any message. A report arrives as a queued message and starts a new orchestrator turn when you are idle. Treat the [report](#report-protocol) as the signal that work is ready; treat a failed run or an expired wait as a child that needs attention.
+6. **Wait and collect.** Wait on each child with `t3_thread_wait` and a 30-minute `timeoutMs` per child turn (a shorter value may be used for testing), in addition to its own report: T3 sends no completion signal for launched threads, and a child can end failed without any message. A report arrives as a queued message and starts a new orchestrator turn when you are idle. Treat the [report](#report-protocol) as the signal that work is ready; treat a failed run or an expired wait as a child that needs [recovery](#failure-recovery).
 7. **Check scope.** Diff the changed file names against the component directory: `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under `backend/` or only under `frontend/`. Tool restrictions no longer enforce scope, so this check does.
-8. **Review.** Run the `code-review` skill on the child's worktree diff and evaluate the findings. The child does not run its own `code-review` pass, and the skill itself is managed by `npx skills`, so never edit it. Fixes go back to the same child thread by queued message.
+8. **Review.** Run the [review loop](#review-loop) until the child's diff has no finding left to fix.
 9. **Merge and clean up**, per child once it is done, in this order, because T3 has no tool for removing worktrees or branches:
    1. Merge the child's branch into the feature branch.
    2. Archive the thread: `t3_thread_organize` with `action: "archive"` and the child's `threadId`.
    3. Remove the worktree: `git worktree remove <path>`.
    4. Delete the branch with a safe delete: `git branch -d <branch>`, which refuses an unmerged branch. Never use `-D`.
-10. **Architecture review.** Once every child is merged, the orchestrator runs the `code-review` skill scoped to the full feature branch diff, focused on cross-component integration and architecture, not on re-litigating what the component-level reviews checked. Findings in component code go to a fresh child launched as in step 4 on a new branch from the feature branch and merged as in step 9; the orchestrator fixes only what lies outside the component directories, then re-runs the relevant [verification commands](#verification-commands).
+10. **Architecture review.** Once every child is merged, the orchestrator runs the `code-review` skill scoped to the full feature branch diff, focused on cross-component integration and architecture, not on re-litigating what the component-level reviews checked. Every child is archived and its branch deleted by then, so findings in component code go to a fresh child launched as in step 4 on a new branch from the feature branch and merged as in step 9; the orchestrator fixes only what lies outside the component directories, then re-runs the relevant [verification commands](#verification-commands).
 11. Commit the merge on the feature branch (never on `main`) and push, confirming with the maintainer before pushing.
 
 The orchestrator owns every edit outside `./backend` and `./frontend` (`docs/`, `GLOSSARY.md`, ADRs, the ticket's `Status:` line under `.scratch/`), because each component agent is scoped to its own directory. It uses context7 for any library question it resolves itself, and Serena for any code read.
+
+### Review loop
+
+The child does not run its own `code-review` pass, and the skill itself is managed by `npx skills`, so never edit it. For each child that reports done:
+
+1. Run the `code-review` skill on the child's worktree diff and evaluate the findings, discarding the ones that do not hold.
+2. Send the findings that need a fix to the same child thread with `t3_thread_send` and `mode: "queue"`. The child keeps its context, so a fix never goes to a fresh thread.
+3. The child fixes, re-runs its [verification commands](#verification-commands), commits on its own branch and sends a new [report](#report-protocol).
+4. Repeat from step 1 on the new commits, re-running the scope check, until no finding is left to fix. Only then merge (step 9).
+
+### Failure recovery
+
+A child needs recovery when its run ends failed, or when the wait for its turn expires without a report. Recover in this order:
+
+1. **Read first.** Read the thread with `t3_thread_read`, and the worktree's git state with `git -C <path> log <feature branch>..HEAD` and `git -C <path> status`. If the thread is still running, stop it with `t3_thread_interrupt` first, so two threads never write to one worktree.
+2. **Keep committed work.** Commits on the child's branch are never discarded. If the task is complete and verified there, carry on with the review loop as if the child had reported.
+3. **Relaunch when work is uncommitted or missing.** Launch a replacement as in step 4 of the big-task steps, with `workspaceStrategy` `{type: "existing_worktree", worktreePath: "<path>", branch: "<child branch>"}` in place of the new-worktree strategy, and the same model, runtime mode and [launch message](#launch-message). Open the message with a "continue from this state" prompt: the commits already on the branch, what `git status` shows, what remains of the task, and what the thread revealed about why the first run failed.
+4. **Stop after a second failure.** If the replacement also fails or times out on the same task, stop and ask the maintainer. Recovery never includes editing `./backend` or `./frontend` yourself, even for a small remainder.
+
+The replacement is the child from then on: it receives review findings, and cleanup archives its thread and the failed one.
 
 ### Launch message
 
