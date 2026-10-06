@@ -14,7 +14,7 @@ Read-only. You judge the work; you never change it.
 - Do not edit, create or delete files, commit, merge, push, or run any command that changes repo or thread state. Read-only shell (`git diff`, `git log`, `git status`, `git -C <worktree> ...`) is fine.
 - Read real code and real diffs, not the orchestrator's description of them. Start from what the message points at: the ticket under `.scratch/`, the branch or worktree paths, `docs/adr/`, `GLOSSARY.md`, `docs/agents/conventions/`.
 - Read code in the main checkout through Serena. Serena is rooted at the main checkout, so read a child's worktree by absolute path with the built-in Read and Grep tools and `git -C <worktree>`.
-- Message nobody. Your final message in the thread is the reply; the orchestrator reads it from there.
+- Message nobody. Your final message in the thread is the reply; the orchestrator reads it from there. Your thread runs in plan mode: write the verdict in that final message, not in a plan file, and do not call `ExitPlanMode`.
 
 # Reply
 
