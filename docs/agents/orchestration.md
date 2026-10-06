@@ -1,6 +1,8 @@
 # Development orchestration workflow
 
-How the orchestrator (you, in the main session) routes a development task to either a multi-agent worktree workflow or a direct single-component workflow.
+How the orchestrator routes a development task to either a multi-agent worktree workflow or a direct single-component workflow.
+
+All work starts in a T3 thread. That thread is the orchestrator, runs on the main checkout, and is the only thread the maintainer talks to.
 
 ## Deciding which workflow applies
 
@@ -9,7 +11,7 @@ A task is **big/multi-component** if either is true:
 - It touches both `./backend` and `./frontend`.
 - It touches only one component, but the change is large (new subsystem, cross-cutting refactor, several files/symbols, schema + API + UI surface).
 
-Otherwise it is **small, one component** — proceed without subagents.
+Otherwise it is **small, one component**: the orchestrator thread does it directly, with no child threads and no worktree.
 
 ## Feature branch first
 
@@ -34,12 +36,41 @@ Both component subagents reference their relevant skills/MCPs internally (contex
 
 ## Small, one component task
 
-If the task touches a limited part of one component, it is small enough and justified to skip subagents:
+If the task touches a limited part of one component, the orchestrator thread implements it directly on the feature branch in the main checkout:
 
-1. Implement directly — no `backend-agent`/`frontend-agent` delegation, no worktree. Drive it with TDD at agreed seams (`tdd` skill) when the task comes from a spec/ticket file, otherwise implement directly. Use Serena for all code reads/edits (mandatory, see `docs/agents/conventions/serena.md` / `initial_instructions`), and context7 for any library docs needed. Load the stack-specific skill for the area touched (e.g. `golang-testing`, `tanstack-query`, `shadcn`) the same way the component agents would.
-2. Run that component's verification script (same commands as step 3 above).
-3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. The orchestrator does have an Agent/Task tool, so this runs as the skill's normal two-parallel-sub-agent review. Re-run that component's verification script (step 2) after fixing findings, before committing.
-4. Commit on the feature branch (never on `main`) using the [commit naming convention](#commit-naming-conventions) and push — confirm with the user before pushing.
+1. Implement directly, with no `backend-agent`/`frontend-agent` delegation and no worktree. Drive it with TDD at agreed seams (`tdd` skill) when the task comes from a spec/ticket file. Use Serena for all code reads/edits (mandatory, see `docs/agents/conventions/serena.md` / `initial_instructions`), and context7 for any library docs needed. Load the stack-specific skill for the area touched (e.g. `golang-testing`, `tanstack-query`, `shadcn`) the same way the component agents would. Consult the [advisor](#advisor) at its consult triggers.
+2. Run that component's verification script (the commands in step 3 of the big-task workflow above).
+3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. Re-run the verification script (step 2) after fixing findings, before committing.
+4. Commit on the feature branch (never on `main`) using the [commit naming convention](#commit-naming-conventions). Confirm with the maintainer before pushing.
+
+## Advisor
+
+The advisor is an independent reviewer on a stronger model, launched as its own T3 thread from the role file `.claude/agents/advisor.md`. Only the orchestrator consults it; component agents never call it and ask the orchestrator instead. The native advisor tool is disabled for the project (`CLAUDE_CODE_DISABLE_ADVISOR_TOOL` in `.claude/settings.json`), so this thread is the one advisor mechanism.
+
+**Consult triggers.** Consult before choosing between approaches, when stuck, before declaring multi-step work done, and when a child's question is not answered by the ticket or the ADRs. Doc, ticket, config and one-line edits go ahead without it.
+
+**Launch.** One thread per run:
+
+1. Call `orchestrator_capabilities` and take the Opus model identifier from its catalog, confirming `medium` is an accepted effort value. Never hard-code the identifier.
+2. Call `t3_thread_launch` with no `workspaceStrategy` (the advisor runs on the main checkout), `interactionMode: "plan"`, `runtimeMode: "auto-accept-edits"` (reads and `git diff` run without stalling), and `modelSelection` set to that Opus identifier at `medium` effort. Set all of these explicitly, because omitted values inherit from the orchestrator.
+3. The launch message tells the advisor to read `.claude/agents/advisor.md` and follow it, then states the question, the ticket path, and the branches or absolute worktree paths to read. The advisor uses Serena for reads in the main checkout and reads a child's worktree by absolute path.
+4. Wait with `t3_thread_wait`, then read the reply with `t3_thread_read`.
+
+**Reuse.** Send each later consult to the same thread with `t3_thread_send` (`mode: "queue"`), then wait and read as above. Archive the thread when the run ends. Start a fresh thread only when its context has gone stale.
+
+**Reply.** The verdict is `APPROVE`, `CHANGES` with a list, or `BLOCK`, each with reasons. The orchestrator treats it as advice: act on it, or on disagreement send the advisor one reconcile message with the evidence, then ask the maintainer if the two still disagree.
+
+## Models and effort
+
+| Role | Model | Effort | Set |
+| --- | --- | --- | --- |
+| Orchestrator | Sonnet | high | by the maintainer in the thread |
+| Component agents | Sonnet | medium | at launch |
+| Advisor | Opus | medium | at launch |
+
+## pi caveat
+
+pi orchestration is not designed here. `.pi/agents/` symlinks only `backend-agent.md` and `frontend-agent.md`; `advisor.md` is deliberately left out, because the advisor exists only as a T3 thread launched by the orchestrator and a pi subagent entry would invite a call path this workflow forbids.
 
 ## Commit naming conventions
 
