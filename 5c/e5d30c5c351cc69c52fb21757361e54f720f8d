@@ -1,0 +1,21 @@
+.scratch/agent-tooling/issues/10-dry-run-serena-hook-in-launched-thread.md
+  s_6f718f11acf2aa::t_bddeab58f194d6 7,11-13,18-37
+docs/agents/conventions/serena.md
+  s_6f718f11acf2aa::t_ef9fe3a6a7e5f2 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5ce5d30c5c351cc69c52fb21757361e54f720f8d",
+  "prompts": {},
+  "sessions": {
+    "s_6f718f11acf2aa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_6f718f11acf2aa",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
