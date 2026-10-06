@@ -17,30 +17,70 @@ Otherwise it is **small, one component**: the orchestrator thread does it direct
 
 Never commit or merge onto `main` directly. Before any other step, check `git branch --show-current`: if it is `main`, create and switch to the feature branch (`git switch -c <semantic branch>/<branch name>`, see [branch naming convention](#branch-naming-conventions)). Everything below happens on that branch: worktrees branch from it, and "the shared feature branch" means it. A `PreToolUse` hook in `.claude/settings.json` blocks `git commit` and `git merge` while on `main`.
 
+## Verification commands
+
+Run from the component directory, and fix every failure before committing.
+
+- Backend: `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test ./...`.
+- Frontend: `bun run lint`, `bun run check` (prettier; `bun run format` fixes it), `bun run typecheck`, `bun run test`, `bun run build`.
+
 ## Big/multiple components task
 
-1. Delegate work to `backend-agent` and/or `frontend-agent` (`.claude/agents/backend-agent.md`, `.claude/agents/frontend-agent.md`) — only the components actually touched.
-2. Each subagent works in its own git worktree: `git worktree add ../cardstack-<component>-<feature> -b <branch-name>`. Branch names follow the [branch naming convention](#branch-naming-conventions). When the backend change alters `backend/openapi.json`, run the backend first, merge its branch into the feature branch, then create the frontend worktree from that merged state, so the frontend regenerates its client from the new contract.
-3. Each subagent implements directly, using TDD at agreed seams (`tdd` skill) when the task comes from a spec/ticket file. `/implement` describes this same workflow but carries `disable-model-invocation`, so it refuses when a subagent calls it through the Skill tool ("reserved for explicit user invocation") — subagents follow its practices directly instead rather than delegating to it. Each subagent runs its own verification script before considering the work done: backend `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test ./...`; frontend `bun run lint`, `bun run check` (prettier; `bun run format` fixes it), `bun run typecheck`, `bun run test`, `bun run build`. It then commits on its own branch using the [commit naming convention](#commit-naming-conventions) and reports back — it does **not** run its own `code-review` pass (see step 4: that's the orchestrator's job, not something to route around by editing the `code-review` skill itself, which is managed by `npx skills` and gets overwritten on update).
-4. The orchestrator runs the `code-review` skill itself, scoped to that subagent's worktree diff. The orchestrator has its own Agent/Task tool, so this runs as the skill's normal two-parallel-sub-agent review — no fallback needed. The orchestrator passes the findings back to the same subagent (continue it via `SendMessage`, or a fresh delegated task scoped to just the findings) to fix; the subagent fixes them, re-runs verification, and commits the fix on its branch.
-5. Once every delegated subagent has finished (including any review-finding fixes from step 4), the orchestrator merges each worktree's branch back into the shared feature branch and removes the worktrees (`git worktree remove`).
-6. The orchestrator spawns a separate, high-level architecture review subagent (via the `code-review` skill, scoped to the full feature branch diff) that focuses on cross-component integration and architecture, not on re-litigating what the component-level reviewers already checked.
-7. The orchestrator evaluates that report:
-   - Small findings: fix directly, then re-run the relevant verification script(s).
-   - Larger findings: delegate back to the relevant implementer subagent (same worktree pattern) rather than fixing inline.
-8. Commit the merge on the feature branch (never on `main`) and push — confirm with the user before pushing.
+The orchestrator stays on the main checkout and the feature branch, launches one child thread per component touched (only those), and never edits `./backend` or `./frontend` itself during a big task. Each child is a top-level T3 thread in its own worktree with its own Serena rooted there, launched from the role files `.claude/agents/backend-agent.md` and `.claude/agents/frontend-agent.md`. Use `t3_thread_launch` for component work, never `delegate_task`: a delegated child cannot be bound to a worktree.
 
-The orchestrator owns every edit outside `./backend` and `./frontend` (`docs/`, `GLOSSARY.md`, ADRs, the ticket's `Status:` line under `.scratch/`), because each component agent is scoped to its own directory.
+1. **Commit first.** Commit everything on the feature branch (tickets, docs, earlier merges) before launching. A new worktree contains only commits, so uncommitted changes never reach the child.
+2. **Order by contract.** When the backend change alters `backend/openapi.json`, launch the backend first, merge its branch into the feature branch, then launch the frontend from that merged state, so the frontend regenerates its client from the new contract. Otherwise launch both at once.
+3. **Look up identifiers.** Call `orchestrator_capabilities` and take the Sonnet model identifier from its catalog, confirming `medium` is an accepted effort value, plus your own thread ID (`parentThreadId`). Never hard-code either.
+4. **Launch each child** with `t3_thread_launch`, setting every value explicitly because omitted ones inherit from the orchestrator:
+   - `workspaceStrategy`: `{type: "worktree", baseRef: "<feature branch>", branch: "<type>/<feature>-<component>", startFromOrigin: false}`. The branch follows the [branch naming convention](#branch-naming-conventions), with the component appended after a dash (`feat/users-management-backend`). Never nest it under the feature branch (`<feature branch>/<component>`): git cannot hold a branch and a directory of the same name. Never fetch from origin; the base is the local feature branch.
+   - `modelSelection`: the Sonnet identifier from step 3 at `medium` effort. `runtimeMode`: `full-access`, so the child runs builds, tests and commits unattended.
+   - `message`: the [launch message](#launch-message).
+5. **Derive the worktree path.** T3 chooses it, and its directory name is the branch name with slashes replaced by dashes. Confirm the absolute path with `t3_worktree_list` before the first git command against it, then run `git -C <path> ...` for diffs and logs without asking T3.
+6. **Wait and collect.** Wait on each child with `t3_thread_wait` and a 30-minute `timeoutMs`, in addition to its own report: T3 sends no completion signal for launched threads, and a child can end failed without any message. A report arrives as a queued message and starts a new orchestrator turn when you are idle. Treat the [report](#report-protocol) as the signal that work is ready; treat a failed run or an expired wait as a child that needs attention.
+7. **Check scope.** Diff the changed file names against the component directory: `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under `backend/` or only under `frontend/`. Tool restrictions no longer enforce scope, so this check does.
+8. **Review.** Run the `code-review` skill on the child's worktree diff and evaluate the findings. The child does not run its own `code-review` pass, and the skill itself is managed by `npx skills`, so never edit it. Fixes go back to the same child thread by queued message.
+9. **Merge and clean up**, per child once it is done, in this order, because T3 has no tool for removing worktrees or branches:
+   1. Merge the child's branch into the feature branch.
+   2. Archive the thread: `t3_thread_organize` with `action: "archive"` and the child's `threadId`.
+   3. Remove the worktree: `git worktree remove <path>`.
+   4. Delete the branch with a safe delete: `git branch -d <branch>`, which refuses an unmerged branch. Never use `-D`.
+10. **Architecture review.** Once every child is merged, the orchestrator runs the `code-review` skill scoped to the full feature branch diff, focused on cross-component integration and architecture, not on re-litigating what the component-level reviews checked. Findings in component code go to a fresh child launched as in step 4 on a new branch from the feature branch and merged as in step 9; the orchestrator fixes only what lies outside the component directories, then re-runs the relevant [verification commands](#verification-commands).
+11. Commit the merge on the feature branch (never on `main`) and push, confirming with the maintainer before pushing.
 
-Both component subagents reference their relevant skills/MCPs internally (context7 for library docs, plus stack-specific skills — see each agent file; they edit with the built-in tools, Serena is root-agent only). The orchestrator itself should load Serena for any direct edits it makes in step 8, and context7 for any library-specific question it needs to resolve itself.
+The orchestrator owns every edit outside `./backend` and `./frontend` (`docs/`, `GLOSSARY.md`, ADRs, the ticket's `Status:` line under `.scratch/`), because each component agent is scoped to its own directory. It uses context7 for any library question it resolves itself, and Serena for any code read.
+
+### Launch message
+
+Every child gets the same message, in this order:
+
+1. **Role.** Read `.claude/agents/<component>-agent.md` and follow it, then read `docs/agents/conventions/general.md` and `docs/agents/conventions/<component>.md`.
+2. **Task.** The ticket path under `.scratch/`, or the task text.
+3. **Orchestrator.** Your thread ID, for reports and questions.
+4. **Workspace.** Your branch and absolute worktree path.
+5. **Scope.** The component directory you may edit, and the read-only files the role file lists.
+6. **Verification.** The [verification commands](#verification-commands) for the component.
+7. **Commit.** The [commit naming convention](#commit-naming-conventions), on your own branch.
+8. **Never.** Never push, and never archive your own thread.
+9. **Report.** The [report protocol](#report-protocol), by `t3_thread_send` to the orchestrator's thread with `mode: "queue"`.
+
+### Report protocol
+
+A child reports by `t3_thread_send` to the orchestrator's thread with `mode: "queue"`, which starts a turn on an idle orchestrator and waits behind the current turn on a busy one. A report has four parts:
+
+1. **Status**: done, or blocked.
+2. **Commit SHAs**: every commit on the branch since the base.
+3. **Verification results**: each command and whether it passed.
+4. **Deviations or questions**: anything done differently from the task, or what is needed from the orchestrator.
+
+A blocking question goes the same way, with the question in part 4, and the child then ends its turn and waits for the reply. The orchestrator answers from the ticket and the ADRs first, and asks the maintainer only when they do not cover it. It replies to the child with `t3_thread_send` and `mode: "queue"`.
 
 ## Small, one component task
 
 If the task touches a limited part of one component, the orchestrator thread implements it directly on the feature branch in the main checkout:
 
 1. Implement directly, with no `backend-agent`/`frontend-agent` delegation and no worktree. Drive it with TDD at agreed seams (`tdd` skill) when the task comes from a spec/ticket file. Use Serena for all code reads/edits (mandatory, see `docs/agents/conventions/serena.md` / `initial_instructions`), and context7 for any library docs needed. Load the stack-specific skill for the area touched (e.g. `golang-testing`, `tanstack-query`, `shadcn`) the same way the component agents would. Consult the [advisor](#advisor) at its consult triggers.
-2. Run that component's verification script (the commands in step 3 of the big-task workflow above).
-3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. Re-run the verification script (step 2) after fixing findings, before committing.
+2. Run that component's [verification commands](#verification-commands).
+3. Run a review pass (`code-review` skill, scoped to the diff), evaluate its findings, and fix them. Re-run the verification commands after fixing findings, before committing.
 4. Commit on the feature branch (never on `main`) using the [commit naming convention](#commit-naming-conventions). Confirm with the maintainer before pushing.
 
 ## Advisor

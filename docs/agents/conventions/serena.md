@@ -1,13 +1,16 @@
 # Serena tool policy
 
-Serena is an MCP server that exposes semantic, symbol-aware tools for reading, searching, and editing code. For the root agent its tools are the PRIMARY tools for code work in this project. Built-in file tools are SECONDARY and must not be used on code files when a Serena equivalent exists.
+Serena is an MCP server that exposes semantic, symbol-aware tools for reading, searching, and editing code. For every agent its tools are the PRIMARY tools for code work in this project. Built-in file tools are SECONDARY and must not be used on code files when a Serena equivalent exists.
 
 ## Who uses Serena
 
-- **Root agent** (the main session, including the orchestrator): everything below applies. Read it before the first tool call on a code file.
-- **Subagents** (`backend-agent`, `frontend-agent`, any Agent-tool child) use the built-in Read, Grep, Glob and Edit tools on absolute paths under their worktree, and they never read this file. When you delegate, tell them to use the built-in tools; never point them at Serena or at this file. The reason: Serena is rooted at the main checkout and subagents still see the shared server, so a read in a worktree returns `[]` with no error and an edit lands in the wrong tree.
+Everyone in a T3 thread uses Serena: the orchestrator, the component agents and the advisor. Read this file before your first tool call on a code file.
 
-Giving each worktree its own Serena instance was tested and does not work for Agent-tool subagents, because inline `mcpServers` in agent frontmatter never start. Only a separate Claude Code process started in the worktree gets its own instance. That can be a headless `claude -p` process, or under T3 Code a thread started with `t3_thread_launch` and a worktree `workspaceStrategy`, which reports back through `t3_thread_send`. Neither route is adopted for the component agents yet. Findings: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md` and `.scratch/agent-tooling/research/t3-code-worktree-orchestration-sources.md`.
+- The orchestrator's Serena is rooted at the main checkout.
+- A component agent runs as its own T3 thread in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the main checkout.
+- The advisor uses Serena for reads in the main checkout, and reads a child's worktree by absolute path with the built-in tools, because its Serena is rooted at the main checkout.
+
+Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md` and `.scratch/agent-tooling/research/t3-code-worktree-orchestration-sources.md`.
 
 ## Reaching the tools
 
