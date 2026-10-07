@@ -85,7 +85,11 @@ function renderScreen(collectionId = "col-1", frames = source()) {
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <ScanScreen collectionId={collectionId} source={frames} />
+      <ScanScreen
+        collectionId={collectionId}
+        source={frames}
+        onAdded={() => {}}
+      />
     </QueryClientProvider>
   )
 }

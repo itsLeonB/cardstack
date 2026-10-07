@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router"
+import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { notFoundResource } from "@/components/layout/not-found"
@@ -36,6 +36,7 @@ function ScanPage() {
   const { collectionId } = Route.useParams()
   const title = Route.useLoaderData()
   const source = useCameraFrameSource()
+  const navigate = useNavigate()
 
   return (
     <PageContainer variant="narrow">
@@ -60,6 +61,12 @@ function ScanPage() {
         key={collectionId}
         collectionId={collectionId}
         source={source}
+        onAdded={() =>
+          void navigate({
+            to: "/collections/$collectionId",
+            params: { collectionId },
+          })
+        }
       />
     </PageContainer>
   )

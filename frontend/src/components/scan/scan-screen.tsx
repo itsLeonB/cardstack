@@ -1,8 +1,8 @@
 import { useRef, useState } from "react"
-import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { CardThumb } from "./card-thumb"
 import { DraftTray } from "./draft-tray"
+import { ReviewStep } from "./review-step"
 import { matchScannedCard } from "@/generated/endpoints/scan/scan"
 import type { CardSummary, MatchCandidate } from "@/generated/models"
 import type { FrameSource } from "@/lib/frame-source"
@@ -41,14 +41,18 @@ function CardFace({ card }: { card: CardSummary }) {
 export function ScanScreen({
   collectionId,
   source,
+  onAdded,
 }: {
   collectionId: string
   source: FrameSource
+  /** The whole draft went into the Collection. */
+  onAdded: () => void
 }) {
   const draft = useDraftAddition(collectionId)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
   // Cards matched this visit, so the tray can show them before its lookup answers.
   const matchedThisVisit = useRef(new Map<string, CardSummary>())
 
@@ -84,6 +88,24 @@ export function ScanScreen({
     } finally {
       setBusy(false)
     }
+  }
+
+  if (reviewing) {
+    return (
+      <ReviewStep
+        collectionId={collectionId}
+        rows={draft.rows}
+        matchedThisVisit={matchedThisVisit.current}
+        onRaise={draft.add}
+        onLower={draft.lower}
+        onRemove={draft.remove}
+        onBack={() => setReviewing(false)}
+        onAdded={() => {
+          draft.discard()
+          onAdded()
+        }}
+      />
+    )
   }
 
   const hasCamera = source.camera === "starting" || source.camera === "ready"
@@ -220,8 +242,7 @@ export function ScanScreen({
         onLower={draft.lower}
         onRemove={draft.remove}
         onDiscard={draft.discard}
-        // Placeholder: ticket 04 replaces it with the review step.
-        onReview={() => toast.info("Reviewing a draft is coming soon.")}
+        onReview={() => setReviewing(true)}
       />
     </div>
   )
