@@ -25,7 +25,8 @@ func InitializeProviders() (*Providers, func(), error) {
 	catalogService := ProvideCatalogService(dataSources, imageHost)
 	collectionService := ProvideCollectionService(dataSources)
 	inventoryService := ProvideInventoryService(dataSources, imageHost)
-	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService)
+	matchService := ProvideMatchService(dataSources, imageHost)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, matchService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

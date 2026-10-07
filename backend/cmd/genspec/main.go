@@ -28,7 +28,7 @@ func main() {
 	// nil and empty limits are safe here: genspec only registers routes to dump
 	// the OpenAPI spec, it never serves a request, so the verifier, services
 	// and limiters are stored in the route closures but never actually called.
-	routes.RegisterRoutes(api, provider.ProvideServices(nil, nil, nil, nil, nil), ratelimit.Limits{})
+	routes.RegisterRoutes(api, provider.ProvideServices(nil, nil, nil, nil, nil, nil), ratelimit.Limits{})
 
 	spec, err := api.OpenAPI().MarshalJSON()
 	if err != nil {

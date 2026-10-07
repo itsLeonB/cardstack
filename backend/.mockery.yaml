@@ -15,12 +15,14 @@ packages:
       CollectionRepository:
       ExpansionSetRepository:
       InventoryRepository:
+      MatchRepository:
       UserRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       CatalogService:
       CollectionService:
       InventoryService:
+      MatchService:
       UserService:
       IdentityCache:
   github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth:

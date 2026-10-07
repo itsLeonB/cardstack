@@ -117,3 +117,9 @@ func ToCatalogFacets(host ImageHost, facets repository.CardFacets) dto.CatalogFa
 		Tags:       ezutil.MapSlice(facets.Tags, ToStringFacetOption),
 	}
 }
+
+// ToMatchCandidate converts a repository card row and its match score into a
+// MatchCandidate.
+func ToMatchCandidate(host ImageHost, r repository.CardResult, score float64) dto.MatchCandidate {
+	return dto.MatchCandidate{Score: score, Card: ToCardSummary(host, r)}
+}

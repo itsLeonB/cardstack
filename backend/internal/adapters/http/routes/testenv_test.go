@@ -84,6 +84,7 @@ func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
 		provider.ProvideInventoryService(ds, images),
+		provider.ProvideMatchService(ds, images),
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())

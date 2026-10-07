@@ -13,7 +13,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideMatchService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -22,6 +22,7 @@ type Services struct {
 	Catalog    service.CatalogService
 	Collection service.CollectionService
 	Inventory  service.InventoryService
+	Match      service.MatchService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -68,11 +69,16 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 	)
 }
 
+// ProvideMatchService builds the scan match service over ds's DB.
+func ProvideMatchService(ds *DataSources, images mapper.ImageHost) service.MatchService {
+	return service.NewMatchService(catalogrepository.NewMatchRepository(crud.NewRepository[entity.Card](ds.Gorm)), images)
+}
+
 // ProvideServices takes just the already-built verifier and services (not the
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, match service.MatchService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Verifier:   verifier,
@@ -80,5 +86,6 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		Catalog:    catalog,
 		Collection: collection,
 		Inventory:  inventory,
+		Match:      match,
 	}
 }
