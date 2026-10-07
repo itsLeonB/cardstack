@@ -66,8 +66,9 @@ type CardFilterParams struct {
 // searchCardsInput is GET /catalog/cards's query string.
 type searchCardsInput struct {
 	CardFilterParams
-	Page  int `query:"page" default:"1" minimum:"1" doc:"1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required."`
-	Limit int `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size. A Guest gets at most 24."`
+	CardIDs []string `query:"cardId,explode" maxItems:"100" doc:"Only these Cards (repeatable, at most 100), combined with the other filters; use it to render Cards known by id."`
+	Page    int      `query:"page" default:"1" minimum:"1" doc:"1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required."`
+	Limit   int      `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size. A Guest gets at most 24."`
 }
 
 // listFacetsInput is GET /catalog/facets's query string: the same filters
@@ -118,6 +119,9 @@ func buildCardFilter(p CardFilterParams) (dto.CardFilter, error) {
 func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) ([]dto.CardSummary, dto.PaginationMeta, error) {
 	filter, err := buildCardFilter(in.CardFilterParams)
 	if err != nil {
+		return nil, dto.PaginationMeta{}, err
+	}
+	if filter.CardIDs, err = parseUUIDs("cardId", in.CardIDs); err != nil {
 		return nil, dto.PaginationMeta{}, err
 	}
 	filter.Page = in.Page

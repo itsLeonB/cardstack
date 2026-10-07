@@ -91,3 +91,38 @@ func TestCatalogImageURLs(t *testing.T) {
 		assert.True(t, listed, "the unhosted set is still listed")
 	})
 }
+
+func TestCatalogCardIDFilter(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 3)
+	set := "cardId="
+
+	t.Run("returns exactly the requested Cards", func(t *testing.T) {
+		resp := api.Get("/catalog/cards?" + set + cards[0].String() + "&" + set + cards[2].String())
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+		var body cardsEnvelope
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
+		got := []uuid.UUID{}
+		for _, c := range body.Data {
+			got = append(got, c.ID)
+		}
+		assert.ElementsMatch(t, []uuid.UUID{cards[0], cards[2]}, got)
+	})
+
+	t.Run("combines with other filters", func(t *testing.T) {
+		resp := api.Get("/catalog/cards?" + set + cards[0].String() + "&localId=b")
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+		var body cardsEnvelope
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
+		assert.Empty(t, body.Data)
+	})
+
+	t.Run("rejects more than 100 ids and malformed ids", func(t *testing.T) {
+		q := ""
+		for range 101 {
+			q += "&" + set + uuid.NewString()
+		}
+		assert.Equal(t, http.StatusUnprocessableEntity, api.Get("/catalog/cards?"+q[1:]).Code)
+		assert.Equal(t, http.StatusBadRequest, api.Get("/catalog/cards?"+set+"nope").Code)
+	})
+}
