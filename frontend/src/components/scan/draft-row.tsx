@@ -13,6 +13,7 @@ export function DraftRowItem({
   quantity,
   disabled = false,
   footer,
+  onRetry,
   onRaise,
   onLower,
   onRemove,
@@ -26,6 +27,8 @@ export function DraftRowItem({
   quantity: number
   disabled?: boolean
   footer?: ReactNode
+  /** Set when the card's lookup failed: shows a Retry button. */
+  onRetry?: () => void
   onRaise: () => void
   onLower: () => void
   onRemove: () => void
@@ -38,6 +41,16 @@ export function DraftRowItem({
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium">{name}</span>
           {detail}
+          {onRetry && (
+            <Button
+              variant="outline"
+              size="xs"
+              className="mt-1 self-start"
+              onClick={onRetry}
+            >
+              Retry
+            </Button>
+          )}
         </span>
         <Button
           variant="outline"

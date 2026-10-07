@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { DraftRowItem } from "./draft-row"
-import { useDraftCards } from "./use-draft-cards"
+import { MISSING_NAME, useDraftCards } from "./use-draft-cards"
 import type { CardSummary } from "@/generated/models"
 import type { DraftRow } from "@/lib/draft-addition"
 
@@ -21,7 +21,7 @@ export function DraftTray({
   onDiscard: () => void
   onReview: () => void
 }) {
-  const { cards, settled } = useDraftCards(rows, matchedThisVisit)
+  const { cards, missing, retry } = useDraftCards(rows, matchedThisVisit)
   const total = rows.reduce((sum, r) => sum + r.quantity, 0)
 
   return (
@@ -41,7 +41,8 @@ export function DraftTray({
               <DraftRowItem
                 key={row.cardId}
                 card={card}
-                name={card?.name ?? (settled ? "Card unavailable" : "Loading…")}
+                name={card?.name ?? MISSING_NAME[missing]}
+                onRetry={!card && missing === "failed" ? retry : undefined}
                 quantity={row.quantity}
                 quantityLabel={String(row.quantity)}
                 onRaise={() => onRaise(row.cardId)}

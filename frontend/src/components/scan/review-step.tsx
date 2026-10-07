@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { DraftRowItem } from "./draft-row"
 import {
   MAX_CARD_IDS_PER_REQUEST,
+  MISSING_NAME,
   chunked,
   useDraftCards,
 } from "./use-draft-cards"
@@ -52,7 +53,11 @@ export function ReviewStep({
   onAdded: () => void
 }) {
   const queryClient = useQueryClient()
-  const { cards, settled } = useDraftCards(rows, matchedThisVisit)
+  const {
+    cards,
+    missing: lookup,
+    retry,
+  } = useDraftCards(rows, matchedThisVisit)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [declined, setDeclined] = useState<Record<string, string>>({})
@@ -198,7 +203,8 @@ export function ReviewStep({
               <DraftRowItem
                 key={row.cardId}
                 card={card}
-                name={card?.name ?? (settled ? "Card unavailable" : "Loading…")}
+                name={card?.name ?? MISSING_NAME[lookup]}
+                onRetry={!card && lookup === "failed" ? retry : undefined}
                 detail={
                   <span className="text-xs">
                     {heldLoaded

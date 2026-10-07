@@ -17,8 +17,10 @@ export function chunked(ids: string[]) {
 /**
  * Resolves the draft's card ids to cards. `matchedThisVisit` fills in cards
  * just matched, so a new row never flashes empty while the lookup runs.
- * `settled`
- * says every lookup has answered, so a card still missing is unavailable.
+ * `missing` says why a card is still absent: `loading`, `unavailable` (every
+ * lookup answered 200 without it) or `failed` (a lookup answered non-200; the
+ * generated client does not throw, so only the status tells). `retry` re-asks
+ * the lookups that did not answer 200.
  */
 export function useDraftCards(
   rows: DraftRow[],
@@ -46,6 +48,20 @@ export function useDraftCards(
     }
   }
   const cards = new Map([...matchedThisVisit, ...loaded.current])
-  const settled = results.every((r) => !r.isPending)
-  return { cards, settled }
+  const failed = results.filter((r) => !r.isPending && r.data?.status !== 200)
+  const missing: Missing = results.some((r) => r.isPending)
+    ? "loading"
+    : failed.length > 0
+      ? "failed"
+      : "unavailable"
+  const retry = () => failed.forEach((r) => void r.refetch())
+  return { cards, missing, retry }
 }
+
+export type Missing = "loading" | "unavailable" | "failed"
+
+export const MISSING_NAME = {
+  loading: "Loading…",
+  unavailable: "Card unavailable",
+  failed: "Could not load card",
+} satisfies Record<Missing, string>

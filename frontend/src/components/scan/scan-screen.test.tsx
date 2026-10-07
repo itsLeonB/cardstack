@@ -30,10 +30,10 @@ type MatchReply =
 let replies: MatchReply[] = []
 let uploads: Blob[] = []
 let catalogRequests: string[] = []
-// Network conditions a test can set: requests that never answer, or a failing lookup.
+// Network conditions a test can set: requests that never answer, or a lookup that answers with an error status.
 let holdCatalog = false
 let holdMatch = false
-let catalogFails = false
+let catalogStatus = 200
 // Card ids the catalog no longer has.
 const gone = new Set<string>()
 
@@ -58,7 +58,8 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   if (url.pathname === "/catalog/cards") {
     catalogRequests.push(url.search)
     if (holdCatalog) return new Promise<Response>(() => {})
-    if (catalogFails) return Promise.resolve(json({ title: "boom" }, 500))
+    if (catalogStatus !== 200)
+      return Promise.resolve(json({ title: "boom" }, catalogStatus))
     const ids = url.searchParams.getAll("cardId").filter((id) => !gone.has(id))
     const data = ids.map((id) => cardOf(Number(id.replace("card-", ""))))
     return Promise.resolve(
@@ -100,7 +101,7 @@ beforeEach(() => {
   catalogRequests = []
   holdCatalog = false
   holdMatch = false
-  catalogFails = false
+  catalogStatus = 200
   gone.clear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
 })
@@ -321,13 +322,36 @@ describe("the tray while cards load", () => {
     expect(loadDraft("col-1")).toEqual([{ cardId: "card-1", quantity: 1 }])
   })
 
-  it("marks every row unavailable when the lookup fails", async () => {
-    catalogFails = true
+  it("shows a rate-limited lookup as an error with a retry, never as unavailable", async () => {
+    catalogStatus = 429
     saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
     renderScreen()
-    const row = within(await rowOf(/unavailable/i))
-    expect(screen.queryByText("Loading…")).toBeNull()
+    const row = within(await rowOf("Could not load card"))
+    expect(screen.queryByText(/unavailable/i)).toBeNull()
     expect(row.getByText("1")).toBeTruthy()
+    await userEvent.click(
+      row.getByRole("button", { name: "Raise quantity of card" })
+    )
+    expect(row.getByText("2")).toBeTruthy()
+
+    catalogStatus = 200
+    await userEvent.click(row.getByRole("button", { name: "Retry" }))
+    expect(await screen.findByText("Card 1")).toBeTruthy()
+    expect(screen.queryByText("Could not load card")).toBeNull()
+  })
+
+  it("keeps cards already loaded visible when a later lookup fails", async () => {
+    replies = [{ confident: true, candidates: [candidate(2)] }]
+    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
+    renderScreen()
+    await screen.findByText("Card 1")
+
+    catalogStatus = 429
+    await capture()
+    await screen.findByText("Added Card 2")
+
+    expect(screen.getByText("Card 1")).toBeTruthy()
+    expect(screen.queryByText(/unavailable/i)).toBeNull()
   })
 })
 
