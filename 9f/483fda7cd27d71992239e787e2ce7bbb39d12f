@@ -1,0 +1,19 @@
+docs/agents/testing.md
+  s_626cfccf2a1f97::t_6077a4c8ae41f7 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9f483fda7cd27d71992239e787e2ce7bbb39d12f",
+  "prompts": {},
+  "sessions": {
+    "s_626cfccf2a1f97": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_626cfccf2a1f97",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
