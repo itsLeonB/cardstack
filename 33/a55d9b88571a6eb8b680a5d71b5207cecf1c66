@@ -1,0 +1,21 @@
+.github/workflows/preview-environments.yml
+  s_26668a1e5dbdc6::t_f524fe61269d7e 307-312,469-471,492-493
+docs/agents/deployment.md
+  s_26668a1e5dbdc6::t_e4ac8b7f998020 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "33a55d9b88571a6eb8b680a5d71b5207cecf1c66",
+  "prompts": {},
+  "sessions": {
+    "s_26668a1e5dbdc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_26668a1e5dbdc6",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
