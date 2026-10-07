@@ -30,6 +30,12 @@ type MatchReply =
 let replies: MatchReply[] = []
 let uploads: Blob[] = []
 let catalogRequests: string[] = []
+// Network conditions a test can set: requests that never answer, or a failing lookup.
+let holdCatalog = false
+let holdMatch = false
+let catalogFails = false
+// Card ids the catalog no longer has.
+const gone = new Set<string>()
 
 interface JsonBody {
   data?: unknown
@@ -42,6 +48,7 @@ const json = (body: JsonBody, status = 200) =>
 function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(String(input))
   if (url.pathname === "/scan/match") {
+    if (holdMatch) return new Promise<Response>(() => {})
     if (init?.body instanceof Blob) uploads.push(init.body)
     const reply = replies.shift() ?? "fail"
     if (reply === "network") return Promise.reject(new TypeError("offline"))
@@ -50,7 +57,9 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (url.pathname === "/catalog/cards") {
     catalogRequests.push(url.search)
-    const ids = url.searchParams.getAll("cardId")
+    if (holdCatalog) return new Promise<Response>(() => {})
+    if (catalogFails) return Promise.resolve(json({ title: "boom" }, 500))
+    const ids = url.searchParams.getAll("cardId").filter((id) => !gone.has(id))
     const data = ids.map((id) => cardOf(Number(id.replace("card-", ""))))
     return Promise.resolve(
       json({ data, meta: { total: data.length, page: 1, limit: 100 } })
@@ -85,6 +94,10 @@ beforeEach(() => {
   replies = []
   uploads = []
   catalogRequests = []
+  holdCatalog = false
+  holdMatch = false
+  catalogFails = false
+  gone.clear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
 })
 afterEach(() => {
@@ -92,6 +105,13 @@ afterEach(() => {
   localStorage.clear()
   vi.unstubAllGlobals()
 })
+
+// The row (`li`) that shows a card by name.
+const rowOf = async (name: string | RegExp) => {
+  const row = (await screen.findByText(name)).closest("li")
+  if (!row) throw new Error(`no row for ${name}`)
+  return row
+}
 
 const capture = () =>
   userEvent.click(screen.getByRole("button", { name: "Capture" }))
@@ -204,8 +224,7 @@ describe("the tray", () => {
 
   it("raises, lowers and removes a row", async () => {
     renderScreen()
-    const row = async () =>
-      within(await screen.findByRole("listitem", { name: /Card 1/ }))
+    const row = async () => within(await rowOf("Card 1"))
     await userEvent.click(
       (await row()).getByRole("button", { name: "Raise quantity of Card 1" })
     )
@@ -225,7 +244,7 @@ describe("the tray", () => {
     await userEvent.click(
       (await row()).getByRole("button", { name: "Remove Card 1" })
     )
-    expect(screen.queryByRole("listitem", { name: /Card 1/ })).toBeNull()
+    expect(screen.queryByText("Card 1")).toBeNull()
     expect(loadDraft("col-1")).toEqual([{ cardId: "card-2", quantity: 1 }])
   })
 
@@ -257,6 +276,89 @@ describe("the tray", () => {
     expect(
       await screen.findByRole("button", { name: "Review and add" })
     ).toBeTruthy()
+  })
+})
+
+describe("the tray while cards load", () => {
+  it("keeps loaded rows readable when a scan adds a row", async () => {
+    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
+    replies = [{ confident: true, candidates: [candidate(2)] }]
+    renderScreen()
+    await screen.findByText("Card 1")
+
+    holdCatalog = true
+    await capture()
+    await screen.findByText("Added Card 2")
+
+    expect(screen.queryByText("Loading…")).toBeNull()
+    expect(screen.getByText("Card 1")).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Raise quantity of Card 1" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Raise quantity of Card 2" })
+    ).toBeTruthy()
+  })
+
+  it("marks a card the catalog no longer has, with controls still usable", async () => {
+    gone.add("card-9")
+    saveDraft("col-1", [
+      { cardId: "card-1", quantity: 1 },
+      { cardId: "card-9", quantity: 2 },
+    ])
+    renderScreen()
+    const row = within(await rowOf(/unavailable/i))
+    expect(screen.queryByText("Loading…")).toBeNull()
+    await userEvent.click(
+      row.getByRole("button", { name: "Raise quantity of card" })
+    )
+    expect(row.getByText("3")).toBeTruthy()
+    await userEvent.click(row.getByRole("button", { name: "Remove card" }))
+    expect(loadDraft("col-1")).toEqual([{ cardId: "card-1", quantity: 1 }])
+  })
+
+  it("marks every row unavailable when the lookup fails", async () => {
+    catalogFails = true
+    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
+    renderScreen()
+    const row = within(await rowOf(/unavailable/i))
+    expect(screen.queryByText("Loading…")).toBeNull()
+    expect(row.getByText("1")).toBeTruthy()
+  })
+})
+
+describe("announcements", () => {
+  it("keeps the Undo button out of the live region", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    const status = await screen.findByRole("status")
+    await within(status).findByText("Added Card 1")
+    expect(within(status).queryByRole("button")).toBeNull()
+    expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy()
+  })
+
+  it("announces the matching state", async () => {
+    holdMatch = true
+    renderScreen()
+    await capture()
+    expect(
+      within(screen.getByRole("status")).getByText("Matching…")
+    ).toBeTruthy()
+  })
+
+  it("announces how many candidates to choose from, buttons outside", async () => {
+    replies = [
+      {
+        confident: false,
+        candidates: [candidate(1, 0.6), candidate(2, 0.58)],
+      },
+    ]
+    renderScreen()
+    await capture()
+    const status = await screen.findByRole("status")
+    await within(status).findByText(/2 possible matches/)
+    expect(within(status).queryByRole("button")).toBeNull()
   })
 })
 

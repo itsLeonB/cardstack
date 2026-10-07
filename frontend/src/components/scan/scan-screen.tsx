@@ -1,11 +1,12 @@
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { CardThumb } from "./card-thumb"
 import { DraftTray } from "./draft-tray"
 import { matchScannedCard } from "@/generated/endpoints/scan/scan"
 import type { CardSummary, MatchCandidate } from "@/generated/models"
 import type { FrameSource } from "@/lib/frame-source"
-import { imageSources } from "@/lib/image"
+import { CARD_ASPECT, GUIDE_HEIGHT, VIEW_ASPECT } from "@/lib/frame-crop"
 import { useDraftAddition } from "@/lib/use-draft-addition"
 
 // A match that takes longer than this is reported as failed.
@@ -21,17 +22,7 @@ const DRAFT_KEPT = "Your draft is unchanged."
 function CardFace({ card }: { card: CardSummary }) {
   return (
     <>
-      {card.imageUrl ? (
-        <img
-          src={imageSources(card.imageUrl, "cardTile").src}
-          alt=""
-          width={48}
-          height={67}
-          className="aspect-[5/7] w-12 rounded object-cover"
-        />
-      ) : (
-        <div className="aspect-[5/7] w-12 rounded bg-muted" />
-      )}
+      <CardThumb card={card} />
       <span className="flex min-w-0 flex-col text-left">
         <span className="truncate text-sm font-medium">{card.name}</span>
         <span className="text-xs">
@@ -59,10 +50,10 @@ export function ScanScreen({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // Cards matched this visit, so the tray can show them before its lookup answers.
-  const known = useRef(new Map<string, CardSummary>())
+  const matchedThisVisit = useRef(new Map<string, CardSummary>())
 
   function addCard(card: CardSummary) {
-    known.current.set(card.id, card)
+    matchedThisVisit.current.set(card.id, card)
     draft.add(card.id)
     setOutcome({ kind: "added", card })
   }
@@ -101,8 +92,11 @@ export function ScanScreen({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         {hasCamera ? (
-          // The 3:4 box and the 85%-high guide are what `lib/frame-crop.ts` crops to.
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-2xl bg-black">
+          // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
+          <div
+            className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl bg-black"
+            style={{ aspectRatio: VIEW_ASPECT }}
+          >
             <video
               ref={source.videoRef}
               playsInline
@@ -112,8 +106,11 @@ export function ScanScreen({
             />
             <div
               aria-hidden
-              className="absolute top-1/2 left-1/2 h-[85%] -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
-              style={{ aspectRatio: "63 / 88" }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
+              style={{
+                height: `${GUIDE_HEIGHT * 100}%`,
+                aspectRatio: CARD_ASPECT,
+              }}
             />
           </div>
         ) : (
@@ -151,32 +148,41 @@ export function ScanScreen({
         </div>
       </div>
 
-      {busy && <p className="text-sm">Matching…</p>}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
-      <div role="status">
+      <div className="flex items-center gap-3">
+        {/* Text only: controls stay outside so the live region announces just the result. */}
+        <div role="status" className="min-w-0 flex-1">
+          {busy && <p className="text-sm">Matching…</p>}
+          {outcome?.kind === "added" && (
+            <div className="flex items-center gap-3 rounded-xl border p-2">
+              <CardFace card={outcome.card} />
+              <p className="sr-only">Added {outcome.card.name}</p>
+            </div>
+          )}
+          {outcome?.kind === "candidates" && (
+            <p className="text-sm">
+              {outcome.candidates.length} possible matches. Choose one below.
+            </p>
+          )}
+          {outcome?.kind === "none" && (
+            <p className="text-sm">No card matched. Try another photo.</p>
+          )}
+        </div>
         {outcome?.kind === "added" && (
-          <div className="flex items-center gap-3 rounded-xl border p-2">
-            <CardFace card={outcome.card} />
-            <p className="sr-only">Added {outcome.card.name}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-auto"
-              onClick={() => {
-                draft.undo(outcome.card.id)
-                setOutcome(null)
-              }}
-            >
-              Undo
-            </Button>
-          </div>
-        )}
-        {outcome?.kind === "none" && (
-          <p className="text-sm">No card matched. Try another photo.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              draft.undo(outcome.card.id)
+              setOutcome(null)
+            }}
+          >
+            Undo
+          </Button>
         )}
       </div>
       {outcome?.kind === "candidates" && (
@@ -209,7 +215,7 @@ export function ScanScreen({
 
       <DraftTray
         rows={draft.rows}
-        known={known.current}
+        matchedThisVisit={matchedThisVisit.current}
         onRaise={draft.add}
         onLower={draft.lower}
         onRemove={draft.remove}

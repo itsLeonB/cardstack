@@ -1,42 +1,61 @@
+import { useRef } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { RiAddLine, RiDeleteBinLine, RiSubtractLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
+import { CardThumb } from "./card-thumb"
 import { getSearchCatalogCardsQueryOptions } from "@/generated/endpoints/catalog/catalog"
 import type { CardSummary } from "@/generated/models"
 import type { DraftRow } from "@/lib/draft-addition"
-import { imageSources } from "@/lib/image"
 
 // The catalog's `cardId` filter takes at most 100 ids per request.
-const CHUNK = 100
+const MAX_CARD_IDS_PER_REQUEST = 100
 
 function chunked(ids: string[]) {
   const chunks: string[][] = []
-  for (let i = 0; i < ids.length; i += CHUNK)
-    chunks.push(ids.slice(i, i + CHUNK))
+  for (let i = 0; i < ids.length; i += MAX_CARD_IDS_PER_REQUEST)
+    chunks.push(ids.slice(i, i + MAX_CARD_IDS_PER_REQUEST))
   return chunks
 }
 
-/** Resolves the draft's card ids to cards. `known` fills in cards just matched, so a new row never flashes empty while the lookup runs. */
-function useDraftCards(rows: DraftRow[], known: Map<string, CardSummary>) {
+/**
+ * Resolves the draft's card ids to cards. `matchedThisVisit` fills in cards
+ * just matched, so a new row never flashes empty while the lookup runs.
+ * `settled`
+ * says every lookup has answered, so a card still missing is unavailable.
+ */
+function useDraftCards(
+  rows: DraftRow[],
+  matchedThisVisit: Map<string, CardSummary>
+) {
   // Sorted, so a quantity edit or a re-order keeps the same cache entry.
+  // Every card answered so far. A changed id set is a new query with no data
+  // yet (even a kept-previous-data option does not carry across a key change
+  // in `useQueries`), so rows already read stay readable from here. Only ever
+  // grows, so filling it during render is safe to repeat.
+  const loaded = useRef(new Map<string, CardSummary>())
   const ids = rows.map((r) => r.cardId).sort()
   const results = useQueries({
     queries: chunked(ids).map((cardId) =>
-      getSearchCatalogCardsQueryOptions({ cardId, limit: CHUNK })
+      getSearchCatalogCardsQueryOptions({
+        cardId,
+        limit: MAX_CARD_IDS_PER_REQUEST,
+      })
     ),
   })
-  const cards = new Map(known)
   for (const result of results) {
     if (result.data?.status === 200) {
-      for (const card of result.data.data.data ?? []) cards.set(card.id, card)
+      for (const card of result.data.data.data ?? [])
+        loaded.current.set(card.id, card)
     }
   }
-  return cards
+  const cards = new Map([...matchedThisVisit, ...loaded.current])
+  const settled = results.every((r) => !r.isPending)
+  return { cards, settled }
 }
 
 export function DraftTray({
   rows,
-  known,
+  matchedThisVisit,
   onRaise,
   onLower,
   onRemove,
@@ -44,14 +63,14 @@ export function DraftTray({
   onReview,
 }: {
   rows: DraftRow[]
-  known: Map<string, CardSummary>
+  matchedThisVisit: Map<string, CardSummary>
   onRaise: (cardId: string) => void
   onLower: (cardId: string) => void
   onRemove: (cardId: string) => void
   onDiscard: () => void
   onReview: () => void
 }) {
-  const cards = useDraftCards(rows, known)
+  const { cards, settled } = useDraftCards(rows, matchedThisVisit)
   const total = rows.reduce((sum, r) => sum + r.quantity, 0)
 
   return (
@@ -60,7 +79,7 @@ export function DraftTray({
         Draft ({total} {total === 1 ? "card" : "cards"})
       </h2>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-foreground">
           Scanned cards will appear here.
         </p>
       ) : (
@@ -71,22 +90,11 @@ export function DraftTray({
             return (
               <li
                 key={row.cardId}
-                aria-label={card?.name}
                 className="flex items-center gap-2 rounded-xl border p-2"
               >
-                {card?.imageUrl ? (
-                  <img
-                    src={imageSources(card.imageUrl, "cardTile").src}
-                    alt=""
-                    width={48}
-                    height={67}
-                    className="aspect-[5/7] w-12 rounded object-cover"
-                  />
-                ) : (
-                  <div className="aspect-[5/7] w-12 rounded bg-muted" />
-                )}
+                <CardThumb card={card} />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {card?.name ?? "Loading…"}
+                  {card?.name ?? (settled ? "Card unavailable" : "Loading…")}
                 </span>
                 <Button
                   variant="outline"
