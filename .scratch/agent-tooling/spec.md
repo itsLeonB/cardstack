@@ -1,6 +1,6 @@
 # Spec: T3 Code orchestration workflow
 
-**Status:** ready-for-agent
+**Status:** done
 
 Sources: the grilling session of 2026-10-06 and the research in `.scratch/agent-tooling/research/` (`serena-per-worktree-subagents.md`, `t3-code-worktree-orchestration-sources.md`).
 

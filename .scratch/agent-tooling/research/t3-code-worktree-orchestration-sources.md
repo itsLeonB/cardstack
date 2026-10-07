@@ -4,7 +4,7 @@
 
 ## Observed on T3 Code Nightly (2026-10-06)
 
-Live probes, with exact results in the "Comments (T3 Code follow-up)" section of `.scratch/agent-tooling/issues/01-serena-per-worktree-subagents.md`:
+Live probes, summarised here (the Serena probes that preceded them are in ticket 01, `.scratch/agent-tooling/issues/01-serena-per-worktree-subagents.md`). The rules derived from them are specified in `.scratch/agent-tooling/spec.md`, and the dry-run tickets there re-check them:
 
 - `t3_thread_launch` into a worktree works. The child's Serena (tracked `.mcp.json`, `--project-from-cwd`) was rooted at the worktree: it found and edited a worktree-only symbol, and the main checkout was untouched. Its `t3_thread_send` with `mode: "queue"` to the idle parent woke the parent with a new turn. This confirms answers 3 and 4 below.
 - A delegated child's self-handoff did not behave the way the source reads. Run 1 ended as `failed` ("provider event stream closed unexpectedly"), and the queued continuation never started. The parent got no notification, and `task_cancel` returned `task_not_cancellable`. Serena was rooted at the worktree only in a turn the parent started by hand. Answer 1's notification timing was **not** borne out on this build.
@@ -31,7 +31,7 @@ Unverified: that the installed T3 Code Nightly build matches this commit exactly
 **The continuation is queued before the old turn dies.**
 - `continuationPrompt` is sent with `mode: "queue"` right after the binding commits (`apps/server/src/mcp/WorktreeMcpService.ts:357-392`).
 - The code comment says: "When the dying run reaches a terminal state the orchestrator promotes the queued run, which derives its cwd from the updated projection" (`:357-362`).
-- Unverified: how the resumed session finds the old transcript after the cwd change. "Conversation preserved" is T3's own claim (`apps/server/src/mcp/WorktreeMcpService.ts:437`). I found no code that relocates the transcript. Observed: after the handoff, Probe A's run 3 followed the TURN 2 steps from its original prompt, so the conversation did carry over.
+- Unverified: how the resumed session finds the old transcript after the cwd change. "Conversation preserved" is T3's own claim (`apps/server/src/mcp/WorktreeMcpService.ts:437`). I found no code that relocates the transcript. Observed: after the handoff, the probe's run 3 followed the TURN 2 steps from its original prompt, so the conversation did carry over.
 
 **The child stays linked to the parent.** The handoff changes only `branch` and `worktreePath`. It does not touch `lineage` (`parentThreadId`, `relationshipToParent: "subagent"`) or `forkedFrom`, which finalization relies on (`apps/server/src/orchestration-v2/SubagentProjection.ts:66-74`, `apps/server/src/orchestration-v2/Orchestrator.ts:9287-9293`).
 
@@ -107,3 +107,26 @@ The child always inherits the parent's workspace binding (`apps/server/src/orche
 - Have a child whose parent is at root call `t3_worktree_handoff` with `continuationPrompt`. The handoff "moves the calling thread, not another thread" (`apps/server/src/provider/T3OrchestrationInstructions.ts:25`).
 
 `t3_thread_launch` with `workspaceStrategy` is the only explicit bind-at-start option, and it creates a top-level thread with no parent link (`apps/server/src/mcp/toolkits/project/tools.ts:102-123`).
+
+## Upstream issues behind the docs' rules
+
+All on `pingdotgg/t3code`. The workflow docs state the rule, not the issue number, so recheck these when T3 updates and relax the rule if the issue is fixed.
+
+- #15136: a child dies after a worktree handoff. Explains the failed handoff probe above and the stuck task. Rule: component work is launched with `t3_thread_launch` into a new worktree, never handed off from a delegated child.
+- #15135: a thread that archives itself fails its own run. Rule: a component agent never archives its own thread, and the orchestrator archives it after merge.
+- #15173: the idle release can fire while a parent waits on a delegated child. Rule: the orchestrator polls each launched child with `t3_thread_wait` and a 30-minute timeout instead of one long delegated wait. Whether a long wait trips it is an open assumption below.
+- #13490: no parent notification for follow-up turns of a child. Rule: the orchestrator launches and polls children, and each child sends its own report by queued message.
+- #15082: no parent notification when a delegated task asks a question. Rule: component work is not delegated with `delegate_task`; a child asks the orchestrator by queued message and ends its turn.
+
+## Unverified assumptions
+
+Each is to be confirmed by the dry-run tickets in `.scratch/agent-tooling/spec.md`. Until then the docs rely on them.
+
+- To be confirmed by the dry run: the project settings environment block (`CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`) disables the native advisor tool inside a launched thread. This relies on T3 loading project settings, which is the SDK default when no setting sources are given (see Q4).
+- To be confirmed by the dry run: a launched Claude thread sees the agent files through Claude Code itself. Irrelevant to the design, which tells the child to read the role files explicitly.
+- To be confirmed by the dry run: auto-accept-edits runtime mode combined with plan mode lets the advisor run read-only shell commands such as a git diff without stalling.
+- To be confirmed by the dry run: `medium` is accepted as the effort value in the launch's `modelSelection.options`. The live launch schema types `options` only as an open value, so the exact shape (the catalog lists the option with id `effort`) is not established.
+- To be confirmed by the dry run: the full worktree path. T3 names the directory after the branch with slashes replaced by dashes, and `~/.t3/worktrees/<project>/` exists on this machine, but no source read states the parent directory, so the docs have the orchestrator read the path with `t3_worktree_list` after the launch.
+- To be confirmed by the dry run: a long wait by the orchestrator does not trigger the idle release described in #15173.
+- To be confirmed by the dry run: the always-on Serena reminder hook fires in launched threads.
+- Also unverified: the installed T3 Code Nightly build may differ from the source commit `0ecb78ed0d351b65ef68262f632359223f9c389b` (see Source baseline).

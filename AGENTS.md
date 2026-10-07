@@ -24,11 +24,11 @@ Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/d
 
 ### Development orchestration
 
-Multi-component or large single-component tasks route through `backend-agent`/`frontend-agent` subagents in git worktrees; small tasks proceed directly. See `docs/agents/orchestration.md` for the full workflow, commit and branch naming conventions.
+All work starts in a T3 thread, which acts as the orchestrator. Multi-component or large single-component tasks route through `backend-agent`/`frontend-agent` in git worktrees; small tasks proceed directly in that thread. See `docs/agents/orchestration.md` for the full workflow, commit and branch naming conventions.
 
 ### Advisor
 
-Call the advisor when unsure: before choosing between approaches, when stuck, and before declaring multi-step work done. Doc, ticket, config and one-line edits go ahead without it.
+Call the advisor when unsure: before choosing between approaches, when stuck, and before declaring multi-step work done. Doc, ticket, config and one-line edits go ahead without it. Only the orchestrator consults the advisor; component agents ask the orchestrator. The mechanism is in `docs/agents/orchestration.md`.
 
 ### Backend test environment setup
 
@@ -42,4 +42,4 @@ Deploy, production, or preview-environment questions (stale prod bundle, `VITE_*
 
 Before writing or changing code, read `docs/agents/conventions/general.md`, plus `backend.md` for `backend/` or `frontend.md` for `frontend/`, in the same folder. Record a new convention in those files only when it passes the test in `general.md` (a rule that holds across modules), never in this file or the agent definitions.
 
-The root agent's code reading, searching, and editing goes through Serena's symbol-level MCP tools, never the built-in file tools, unless `docs/agents/conventions/serena.md` allows an exception; subagents use the built-in tools. That file holds the tool mapping, the fallbacks, and how to reach those tools from Claude Code and pi — the root agent reads it before its first tool call on a code file.
+Every agent's code reading, searching, and editing goes through Serena's symbol-level MCP tools, never the built-in file tools, unless `docs/agents/conventions/serena.md` allows an exception. That file holds the tool mapping, the fallbacks, and how to reach those tools from Claude Code and pi — read it before your first tool call on a code file.

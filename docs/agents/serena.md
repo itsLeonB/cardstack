@@ -21,11 +21,11 @@ Two facts drive the recommendations below.
 
 ## Setup
 
-Committed for pi: `.pi/mcp-adapter.json`, the `packages` entry in `.pi/settings.json`, the Serena section in `AGENTS.md`, and `docs/agents/conventions/serena.md`. Claude Code's `.mcp.json` and `.claude/settings.json` are unchanged.
+Committed for pi: `.pi/mcp-adapter.json`, the `packages` entry in `.pi/settings.json`, the Serena section in `AGENTS.md`, and `docs/agents/conventions/serena.md`. Claude Code's `.claude/settings.json` is unchanged. `.mcp.json` gained `--open-web-dashboard false` on its `serena` entry, so neither client opens the Serena dashboard in a browser on launch.
 
 ### 1. `.mcp.json` stays the single shared source
 
-Claude Code reads it natively; pi-mcp-adapter reads it as project shared config, layer 7 of its precedence list, below `.pi/mcp-adapter.json` ([configuration.md](https://github.com/nicobailon/pi-mcp-adapter/blob/main/docs/configuration.md)). Leave the existing `serena` entry alone so Claude Code keeps its `claude-code` context and its `structured_tool_output: false` workaround.
+Claude Code reads it natively; pi-mcp-adapter reads it as project shared config, layer 7 of its precedence list, below `.pi/mcp-adapter.json` ([configuration.md](https://github.com/nicobailon/pi-mcp-adapter/blob/main/docs/configuration.md)). Keep its `serena` entry on the `claude-code` context with the `--project-from-cwd` and `--open-web-dashboard false` arguments, so Claude Code keeps its `claude-code` context and its `structured_tool_output: false` workaround.
 
 ### 2. pi's Serena context: `.pi/mcp-adapter.json`
 
@@ -36,7 +36,7 @@ The `claude-code` context excludes `search_for_pattern`, which pi wants, and exi
   "mcpServers": {
     "serena": {
       "command": "serena",
-      "args": ["start-mcp-server", "--context", "ide", "--project-from-cwd"],
+      "args": ["start-mcp-server", "--context", "ide", "--project-from-cwd", "--open-web-dashboard", "false"],
       "directTools": "search"
     }
   }

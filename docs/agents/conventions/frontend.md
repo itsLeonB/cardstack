@@ -1,6 +1,6 @@
 # Frontend code conventions
 
-These apply to every frontend change, whether made by the root agent or a subagent. Read `general.md` in this folder as well. A rule here holds across modules. How one module works lives in that file's header comment, and a decision with rejected alternatives lives in an ADR (see `general.md`).
+These apply to every frontend change, whether made by the orchestrator or a component agent. Read `general.md` in this folder as well. A rule here holds across modules. How one module works lives in that file's header comment, and a decision with rejected alternatives lives in an ADR (see `general.md`).
 
 ## General
 
