@@ -1,8 +1,7 @@
 import { useRef, useState } from "react"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
-import { RiAddLine, RiDeleteBinLine, RiSubtractLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
-import { CardThumb } from "./card-thumb"
+import { DraftRowItem } from "./draft-row"
 import {
   MAX_CARD_IDS_PER_REQUEST,
   chunked,
@@ -12,7 +11,6 @@ import { useGetCollection } from "@/generated/endpoints/collections/collections"
 import {
   bulkUpdateCollectionEntries,
   getListCollectionEntriesQueryOptions,
-  listCollectionEntries,
 } from "@/generated/endpoints/inventory/inventory"
 import { InventoryChangeResultStatus } from "@/generated/models"
 import type { CardSummary } from "@/generated/models"
@@ -25,21 +23,6 @@ import {
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 
 class RequestError extends Error {}
-
-async function heldQuantities(collectionId: string, cardIds: string[]) {
-  const held = new Map<string, number>()
-  for (const cardId of chunked(cardIds)) {
-    const response = await listCollectionEntries(collectionId, {
-      cardId,
-      limit: MAX_CARD_IDS_PER_REQUEST,
-    })
-    if (response.status !== 200)
-      throw new RequestError("Could not read the Collection's quantities.")
-    for (const item of response.data.data ?? [])
-      held.set(item.card.id, item.quantity)
-  }
-  return held
-}
 
 /**
  * The review step of a Draft Addition: what each row adds, what the Collection
@@ -107,17 +90,29 @@ export function ReviewStep({
   async function commit() {
     setBusy(true)
     setError(null)
+    setDeclined({})
     let sent = false
+    let added = 0
+    let anyDeclined = false
     try {
       const missing = rows.filter(
         (r) => targets.current.get(r.cardId)?.added !== r.quantity
       )
-      if (missing.length > 0) {
-        const current = await heldQuantities(
-          collectionId,
-          missing.map((r) => r.cardId)
+      // Fresh, not cached: the targets must come from what the Collection holds now.
+      for (const cardId of chunked(missing.map((r) => r.cardId))) {
+        const response = await queryClient.fetchQuery({
+          ...getListCollectionEntriesQueryOptions(collectionId, {
+            cardId,
+            limit: MAX_CARD_IDS_PER_REQUEST,
+          }),
+          staleTime: 0,
+        })
+        if (response.status !== 200)
+          throw new RequestError("Could not read the Collection's quantities.")
+        const current = new Map(
+          (response.data.data ?? []).map((i) => [i.card.id, i.quantity])
         )
-        for (const r of missing)
+        for (const r of missing.filter((m) => cardId.includes(m.cardId)))
           targets.current.set(r.cardId, {
             added: r.quantity,
             target: (current.get(r.cardId) ?? 0) + r.quantity,
@@ -127,7 +122,6 @@ export function ReviewStep({
         cardId: r.cardId,
         quantity: targets.current.get(r.cardId)!.target,
       }))
-      const stillDeclined: Record<string, string> = {}
       for (let i = 0; i < items.length; i += MAX_CARD_IDS_PER_REQUEST) {
         sent = true
         const response = await bulkUpdateCollectionEntries(collectionId, {
@@ -137,19 +131,28 @@ export function ReviewStep({
           throw new RequestError(
             response.data.detail ?? "Could not add these cards."
           )
+        // Applied per chunk, so a later chunk's failure cannot undo what this one did.
         for (const result of response.data.data ?? []) {
           targets.current.delete(result.cardId)
-          if (result.status === InventoryChangeResultStatus.declined)
-            stillDeclined[result.cardId] =
-              result.message ?? result.reason ?? "Declined."
-          else onRemove(result.cardId)
+          if (result.status === InventoryChangeResultStatus.declined) {
+            anyDeclined = true
+            setDeclined((prev) => ({
+              ...prev,
+              [result.cardId]: result.message ?? result.reason ?? "Declined.",
+            }))
+          } else {
+            added += 1
+            onRemove(result.cardId)
+          }
         }
       }
-      setDeclined(stillDeclined)
-      if (Object.keys(stillDeclined).length === 0) onAdded()
+      if (!anyDeclined) onAdded()
     } catch (e) {
+      const reason = e instanceof RequestError ? e.message : NETWORK_ERROR
       setError(
-        `${e instanceof RequestError ? e.message : NETWORK_ERROR} Your draft is unchanged.`
+        added > 0
+          ? `${reason} ${added} of ${rows.length} cards were already added and left your draft; the rest are still here.`
+          : `${reason} Your draft is unchanged.`
       )
     } finally {
       setBusy(false)
@@ -191,62 +194,32 @@ export function ReviewStep({
         <ul className="flex flex-col gap-2">
           {rows.map((row) => {
             const card = cards.get(row.cardId)
-            const name = card?.name ?? "card"
             return (
-              <li
+              <DraftRowItem
                 key={row.cardId}
-                className="flex flex-col gap-1 rounded-xl border p-2"
-              >
-                <div className="flex items-center gap-2">
-                  <CardThumb card={card} />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-medium">
-                      {card?.name ??
-                        (settled ? "Card unavailable" : "Loading…")}
-                    </span>
-                    <span className="text-xs">
-                      {heldLoaded
-                        ? `Holds ${held.get(row.cardId) ?? 0}`
-                        : "Holds …"}
-                    </span>
+                card={card}
+                name={card?.name ?? (settled ? "Card unavailable" : "Loading…")}
+                detail={
+                  <span className="text-xs">
+                    {heldLoaded
+                      ? `Holds ${held.get(row.cardId) ?? 0}`
+                      : "Holds …"}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={`Lower quantity of ${name}`}
-                    disabled={busy || row.quantity <= 1}
-                    onClick={() => onLower(row.cardId)}
-                  >
-                    <RiSubtractLine />
-                  </Button>
-                  <span className="w-8 text-center tabular-nums">
-                    +{row.quantity}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={`Raise quantity of ${name}`}
-                    disabled={busy}
-                    onClick={() => onRaise(row.cardId)}
-                  >
-                    <RiAddLine />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Remove ${name}`}
-                    disabled={busy}
-                    onClick={() => onRemove(row.cardId)}
-                  >
-                    <RiDeleteBinLine />
-                  </Button>
-                </div>
-                {declined[row.cardId] && (
-                  <p className="text-sm text-destructive">
-                    Not added: {declined[row.cardId]}
-                  </p>
-                )}
-              </li>
+                }
+                quantity={row.quantity}
+                quantityLabel={`+${row.quantity}`}
+                disabled={busy}
+                footer={
+                  declined[row.cardId] && (
+                    <p className="text-sm text-destructive">
+                      Not added: {declined[row.cardId]}
+                    </p>
+                  )
+                }
+                onRaise={() => onRaise(row.cardId)}
+                onLower={() => onLower(row.cardId)}
+                onRemove={() => onRemove(row.cardId)}
+              />
             )
           })}
         </ul>

@@ -1,6 +1,5 @@
-import { RiAddLine, RiDeleteBinLine, RiSubtractLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
-import { CardThumb } from "./card-thumb"
+import { DraftRowItem } from "./draft-row"
 import { useDraftCards } from "./use-draft-cards"
 import type { CardSummary } from "@/generated/models"
 import type { DraftRow } from "@/lib/draft-addition"
@@ -38,45 +37,17 @@ export function DraftTray({
         <ul className="flex flex-col gap-2">
           {rows.map((row) => {
             const card = cards.get(row.cardId)
-            const name = card?.name ?? "card"
             return (
-              <li
+              <DraftRowItem
                 key={row.cardId}
-                className="flex items-center gap-2 rounded-xl border p-2"
-              >
-                <CardThumb card={card} />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {card?.name ?? (settled ? "Card unavailable" : "Loading…")}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label={`Lower quantity of ${name}`}
-                  disabled={row.quantity <= 1}
-                  onClick={() => onLower(row.cardId)}
-                >
-                  <RiSubtractLine />
-                </Button>
-                <span className="w-6 text-center tabular-nums">
-                  {row.quantity}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label={`Raise quantity of ${name}`}
-                  onClick={() => onRaise(row.cardId)}
-                >
-                  <RiAddLine />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove ${name}`}
-                  onClick={() => onRemove(row.cardId)}
-                >
-                  <RiDeleteBinLine />
-                </Button>
-              </li>
+                card={card}
+                name={card?.name ?? (settled ? "Card unavailable" : "Loading…")}
+                quantity={row.quantity}
+                quantityLabel={String(row.quantity)}
+                onRaise={() => onRaise(row.cardId)}
+                onLower={() => onLower(row.cardId)}
+                onRemove={() => onRemove(row.cardId)}
+              />
             )
           })}
         </ul>

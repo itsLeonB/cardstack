@@ -28,6 +28,8 @@ let declines = new Map<string, "capacity_exceeded" | "card_not_found">()
 let collection = { cardCount: 10, maxCardCount: 0 }
 // What the next bulk request does: answer normally, a server error, or no answer at all.
 let bulkMode: "ok" | "error" | "lost" = "ok"
+// The 1-based bulk request that answers with a server error (0: none).
+let failBulkNumber = 0
 let lookups: string[][] = []
 let bulks: { cardId: string; quantity: number }[][] = []
 
@@ -64,7 +66,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
         items: { cardId: string; quantity: number }[]
       }
       bulks.push(items)
-      if (bulkMode === "error")
+      if (bulkMode === "error" || bulks.length === failBulkNumber)
         return Promise.resolve(
           json({ title: "boom", detail: "Try later." }, 503)
         )
@@ -126,6 +128,7 @@ beforeEach(() => {
   declines = new Map()
   collection = { cardCount: 10, maxCardCount: 0 }
   bulkMode = "ok"
+  failBulkNumber = 0
   lookups = []
   bulks = []
   added.mockClear()
@@ -353,5 +356,30 @@ describe("a large draft", () => {
     await vi.waitFor(() => expect(added).toHaveBeenCalled())
     expect(lookups.every((ids) => ids.length <= 100)).toBe(true)
     expect(bulks.map((items) => items.length).sort()).toEqual([1, 100])
+  })
+
+  it("keeps what an earlier chunk did when a later chunk fails", async () => {
+    saveDraft(
+      "col-1",
+      Array.from({ length: 101 }, (_, i) => ({
+        cardId: `card-${i + 1}`,
+        quantity: 1,
+      }))
+    )
+    declines.set("card-5", "capacity_exceeded")
+    failBulkNumber = 2
+    renderScreen()
+    await openReview()
+    await commit()
+    const alert = await screen.findByRole("alert")
+    expect(alert.textContent).toMatch(/99 of 101 cards were already added/)
+    expect(alert.textContent).not.toMatch(/draft is unchanged/)
+    // Chunk 1's decline keeps its reason; its applied rows left the draft.
+    expect(screen.getByText(/capacity_exceeded/)).toBeTruthy()
+    expect(loadDraft("col-1").map((r) => r.cardId)).toEqual([
+      "card-5",
+      "card-101",
+    ])
+    expect(added).not.toHaveBeenCalled()
   })
 })

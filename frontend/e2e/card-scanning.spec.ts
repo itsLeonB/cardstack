@@ -76,6 +76,7 @@ function json(route: Route, body: StubBody) {
 
 async function stubApi(page: Page) {
   let held = 3
+  let declineBulk = false
   const bulkBodies: { items: { cardId: string; quantity: number }[] }[] = []
   const summary = () => ({
     id: "col-1",
@@ -113,6 +114,18 @@ async function stubApi(page: Page) {
     if (request.method() === "PATCH") {
       const body = request.postDataJSON()
       bulkBodies.push(body)
+      if (declineBulk)
+        return json(route, {
+          data: [
+            {
+              cardId: "card-7",
+              quantity: held,
+              status: "declined",
+              reason: "capacity_exceeded",
+              message: "Over the Collection's card limit.",
+            },
+          ],
+        })
       held = body.items[0].quantity
       return json(route, {
         data: [{ cardId: "card-7", quantity: held, status: "applied" }],
@@ -136,16 +149,19 @@ async function stubApi(page: Page) {
       data: { confident: true, candidates: [{ card, score: 0.99 }] },
     })
   })
-  return { bulkBodies }
+  return {
+    bulkBodies,
+    declineBulk() {
+      declineBulk = true
+    },
+  }
 }
 
 test.describe("Card scanning", { tag: SIGNED_IN_TAG }, () => {
   useSignedInSuite()
 
-  test("scans a photo, reviews the draft and adds it to the Collection", async ({
-    page,
-  }) => {
-    const api = await stubApi(page)
+  // Signs in and reaches the review step with one scanned card.
+  async function scanAndReview(page: Page) {
     await signInAsTestUser(page)
 
     // Reached by client navigation: a direct load runs the route loader on the
@@ -172,6 +188,13 @@ test.describe("Card scanning", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByText("Added Card 7")).toBeAttached()
     await page.getByRole("button", { name: "Review and add" }).click()
     await expect(page.getByText("Holds 3")).toBeVisible()
+  }
+
+  test("scans a photo, reviews the draft and adds it to the Collection", async ({
+    page,
+  }) => {
+    const api = await stubApi(page)
+    await scanAndReview(page)
     await page.getByRole("button", { name: "Add to Collection" }).click()
 
     await expect(
@@ -183,5 +206,24 @@ test.describe("Card scanning", { tag: SIGNED_IN_TAG }, () => {
     expect(api.bulkBodies).toEqual([
       { items: [{ cardId: "card-7", quantity: 4 }] },
     ])
+  })
+
+  test("keeps a declined card in the draft with its reason", async ({
+    page,
+  }) => {
+    const api = await stubApi(page)
+    api.declineBulk()
+    await scanAndReview(page)
+    await page.getByRole("button", { name: "Add to Collection" }).click()
+
+    await expect(
+      page.getByText("Not added: Over the Collection's card limit.")
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "Review and add" })
+    ).toBeVisible()
+    await expect(page.getByText("Card 7")).toBeVisible()
+    expect(page.url()).toContain("/scan")
+    expect(api.bulkBodies).toHaveLength(1)
   })
 })
