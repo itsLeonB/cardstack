@@ -1,0 +1,19 @@
+.scratch/card-scanning/issues/04-review-and-add-draft-to-collection.md
+  s_3678493a4e4b67::t_b6dadb6e82434e 6,33-39,45-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "754a62a7f50441422527a8b8ace92a4f3ecc0a77",
+  "prompts": {},
+  "sessions": {
+    "s_3678493a4e4b67": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3678493a4e4b67",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
