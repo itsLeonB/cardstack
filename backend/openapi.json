@@ -2535,7 +2535,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-image body is 400 and a body over 2 MiB is 413",
+        "summary": "Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
         "tags": [
           "scan"
         ]

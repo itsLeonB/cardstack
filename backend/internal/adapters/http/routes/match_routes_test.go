@@ -54,9 +54,11 @@ func TestScanMatchFlow(t *testing.T) {
 		assert.Positive(t, unsure)
 	})
 
-	t.Run("an empty or non-image body is a 400", func(t *testing.T) {
+	t.Run("an empty or non-JPEG body is a 400", func(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, api.Post(path, jpeg, bearer(token), bytes.NewReader(nil)).Code)
 		assert.Equal(t, http.StatusBadRequest, api.Post(path, jpeg, bearer(token), bytes.NewReader([]byte("just text"))).Code)
+		png := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+		assert.Equal(t, http.StatusBadRequest, api.Post(path, jpeg, bearer(token), bytes.NewReader(png)).Code)
 	})
 
 	t.Run("an oversized body is rejected", func(t *testing.T) {

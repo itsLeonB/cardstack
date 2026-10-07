@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
@@ -25,8 +26,10 @@ func TestMatchRepository_RandomCards(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 4)
 	for _, c := range got {
-		assert.NotEmpty(t, c.Name)
-		assert.NotEmpty(t, c.ExpansionSetName)
-		assert.NotEmpty(t, c.RarityName)
+		// Shared database: other tests' Cards may have empty names, so check
+		// the joined ids rather than names.
+		assert.NotEqual(t, uuid.Nil, c.ID)
+		assert.NotEqual(t, uuid.Nil, c.ExpansionSetID)
+		assert.NotEqual(t, uuid.Nil, c.RarityID)
 	}
 }

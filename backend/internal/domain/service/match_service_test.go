@@ -36,6 +36,8 @@ func TestMatchService_Match_RejectsBadUploads(t *testing.T) {
 		"empty":     nil,
 		"text":      []byte("definitely not an image"),
 		"gif":       gifBytes,
+		"png":       pngBytes,
+		"webp":      webpBytes,
 		"html":      []byte("<html><body>hi</body></html>"),
 		"zero byte": {0},
 	}
@@ -52,20 +54,16 @@ func TestMatchService_Match_RejectsBadUploads(t *testing.T) {
 	}
 }
 
-func TestMatchService_Match_AcceptsJPEGPNGAndWebP(t *testing.T) {
-	for name, image := range map[string][]byte{"jpeg": jpegBytes, "png": pngBytes, "webp": webpBytes} {
-		t.Run(name, func(t *testing.T) {
-			repo := mocks.NewMockMatchRepository(t)
-			repo.EXPECT().RandomCards(mock.Anything, mock.Anything).
-				RunAndReturn(func(_ context.Context, n int) ([]repository.CardResult, error) { return randomCardRows(n), nil })
-			svc := NewMatchService(repo, testImages)
+func TestMatchService_Match_AcceptsJPEG(t *testing.T) {
+	repo := mocks.NewMockMatchRepository(t)
+	repo.EXPECT().RandomCards(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, n int) ([]repository.CardResult, error) { return randomCardRows(n), nil })
+	svc := NewMatchService(repo, testImages)
 
-			got, err := svc.Match(context.Background(), dto.MatchRequest{Image: image})
+	got, err := svc.Match(context.Background(), dto.MatchRequest{Image: jpegBytes})
 
-			require.NoError(t, err)
-			assert.NotEmpty(t, got.Candidates)
-		})
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, got.Candidates)
 }
 
 // The stub flips between the two documented shapes; 200 calls make missing

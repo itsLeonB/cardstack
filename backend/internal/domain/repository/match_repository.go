@@ -33,9 +33,7 @@ func (r *matchRepository) RandomCards(ctx context.Context, limit int) ([]CardRes
 	}
 
 	var results []CardResult
-	err = db.Table("cards").
-		Joins("JOIN rarities ON rarities.id = cards.rarity_id").
-		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id").
+	err = withCardResultJoins(db.Table("cards")).
 		Select(cardResultColumns).
 		Order("random()").
 		Limit(limit).

@@ -11,7 +11,19 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-const invalidImageMsg = "upload a JPEG, PNG or WebP image"
+const invalidImageMsg = "upload a JPEG image"
+
+// Stub score shaping. A confident match scores confidentFloor plus up to
+// confidentRange; an unsure list starts at unsureFloor plus up to unsureRange
+// and each next candidate drops by stepFloor plus up to stepRange.
+const (
+	confidentFloor = 0.9
+	confidentRange = 0.09
+	unsureFloor    = 0.5
+	unsureRange    = 0.3
+	stepFloor      = 0.03
+	stepRange      = 0.07
+)
 
 // MatchService matches an uploaded card photo to catalog Cards. Its current
 // implementation is a stub that returns random Cards; the real matcher
@@ -38,7 +50,8 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 	}
 
 	// ponytail: stub. Half the calls are confident (one match), the rest are
-	// unsure (three to five candidates); the real matcher replaces this.
+	// unsure (three to five candidates). Replaced by the real matcher in
+	// ticket 06; the interface and response shape stay.
 	confident := rand.IntN(2) == 0
 	count := 1
 	if !confident {
@@ -50,14 +63,14 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 		return dto.MatchResult{}, err
 	}
 
-	score := 0.9 + rand.Float64()*0.09
+	score := confidentFloor + rand.Float64()*confidentRange
 	if !confident {
-		score = 0.5 + rand.Float64()*0.3
+		score = unsureFloor + rand.Float64()*unsureRange
 	}
 	candidates := make([]dto.MatchCandidate, len(rows))
 	for i, row := range rows {
 		candidates[i] = mapper.ToMatchCandidate(s.images, row, score)
-		score -= 0.03 + rand.Float64()*0.07
+		score -= stepFloor + rand.Float64()*stepRange
 	}
 
 	return dto.MatchResult{Confident: confident, Candidates: candidates}, nil
@@ -65,9 +78,5 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 
 // isAcceptedImage sniffs the bytes rather than trusting the declared type.
 func isAcceptedImage(data []byte) bool {
-	switch http.DetectContentType(data) {
-	case "image/jpeg", "image/png", "image/webp":
-		return true
-	}
-	return false
+	return http.DetectContentType(data) == "image/jpeg"
 }
