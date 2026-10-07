@@ -3,7 +3,7 @@
 # 03: Scan a card into a Draft Addition (frontend)
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** 02 (scan API contract: `cardId` filter and live stub match endpoint)
 
@@ -33,16 +33,20 @@ A Collection's page has no way to add Cards from a photo. There is no scan scree
 - Follow the frontend conventions for routes, data fetching and tests, and the accessibility rules already applied to the catalog grid.
 
 **Acceptance criteria:**
-- [ ] With the flag off, the button and route are absent; with it on, signed-in users see the button on a Collection's page
-- [ ] A capture (camera or file picker) uploads a cropped, downsized JPEG and shows the match result
-- [ ] A confident match adds one copy to the tray with an undo; a non-confident result offers candidates to pick or skip
-- [ ] Scanning the same Card twice shows quantity 2 in one row; quantities can be raised, lowered and removed; the draft can be discarded
-- [ ] A reload restores the draft for that Collection, shows its Cards through the `cardId` filter, and a second Collection has its own separate draft
-- [ ] A denied or missing camera shows a clear message and the file picker still works; a failed match request shows a message and keeps the draft
-- [ ] Feature tests render the scan route with the generated client mocked and a faked frame source; the project's verification scripts pass
+- [x] With the flag off, the button and route are absent; with it on, signed-in users see the button on a Collection's page
+- [x] A capture (camera or file picker) uploads a cropped, downsized JPEG and shows the match result
+- [x] A confident match adds one copy to the tray with an undo; a non-confident result offers candidates to pick or skip
+- [x] Scanning the same Card twice shows quantity 2 in one row; quantities can be raised, lowered and removed; the draft can be discarded
+- [x] A reload restores the draft for that Collection, shows its Cards through the `cardId` filter, and a second Collection has its own separate draft
+- [x] A denied or missing camera shows a clear message and the file picker still works; a failed match request shows a message and keeps the draft
+- [x] Feature tests render the scan route with the generated client mocked and a faked frame source; the project's verification scripts pass
 
 **Out of scope:**
 - Reviewing and committing the draft (ticket 04)
 - Live auto-capture from video, and server-side card detection
 - The real matcher (tickets 05 and 06) and any backend change
 - A scan-screen privacy notice
+
+## Answer
+
+Implemented on `feat/card-scanning-frontend` (merged into `feat/card-scanning`). The flag is `VITE_SCAN_ENABLED` (exactly `true` turns it on), documented in `frontend/.env.example` and `docs/agents/deployment.md`.
