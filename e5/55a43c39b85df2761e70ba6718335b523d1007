@@ -1,0 +1,27 @@
+frontend/e2e/card-scanning.spec.ts
+  s_271d892eb5cc31::t_eb96d96d5b49a5 79,117-128,152-157,163-164,191-197,210-228
+frontend/src/components/scan/draft-row.tsx
+  s_271d892eb5cc31::t_3cf352b0b74571 1-74
+frontend/src/components/scan/draft-tray.tsx
+  s_271d892eb5cc31::t_ebdca34ccd4274 2,41,43-50
+frontend/src/components/scan/review-step.tsx
+  s_271d892eb5cc31::t_767ab31639cf59 4,93,95-96,101-113,115,134,137-146,149,151,153-155,198,200-206,208-222
+frontend/src/components/scan/scan-review.test.tsx
+  s_271d892eb5cc31::t_7f506a0587860d 31-32,69,131,360-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e555a43c39b85df2761e70ba6718335b523d1007",
+  "prompts": {},
+  "sessions": {
+    "s_271d892eb5cc31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_271d892eb5cc31",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
