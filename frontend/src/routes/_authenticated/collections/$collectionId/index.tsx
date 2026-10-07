@@ -9,6 +9,7 @@ import {
   useGetCollection,
 } from "@/generated/endpoints/collections/collections"
 import { AddCardsLink } from "@/components/collections/add-cards-link"
+import { ScanLink } from "@/components/scan/scan-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
 import { catalogFilterSchema } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
@@ -72,7 +73,12 @@ function CollectionPage() {
                 )}
               </>
             }
-            actions={<AddCardsLink collectionId={collectionId} />}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <ScanLink collectionId={collectionId} />
+                <AddCardsLink collectionId={collectionId} />
+              </div>
+            }
           />
           <CollectionEntries
             collectionId={collectionId}

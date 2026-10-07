@@ -36,6 +36,11 @@ category?: string[];
  */
 tag?: string[];
 /**
+ * Only these Cards (repeatable, at most 100), combined with the other filters; use it to render Cards known by id.
+ * @maxItems 100
+ */
+cardId?: string[];
+/**
  * 1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required.
  * @minimum 1
  */

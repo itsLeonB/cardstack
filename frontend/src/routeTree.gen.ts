@@ -26,6 +26,7 @@ import { Route as AuthRegisterSplatRouteImport } from './routes/auth/register/$'
 import { Route as CatalogSetsExpansionSetIdRouteImport } from './routes/catalog/sets/$expansionSetId'
 import { Route as AuthenticatedCollectionsCollectionIdIndexRouteImport } from './routes/_authenticated/collections/$collectionId/index'
 import { Route as AuthenticatedCollectionsCollectionIdEditRouteImport } from './routes/_authenticated/collections/$collectionId/edit'
+import { Route as AuthenticatedCollectionsCollectionIdScanRouteImport } from './routes/_authenticated/collections/$collectionId/scan'
 import { Route as CatalogCardsExpansionSetIdLocalIdRouteImport } from './routes/catalog/cards.$expansionSetId.$localId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -117,6 +118,12 @@ const AuthenticatedCollectionsCollectionIdEditRoute =
     path: '/collections/$collectionId/edit',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedCollectionsCollectionIdScanRoute =
+  AuthenticatedCollectionsCollectionIdScanRouteImport.update({
+    id: '/collections/$collectionId/scan',
+    path: '/collections/$collectionId/scan',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const CatalogCardsExpansionSetIdLocalIdRoute =
   CatalogCardsExpansionSetIdLocalIdRouteImport.update({
     id: '/catalog/cards/$expansionSetId/$localId',
@@ -140,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/auth/login/': typeof AuthLoginIndexRoute
   '/auth/register/': typeof AuthRegisterIndexRoute
   '/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
+  '/collections/$collectionId/scan': typeof AuthenticatedCollectionsCollectionIdScanRoute
   '/catalog/cards/$expansionSetId/$localId': typeof CatalogCardsExpansionSetIdLocalIdRoute
   '/collections/$collectionId/': typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
@@ -158,6 +166,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginIndexRoute
   '/auth/register': typeof AuthRegisterIndexRoute
   '/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
+  '/collections/$collectionId/scan': typeof AuthenticatedCollectionsCollectionIdScanRoute
   '/catalog/cards/$expansionSetId/$localId': typeof CatalogCardsExpansionSetIdLocalIdRoute
   '/collections/$collectionId': typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
@@ -179,6 +188,7 @@ export interface FileRoutesById {
   '/auth/login/': typeof AuthLoginIndexRoute
   '/auth/register/': typeof AuthRegisterIndexRoute
   '/_authenticated/collections/$collectionId/edit': typeof AuthenticatedCollectionsCollectionIdEditRoute
+  '/_authenticated/collections/$collectionId/scan': typeof AuthenticatedCollectionsCollectionIdScanRoute
   '/catalog/cards/$expansionSetId/$localId': typeof CatalogCardsExpansionSetIdLocalIdRoute
   '/_authenticated/collections/$collectionId/': typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/auth/login/'
     | '/auth/register/'
     | '/collections/$collectionId/edit'
+    | '/collections/$collectionId/scan'
     | '/catalog/cards/$expansionSetId/$localId'
     | '/collections/$collectionId/'
   fileRoutesByTo: FileRoutesByTo
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/register'
     | '/collections/$collectionId/edit'
+    | '/collections/$collectionId/scan'
     | '/catalog/cards/$expansionSetId/$localId'
     | '/collections/$collectionId'
   id:
@@ -238,6 +250,7 @@ export interface FileRouteTypes {
     | '/auth/login/'
     | '/auth/register/'
     | '/_authenticated/collections/$collectionId/edit'
+    | '/_authenticated/collections/$collectionId/scan'
     | '/catalog/cards/$expansionSetId/$localId'
     | '/_authenticated/collections/$collectionId/'
   fileRoutesById: FileRoutesById
@@ -373,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCollectionsCollectionIdEditRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/collections/$collectionId/scan': {
+      id: '/_authenticated/collections/$collectionId/scan'
+      path: '/collections/$collectionId/scan'
+      fullPath: '/collections/$collectionId/scan'
+      preLoaderRoute: typeof AuthenticatedCollectionsCollectionIdScanRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/catalog/cards/$expansionSetId/$localId': {
       id: '/catalog/cards/$expansionSetId/$localId'
       path: '/catalog/cards/$expansionSetId/$localId'
@@ -409,6 +429,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCollectionsNewRoute: typeof AuthenticatedCollectionsNewRoute
   AuthenticatedCollectionsIndexRoute: typeof AuthenticatedCollectionsIndexRoute
   AuthenticatedCollectionsCollectionIdEditRoute: typeof AuthenticatedCollectionsCollectionIdEditRoute
+  AuthenticatedCollectionsCollectionIdScanRoute: typeof AuthenticatedCollectionsCollectionIdScanRoute
   AuthenticatedCollectionsCollectionIdIndexRoute: typeof AuthenticatedCollectionsCollectionIdIndexRoute
 }
 
@@ -419,6 +440,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCollectionsIndexRoute: AuthenticatedCollectionsIndexRoute,
   AuthenticatedCollectionsCollectionIdEditRoute:
     AuthenticatedCollectionsCollectionIdEditRoute,
+  AuthenticatedCollectionsCollectionIdScanRoute:
+    AuthenticatedCollectionsCollectionIdScanRoute,
   AuthenticatedCollectionsCollectionIdIndexRoute:
     AuthenticatedCollectionsCollectionIdIndexRoute,
 }
