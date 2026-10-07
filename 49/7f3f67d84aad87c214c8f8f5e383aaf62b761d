@@ -1,0 +1,33 @@
+backend/internal/adapters/http/handler/match_handler.go
+  s_96800c2fcf053f::t_7c2dfac1c4c848 29,44
+backend/internal/adapters/http/routes/match_routes_test.go
+  s_96800c2fcf053f::t_818ea385185178 57,60-61
+backend/internal/domain/repository/catalog_repository.go
+  s_96800c2fcf053f::t_9a8b90f3186a06 265-271,354
+backend/internal/domain/repository/match_repository.go
+  s_96800c2fcf053f::t_d9a924d30fc5bc 36
+backend/internal/domain/repository/match_repository_test.go
+  s_96800c2fcf053f::t_f10c64fdc03cdf 8,29-33
+backend/internal/domain/service/match_service.go
+  s_96800c2fcf053f::t_325689e4701619 14-26,53-54,66,68,73,81
+backend/internal/domain/service/match_service_test.go
+  s_96800c2fcf053f::t_f1510c23c7f5dc 39-40,57-61,63,65-66
+backend/openapi.json
+  s_96800c2fcf053f::t_48760ac461760e 2538
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "497f3f67d84aad87c214c8f8f5e383aaf62b761d",
+  "prompts": {},
+  "sessions": {
+    "s_96800c2fcf053f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_96800c2fcf053f",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
