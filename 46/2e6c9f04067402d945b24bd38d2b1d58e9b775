@@ -1,0 +1,53 @@
+backend/.mockery.yaml
+  s_3bc0d5e19f49fb::t_41c5106fbda19c 18,25
+backend/cmd/genspec/main.go
+  s_3bc0d5e19f49fb::t_95185b2cec6fe9 31
+backend/internal/adapters/http/handler/match_handler.go
+  s_3bc0d5e19f49fb::t_113996a409b4d3 1-52
+backend/internal/adapters/http/routes/match_routes_test.go
+  s_3bc0d5e19f49fb::t_0ff25c810fec13 1-66
+backend/internal/adapters/http/routes/register_routes.go
+  s_3bc0d5e19f49fb::t_01a77e8e299e9d 20,42
+backend/internal/adapters/http/routes/testenv_test.go
+  s_3bc0d5e19f49fb::t_8327c4cafa17e6 87
+backend/internal/domain/dto/match_dto.go
+  s_3bc0d5e19f49fb::t_2bc4b7bd962a88 1-22
+backend/internal/domain/mapper/catalog_mapper.go
+  s_3bc0d5e19f49fb::t_f10b84835191b0 120-125
+backend/internal/domain/repository/match_repository.go
+  s_3bc0d5e19f49fb::t_59eafacac58cde 1-46
+backend/internal/domain/repository/match_repository_test.go
+  s_3bc0d5e19f49fb::t_0a2ecd04e605d6 1-32
+backend/internal/domain/service/match_service.go
+  s_3bc0d5e19f49fb::t_db1e5783e1c804 1-73
+backend/internal/domain/service/match_service_test.go
+  s_3bc0d5e19f49fb::t_a37447c40605f1 1-115
+backend/internal/endpoint/endpoint.go
+  s_3bc0d5e19f49fb::t_81697b4cf52acf 61-65,82
+backend/internal/mocks/MatchRepository.go
+  s_3bc0d5e19f49fb::t_98ec5e4b57f2d9 1-96
+backend/internal/mocks/MatchService.go
+  s_3bc0d5e19f49fb::t_0feca9c680192b 1-94
+backend/internal/provider/service_provider.go
+  s_3bc0d5e19f49fb::t_7dba823ab98e3c 16,25,72-76,81,89
+backend/internal/provider/wire_gen.go
+  s_3bc0d5e19f49fb::t_f212682cebe94f 28-29
+backend/openapi.json
+  s_3bc0d5e19f49fb::t_a4fca27c472ba4 375-386,686-728,998-1014,2495-2542
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "462e6c9f04067402d945b24bd38d2b1d58e9b775",
+  "prompts": {},
+  "sessions": {
+    "s_3bc0d5e19f49fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3bc0d5e19f49fb",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
