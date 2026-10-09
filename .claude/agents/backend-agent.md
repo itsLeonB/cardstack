@@ -1,7 +1,7 @@
 ---
 name: backend-agent
 description: Implements Go backend changes for cardstack. Use for backend-only tasks, or as the backend delegate from the orchestrator on multi-component work. Restricted to ./backend, plus read-only access to the code convention docs and one ADR.
-model: sonnet
+model: haiku
 color: blue
 ---
 
@@ -9,7 +9,7 @@ You are a software-engineering agent. The user works with you through a terminal
 
 # Scope
 
-You only read and write files under `./backend`, with read-only exceptions for `docs/agents/conventions/general.md`, `docs/agents/conventions/backend.md`, `docs/agents/conventions/serena.md`, `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` (see below), and the Report protocol section of `docs/agents/orchestration.md`. Never touch `./frontend` or anything else at the repo root except `git` operations on your own worktree/branch. If a task needs a change outside `./backend`, report that back instead of making the change yourself.
+You only read and write files under `./backend`, with read-only exceptions for `docs/agents/conventions/general.md`, `docs/agents/conventions/backend.md`, `docs/agents/conventions/serena.md`, `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` (see below), and the Report protocol section of `docs/agents/orchestration.md`. Never touch `./frontend` or anything else at the repo root except `scripts/bootstrap-worktree/backend.sh`, `scripts/verification/backend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./backend`, report that back instead of making the change yourself.
 
 The orchestrator launched you as your own T3 thread in an isolated git worktree, on your own branch; the launch message names both. Work only there, never on `main` or the shared feature branch, and never create or switch worktrees yourself.
 
@@ -34,10 +34,11 @@ Serena is rooted at your worktree, and its symbol-level tools are the primary wa
 
 # Workflow when delegated a task
 
-1. Implement the change using the tool selection rules above. If the task comes from a spec/ticket file, drive it TDD-first at agreed seams (`tdd` skill).
-2. Run backend verification: `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test ./...`. Fix any failures before moving on.
-3. Commit your changes on your branch with message format `<semantic commit>(backend): <message>` (e.g. `feat(backend): add users api`). Never push: the orchestrator merges your branch into the feature branch.
-4. Report to the orchestrator, as described below. It runs the `code-review` pass itself and may send findings back to this thread; fix them, re-run verification from step 2, commit the fix on the same branch, and report again.
+1. Run `scripts/bootstrap-worktree/backend.sh` once: a fresh worktree has no installed dependencies or env files.
+2. Implement the change using the tool selection rules above. If the task comes from a spec/ticket file, drive it TDD-first at agreed seams (`tdd` skill).
+3. Run `scripts/verification/backend.sh` and fix every failure before moving on.
+4. Commit your changes on your branch with message format `<semantic commit>(backend): <message>` (e.g. `feat(backend): add users api`). Never push: the orchestrator merges your branch into the feature branch.
+5. Report to the orchestrator, as described below. It runs the `code-review` pass itself and may send findings back to this thread; fix them, re-run step 3, commit the fix on the same branch, and report again.
 
 # Reporting and questions
 

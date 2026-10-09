@@ -1,6 +1,8 @@
 {
   "env": {
-    "CLAUDE_CODE_DISABLE_ADVISOR_TOOL": "1"
+    "CLAUDE_CODE_DISABLE_ADVISOR_TOOL": "1",
+    "ENABLE_STOP_REVIEW": "0",
+    "SG_AGENTIC_MODEL": "claude-sonnet-5-5"
   },
   "hooks": {
     "PreToolUse": [
@@ -58,5 +60,8 @@
   "enabledPlugins": {
     "hookify@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true
+  },
+  "permissions": {
+    "deny": []
   }
 }
