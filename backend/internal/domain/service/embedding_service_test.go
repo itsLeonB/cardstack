@@ -144,15 +144,16 @@ func TestEmbeddingService_SubmitCatalog_StopsWhenAJobCannotBeRecorded(t *testing
 	f := newEmbeddingFixture(t)
 	ctx := context.Background()
 	card := hostedCard("cards/unrecorded")
+	connLost := errors.New("connection lost")
 
 	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "").Return(stateCounts(1, 0, 0, 0), nil)
 	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "").Return([]entity.Card{card}, nil)
 	f.images.EXPECT().Fetch(ctx, mock.Anything).Return("image/png", []byte("img"), nil)
 	f.embedder.EXPECT().Submit(ctx, mock.Anything).Return("batches/orphan", nil)
-	f.repo.EXPECT().CreateBatch(ctx, mock.Anything, mock.Anything).Return(errors.New("connection lost"))
+	f.repo.EXPECT().CreateBatch(ctx, mock.Anything, mock.Anything).Return(connLost)
 
 	_, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{})
-	require.Error(t, err)
+	assert.Same(t, connLost, err, "the repository error comes back unchanged; the orphaned job is logged")
 }
 
 func TestEmbeddingService_CollectBatches_StoresSucceededVectorsAndMarksTheBatchCollected(t *testing.T) {

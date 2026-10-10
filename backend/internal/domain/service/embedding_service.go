@@ -140,7 +140,8 @@ func (s *embeddingService) submitBatch(ctx context.Context, cards []entity.Card,
 
 	record := &entity.EmbeddingBatch{JobName: job, Model: s.model, Source: catalogSource, State: entity.EmbeddingBatchSubmitted}
 	if err := s.repo.CreateBatch(ctx, record, cardIDs); err != nil {
-		return ungerr.Wrapf(err, "recording batch %s as job %s: its cards will be submitted again", label, job)
+		logger.Errorf("batch %s: job %s was accepted by Gemini but not recorded, so it is orphaned and its %d card(s) will be submitted again: %v", label, job, len(images), err)
+		return err
 	}
 	summary.Batches++
 	summary.Submitted += len(images)
