@@ -24,6 +24,8 @@ The batch commands need a Gemini key from a project with billing enabled: the Ba
 
 A real run on 11 cards of Expansion Set MA6 confirmed the batch design: an embeddings batch accepts PNG image parts, the uploaded JSONL input and the result lines parse as written, and the job finished in about three minutes. The vectors came back 1536-dimensional and unit length, and matched the earlier per-image `embedContent` results for the same cards. The output parsing stays isolated in one function (`resultLine` in `internal/adapters/embedding/gemini.go`) because the Go SDK marks `CreateEmbeddings` experimental and the result format is not documented for images.
 
+The scan match embeds each uploaded photo with a synchronous call (`ImageEmbedder`, a second seam beside `BatchEmbedder`, with the same model, dimension and normalisation as the catalog vectors, which is what makes the two comparable). The `confident` rule is a top-similarity threshold plus a runner-up margin held in configuration (`MATCH_THRESHOLD`, `MATCH_MARGIN`), so it can be tuned without a frontend release; the shipped values are provisional until ticket 07 measures them on real photos.
+
 Two concurrent `embed-catalog` runs would submit the same Cards twice (no rows are duplicated, the work and cost are). There is one operator, so no lock is taken.
 
 The migration runs `CREATE EXTENSION IF NOT EXISTS vector`, so the migrating role needs permission to create it and the Postgres used by CI, end-to-end runs and local tests must ship pgvector (`pgvector/pgvector:pg18` instead of `postgres:18`). Neon's production branch lists `vector` as available (0.8.x). Settings and the run book are in `docs/agents/deployment/embeddings.md`.

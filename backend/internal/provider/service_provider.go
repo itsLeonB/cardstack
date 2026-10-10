@@ -1,19 +1,25 @@
 package provider
 
 import (
+	"context"
+
 	"github.com/google/wire"
 	coreservice "github.com/itsLeonB/cardstack/backend/internal/adapters/core/service"
+	embeddingadapter "github.com/itsLeonB/cardstack/backend/internal/adapters/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
+	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	catalogrepository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideMatchService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -70,8 +76,41 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 }
 
 // ProvideMatchService builds the scan match service over ds's DB.
-func ProvideMatchService(ds *DataSources, images mapper.ImageHost) service.MatchService {
-	return service.NewMatchService(catalogrepository.NewMatchRepository(crud.NewRepository[entity.Card](ds.Gorm)), images)
+func ProvideMatchService(ds *DataSources, images mapper.ImageHost, embedder embedding.ImageEmbedder, settings service.MatchSettings) service.MatchService {
+	return service.NewMatchService(
+		embedder,
+		catalogrepository.NewEmbeddingRepository(crud.NewRepository[entity.CardEmbedding](ds.Gorm)),
+		catalogrepository.NewMatchRepository(crud.NewRepository[entity.Card](ds.Gorm)),
+		images,
+		settings,
+	)
+}
+
+// ProvideMatchSettings reads the model and the confident rule from config.
+func ProvideMatchSettings() service.MatchSettings {
+	return service.MatchSettings{
+		Model:     config.Global.Model,
+		Threshold: config.Global.Threshold,
+		Margin:    config.Global.Margin,
+	}
+}
+
+// ProvideImageEmbedder builds the Gemini embedder the scan match calls. With no
+// GEMINI_API_KEY (a preview or CI run) the API still boots and logs an error,
+// and every match then fails, so the key is not a boot requirement there.
+func ProvideImageEmbedder() (embedding.ImageEmbedder, error) {
+	if config.Global.APIKey == "" {
+		logger.Error("GEMINI_API_KEY is empty: every scan match will fail")
+		return missingKeyEmbedder{}, nil
+	}
+	return embeddingadapter.NewGeminiImageEmbedder(context.Background(), config.Global.APIKey, config.Global.Model)
+}
+
+// missingKeyEmbedder stands in for the embedder when no Gemini key is set.
+type missingKeyEmbedder struct{}
+
+func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, error) {
+	return nil, ungerr.Unknownf("embedding image: GEMINI_API_KEY is not set")
 }
 
 // ProvideServices takes just the already-built verifier and services (not the

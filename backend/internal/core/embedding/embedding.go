@@ -56,6 +56,14 @@ type BatchEmbedder interface {
 	Collect(ctx context.Context, job string) (Outcome, error)
 }
 
+// ImageEmbedder embeds one image and returns its unit-length vector of
+// Dimensions values, for a request that waits on the result. It must embed the
+// way BatchEmbedder does, because a query only compares with vectors made by
+// the same model and settings.
+type ImageEmbedder interface {
+	Embed(ctx context.Context, mimeType string, data []byte) ([]float32, error)
+}
+
 // ImageFetcher downloads one hosted image by its full address and returns it as
 // a PNG or JPEG, the types the provider accepts.
 type ImageFetcher interface {

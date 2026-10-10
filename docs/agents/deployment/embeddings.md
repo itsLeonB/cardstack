@@ -1,14 +1,21 @@
 # Card embeddings
 
-The scan matcher searches image embeddings of the catalog's hosted card images (ADR-0018). Two commands produce them: `cmd/embed-catalog` submits Gemini batch jobs and `cmd/collect-embeddings` stores their results. Read this when `card_embeddings` is empty, when a batch is stuck, or when you change the model.
+The scan matcher searches image embeddings of the catalog's hosted card images (ADR-0018). Two commands produce them: `cmd/embed-catalog` submits Gemini batch jobs and `cmd/collect-embeddings` stores their results. `POST /scan/match` embeds the uploaded photo with the same model and searches those vectors. Read this when `card_embeddings` is empty, when a batch is stuck, when you change the model, or when scans fail or are never confident.
 
 ## Settings
 
-Read only by these two commands, so the API boots without them. Local values: `backend/.env.example`.
+Local values: `backend/.env.example`.
 
-- `GEMINI_API_KEY`: a Gemini API key from a Google AI Studio project **with billing enabled**. The Batch API refuses a free-tier key with `FAILED_PRECONDITION` (HTTP 400, "Precondition check failed"). Required by both commands.
-- `EMBEDDING_MODEL`: the model whose embeddings are stored, default `gemini-embedding-2`. It is saved on every row. Changing it makes every Card eligible for a new embedding on the next submit, and a query only compares rows of one model. The vector size is fixed at 1536 by the table, so only a model that can return 1536 dimensions works without a migration.
+- `GEMINI_API_KEY`: a Gemini API key from a Google AI Studio project **with billing enabled**. The Batch API refuses a free-tier key with `FAILED_PRECONDITION` (HTTP 400, "Precondition check failed"), and a free-tier key may let Google use users' photos to improve its products. Required by both commands and by the API's scan match. The API still boots without it, because previews and CI have none, but it logs `GEMINI_API_KEY is empty` and every scan answers 500.
+- `EMBEDDING_MODEL`: the model whose embeddings are stored and searched, default `gemini-embedding-2`. It is saved on every row. Changing it makes every Card eligible for a new embedding on the next submit, and a query only compares rows of one model, so scans find nothing until the new model's catalog embeddings are collected. The vector size is fixed at 1536 by the table, so only a model that can return 1536 dimensions works without a migration.
+- `MATCH_THRESHOLD` (default `0.85`) and `MATCH_MARGIN` (default `0.03`): when a scan is `confident`. The top Card's cosine similarity (1 is identical) must reach the threshold, and the second Card must trail it by at least the margin; otherwise the response lists up to five candidates and the user picks. The API refuses to boot with a threshold outside 0 to 1 (0 excluded) or a margin outside 0 to 1 (1 excluded). A near-tie, such as one artwork reprinted in two Expansion Sets, fails the margin by design. **The defaults are provisional**: ticket 07 measures them on the full catalog and real phone photos and replaces them. If scans are never confident, lower the threshold or margin; if a wrong Card is ever added without asking, raise them. A change needs an API restart, not a frontend release.
 - `IMAGE_BASE_URL`: `embed-catalog` downloads `IMAGE_BASE_URL` plus a Card's hosted key (see `docs/agents/deployment/images.md`). A Card with no hosted key is skipped and counted.
+
+## How a scan is matched
+
+`POST /scan/match` embeds the uploaded JPEG with one synchronous Gemini call (8 second timeout, under `APP_TIMEOUT`), takes the five nearest stored vectors of `EMBEDDING_MODEL` and returns those Cards best first. The photo is processed in memory and never stored. A Card with no embedding for the model cannot appear. A Gemini failure, quota error or timeout is logged in full and answered as a redacted 500, which the frontend shows as "Could not match this photo". Each scan is one billed embedding call, and the per-user rate limits apply.
+
+The production frontend flag (`VITE_SCAN_ENABLED`, `docs/agents/deployment.md`) is turned on by a frontend rebuild once the production catalog is embedded and a real photo has matched the right Card on the deployed API.
 
 ## Running it
 

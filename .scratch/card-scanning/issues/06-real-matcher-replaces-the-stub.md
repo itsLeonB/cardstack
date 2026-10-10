@@ -43,3 +43,16 @@ After ticket 02 the match endpoint returns random Cards with random confidence. 
 - Any frontend change, including turning on the production flag
 - OCR or hybrid matching, unless ticket 01's report chose it as the fallback, in which case split it into its own ticket first
 - Server-side card detection, foreign print editions, and Phase 2 binder-page scanning
+
+## Answer
+
+Implemented on `feat/card-scanning`. `POST /scan/match` now embeds the photo through a new `ImageEmbedder` seam (Gemini `EmbedContent`, same model and 1536 dimensions as the catalog, 8 second timeout), takes the five nearest stored vectors of `EMBEDDING_MODEL` via `EmbeddingRepository.NearestCards`, keeps the best row per Card, loads the Card summaries with `MatchRepository.CardsByIDs`, and sets `confident` when the top similarity reaches `MATCH_THRESHOLD` and the runner-up trails by `MATCH_MARGIN`. A confident result holds only the matched Card. The random stub and `RandomCards` are gone, and `openapi.json` is unchanged.
+
+Verified: `scripts/verification/backend.sh` (build, vet, gofmt, golangci-lint, `go test -race ./...`) passes against `pgvector/pgvector:pg18`. The feature test stores embeddings in real Postgres with the provider mocked and covers a clear winner, a near-tie, a weak top score, an unembedded Card and another model's vectors never appearing, an empty catalog, and a provider failure answered as a redacted 500.
+
+Not done, so the ticket stays open:
+
+- **Manual check with the real provider.** No `GEMINI_API_KEY` was available in the session. Run `make embed-catalog ARGS="-set MA6"` and `make collect-embeddings`, start the API with the key, and post a real photo of an MA6 card.
+- **Threshold and margin are provisional.** Ticket 07 is still open, so `MATCH_THRESHOLD=0.85` and `MATCH_MARGIN=0.03` are conservative guesses (a wrong value makes scans non-confident, not wrong). Replace them with 07's recommended values.
+
+Decisions worth knowing: the API boots without `GEMINI_API_KEY` (previews and CI have none) and logs an error, and every scan then answers 500, because making it a boot requirement would need the key in `e2e.yml` and the preview workflow. A provider failure or timeout is the seam's redacted 500, not a dedicated status, because `ungerr` has no 503 and 408 invites client retries. Settings and the run book are in `docs/agents/deployment/embeddings.md`, and ADR-0018 records the synchronous embed seam.

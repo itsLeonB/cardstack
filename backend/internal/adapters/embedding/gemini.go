@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
@@ -34,6 +35,55 @@ func NewGeminiBatchEmbedder(ctx context.Context, apiKey, model string) (*GeminiB
 		return nil, ungerr.Wrap(err, "creating Gemini client")
 	}
 	return &GeminiBatchEmbedder{client: client, model: model}, nil
+}
+
+// GeminiImageEmbedder embeds one image per call, for a scan that waits on the
+// vector. It asks for the same model and dimension as GeminiBatchEmbedder, so
+// its vectors are comparable with the stored ones.
+type GeminiImageEmbedder struct {
+	client *genai.Client
+	model  string
+}
+
+// NewGeminiImageEmbedder returns an image embedder that uses the Gemini
+// Developer API with apiKey and embeds with model.
+func NewGeminiImageEmbedder(ctx context.Context, apiKey, model string) (*GeminiImageEmbedder, error) {
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{APIKey: apiKey, Backend: genai.BackendGeminiAPI})
+	if err != nil {
+		return nil, ungerr.Wrap(err, "creating Gemini client")
+	}
+	return &GeminiImageEmbedder{client: client, model: model}, nil
+}
+
+// imageEmbedTimeout bounds one call. It stays under the API's request timeout
+// (APP_TIMEOUT, 10s by default) so a slow provider fails here, with our error,
+// rather than as a cut-off request. Gemini answered in about 1.5 s at p95.
+const imageEmbedTimeout = 8 * time.Second
+
+// Embed returns the normalised vector of one image.
+func (g *GeminiImageEmbedder) Embed(ctx context.Context, mimeType string, data []byte) ([]float32, error) {
+	ctx, cancel := context.WithTimeout(ctx, imageEmbedTimeout)
+	defer cancel()
+
+	dimensions := int32(embedding.Dimensions)
+	resp, err := g.client.Models.EmbedContent(ctx, g.model,
+		[]*genai.Content{{Parts: []*genai.Part{{InlineData: &genai.Blob{MIMEType: mimeType, Data: data}}}}},
+		&genai.EmbedContentConfig{OutputDimensionality: &dimensions})
+	if err != nil {
+		return nil, ungerr.Wrap(err, "embedding image")
+	}
+	if len(resp.Embeddings) != 1 || resp.Embeddings[0] == nil {
+		return nil, ungerr.Unknownf("embedding image: got %d embeddings, want 1", len(resp.Embeddings))
+	}
+	values := resp.Embeddings[0].Values
+	if len(values) != embedding.Dimensions {
+		return nil, ungerr.Unknownf("embedding image: got %d values, want %d", len(values), embedding.Dimensions)
+	}
+	vector, err := normalise(values)
+	if err != nil {
+		return nil, ungerr.Wrap(err, "embedding image")
+	}
+	return vector, nil
 }
 
 // batchLine is one request of the input JSONL file.

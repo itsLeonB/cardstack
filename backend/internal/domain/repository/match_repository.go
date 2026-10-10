@@ -3,15 +3,17 @@ package repository
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 )
 
 // MatchRepository is the persistence access the scan match endpoint needs.
 type MatchRepository interface {
-	// RandomCards returns up to limit Cards picked at random from the whole
-	// catalog, with the joins a CardSummary needs.
-	RandomCards(ctx context.Context, limit int) ([]CardResult, error)
+	// CardsByIDs returns the Cards with the given ids, in no particular order,
+	// with the joins a CardSummary needs. An unknown id is simply absent.
+	CardsByIDs(ctx context.Context, ids []uuid.UUID) ([]CardResult, error)
 }
 
 // matchRepository embeds a crud.Repository only for GetGormInstance.
@@ -24,9 +26,10 @@ func NewMatchRepository(base crud.Repository[entity.Card]) MatchRepository {
 	return &matchRepository{Repository: base}
 }
 
-// RandomCards orders by random(), which sorts the whole table; fine for the
-// stub's catalog size.
-func (r *matchRepository) RandomCards(ctx context.Context, limit int) ([]CardResult, error) {
+func (r *matchRepository) CardsByIDs(ctx context.Context, ids []uuid.UUID) ([]CardResult, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
@@ -35,10 +38,11 @@ func (r *matchRepository) RandomCards(ctx context.Context, limit int) ([]CardRes
 	var results []CardResult
 	err = withCardResultJoins(db.Table("cards")).
 		Select(cardResultColumns).
-		Order("random()").
-		Limit(limit).
+		Where("cards.id IN ?", ids).
 		Find(&results).
 		Error
-
-	return results, err
+	if err != nil {
+		return nil, ungerr.Wrap(err, "loading matched cards")
+	}
+	return results, nil
 }

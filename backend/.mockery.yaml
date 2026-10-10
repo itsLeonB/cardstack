@@ -9,6 +9,7 @@ packages:
   github.com/itsLeonB/cardstack/backend/internal/core/embedding:
     interfaces:
       BatchEmbedder:
+      ImageEmbedder:
       ImageFetcher:
   github.com/itsLeonB/cardstack/backend/internal/core/objectstore:
     interfaces:

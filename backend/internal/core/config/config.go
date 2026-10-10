@@ -16,6 +16,7 @@ type Config struct {
 	R2
 	Gemini
 	Embedding
+	Match
 	RateLimit
 }
 
@@ -64,6 +65,11 @@ func Load() error {
 		errs = errors.Join(errs, err)
 	}
 
+	var match Match
+	if err := envconfig.Process(match.Prefix(), &match); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
 	rateLimit := DefaultRateLimit()
 	if err := envconfig.Process(rateLimit.Prefix(), &rateLimit); err != nil {
 		errs = errors.Join(errs, err)
@@ -73,7 +79,7 @@ func Load() error {
 		return fmt.Errorf("error loading config: %w", errs)
 	}
 
-	Global = &Config{app, db, otel, clerk, image, r2, gemini, embedding, rateLimit}
+	Global = &Config{app, db, otel, clerk, image, r2, gemini, embedding, match, rateLimit}
 
 	return nil
 }

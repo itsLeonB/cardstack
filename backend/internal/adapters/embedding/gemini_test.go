@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
 	"github.com/stretchr/testify/assert"
@@ -238,4 +239,69 @@ func TestGeminiBatchEmbedder_SubmitReportsTheRefusalWhenTheCleanupFails(t *testi
 	_, err := e.Submit(context.Background(), []embedding.Image{{Key: "card-a", MIMEType: "image/png", Data: []byte("png-a")}})
 	require.ErrorContains(t, err, "creating embedding batch job", "a failed cleanup does not mask the refusal")
 	assert.True(t, f.deleted)
+}
+
+func newTestImageEmbedder(t *testing.T, srv *httptest.Server) *GeminiImageEmbedder {
+	t.Helper()
+	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
+		APIKey:      "test-key",
+		Backend:     genai.BackendGeminiAPI,
+		HTTPOptions: genai.HTTPOptions{BaseURL: srv.URL},
+	})
+	require.NoError(t, err)
+	return &GeminiImageEmbedder{client: client, model: "gemini-embedding-2"}
+}
+
+func TestGeminiImageEmbedder_EmbedSendsOneImageAndNormalisesTheVector(t *testing.T) {
+	var sent []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sent, _ = io.ReadAll(r.Body)
+		values, err := json.Marshal(axisVector(3, 4))
+		require.NoError(t, err)
+		_, _ = w.Write([]byte(`{"embeddings":[{"values":` + string(values) + `}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	vector, err := newTestImageEmbedder(t, srv).Embed(context.Background(), "image/jpeg", []byte("jpeg-bytes"))
+
+	require.NoError(t, err)
+	require.Len(t, vector, embedding.Dimensions)
+	assert.InDelta(t, 1, vector[3], 1e-6)
+	assert.Contains(t, string(sent), `"outputDimensionality":1536`)
+	assert.Contains(t, string(sent), `"mimeType":"image/jpeg"`)
+}
+
+func TestGeminiImageEmbedder_EmbedFailures(t *testing.T) {
+	tests := map[string]http.HandlerFunc{
+		"provider error": func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "quota", http.StatusTooManyRequests) },
+		"no embedding":   func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"embeddings":[]}`)) },
+		"short vector": func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"embeddings":[{"values":[1,2,3]}]}`))
+		},
+	}
+	for name, handler := range tests {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(handler)
+			t.Cleanup(srv.Close)
+
+			_, err := newTestImageEmbedder(t, srv).Embed(context.Background(), "image/jpeg", []byte("x"))
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestGeminiImageEmbedder_EmbedStopsWhenTheCallerGivesUp(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { <-release }))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(release) }) // runs before srv.Close, which waits for the handler
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	t.Cleanup(cancel)
+
+	start := time.Now()
+	_, err := newTestImageEmbedder(t, srv).Embed(ctx, "image/jpeg", []byte("x"))
+
+	assert.Error(t, err)
+	assert.Less(t, time.Since(start), 5*time.Second)
 }
