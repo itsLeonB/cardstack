@@ -25,6 +25,12 @@ type fakeGemini struct {
 	// noOutput makes a finished job report no result file.
 	noOutput bool
 	results  string
+	// createStatus, when set, makes the batch create call fail with that status.
+	createStatus int
+	// deleteStatus, when set, makes the file delete call fail with that status.
+	deleteStatus int
+	// deleted records that the uploaded input file was deleted.
+	deleted bool
 }
 
 func newFakeGemini(t *testing.T) *fakeGemini {
@@ -43,6 +49,13 @@ func (f *fakeGemini) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch {
+	case r.Method == http.MethodDelete && strings.HasSuffix(r.URL.Path, "/files/input-1"):
+		f.deleted = true
+		if f.deleteStatus != 0 {
+			http.Error(w, "delete refused", f.deleteStatus)
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
 	case r.Header.Get("X-Goog-Upload-Command") == "start":
 		w.Header().Set("X-Goog-Upload-URL", f.srv.URL+"/upload-target")
 	case r.URL.Path == "/upload-target":
@@ -50,6 +63,10 @@ func (f *fakeGemini) serve(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Goog-Upload-Status", "final")
 		_, _ = w.Write([]byte(`{"file":{"name":"files/input-1","uri":"` + f.srv.URL + `/files/input-1"}}`))
 	case strings.HasSuffix(r.URL.Path, ":asyncBatchEmbedContent"):
+		if f.createStatus != 0 {
+			http.Error(w, "create refused", f.createStatus)
+			return
+		}
 		f.createdAt = string(body)
 		_, _ = w.Write([]byte(`{"name":"batches/job-1","metadata":{"state":"JOB_STATE_PENDING"}}`))
 	case strings.HasSuffix(r.URL.Path, "/batches/job-1"):
@@ -191,4 +208,34 @@ func TestGeminiBatchEmbedder_CollectFailsAJobWithNoResultFile(t *testing.T) {
 
 	_, err := e.Collect(context.Background(), "batches/job-1")
 	require.Error(t, err)
+}
+
+func TestGeminiBatchEmbedder_SubmitDeletesTheUploadWhenTheJobIsRefused(t *testing.T) {
+	f := newFakeGemini(t)
+	f.createStatus = http.StatusBadRequest
+	e := newTestEmbedder(t, f)
+
+	_, err := e.Submit(context.Background(), []embedding.Image{{Key: "card-a", MIMEType: "image/png", Data: []byte("png-a")}})
+	require.ErrorContains(t, err, "creating embedding batch job")
+	assert.True(t, f.deleted, "the input nobody will read is removed")
+}
+
+func TestGeminiBatchEmbedder_SubmitKeepsTheUploadOnceTheJobExists(t *testing.T) {
+	f := newFakeGemini(t)
+	e := newTestEmbedder(t, f)
+
+	_, err := e.Submit(context.Background(), []embedding.Image{{Key: "card-a", MIMEType: "image/png", Data: []byte("png-a")}})
+	require.NoError(t, err)
+	assert.False(t, f.deleted, "the job still reads its input, so it must stay")
+}
+
+func TestGeminiBatchEmbedder_SubmitReportsTheRefusalWhenTheCleanupFails(t *testing.T) {
+	f := newFakeGemini(t)
+	f.createStatus = http.StatusBadRequest
+	f.deleteStatus = http.StatusNotFound
+	e := newTestEmbedder(t, f)
+
+	_, err := e.Submit(context.Background(), []embedding.Image{{Key: "card-a", MIMEType: "image/png", Data: []byte("png-a")}})
+	require.ErrorContains(t, err, "creating embedding batch job", "a failed cleanup does not mask the refusal")
+	assert.True(t, f.deleted)
 }

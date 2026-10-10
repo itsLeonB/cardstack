@@ -11,6 +11,7 @@ import (
 	"math"
 
 	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/ungerr"
 	"google.golang.org/genai"
 )
@@ -83,9 +84,19 @@ func (g *GeminiBatchEmbedder) Submit(ctx context.Context, images []embedding.Ima
 	}
 	job, err := g.client.Batches.CreateEmbeddings(ctx, &g.model, &genai.EmbeddingsBatchJobSource{FileName: file.Name}, nil)
 	if err != nil {
+		g.deleteInput(ctx, file.Name)
 		return "", ungerr.Wrap(err, "creating embedding batch job")
 	}
 	return job.Name, nil
+}
+
+// deleteInput removes an uploaded input that no job will read. It is best
+// effort: a failure is logged, so the error that made the input useless is the
+// one the caller returns.
+func (g *GeminiBatchEmbedder) deleteInput(ctx context.Context, name string) {
+	if _, err := g.client.Files.Delete(ctx, name, nil); err != nil {
+		logger.Errorf("deleting uploaded embedding input %s: %v", name, err)
+	}
 }
 
 // Collect reports the status of the job. Once it has succeeded, the result file
