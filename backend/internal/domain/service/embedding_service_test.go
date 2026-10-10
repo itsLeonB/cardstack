@@ -1,15 +1,12 @@
 package service
 
 import (
-	"cmp"
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
@@ -18,214 +15,377 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/pgvector/pgvector-go"
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gorm.io/datatypes"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
 )
 
-// embeddingDB opens the test Postgres (the DB_* variables the repository tests
-// read) and migrates it. These tests run the batch service against real rows
-// and fake only the provider and the image host.
-func embeddingDB(t *testing.T) *gorm.DB {
+const testEmbeddingModel = "gemini-embedding-2"
+
+// embeddingFixture wires the service to mocks of its three seams.
+type embeddingFixture struct {
+	repo     *mocks.MockEmbeddingRepository
+	embedder *mocks.MockBatchEmbedder
+	images   *mocks.MockImageFetcher
+	service  EmbeddingService
+}
+
+// testNow is the fixed clock of the service tests, so the batch age rule is exact.
+var testNow = time.Date(2026, time.October, 10, 12, 0, 0, 0, time.UTC)
+
+func newEmbeddingFixture(t *testing.T) embeddingFixture {
 	t.Helper()
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		envOr("DB_HOST", "localhost"), envOr("DB_PORT", "5432"), envOr("DB_USER", "cardstack"),
-		envOr("DB_PASSWORD", "cardstack"), envOr("DB_NAME", "cardstack"))
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
-	require.NoError(t, err)
-
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	goose.SetBaseFS(migrations.Migrations)
-	require.NoError(t, goose.SetDialect("postgres"))
-	require.NoError(t, goose.Up(sqlDB, "."))
-	return db
-}
-
-func envOr(key, fallback string) string {
-	return cmp.Or(os.Getenv(key), fallback)
-}
-
-// embedSet is one Expansion Set unique to a test, so the job's set scope never
-// reaches rows another test or an earlier run left behind.
-type embedSet struct {
-	code     string
-	id       uuid.UUID
-	rarityID uuid.UUID
-}
-
-func newEmbedSet(t *testing.T, db *gorm.DB) embedSet {
-	t.Helper()
-	suffix := uuid.NewString()
-
-	game := entity.Game{Slug: "embed-" + suffix, Name: "Embed Test " + suffix}
-	require.NoError(t, db.Create(&game).Error)
-	locale := entity.Locale{Code: "embed-" + suffix}
-	require.NoError(t, db.Create(&locale).Error)
-	rarity := entity.Rarity{GameID: game.ID, Code: "E-" + suffix, Name: "Embed Test Rarity"}
-	require.NoError(t, db.Create(&rarity).Error)
-	set := entity.ExpansionSet{GameID: game.ID, Code: "embed-set-" + suffix, Name: "Embed Test Set", LocaleID: locale.ID}
-	require.NoError(t, db.Create(&set).Error)
-
-	return embedSet{code: set.Code, id: set.ID, rarityID: rarity.ID}
-}
-
-// addCard inserts a card in set with the given local ID and hosted image key
-// ("" for none).
-func addCard(t *testing.T, db *gorm.DB, set embedSet, localID, imageKey string) entity.Card {
-	t.Helper()
-	card := entity.Card{
-		ExpansionSetID: set.id,
-		LocalID:        localID,
-		Name:           "Embed Test Card " + localID,
-		Category:       "Pokémon",
-		Tags:           datatypes.JSONSlice[string]{},
-		RarityID:       set.rarityID,
-		Attributes:     datatypes.JSONMap{},
-		ImageKey:       imageKey,
+	f := embeddingFixture{
+		repo:     mocks.NewMockEmbeddingRepository(t),
+		embedder: mocks.NewMockBatchEmbedder(t),
+		images:   mocks.NewMockImageFetcher(t),
 	}
-	require.NoError(t, db.Create(&card).Error)
-	return card
+	f.service = newEmbeddingServiceAt(f.repo, f.embedder, f.images, mapper.NewImageHost("https://img.test"), testEmbeddingModel, func() time.Time { return testNow })
+	return f
 }
 
-// unit is a 1536-dimensional unit vector, the shape the provider returns.
-func unit() []float32 {
-	v := make([]float32, 1536)
-	v[0] = 1
+// hostedCard is a card with a hosted image.
+func hostedCard(key string) entity.Card {
+	return entity.Card{BaseEntity: crud.BaseEntity{ID: uuid.New()}, ImageKey: key}
+}
+
+// stateCounts is the scope the repository reports before a run.
+func stateCounts(total, noImage, embedded, inFlight int64) repository.EmbeddingStates {
+	return repository.EmbeddingStates{Total: total, NoImage: noImage, Embedded: embedded, InFlight: inFlight}
+}
+
+func TestEmbeddingService_SubmitCatalog_SubmitsThePendingCardsAsOneBatch(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	first, second := hostedCard("cards/one"), hostedCard("cards/two")
+
+	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "MA6").Return(stateCounts(4, 1, 1, 0), nil)
+	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "MA6").Return([]entity.Card{first, second}, nil)
+	f.images.EXPECT().Fetch(ctx, "https://img.test/cards/one").Return("image/png", []byte("one"), nil)
+	f.images.EXPECT().Fetch(ctx, "https://img.test/cards/two").Return("image/png", []byte("two"), nil)
+	f.embedder.EXPECT().Submit(ctx, []embedding.Image{
+		{Key: first.ID.String(), MIMEType: "image/png", Data: []byte("one")},
+		{Key: second.ID.String(), MIMEType: "image/png", Data: []byte("two")},
+	}).Return("batches/job-1", nil)
+	f.repo.EXPECT().CreateBatch(ctx, mock.MatchedBy(func(b *entity.EmbeddingBatch) bool {
+		return b.JobName == "batches/job-1" && b.Model == testEmbeddingModel && b.Source == "catalog" && b.State == entity.EmbeddingBatchSubmitted
+	}), []uuid.UUID{first.ID, second.ID}).Return(nil)
+
+	summary, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{Set: "MA6"})
+	require.NoError(t, err)
+	assert.Equal(t, dto.SubmitCatalogSummary{Total: 4, NoImage: 1, AlreadyEmbedded: 1, Submitted: 2, Batches: 1}, withoutElapsed(summary))
+}
+
+func TestEmbeddingService_SubmitCatalog_SplitsTheCardsIntoBatchesOfTheBatchSize(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	cards := make([]entity.Card, embeddingBatchSize+1)
+	for i := range cards {
+		cards[i] = hostedCard("cards/" + uuid.NewString())
+	}
+
+	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "").Return(stateCounts(int64(len(cards)), 0, 0, 0), nil)
+	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "").Return(cards, nil)
+	f.images.EXPECT().Fetch(mock.Anything, mock.Anything).Return("image/png", []byte("img"), nil).Times(len(cards))
+	f.embedder.EXPECT().Submit(ctx, mock.MatchedBy(func(images []embedding.Image) bool { return len(images) == embeddingBatchSize })).Return("batches/full", nil)
+	f.embedder.EXPECT().Submit(ctx, mock.MatchedBy(func(images []embedding.Image) bool { return len(images) == 1 })).Return("batches/rest", nil)
+	f.repo.EXPECT().CreateBatch(ctx, mock.Anything, mock.Anything).Return(nil).Times(2)
+
+	summary, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, len(cards), summary.Submitted)
+	assert.Equal(t, 2, summary.Batches)
+}
+
+func TestEmbeddingService_SubmitCatalog_LeavesCardsInAnOutstandingBatchOut(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+
+	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "").Return(stateCounts(3, 0, 0, 2), nil)
+	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "").Return(nil, nil)
+
+	summary, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), summary.InFlight, "the cards in an outstanding batch are reported as skipped")
+	assert.Zero(t, summary.Submitted)
+}
+
+func TestEmbeddingService_SubmitCatalog_CountsACardWhoseImageCannotBeFetched(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	broken, fine := hostedCard("cards/broken"), hostedCard("cards/fine")
+
+	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "").Return(stateCounts(2, 0, 0, 0), nil)
+	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "").Return([]entity.Card{broken, fine}, nil)
+	f.images.EXPECT().Fetch(ctx, "https://img.test/cards/broken").Return("", nil, errors.New("HTTP 404"))
+	f.images.EXPECT().Fetch(ctx, "https://img.test/cards/fine").Return("image/png", []byte("ok"), nil)
+	f.embedder.EXPECT().Submit(ctx, []embedding.Image{{Key: fine.ID.String(), MIMEType: "image/png", Data: []byte("ok")}}).Return("batches/job-2", nil)
+	f.repo.EXPECT().CreateBatch(ctx, mock.Anything, []uuid.UUID{fine.ID}).Return(nil)
+
+	summary, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Failed)
+	assert.Equal(t, 1, summary.Submitted)
+}
+
+func TestEmbeddingService_SubmitCatalog_CountsAFailedSubmitAndLeavesItsCardsPending(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	card := hostedCard("cards/refused")
+
+	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "").Return(stateCounts(1, 0, 0, 0), nil)
+	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "").Return([]entity.Card{card}, nil)
+	f.images.EXPECT().Fetch(ctx, mock.Anything).Return("image/png", []byte("img"), nil)
+	f.embedder.EXPECT().Submit(ctx, mock.Anything).Return("", errors.New("quota"))
+
+	summary, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{})
+	require.NoError(t, err, "a refused job does not stop the run")
+	assert.Equal(t, 1, summary.Failed)
+	assert.Zero(t, summary.Batches, "no batch is recorded, so the card stays pending")
+}
+
+func TestEmbeddingService_SubmitCatalog_StopsWhenAJobCannotBeRecorded(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	card := hostedCard("cards/unrecorded")
+	connLost := errors.New("connection lost")
+
+	f.repo.EXPECT().CountEmbeddingStates(ctx, testEmbeddingModel, "catalog", "").Return(stateCounts(1, 0, 0, 0), nil)
+	f.repo.EXPECT().ListPendingCards(ctx, testEmbeddingModel, "catalog", "").Return([]entity.Card{card}, nil)
+	f.images.EXPECT().Fetch(ctx, mock.Anything).Return("image/png", []byte("img"), nil)
+	f.embedder.EXPECT().Submit(ctx, mock.Anything).Return("batches/orphan", nil)
+	f.repo.EXPECT().CreateBatch(ctx, mock.Anything, mock.Anything).Return(connLost)
+
+	_, err := f.service.SubmitCatalog(ctx, dto.SubmitCatalogRequest{})
+	assert.Same(t, connLost, err, "the repository error comes back unchanged; the orphaned job is logged")
+}
+
+func TestEmbeddingService_CollectBatches_StoresSucceededVectorsAndMarksTheBatchCollected(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	card := uuid.New()
+	batch := submittedBatch("batches/job-1")
+	vector := unitVector(0)
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-1").Return(embedding.Outcome{
+		Status:  embedding.JobSucceeded,
+		Vectors: map[string][]float32{card.String(): vector},
+	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{card}, nil)
+	f.repo.EXPECT().Upsert(ctx, []entity.CardEmbedding{{
+		CardID:    card,
+		Model:     testEmbeddingModel,
+		Source:    "catalog",
+		Embedding: pgvector.NewVector(vector),
+	}}).Return(nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Collected)
+	assert.Equal(t, 1, summary.Embedded)
+	assert.Zero(t, summary.Failed)
+}
+
+func TestEmbeddingService_CollectBatches_LeavesARunningBatchSubmitted(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	batch := submittedBatch("batches/job-running")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-running").Return(embedding.Outcome{Status: embedding.JobRunning}, nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Running)
+	assert.Zero(t, summary.Collected)
+}
+
+func TestEmbeddingService_CollectBatches_MarksAFailedBatchFailedSoItsCardsAreAgainPending(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	batch := submittedBatch("batches/job-cancelled")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-cancelled").Return(embedding.Outcome{Status: embedding.JobFailed, Reason: "JOB_STATE_CANCELLED"}, nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchFailed).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.FailedBatches)
+}
+
+func TestEmbeddingService_CollectBatches_StoresTheRestOfABatchWithPerItemFailures(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	good, bad := uuid.New(), uuid.New()
+	batch := submittedBatch("batches/job-partial")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-partial").Return(embedding.Outcome{
+		Status:   embedding.JobSucceeded,
+		Vectors:  map[string][]float32{good.String(): unitVector(1)},
+		Failures: map[string]string{bad.String(): "image unreadable"},
+	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{good, bad}, nil)
+	f.repo.EXPECT().Upsert(ctx, mock.MatchedBy(func(rows []entity.CardEmbedding) bool {
+		return len(rows) == 1 && rows[0].CardID == good
+	})).Return(nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Embedded)
+	assert.Equal(t, 1, summary.Failed, "the failed card is counted and left pending, not stored")
+}
+
+func TestEmbeddingService_CollectBatches_KeepsOnlyTheCardsOfTheBatch(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	card, deleted := uuid.New(), uuid.New()
+	batch := submittedBatch("batches/job-foreign-key")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-foreign-key").Return(embedding.Outcome{
+		Status: embedding.JobSucceeded,
+		Vectors: map[string][]float32{
+			card.String():    unitVector(0),
+			deleted.String(): unitVector(0),
+		},
+	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{card}, nil)
+	f.repo.EXPECT().Upsert(ctx, mock.MatchedBy(func(rows []entity.CardEmbedding) bool {
+		return len(rows) == 1 && rows[0].CardID == card
+	})).Return(nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Embedded)
+	assert.Equal(t, 1, summary.Failed, "a card deleted since the submit is counted, and its row is not written")
+}
+
+func TestEmbeddingService_CollectBatches_CountsACardWithNoLineInTheResultAsPending(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	answered, silent := uuid.New(), uuid.New()
+	batch := submittedBatch("batches/job-missing-line")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-missing-line").Return(embedding.Outcome{
+		Status:  embedding.JobSucceeded,
+		Vectors: map[string][]float32{answered.String(): unitVector(0)},
+	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{answered, silent}, nil)
+	f.repo.EXPECT().Upsert(ctx, mock.MatchedBy(func(rows []entity.CardEmbedding) bool {
+		return len(rows) == 1 && rows[0].CardID == answered
+	})).Return(nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Failed, "a card the result never mentions is counted, and stays pending")
+	assert.Equal(t, 1, summary.Embedded)
+}
+
+func TestEmbeddingService_CollectBatches_LeavesABatchItCannotCheckAndGoesOn(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	unreachable, finished := submittedBatch("batches/unreachable"), submittedBatch("batches/finished")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{unreachable, finished}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/unreachable").Return(embedding.Outcome{}, errors.New("HTTP 503"))
+	f.embedder.EXPECT().Collect(ctx, "batches/finished").Return(embedding.Outcome{Status: embedding.JobRunning}, nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Failed)
+	assert.Equal(t, 1, summary.Running)
+}
+
+func TestEmbeddingService_CollectBatches_FailsABatchOlderThan72HoursThatCannotBeChecked(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	stale := submittedBatch("batches/gone")
+	stale.CreatedAt = testNow.Add(-staleEmbeddingBatchAge - time.Minute)
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{stale}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/gone").Return(embedding.Outcome{}, errors.New("HTTP 404"))
+	f.repo.EXPECT().SetBatchState(ctx, stale.ID, entity.EmbeddingBatchFailed).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.FailedBatches, "a batch that can never be read is failed so its cards re-queue")
+	assert.Zero(t, summary.Failed)
+}
+
+func TestEmbeddingService_CollectBatches_KeepsABatchExactly72HoursOldSubmitted(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	edge := submittedBatch("batches/edge")
+	edge.CreatedAt = testNow.Add(-staleEmbeddingBatchAge)
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{edge}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/edge").Return(embedding.Outcome{}, errors.New("HTTP 503"))
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, summary.FailedBatches, "only a batch older than the cutoff is failed")
+	assert.Equal(t, 1, summary.Failed, "the check error is counted and the batch stays submitted")
+}
+
+func TestEmbeddingService_CollectBatches_StopsWhenTheBatchCannotBeMarkedCollected(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	batch := submittedBatch("batches/job-retry")
+	vector := unitVector(0)
+	card := uuid.New()
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-retry").Return(embedding.Outcome{
+		Status:  embedding.JobSucceeded,
+		Vectors: map[string][]float32{card.String(): vector},
+	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{card}, nil)
+	f.repo.EXPECT().Upsert(ctx, mock.Anything).Return(nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(errors.New("connection lost"))
+
+	_, err := f.service.CollectBatches(ctx)
+	require.Error(t, err, "the batch stays submitted, so the next run repeats the upsert and marks it")
+}
+
+func TestEmbeddingService_CollectBatches_DoesNothingWhenNoBatchIsSubmitted(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return(nil, nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, summary.Batches)
+}
+
+// submittedBatch is a batch the repository reports as awaiting collection.
+func submittedBatch(job string) entity.EmbeddingBatch {
+	return entity.EmbeddingBatch{
+		BaseEntity: crud.BaseEntity{ID: uuid.New(), CreatedAt: testNow.Add(-time.Hour)},
+		JobName:    job,
+		Model:      testEmbeddingModel,
+		Source:     "catalog",
+		State:      entity.EmbeddingBatchSubmitted,
+	}
+}
+
+// unitVector is a vector of the configured dimension with 1 on one axis.
+func unitVector(axis int) []float32 {
+	v := make([]float32, embedding.Dimensions)
+	v[axis] = 1
 	return v
 }
 
-// newProviderMocks returns the provider and image host fakes with no
-// expectations set; each test states the calls it expects.
-func newProviderMocks(t *testing.T) (*mocks.MockEmbedder, *mocks.MockImageFetcher) {
-	t.Helper()
-	return mocks.NewMockEmbedder(t), mocks.NewMockImageFetcher(t)
-}
-
-func newEmbeddingJob(db *gorm.DB, embedder embedding.Embedder, fetcher embedding.ImageFetcher, model string) EmbeddingService {
-	return NewEmbeddingService(
-		repository.NewEmbeddingRepository(crud.NewRepository[entity.CardEmbedding](db)),
-		embedder,
-		fetcher,
-		mapper.NewImageHost(testImageBase),
-		model,
-	)
-}
-
-// embeddedCardIDs returns which of ids have an embedding from model.
-func embeddedCardIDs(t *testing.T, db *gorm.DB, model string, ids ...uuid.UUID) []uuid.UUID {
-	t.Helper()
-	var rows []entity.CardEmbedding
-	require.NoError(t, db.Where("card_id IN ? AND model = ?", ids, model).Find(&rows).Error)
-	out := make([]uuid.UUID, len(rows))
-	for i, r := range rows {
-		out[i] = r.CardID
-	}
-	return out
-}
-
-func TestEmbeddingService_EmbedsOnlyHostedCardsAndSkipsEmbeddedOnes(t *testing.T) {
-	db := embeddingDB(t)
-	set := newEmbedSet(t, db)
-	model := "job-model-" + uuid.NewString()
-
-	noImage := addCard(t, db, set, "001", "")
-	done := addCard(t, db, set, "002", "cards/done")
-	require.NoError(t, db.Create(&entity.CardEmbedding{CardID: done.ID, Model: model, Embedding: pgvector.NewVector(unit())}).Error)
-	first := addCard(t, db, set, "003", "cards/first")
-	second := addCard(t, db, set, "004", "cards/second")
-
-	embedder, fetcher := newProviderMocks(t)
-	fetcher.EXPECT().Fetch(mock.Anything, testImageBase+"/cards/first").Return([]byte("a"), nil).Once()
-	fetcher.EXPECT().Fetch(mock.Anything, testImageBase+"/cards/second").Return([]byte("b"), nil).Once()
-	embedder.EXPECT().Embed(mock.Anything, []byte("a")).Return(unit(), nil).Once()
-	embedder.EXPECT().Embed(mock.Anything, []byte("b")).Return(unit(), nil).Once()
-
-	summary, err := newEmbeddingJob(db, embedder, fetcher, model).EmbedCatalog(context.Background(), dto.EmbedCatalogRequest{Set: set.code})
-	require.NoError(t, err)
-
-	assert.Equal(t, dto.EmbedCatalogSummary{Total: 4, NoImage: 1, AlreadyEmbedded: 1, Embedded: 2}, withoutElapsed(summary))
-	assert.ElementsMatch(t, []uuid.UUID{done.ID, first.ID, second.ID}, embeddedCardIDs(t, db, model, done.ID, first.ID, second.ID, noImage.ID))
-}
-
-func TestEmbeddingService_ContinuesAfterOneCardFails(t *testing.T) {
-	db := embeddingDB(t)
-	set := newEmbedSet(t, db)
-	model := "job-model-" + uuid.NewString()
-
-	broken := addCard(t, db, set, "001", "cards/broken")
-	fine := addCard(t, db, set, "002", "cards/fine")
-
-	embedder, fetcher := newProviderMocks(t)
-	fetcher.EXPECT().Fetch(mock.Anything, testImageBase+"/cards/broken").Return(nil, errors.New("HTTP 404")).Once()
-	fetcher.EXPECT().Fetch(mock.Anything, testImageBase+"/cards/fine").Return([]byte("ok"), nil).Once()
-	embedder.EXPECT().Embed(mock.Anything, []byte("ok")).Return(unit(), nil).Once()
-
-	summary, err := newEmbeddingJob(db, embedder, fetcher, model).EmbedCatalog(context.Background(), dto.EmbedCatalogRequest{Set: set.code})
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, summary.Embedded)
-	assert.Equal(t, 1, summary.Failed)
-	assert.False(t, summary.Stopped)
-	assert.Equal(t, []uuid.UUID{fine.ID}, embeddedCardIDs(t, db, model, broken.ID, fine.ID))
-}
-
-func TestEmbeddingService_ReembedsEveryCardWhenTheModelChanges(t *testing.T) {
-	db := embeddingDB(t)
-	set := newEmbedSet(t, db)
-	oldModel := "job-old-" + uuid.NewString()
-	newModel := "job-new-" + uuid.NewString()
-
-	card := addCard(t, db, set, "001", "cards/model")
-
-	embedder, fetcher := newProviderMocks(t)
-	fetcher.EXPECT().Fetch(mock.Anything, mock.Anything).Return([]byte("img"), nil).Twice()
-	embedder.EXPECT().Embed(mock.Anything, mock.Anything).Return(unit(), nil).Twice()
-
-	_, err := newEmbeddingJob(db, embedder, fetcher, oldModel).EmbedCatalog(context.Background(), dto.EmbedCatalogRequest{Set: set.code})
-	require.NoError(t, err)
-	assert.Equal(t, []uuid.UUID{card.ID}, embeddedCardIDs(t, db, oldModel, card.ID))
-
-	summary, err := newEmbeddingJob(db, embedder, fetcher, newModel).EmbedCatalog(context.Background(), dto.EmbedCatalogRequest{Set: set.code})
-	require.NoError(t, err)
-	assert.Equal(t, 1, summary.Embedded, "a card embedded by another model is pending again")
-
-	var rows []entity.CardEmbedding
-	require.NoError(t, db.Where("card_id = ?", card.ID).Find(&rows).Error)
-	require.Len(t, rows, 1, "the new embedding replaces the old one")
-	assert.Equal(t, newModel, rows[0].Model)
-}
-
-func TestEmbeddingService_StopsCleanlyWhenTheDailyQuotaIsSpent(t *testing.T) {
-	db := embeddingDB(t)
-	set := newEmbedSet(t, db)
-	model := "job-model-" + uuid.NewString()
-
-	first := addCard(t, db, set, "001", "cards/one")
-	second := addCard(t, db, set, "002", "cards/two")
-	third := addCard(t, db, set, "003", "cards/three")
-
-	embedder, fetcher := newProviderMocks(t)
-	fetcher.EXPECT().Fetch(mock.Anything, mock.Anything).Return([]byte("img"), nil).Times(2)
-	embedder.EXPECT().Embed(mock.Anything, mock.Anything).Return(unit(), nil).Once()
-	embedder.EXPECT().Embed(mock.Anything, mock.Anything).Return(nil, embedding.ErrDailyQuotaExhausted).Once()
-
-	summary, err := newEmbeddingJob(db, embedder, fetcher, model).EmbedCatalog(context.Background(), dto.EmbedCatalogRequest{Set: set.code})
-	require.NoError(t, err, "a spent quota is a clean stop, not an error")
-
-	assert.True(t, summary.Stopped)
-	assert.Equal(t, 1, summary.Embedded)
-	assert.Equal(t, 0, summary.Failed)
-	assert.Equal(t, []uuid.UUID{first.ID}, embeddedCardIDs(t, db, model, first.ID, second.ID, third.ID), "the third card is never attempted")
-}
-
-// withoutElapsed zeroes the wall-clock field so summaries compare by value.
-func withoutElapsed(s dto.EmbedCatalogSummary) dto.EmbedCatalogSummary {
+// withoutElapsed clears the timing, which differs from run to run.
+func withoutElapsed(s dto.SubmitCatalogSummary) dto.SubmitCatalogSummary {
 	s.Elapsed = 0
 	return s
 }

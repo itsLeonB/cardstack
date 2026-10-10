@@ -22,33 +22,40 @@ func (_m *MockImageFetcher) EXPECT() *MockImageFetcher_Expecter {
 }
 
 // Fetch provides a mock function with given fields: ctx, url
-func (_m *MockImageFetcher) Fetch(ctx context.Context, url string) ([]byte, error) {
+func (_m *MockImageFetcher) Fetch(ctx context.Context, url string) (string, []byte, error) {
 	ret := _m.Called(ctx, url)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
-	var r0 []byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]byte, error)); ok {
+	var r0 string
+	var r1 []byte
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, []byte, error)); ok {
 		return rf(ctx, url)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
 		r0 = rf(ctx, url)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) []byte); ok {
+		r1 = rf(ctx, url)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, url)
+	if rf, ok := ret.Get(2).(func(context.Context, string) error); ok {
+		r2 = rf(ctx, url)
 	} else {
-		r1 = ret.Error(1)
+		r2 = ret.Error(2)
 	}
 
-	return r0, r1
+	return r0, r1, r2
 }
 
 // MockImageFetcher_Fetch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Fetch'
@@ -70,12 +77,12 @@ func (_c *MockImageFetcher_Fetch_Call) Run(run func(ctx context.Context, url str
 	return _c
 }
 
-func (_c *MockImageFetcher_Fetch_Call) Return(_a0 []byte, _a1 error) *MockImageFetcher_Fetch_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockImageFetcher_Fetch_Call) Return(mimeType string, data []byte, err error) *MockImageFetcher_Fetch_Call {
+	_c.Call.Return(mimeType, data, err)
 	return _c
 }
 
-func (_c *MockImageFetcher_Fetch_Call) RunAndReturn(run func(context.Context, string) ([]byte, error)) *MockImageFetcher_Fetch_Call {
+func (_c *MockImageFetcher_Fetch_Call) RunAndReturn(run func(context.Context, string) (string, []byte, error)) *MockImageFetcher_Fetch_Call {
 	_c.Call.Return(run)
 	return _c
 }

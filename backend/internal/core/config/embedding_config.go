@@ -1,7 +1,8 @@
 package config
 
-// Gemini configures the Gemini API that cmd/embed-catalog calls. Only that
-// command reads it, so the API boots without it.
+// Gemini configures the Gemini API that cmd/embed-catalog and
+// cmd/collect-embeddings call. Only those commands read it, so the API boots
+// without it.
 type Gemini struct {
 	APIKey string `envconfig:"API_KEY"`
 }

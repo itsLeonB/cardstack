@@ -1,20 +1,18 @@
-// Command embed-catalog submits the hosted image of every card that has one
-// and no embedding yet from EMBEDDING_MODEL (default gemini-embedding-2) to
-// Gemini's batch embedding API. It only submits: a job can take up to 24 hours,
-// so `make collect-embeddings` stores the vectors once the jobs finish. Cards
-// already embedded by the model, and cards in an outstanding batch, are
-// skipped, so rerunning is safe. Manually triggered only, never on Railway.
+// Command collect-embeddings stores the vectors of the batch jobs that
+// `make embed-catalog` submitted, once each job has finished. A job still
+// running is left for the next run. A job that failed, was cancelled or expired
+// is marked failed, so its cards are submitted again by the next embed-catalog.
+// A collected batch is never read again. Manually triggered only, never on
+// Railway.
 package main
 
 import (
 	"context"
-	"flag"
 	"os"
 
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
@@ -25,19 +23,13 @@ import (
 )
 
 func main() {
-	set := flag.String("set", "", "limit submitting to one Expansion Set by its site code (e.g. \"MA6\"); default submits every card with a hosted image")
-	flag.Parse()
-
-	logger.Init("EmbedCatalog")
+	logger.Init("CollectEmbeddings")
 
 	if err := config.Load(); err != nil {
 		logger.Fatal(err)
 	}
 	if config.Global.APIKey == "" {
 		logger.Fatal("GEMINI_API_KEY is not set")
-	}
-	if config.Global.BaseURL == "" {
-		logger.Fatal("IMAGE_BASE_URL is not set: card images are fetched from it")
 	}
 
 	providers, cleanup, err := provider.InitializeProviders()
@@ -59,15 +51,15 @@ func main() {
 		config.Global.Model,
 	)
 
-	summary, err := job.SubmitCatalog(ctx, dto.SubmitCatalogRequest{Set: *set})
+	summary, err := job.CollectBatches(ctx)
 	if err != nil {
 		logger.Error(err)
 		cleanup()
 		os.Exit(1)
 	}
 
-	if summary.Failed > 0 {
-		logger.Warnf("%d card(s) failed to submit - rerun to submit them again; submitted and skipped cards are left alone", summary.Failed)
+	if summary.Failed > 0 || summary.FailedBatches > 0 {
+		logger.Warnf("%d batch(es) failed at the provider and %d card(s) did not embed - run embed-catalog to submit the cards again", summary.FailedBatches, summary.Failed)
 		// Non-zero exit tells an operator a rerun is needed, as the ingester does.
 		cleanup()
 		os.Exit(1)

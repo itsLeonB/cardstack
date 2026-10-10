@@ -1,22 +1,23 @@
 package entity
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/pgvector/pgvector-go"
 )
 
-// CardEmbedding is the embedding of one Card's hosted image, made by the
-// embedding model named in Model. It is keyed by Card: re-embedding replaces
-// the row, whichever model made the old one. Embedding is L2-normalised by the
-// embedding adapter before it is stored.
+// CardEmbedding is the embedding of one image of a Card, made by the embedding
+// model named in Model. Source names the image (the hosted "catalog" image
+// today). A Card has one row per model and source, so a model change adds a
+// row rather than replacing one. Embedding is L2-normalised before it is
+// stored. Choosing the best row per card when several match is the matcher's
+// job (ticket 06), not this entity's.
 type CardEmbedding struct {
-	CardID    uuid.UUID       `gorm:"type:uuid;primaryKey"`
+	crud.BaseEntity
+	CardID    uuid.UUID       `gorm:"type:uuid;not null"`
 	Model     string          `gorm:"not null"`
+	Source    string          `gorm:"not null"`
 	Embedding pgvector.Vector `gorm:"type:vector(1536);not null"`
-	CreatedAt time.Time
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }
 
 func (CardEmbedding) TableName() string { return "card_embeddings" }

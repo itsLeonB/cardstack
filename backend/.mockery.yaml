@@ -8,7 +8,7 @@ filename: "{{.InterfaceName}}.go"
 packages:
   github.com/itsLeonB/cardstack/backend/internal/core/embedding:
     interfaces:
-      Embedder:
+      BatchEmbedder:
       ImageFetcher:
   github.com/itsLeonB/cardstack/backend/internal/core/objectstore:
     interfaces:
