@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 	"github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -36,7 +37,7 @@ type EmbeddingStates struct {
 	Embedded int64
 }
 
-// CardDistance is a Card and its cosine distance to a query vector.
+// CardDistance is the ID of a card and its cosine distance to a query vector.
 type CardDistance struct {
 	CardID   uuid.UUID
 	Distance float64
@@ -60,13 +61,17 @@ func (r *embeddingRepository) Upsert(ctx context.Context, e entity.CardEmbedding
 		return err
 	}
 
-	return db.
+	err = db.
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "card_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"model", "embedding", "updated_at"}),
 		}).
 		Create(&e).
 		Error
+	if err != nil {
+		return ungerr.Wrap(err, "upserting card embedding")
+	}
+	return nil
 }
 
 func (r *embeddingRepository) CountEmbeddingStates(ctx context.Context, model, setCode string) (EmbeddingStates, error) {
@@ -84,7 +89,10 @@ func (r *embeddingRepository) CountEmbeddingStates(ctx context.Context, model, s
 			)) AS embedded`, model).
 		Scan(&states).
 		Error
-	return states, err
+	if err != nil {
+		return EmbeddingStates{}, ungerr.Wrap(err, "counting card embedding states")
+	}
+	return states, nil
 }
 
 func (r *embeddingRepository) ListPendingCards(ctx context.Context, model, setCode string) ([]entity.Card, error) {
@@ -101,7 +109,10 @@ func (r *embeddingRepository) ListPendingCards(ctx context.Context, model, setCo
 		Order("expansion_sets.code, cards.local_id").
 		Find(&cards).
 		Error
-	return cards, err
+	if err != nil {
+		return nil, ungerr.Wrap(err, "listing cards pending embedding")
+	}
+	return cards, nil
 }
 
 func (r *embeddingRepository) NearestCards(ctx context.Context, model string, query []float32, limit int) ([]CardDistance, error) {
@@ -120,7 +131,10 @@ func (r *embeddingRepository) NearestCards(ctx context.Context, model string, qu
 		Limit(limit).
 		Scan(&nearest).
 		Error
-	return nearest, err
+	if err != nil {
+		return nil, ungerr.Wrap(err, "searching nearest card embeddings")
+	}
+	return nearest, nil
 }
 
 // cardsOfSet scopes a query to the cards of one Expansion Set by its code, or
