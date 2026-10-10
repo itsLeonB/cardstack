@@ -1,0 +1,37 @@
+backend/.mockery.yaml
+  s_d5a1239336e62e::t_484afde91b33bd 11
+backend/go.mod
+  s_d5a1239336e62e::t_ef5f716e197bdf 37,44-46,77-79,81-82,115
+backend/go.sum
+  s_d5a1239336e62e::t_6e9ebaa44332c6 1-7,10,55,60,63,75-78,116-129,132-137,142-143,146,151-154,229,266,282-283,353,358,361-363,368-372,374,381-383,389,391-392,421-424,431,434-440,447-451,454-462,484-485
+backend/internal/adapters/embedding/gemini.go
+  s_d5a1239336e62e::t_93ee03024be170 1-176
+backend/internal/adapters/embedding/gemini_test.go
+  s_d5a1239336e62e::t_3c7816d76a53a7 1-194
+backend/internal/adapters/embedding/image_fetcher.go
+  s_d5a1239336e62e::t_6abf2521465ae8 4,6-8,15,37,40,45,54,57,62,65-87
+backend/internal/adapters/embedding/image_fetcher_test.go
+  s_d5a1239336e62e::t_3af1b43233b445 4,6-9,12,23-24,27,31,33-82,91,96-97,99,103
+backend/internal/core/embedding/embedding.go
+  s_d5a1239336e62e::t_12d802c9c7e0cf 10-20,23-48,51-63
+backend/internal/mocks/BatchEmbedder.go
+  s_d5a1239336e62e::t_7a206456e716cf 8,12-13,17,21-22,25-27,30,33,35-36,38-39,41,44-45,53-54,58,60-62,65,67,72,77,82-139,141,144-145
+backend/internal/mocks/ImageFetcher.go
+  s_d5a1239336e62e::t_c7c1fda76295fd 25,32-35,38,41,44,47-55,58,80-81,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7d41324fc79c73fd9354795a495923c94e1a8cb6",
+  "prompts": {},
+  "sessions": {
+    "s_d5a1239336e62e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d5a1239336e62e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
