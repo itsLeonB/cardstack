@@ -6,6 +6,10 @@ dir: "internal/mocks"
 outpkg: mocks
 filename: "{{.InterfaceName}}.go"
 packages:
+  github.com/itsLeonB/cardstack/backend/internal/core/embedding:
+    interfaces:
+      Embedder:
+      ImageFetcher:
   github.com/itsLeonB/cardstack/backend/internal/core/objectstore:
     interfaces:
       ObjectStore:
@@ -13,6 +17,7 @@ packages:
     interfaces:
       CatalogRepository:
       CollectionRepository:
+      EmbeddingRepository:
       ExpansionSetRepository:
       InventoryRepository:
       MatchRepository:
@@ -21,6 +26,7 @@ packages:
     interfaces:
       CatalogService:
       CollectionService:
+      EmbeddingService:
       InventoryService:
       MatchService:
       UserService:
