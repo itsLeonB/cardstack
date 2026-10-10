@@ -1,0 +1,27 @@
+backend/cmd/embed-catalog/main.go
+  s_e0304d1868c65a::t_ccb818dfebed7d 1-70
+backend/internal/core/config/embedding_config.go
+  s_e0304d1868c65a::t_c9eafad17da569 1-17
+backend/.env.example
+  s_e0304d1868c65a::t_af02d20f6e4153 48-53
+backend/internal/core/config/config.go
+  s_e0304d1868c65a::t_8b75bf89e658df 17-18,57-66,76
+backend/Makefile
+  s_e0304d1868c65a::t_01a88bceda4e21 9,31,65-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "cda140bccc69bbfb9afc3892fd184ec5b5e7bec7",
+  "prompts": {},
+  "sessions": {
+    "s_e0304d1868c65a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e0304d1868c65a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
