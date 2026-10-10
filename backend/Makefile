@@ -6,6 +6,7 @@ ingest-pokemon-asia \
 host-images \
 host-series-images \
 presize-images \
+embed-catalog \
 wire \
 lint \
 vulncheck \
@@ -27,6 +28,7 @@ help:
 	@echo "  make host-images             - Copy images missing from R2 straight from the database (manual)"
 	@echo "  make host-series-images      - Upload assets/series logos to R2 and set series.image_key (manual)"
 	@echo "  make presize-images          - Resize Expansion Set covers to 128px WebP in R2 and set expansion_sets.cover_key (manual, needs vips)"
+	@echo "  make embed-catalog           - Embed every card's hosted image with Gemini into card_embeddings (manual, rerunnable; ARGS=\"-set MA6\" for one set)"
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
@@ -59,6 +61,9 @@ host-series-images:
 
 presize-images:
 	go run ./cmd/presize-images
+
+embed-catalog:
+	go run ./cmd/embed-catalog $(ARGS)
 
 wire:
 	go generate ./internal/provider/...
