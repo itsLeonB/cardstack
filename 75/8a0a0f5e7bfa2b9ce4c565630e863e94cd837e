@@ -1,0 +1,29 @@
+backend/go.mod
+  s_81688fb3af2a45::t_773736694002e6 22,34
+backend/internal/adapters/embedding/gemini.go
+  s_81688fb3af2a45::t_81af26174f9f6a 1-258
+backend/internal/adapters/embedding/gemini_test.go
+  s_81688fb3af2a45::t_124b6785de7d11 1-278
+backend/internal/adapters/embedding/image_fetcher.go
+  s_81688fb3af2a45::t_03172149bc8b41 1-63
+backend/internal/adapters/embedding/image_fetcher_test.go
+  s_81688fb3af2a45::t_3e2f1d8db76d27 1-47
+backend/internal/core/embedding/embedding.go
+  s_81688fb3af2a45::t_b1ed091f176201 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "758a0a0f5e7bfa2b9ce4c565630e863e94cd837e",
+  "prompts": {},
+  "sessions": {
+    "s_81688fb3af2a45": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_81688fb3af2a45",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
