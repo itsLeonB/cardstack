@@ -1,0 +1,19 @@
+backend/internal/domain/repository/embedding_repository.go
+  s_e8f8823ce2853c::t_f9786583d49d92 105,125,168-170,173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a6f7775f268b65674952debd19d2df179dbf94ac",
+  "prompts": {},
+  "sessions": {
+    "s_e8f8823ce2853c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e8f8823ce2853c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
