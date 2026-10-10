@@ -102,7 +102,7 @@ func (r *embeddingRepository) CountEmbeddingStates(ctx context.Context, model, s
 			COUNT(*) FILTER (WHERE cards.image_key = '') AS no_image,
 			COUNT(*) FILTER (WHERE cards.image_key <> '' AND `+embeddedSQL+`) AS embedded,
 			COUNT(*) FILTER (WHERE cards.image_key <> '' AND `+inFlightSQL+`) AS in_flight`,
-			model, source, model, source).
+			model, source, entity.EmbeddingBatchSubmitted, model, source).
 		Scan(&states).
 		Error
 	if err != nil {
@@ -122,7 +122,7 @@ func (r *embeddingRepository) ListPendingCards(ctx context.Context, model, sourc
 		Select("cards.id, cards.image_key").
 		Where("cards.image_key <> ''").
 		Where("NOT "+embeddedSQL, model, source).
-		Where("NOT "+inFlightSQL, model, source).
+		Where("NOT "+inFlightSQL, entity.EmbeddingBatchSubmitted, model, source).
 		Order("expansion_sets.code, cards.local_id").
 		Find(&cards).
 		Error
@@ -165,11 +165,12 @@ func cardsOfSet(db *gorm.DB, setCode string) *gorm.DB {
 }
 
 // embeddedSQL matches a card that already has an embedding for a model and
-// source. inFlightSQL matches a card in a submitted batch for them, which
-// makes it not pending until the batch is collected or failed.
+// source. inFlightSQL matches a card in a batch in the given state for them
+// (args: state, model, source). Only a submitted batch makes a card not
+// pending until the batch is collected or failed.
 const (
 	embeddedSQL = "EXISTS (SELECT 1 FROM card_embeddings ce WHERE ce.card_id = cards.id AND ce.model = ? AND ce.source = ?)"
-	inFlightSQL = "cards.id IN (SELECT ebc.card_id FROM embedding_batch_cards ebc JOIN embedding_batches eb ON eb.id = ebc.batch_id WHERE eb.state = 'submitted' AND eb.model = ? AND eb.source = ?)"
+	inFlightSQL = "cards.id IN (SELECT ebc.card_id FROM embedding_batch_cards ebc JOIN embedding_batches eb ON eb.id = ebc.batch_id WHERE eb.state = ? AND eb.model = ? AND eb.source = ?)"
 )
 
 func (r *embeddingRepository) CreateBatch(ctx context.Context, batch *entity.EmbeddingBatch, cardIDs []uuid.UUID) error {
