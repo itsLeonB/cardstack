@@ -5,9 +5,9 @@
 **Category:** enhancement
 **Status:** ready-for-agent
 
-**Blocked by:** 02 (scan API contract and stub match endpoint), 05 (embed the catalog)
+**Blocked by:** 02 (scan API contract and stub match endpoint), 05 (embed the catalog), 07 (tune the matcher on the full catalog)
 
-Spec: `.scratch/card-scanning/spec.md`. The `confident` rule comes from the report of ticket 01.
+Spec: `.scratch/card-scanning/spec.md`. The `confident` rule and vector dimension come from the report of ticket 07.
 
 ## Agent Brief
 
@@ -19,7 +19,7 @@ After ticket 02 the match endpoint returns random Cards with random confidence. 
 
 **Desired behavior:**
 1. The match service embeds the uploaded image through the provider boundary from ticket 05, then runs a nearest-neighbour search over the stored embeddings of the current model only, and returns the top candidates ranked by score with their card summaries, in the same response shape as the stub.
-2. `confident` is true only when the top score clears the configured threshold and the runner-up is clearly behind it by the configured margin. A near-tie, such as the same artwork reprinted across Expansion Sets, is non-confident and is never auto-picked. The threshold and margin are configuration values, initially set from the spike's recommended rule, so they can be tuned without a frontend release.
+2. `confident` is true only when the top score clears the configured threshold and the runner-up is clearly behind it by the configured margin. A near-tie, such as the same artwork reprinted across Expansion Sets, is non-confident and is never auto-picked. The threshold and margin are configuration values, initially set from ticket 07's recommended rule, so they can be tuned without a frontend release.
 3. Cards with no embedding are simply not matchable. Only Indonesian Cards exist in the catalog, so no foreign-edition handling is built or tested.
 4. The uploaded image is processed in memory and never stored. A provider failure or timeout returns a clear, classified error without leaking provider details, and the frontend's existing "match service unavailable" message covers it.
 5. The stub's random-selection code is removed in the same change.

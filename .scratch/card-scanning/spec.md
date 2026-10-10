@@ -93,7 +93,7 @@ This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole bi
 - Matching is nearest-neighbour search over image embeddings of the catalog's hosted card images, stored in Postgres with the pgvector extension in a new table keyed by Card. Each row records which embedding model produced it, and a query only compares against rows from the same model; changing the model means re-embedding every card.
 - A re-runnable batch job embeds every Card with a hosted image and skips Cards already embedded by the current model.
 - Embeddings come from a hosted image-embedding API with a free tier. The provider (Voyage `voyage-multimodal-3.5`, Gemini `gemini-embedding-2`, or a self-hosted DINOv2/SigLIP fallback) is chosen by the accuracy spike. If accuracy is equal, prefer Gemini. Vector dimensions must stay at or below the pgvector index limit of 2000. Details and sources are in `.scratch/card-scanning/research/hosted-image-embedding-apis.md`.
-- Accuracy bar for the spike: top-1 of at least 90 percent and top-5 of at least 98 percent on about 30 real phone photos with glare and angle. If a hosted provider misses the bar, fall back to a self-hosted model service, or to the hybrid in which OCR of the printed card number narrows the candidates before embeddings rank them. The confidence threshold is tuned on the spike's score distribution so that a confident result is almost never wrong, accepting that non-confident results are common.
+- Accuracy bar: top-1 of at least 90 percent and top-5 of at least 98 percent on real phone photos with glare and angle. The spike measures it on one Expansion Set (the 199-Card "30th CELEBRATION" set) to eliminate models and pick one; the bar is checked again on the full catalog in the tuning ticket. If a hosted provider misses the bar, fall back to a self-hosted model service, or to the hybrid in which OCR of the printed card number narrows the candidates before embeddings rank them. The confidence threshold is tuned on the full-catalog score distribution (after the catalog is embedded) so that a confident result is almost never wrong, accepting that non-confident results are common.
 - The embedding provider call is the one new backend seam: it sits behind a small boundary so tests can fake it.
 - An ADR (embedding provider, pgvector, hosted vs self-hosted) is written during the real-matcher ticket, after the spike, not before.
 
@@ -101,11 +101,13 @@ This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole bi
 - Users' photos go to a third-party provider. The decision is to accept the provider's free-tier terms, which may allow product-improvement use or human review, and to show no notice on the scan screen. Revisit if anyone other than the owner starts scanning, or if a provider's terms change.
 
 **Delivery order**
-1. Accuracy spike (gates 5).
+1. Accuracy spike on one Expansion Set (gates 5).
 2. Card id filter on the catalog search.
 3. Stub match endpoint with the final contract.
 4. Frontend scan screen, built against the stub.
-5. Real matcher: embeddings table and batch job, embedding provider, confident flag, ADR; replaces the stub.
+5. Embed the catalog: embeddings table, batch job, embedding provider, ADR.
+6. Tune the matcher on the full catalog: dimension, confident threshold and margin, reprint tie rate.
+7. Real matcher: confident flag from the tuned values; replaces the stub.
 
 Tickets 2, 3 and 4 do not depend on the spike.
 
