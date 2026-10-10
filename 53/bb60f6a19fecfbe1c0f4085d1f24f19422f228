@@ -1,0 +1,31 @@
+backend/internal/adapters/db/postgres/migrations/20261010000000_card_embeddings.sql
+  s_261da609c506d7::t_0a2858c56c7696 6-12,14-15,17,20-21,24-25,28-50,52-53
+backend/internal/adapters/db/postgres/migrations/card_embeddings_test.go
+  s_261da609c506d7::t_a639664ef9d2dd 21,44-45,53-63
+backend/internal/domain/entity/card_embedding.go
+  s_261da609c506d7::t_834ed290d11827 5,9-14,16-17,19
+backend/internal/domain/entity/embedding_batch.go
+  s_261da609c506d7::t_184068cf1b3538 1,4,6,10-23,25-34,36-40,42,44
+backend/internal/domain/repository/embedding_repository.go
+  s_261da609c506d7::t_41a691d16e9a52 19-21,23-41,50,71-74,82-83,85,88,93,103-105,114,124-125,166-237
+backend/internal/domain/repository/embedding_repository_test.go
+  s_261da609c506d7::t_c1cccabfc9ebb5 57-60,77,85-87,92-105,107-111,113-136,154-155,157,162,164,166,171,176,179-256
+backend/internal/mocks/EmbeddingRepository.go
+  s_261da609c506d7::t_dcf386c816338c 12-13,29-31,39-40,42-43,48-49,65,67-68,71,73,83-131,136-138,146-147,149-150,157-158,174,176-177,180,182,192-250,316-366,373-374,389-391,394,396,406
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "53bb60f6a19fecfbe1c0f4085d1f24f19422f228",
+  "prompts": {},
+  "sessions": {
+    "s_261da609c506d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_261da609c506d7",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
