@@ -3,43 +3,61 @@
 # 01: Accuracy spike and provider pick
 
 **Category:** research
-**Status:** ready-for-agent
+**Status:** resolved (Gemini picked on operational grounds by the developer; the 40-photo accuracy run and the paid passes were skipped, see `.scratch/card-scanning/research/accuracy-spike-report.md`)
 
-**Blocked by:** None (can start immediately)
+**Blocked by:** None (can start immediately; the run itself needs the photo set, the catalog CSV and the API keys described below)
 
-Spec: `.scratch/card-scanning/spec.md`. Sources: `.scratch/card-scanning/research/hosted-image-embedding-apis.md`.
+Spec: `.scratch/card-scanning/spec.md`. Sources: `.scratch/card-scanning/research/hosted-image-embedding-apis.md` and `.scratch/card-scanning/research/accuracy-spike-sources.md` (verified endpoints, limits, free-tier rate limits, the local model snippet and the repo facts the script needs).
 
 ## Agent Brief
 
 **Category:** research
-**Summary:** Measure which image-embedding provider recognises real phone photos of Indonesian Cards best, so ticket 05 builds on evidence. This ticket produces a script and a report, not shipped product code.
+**Summary:** On one controlled Expansion Set, compare four embedding models (Voyage, Gemini and two local DINOv2 sizes) for accuracy, precision, latency and, for the local ones, memory and CPU use, then eliminate the models that miss the floor and pick one. This ticket produces a script and a report, not shipped product code. It does not certify production accuracy and does not tune the matcher: tuning on the full catalog is ticket 07.
 
 **Current behavior:**
-No embedding or matching code exists. The research note compares hosted providers on paper only, and every provider's accuracy on holo, glare and angled card photos is unmeasured.
+No embedding or matching code exists. The research notes compare providers on paper, and every model's accuracy on holo, glare and angled card photos is unmeasured.
 
 **Desired behavior:**
-A re-runnable offline script and a short written report that, for each candidate, embeds a small slice of the catalog (about 200 Cards, with hosted images) and about 30 real phone photos of Cards from that slice, taken with glare, tilt and uneven lighting, then reports top-1 and top-5 accuracy. Candidates: Voyage `voyage-multimodal-3.5`, Gemini `gemini-embedding-2`, and a local DINOv2 or SigLIP model as a control. The script and report also capture:
-- Real batch throughput and any rate-limit behaviour observed on each hosted provider's free tier, extrapolated to the full catalog of about 12,000 Cards.
-- The score distribution of correct vs incorrect top-1 matches, and a recommended `confident` rule (a top-score threshold plus a runner-up margin) tuned so that a confident result is almost never wrong, accepting that non-confident results are common.
-- How often two catalog Cards tie (the same artwork reprinted in more than one Expansion Set), since a tie must be non-confident.
-- A recommendation: the chosen provider, or the fallback if the bar is missed.
+A re-runnable offline script and a written report. Both sides of the comparison come from one Expansion Set only: the Indonesian Booster Pack "30th CELEBRATION" (set code `MA6`, 199 Cards). This keeps the run quick and cheap and makes the models comparable with each other. It is not a stand-in for the full catalog, because a 199-Card gallery is far easier than about 12,000 Cards.
 
-The accuracy bar is top-1 of at least 90 percent and top-5 of at least 98 percent. If a hosted provider misses it, the report recommends either a self-hosted model service or the hybrid in which OCR of the printed card number narrows candidates before embeddings rank them. If two providers are equal, prefer Gemini.
+*Inputs*
+- **Catalog side:** a CSV the developer exports from the database, one row per `MA6` Card, with the Card id, set code, local number, name, illustrator, rarity and hosted image key. The script builds image addresses from the configured image base address and fetches the images; it needs no backend change, API call or token. The report documents the query that makes the CSV.
+- **Query side:** 40 real phone photos of 40 distinct `MA6` Cards, chosen to span the set's rarities including holo and full-art (stratified by Card Rarity), each shot with glare, tilt or uneven lighting. If fewer Cards are owned, extra angles of the same Card are allowed and the report says so. A `labels.csv` maps each photo file to the Card's set code and local number, and the script resolves that to a Card id. The photos and `labels.csv` live outside the repository, and the report documents their location and how to recreate them.
+
+*Models*
+- Voyage `voyage-multimodal-3.5`, Gemini `gemini-embedding-2`, and two local controls, DINOv2 ViT-B/14 (base) and DINOv2 ViT-S/14 (small), both CPU-only on the developer's machine. SigLIP and any Railway measurement are out of scope.
+
+*Measurements, per model*
+- **Accuracy:** top-1 and top-5 over all photos.
+- **Precision:** the share of `confident` results that are correct, reported with coverage (the share of photos that come out `confident`). A provisional `confident` rule (a top-score threshold plus a runner-up margin) is derived from the `MA6` score distribution of correct versus incorrect top-1 matches and marked non-final.
+- **Latency:** single-photo request latency as p50 and p95 over at least 20 repeats, with images already downloaded and resized as the frontend would send them. Catalog batch throughput is measured separately. Rate-limit waiting is excluded from latency and reported on its own. For local models, model load time is reported apart from warm per-image time.
+- **Local resource use:** peak resident memory, CPU time per image and images per second, plus the CPU model and core count.
+- **Hosted cost and limits, two passes on identical inputs:** first on the provider's free tier, then after the developer adds billing. Per pass, record latency, throughput, rate-limit responses, wait time and cost from the usage fields the provider returns, then extrapolate the time and cost to the full catalog of about 12,000 Cards. The paid pass also runs Gemini's asynchronous Batch API once on the 199 catalog images to learn its real turnaround. Voyage has no paid batch for this model. Accuracy should not differ between passes, and the second pass confirms it.
+
+*Decision rule*
+1. Eliminate any model below top-1 of 90 percent or top-5 of 98 percent. This is an elimination floor on an easy gallery, not proof that production will reach it.
+2. Among the survivors, take the best top-1. A model within 2 photos of the best counts as equal to it.
+3. Among equal models, prefer Gemini, then Voyage, then a local model.
+4. Latency, precision and local memory and CPU are reported and decide nothing unless models are still equal after step 3. A local model wins only if it is clearly better (more than 2 photos) or both hosted models are eliminated.
+5. If every model misses the floor, the report recommends the hybrid in which OCR of the printed card number narrows candidates before embeddings rank them.
 
 **Key interfaces:**
-- Reads hosted card images through their public addresses; needs no backend change.
-- Provider API keys come from the environment and are never committed. Use the `request_secret` flow or the developer's local environment, not chat.
-- Output goes under `.scratch/card-scanning/research/`.
+- One Python script with its own `pyproject.toml` under `.scratch/card-scanning/research/spike/`, run with `uv run`, so nothing is added to the repo's Go or TypeScript toolchains.
+- Provider API keys come from `VOYAGE_API_KEY` and `GEMINI_API_KEY` in the developer's environment and are never committed. Use the `request_secret` flow or the developer's local environment, not chat.
+- The report goes to `.scratch/card-scanning/research/accuracy-spike-report.md`.
 
 **Acceptance criteria:**
-- [ ] The script runs end to end for each candidate and prints top-1 and top-5 accuracy over the photo set
-- [ ] The report records throughput, rate-limit behaviour, and the extrapolated time for the full 12k-card batch per hosted provider
-- [ ] The report gives a concrete `confident` rule backed by the measured score distribution, plus the tie rate between reprints
-- [ ] The report names the chosen provider (or the fallback) and states whether the bar was met
-- [ ] No secret or personal photo is committed; the photo set's location and how to recreate it are documented
+- [ ] The script runs end to end for all four models and prints top-1 and top-5 accuracy over the photo set
+- [ ] The report records precision with coverage, a provisional `confident` rule, latency p50/p95, and local load time, peak memory, CPU time and images per second with the hardware named
+- [ ] The report records both the free-tier and the paid pass for Voyage and for Gemini, including rate-limit behaviour, cost, the extrapolated time and cost for the full 12k-Card batch, and Gemini Batch API turnaround
+- [ ] The report names the chosen model (or the OCR hybrid if every model missed the floor), states which models were eliminated, and shows the decision rule applied
+- [ ] No secret, personal photo or `labels.csv` is committed; the photo set's location, how to recreate it and the CSV query are documented
+- [ ] The report points to ticket 07 for tuning the chosen model on the full catalog
 
 **Out of scope:**
-- Any production code, table, endpoint, or batch job (ticket 05)
+- Any production code, table, endpoint or batch job (ticket 05)
+- Tuning dimension, the final `confident` rule or the reprint tie rate on the full catalog (ticket 07)
+- SigLIP, Railway or other hosted-environment measurements
 - Server-side card detection and cropping
 - Print-finish (Card Variant) detection
 - Phase 2 binder-page scanning

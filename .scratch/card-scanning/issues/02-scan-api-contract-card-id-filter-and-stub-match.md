@@ -3,7 +3,7 @@
 # 02: Scan API contract: card id filter and live stub match endpoint
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** None (can start immediately)
 
@@ -30,14 +30,18 @@ Spec: `.scratch/card-scanning/spec.md`.
 - Regenerate `openapi.json`, so the frontend client can be generated from the final schema.
 
 **Acceptance criteria:**
-- [ ] `GET /catalog/cards` with one or more `cardId` values returns exactly those Cards, combined with other filters, and rejects more than 100 ids
-- [ ] The match route requires authentication and the CSRF header: no token is 401, a bad token is 401, a missing CSRF header is 403
-- [ ] A valid image returns the documented schema, with both the confident shape and the candidate-list shape observed over repeated calls
-- [ ] An empty body, a non-image body and an oversized body are rejected with the documented client errors
-- [ ] Unit tests with mocked repositories cover the service; a real-Postgres route test covers the flow end to end
-- [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass and `openapi.json` is regenerated
+- [x] `GET /catalog/cards` with one or more `cardId` values returns exactly those Cards, combined with other filters, and rejects more than 100 ids
+- [x] The match route requires authentication: no token is 401, a bad token is 401 (the CSRF guard was removed by ADR-0015, so there is no 403 case)
+- [x] A valid image returns the documented schema, with both the confident shape and the candidate-list shape observed over repeated calls
+- [x] An empty body, a non-image body and an oversized body are rejected with the documented client errors
+- [x] Unit tests with mocked repositories cover the service; a real-Postgres route test covers the flow end to end
+- [x] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass and `openapi.json` is regenerated
 
 **Out of scope:**
 - Any frontend change (tickets 03 and 04 consume this)
 - Embeddings, pgvector, a provider client, or any real matching (tickets 05 and 06)
 - Rate-limit tuning beyond the existing mechanism
+
+## Answer
+
+Implemented on `feat/card-scanning-backend` (merged into `feat/card-scanning`). `POST /scan/match` takes a raw `image/jpeg` body (JPEG only, 2 MiB cap, 413 over it); `GET /catalog/cards` takes a repeatable `cardId` (max 100). The CSRF acceptance criterion was stale (ADR-0015 deleted the guard) and was amended.

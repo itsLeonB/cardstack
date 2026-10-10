@@ -25,7 +25,14 @@ func InitializeProviders() (*Providers, func(), error) {
 	catalogService := ProvideCatalogService(dataSources, imageHost)
 	collectionService := ProvideCollectionService(dataSources)
 	inventoryService := ProvideInventoryService(dataSources, imageHost)
-	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService)
+	imageEmbedder, err := ProvideImageEmbedder()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	matchSettings := ProvideMatchSettings()
+	matchService := ProvideMatchService(dataSources, imageHost, imageEmbedder, matchSettings)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, matchService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

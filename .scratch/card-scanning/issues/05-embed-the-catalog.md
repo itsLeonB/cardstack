@@ -3,7 +3,7 @@
 # 05: Embed the catalog
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** 01 (accuracy spike and provider pick)
 
@@ -18,7 +18,7 @@ Spec: `.scratch/card-scanning/spec.md`. Sources: `.scratch/card-scanning/researc
 Cards carry a hosted image key but no embedding. The database has no vector extension and there is no provider client.
 
 **Desired behavior:**
-1. **Storage.** A migration enables the pgvector extension and adds a table keyed by Card holding the vector and the identifier of the embedding model that produced it. A vector index suits nearest-neighbour search, and the dimension stays at or below the pgvector index limit of 2000. Confirm the extension is available on the production database host before relying on it, and document how it is enabled.
+1. **Storage.** A migration enables the pgvector extension and adds a table keyed by Card holding the vector and the identifier of the embedding model that produced it. A vector index suits nearest-neighbour search, and the dimension stays at or below the pgvector index limit of 2000. Ticket 07 tunes the final dimension on the full catalog, so store the model's largest allowed size at or below that limit and keep truncating to a smaller size possible without re-embedding. Confirm the extension is available on the production database host before relying on it, and document how it is enabled.
 2. **Provider boundary.** A small boundary around "embed this image" is the one new backend seam: the real provider client lives behind it, and tests fake it. The client is configured from the environment (key, model), never from committed values, and follows the project's existing patterns for external HTTP clients, timeouts and error classification. It must handle the chosen provider's constraints (accepted image types, size limits; for example converting WebP when the provider requires PNG or JPEG).
 3. **Batch job.** A re-runnable command embeds every Card that has a hosted image, skipping Cards already embedded by the current model, and skipping (with a logged count) Cards with no hosted image. A failure on one Card does not stop the run. It respects the provider's rate limits and reports progress and a final summary. Changing the configured model re-embeds every Card.
 4. **Seed run.** The job runs against a small seed Expansion Set for verification, without the full multi-hour scrape (see the backend test environment docs).
@@ -30,15 +30,25 @@ Cards carry a hosted image key but no embedding. The database has no vector exte
 - A new command alongside the existing ingestion commands.
 
 **Acceptance criteria:**
-- [ ] The migration applies and rolls back cleanly on a real Postgres with pgvector, and the vector dimension is within the index limit
-- [ ] A repository test on real Postgres stores an embedding and returns nearest neighbours in order
-- [ ] The batch job, with the provider faked, embeds only Cards with a hosted image, skips already-embedded Cards, continues after one failure, and re-embeds everything when the model changes
-- [ ] The job runs against a seed Expansion Set using the real provider and the stored vectors are queryable
-- [ ] The ADR is written and the configuration is documented in the deployment docs
-- [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
+- [x] The migration applies and rolls back cleanly on a real Postgres with pgvector, and the vector dimension is within the index limit
+- [x] A repository test on real Postgres stores an embedding and returns nearest neighbours in order
+- [x] The batch job, with the provider faked, embeds only Cards with a hosted image, skips already-embedded Cards, continues after one failure, and re-embeds everything when the model changes
+- [x] The job runs against a seed Expansion Set using the real provider and the stored vectors are queryable
+- [x] The ADR is written and the configuration is documented in the deployment docs
+- [x] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
 
 **Out of scope:**
 - Changing the match endpoint (ticket 06)
 - Any frontend change
 - Embedding user photos at request time (ticket 06)
 - OCR, server-side card detection, and print-finish detection
+
+## Answer
+
+Implemented on `feat/catalog-embeddings-backend` and reworked on `feat/catalog-embeddings-batch-backend` after review (both merged into `feat/card-scanning`): migration `20261010000000_card_embeddings.sql` (`card_embeddings` keyed by `(card_id, model, source)`, `vector(1536)`, HNSW cosine index, plus `embedding_batches` and `embedding_batch_cards`), the `BatchEmbedder` and `ImageFetcher` seams with a Gemini client on the official SDK's Batch API in `internal/adapters/embedding`, and two commands: `make embed-catalog` (submit, optional `-set <code>`) and `make collect-embeddings`. ADR-0018 and `docs/agents/deployment/embeddings.md` record the decision and the run book. CI and end-to-end Postgres use `pgvector/pgvector:pg18`.
+
+Verified: build, vet, gofmt, golangci-lint and `go test -race ./...` pass against a pgvector Postgres 18; the migration applies, rolls back and re-applies; the repository tests store embeddings and return nearest neighbours in order; the service tests, with the provider and image host faked, cover hosted-only, skip embedded, outstanding batches, failure isolation, model change, failed and unreadable batches, and stale or missing result keys.
+
+**Seed run with the real provider and the Batch API (2026-10-10, after billing was enabled):** on a local pgvector database holding 12 MA6 cards copied from production (one with its image key blanked), `make embed-catalog -set MA6` submitted one batch of 11 cards (1 skipped for no hosted image) and `make collect-embeddings` stored 11 vectors about three minutes later, 0 failed. The vectors are 1536-dimensional and unit length, a nearest-neighbour query returned the queried card first at distance 0, and a rerun of both commands embedded nothing and found no outstanding batch. This confirmed what the unit tests could not: an embeddings batch accepts image parts, the JSONL upload and the result line shape are right. The spike's free-tier key had been refused earlier with `FAILED_PRECONDITION`, which is why a key with billing is required.
+
+Open for later tickets: Gemini accuracy on real phone photos is unmeasured (ticket 07 must check it before the matcher ships). Production still needs `make job` (the migration needs permission to create the `vector` extension; Neon lists 0.8.6). The HNSW index covers all models, so a query filtered to one model can return fewer rows than asked while two models coexist during a model switch; the matcher (ticket 06) also picks the best row per card, since a card may hold several.

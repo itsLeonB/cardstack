@@ -1,0 +1,23 @@
+[project]
+name = "card-scanning-spike"
+version = "0.0.0"
+description = "Ticket 01 accuracy spike: compare image-embedding models on the MA6 Expansion Set"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "numpy",
+    "pillow",
+    "httpx",
+    "psutil",
+    "torch",
+    "transformers",
+    "voyageai",
+    "google-genai",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

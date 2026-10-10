@@ -73,7 +73,7 @@ type CardFilter struct {
 	RarityIDs       []uuid.UUID
 	Categories      []string
 	Tags            []string
-	// CardIDs restricts to these Cards; only the Collection entries list sets it.
+	// CardIDs restricts to these Cards; the Collection entries list and the catalog card search set it.
 	CardIDs []uuid.UUID
 	Page    int
 	Limit   int

@@ -18,7 +18,7 @@ interface OpenApiSpec {
   >
 }
 
-const repeatable = ["expansionSetId", "rarityId", "category", "tag"]
+const repeatable = ["expansionSetId", "rarityId", "category", "tag", "cardId"]
 
 const infinitePage = {
   query: { useInfinite: true, useInfiniteQueryParam: "page" },

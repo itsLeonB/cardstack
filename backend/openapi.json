@@ -372,6 +372,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeMatchResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MatchResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeSeriesBrowseResult": {
         "additionalProperties": false,
         "properties": {
@@ -671,6 +683,49 @@
         ],
         "type": "object"
       },
+      "MatchCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary"
+          },
+          "score": {
+            "description": "How closely the photo matches this Card; candidates are ordered by it, highest first.",
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "card"
+        ],
+        "type": "object"
+      },
+      "MatchResult": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/MatchCandidate"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "confident": {
+            "description": "True only when the server is sure of the first candidate. The server owns the threshold.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confident",
+          "candidates"
+        ],
+        "type": "object"
+      },
       "PaginationMeta": {
         "additionalProperties": false,
         "properties": {
@@ -934,6 +989,23 @@
                 "type": "string"
               },
               "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters; use it to render Cards known by id.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters; use it to render Cards known by id.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
               "type": [
                 "array",
                 "null"
@@ -2418,6 +2490,54 @@
         "summary": "List the current user's own Collections that hold a Card, with the quantity in each (empty when none)",
         "tags": [
           "inventory"
+        ]
+      }
+    },
+    "/scan/match": {
+      "post": {
+        "operationId": "match-scanned-card",
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeMatchResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
+        "tags": [
+          "scan"
         ]
       }
     }

@@ -23,6 +23,9 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	if err := configs.ValidateRateLimit(); err != nil {
 		return nil, nil, err
 	}
+	if err := configs.ValidateMatch(); err != nil {
+		return nil, nil, err
+	}
 	if err := configs.ValidateClientUrls(); err != nil {
 		return nil, nil, err
 	}

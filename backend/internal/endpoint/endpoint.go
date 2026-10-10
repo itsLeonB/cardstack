@@ -58,8 +58,11 @@ type Endpoint[Req, Res any] struct {
 	Tags        []string
 	SuccessCode int
 	Secured     bool
-	Middlewares []func(huma.Context, func(huma.Context))
-	HandlerFunc func(context.Context, Req) (Res, error)
+	// MaxBodyBytes caps a request body; 0 keeps Huma's default. Huma applies
+	// no cap to a RawBody-only input, so such a route must set one.
+	MaxBodyBytes int64
+	Middlewares  []func(huma.Context, func(huma.Context))
+	HandlerFunc  func(context.Context, Req) (Res, error)
 }
 
 // envelopeOutput is the Output struct every Endpoint registers.
@@ -76,6 +79,7 @@ func Register[Req, Res any](api huma.API, e Endpoint[Req, Res], mw ...func(huma.
 		Summary:       e.Summary,
 		Tags:          e.Tags,
 		DefaultStatus: e.SuccessCode,
+		MaxBodyBytes:  e.MaxBodyBytes,
 		Middlewares:   mergeMiddlewares(mw, e.Middlewares),
 	}
 

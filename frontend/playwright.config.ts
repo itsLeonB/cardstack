@@ -66,6 +66,8 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         // The dev server has no use for the e2e credentials.
         env: {
+          // The scan screen only exists in a build with this flag on.
+          VITE_SCAN_ENABLED: "true",
           CLERK_SECRET_KEY: "",
           E2E_CLERK_USER_EMAIL: "",
           E2E_CLERK_USER_PASSWORD: "",

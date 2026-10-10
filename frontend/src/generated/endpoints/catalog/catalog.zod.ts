@@ -20,6 +20,8 @@ export const searchCatalogCardsQueryCategoryMax = 20;
 
 export const searchCatalogCardsQueryTagMax = 20;
 
+export const searchCatalogCardsQueryCardIdMax = 100;
+
 export const searchCatalogCardsQueryPageDefault = 1;
 
 export const searchCatalogCardsQueryLimitDefault = 24;
@@ -34,6 +36,7 @@ export const SearchCatalogCardsQueryParams = zod.object({
   "rarityId": zod.array(zod.string()).max(searchCatalogCardsQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
   "category": zod.array(zod.string()).max(searchCatalogCardsQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
   "tag": zod.array(zod.string()).max(searchCatalogCardsQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).'),
+  "cardId": zod.array(zod.string()).max(searchCatalogCardsQueryCardIdMax).optional().describe('Only these Cards (repeatable, at most 100), combined with the other filters; use it to render Cards known by id.'),
   "page": zod.int().min(1).default(searchCatalogCardsQueryPageDefault).describe('1-indexed page number. A Guest may only ask for page 1; a later page is 401 login_required.'),
   "limit": zod.int().min(1).max(searchCatalogCardsQueryLimitMax).default(searchCatalogCardsQueryLimitDefault).describe('Page size. A Guest gets at most 24.')
 })

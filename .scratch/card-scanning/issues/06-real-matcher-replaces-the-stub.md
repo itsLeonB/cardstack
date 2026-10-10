@@ -5,9 +5,9 @@
 **Category:** enhancement
 **Status:** ready-for-agent
 
-**Blocked by:** 02 (scan API contract and stub match endpoint), 05 (embed the catalog)
+**Blocked by:** 02 (scan API contract and stub match endpoint), 05 (embed the catalog), 07 (tune the matcher on the full catalog)
 
-Spec: `.scratch/card-scanning/spec.md`. The `confident` rule comes from the report of ticket 01.
+Spec: `.scratch/card-scanning/spec.md`. The `confident` rule and vector dimension come from the report of ticket 07.
 
 ## Agent Brief
 
@@ -19,7 +19,7 @@ After ticket 02 the match endpoint returns random Cards with random confidence. 
 
 **Desired behavior:**
 1. The match service embeds the uploaded image through the provider boundary from ticket 05, then runs a nearest-neighbour search over the stored embeddings of the current model only, and returns the top candidates ranked by score with their card summaries, in the same response shape as the stub.
-2. `confident` is true only when the top score clears the configured threshold and the runner-up is clearly behind it by the configured margin. A near-tie, such as the same artwork reprinted across Expansion Sets, is non-confident and is never auto-picked. The threshold and margin are configuration values, initially set from the spike's recommended rule, so they can be tuned without a frontend release.
+2. `confident` is true only when the top score clears the configured threshold and the runner-up is clearly behind it by the configured margin. A near-tie, such as the same artwork reprinted across Expansion Sets, is non-confident and is never auto-picked. The threshold and margin are configuration values, initially set from ticket 07's recommended rule, so they can be tuned without a frontend release.
 3. Cards with no embedding are simply not matchable. Only Indonesian Cards exist in the catalog, so no foreign-edition handling is built or tested.
 4. The uploaded image is processed in memory and never stored. A provider failure or timeout returns a clear, classified error without leaking provider details, and the frontend's existing "match service unavailable" message covers it.
 5. The stub's random-selection code is removed in the same change.
@@ -43,3 +43,15 @@ After ticket 02 the match endpoint returns random Cards with random confidence. 
 - Any frontend change, including turning on the production flag
 - OCR or hybrid matching, unless ticket 01's report chose it as the fallback, in which case split it into its own ticket first
 - Server-side card detection, foreign print editions, and Phase 2 binder-page scanning
+
+## Answer
+
+Implemented on `feat/card-scanning`. `POST /scan/match` now embeds the photo through a new `ImageEmbedder` seam (Gemini `EmbedContent`, same model and 1536 dimensions as the catalog, 8 second timeout), takes the five nearest stored vectors of `EMBEDDING_MODEL` via `EmbeddingRepository.NearestCards`, keeps the best row per Card, loads the Card summaries with `MatchRepository.CardsByIDs`, and sets `confident` when the top similarity reaches `MATCH_THRESHOLD` and the runner-up trails by `MATCH_MARGIN`. A confident result holds only the matched Card. The random stub and `RandomCards` are gone, and `openapi.json` is unchanged.
+
+Verified: `scripts/verification/backend.sh` (build, vet, gofmt, golangci-lint, `go test -race ./...`) passes against `pgvector/pgvector:pg18`. The feature test stores embeddings in real Postgres with the provider mocked and covers a clear winner, a near-tie, a weak top score, an unembedded Card and another model's vectors never appearing, an empty catalog, and a provider failure answered as a redacted 500.
+
+**Manual check with the real provider (2026-10-10):** on a local pgvector database seeded with Expansion Set MA6 (199 Cards ingested with `-set MA6`, image keys set from the spike's `ma6-cards.csv`), `make embed-catalog ARGS="-set MA6"` submitted one batch of 199 and `make collect-embeddings` stored 199 vectors about three minutes later. The match service, built with the real Gemini embedder and the default settings, matched the spike's two real photos of Sylveon ex (MA6 160) to the right Card and called both confident: the full-frame photo scored 0.8809 and the rough crop 0.9554. The HTTP route, auth and JSON shape were covered by the route tests, not by this run. The full-frame score sits only 0.03 above the provisional threshold, which is a data point for ticket 07.
+
+Still open: **threshold and margin are provisional.** Ticket 07 is still open, so `MATCH_THRESHOLD=0.85` and `MATCH_MARGIN=0.03` are conservative guesses (a wrong value makes scans non-confident, not wrong). Replace them with 07's recommended values.
+
+Decisions worth knowing: the API boots without `GEMINI_API_KEY` (previews and CI have none) and logs an error, and every scan then answers 500, because making it a boot requirement would need the key in `e2e.yml` and the preview workflow. A provider failure or timeout is the seam's redacted 500, not a dedicated status, because `ungerr` has no 503 and 408 invites client retries. Settings and the run book are in `docs/agents/deployment/embeddings.md`, and ADR-0018 records the synchronous embed seam.

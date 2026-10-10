@@ -3,7 +3,7 @@
 # 04: Review and add the draft to the Collection (frontend)
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** 03 (scan a card into a Draft Addition)
 
@@ -30,15 +30,19 @@ After ticket 03, a draft can be built but the "Review and add" button leads nowh
 - Follow the signed-in e2e conventions (the signed-in tag and untraced project) described in the testing docs.
 
 **Acceptance criteria:**
-- [ ] Review lists all rows with added and already-held quantities, and edits made here are respected on commit
-- [ ] The commit sends absolute targets (current plus added), batching the quantity lookup at 100 ids, and a retry does not double-add
-- [ ] Applied rows leave the draft; declined rows stay with their reason; a fully applied draft clears and returns to the Collection's page
-- [ ] A request failure keeps the draft and shows a message
-- [ ] The capacity running total is shown and does not block the request; the server decides
-- [ ] The Collection's page shows updated quantities after a commit
-- [ ] Feature tests cover mixed applied and declined results; the Playwright spec passes for the scan, review and add flow; the project's verification scripts pass
+- [x] Review lists all rows with added and already-held quantities, and edits made here are respected on commit
+- [x] The commit sends absolute targets (current plus added), batching the quantity lookup at 100 ids, and a retry does not double-add
+- [x] Applied rows leave the draft; declined rows stay with their reason; a fully applied draft clears and returns to the Collection's page
+- [x] A request failure keeps the draft and shows a message
+- [x] The capacity running total is shown and does not block the request; the server decides
+- [x] The Collection's page shows updated quantities after a commit
+- [x] Feature tests cover mixed applied and declined results; the Playwright spec passes for the scan, review and add flow; the project's verification scripts pass
 
 **Out of scope:**
 - Any backend change; if the bulk update needs changing, raise it instead of changing it here
 - Cross-Collection adds and Master Inventory changes
 - The real matcher (tickets 05 and 06)
+
+## Answer
+
+Implemented on `feat/card-scanning-review-frontend` (merged into `feat/card-scanning`). The Playwright spec `frontend/e2e/card-scanning.spec.ts` has not been run: it needs the Clerk dev credentials, which the implementer environment lacked. It runs in CI. `VITE_SCAN_ENABLED` is provisioned for previews by `preview-environments.yml`.

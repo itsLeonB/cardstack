@@ -17,6 +17,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
+	matchHandler := handler.NewMatchHandler(services.Match)
 
 	// Secured:true only sets OpenAPI metadata. The guard is what decides: a
 	// route group either allows Guests or rejects them with 401, and a bad token
@@ -38,4 +39,5 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser)
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
+	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
 }

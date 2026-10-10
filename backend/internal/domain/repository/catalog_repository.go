@@ -262,6 +262,13 @@ type CardResult struct {
 	Quantity int
 }
 
+// withCardResultJoins adds the joins cardResultColumns reads from.
+func withCardResultJoins(q *gorm.DB) *gorm.DB {
+	return q.
+		Joins("JOIN rarities ON rarities.id = cards.rarity_id").
+		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id")
+}
+
 const cardResultColumns = `cards.id AS id,
 	cards.local_id AS local_id,
 	cards.name AS name,
@@ -344,9 +351,7 @@ func (r *catalogRepository) SearchCards(ctx context.Context, filter CardFilter) 
 		return nil, 0, err
 	}
 
-	base := cardsBase(db, filter).
-		Joins("JOIN rarities ON rarities.id = cards.rarity_id").
-		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id")
+	base := withCardResultJoins(cardsBase(db, filter))
 
 	base = applyCardFilters(base, filter)
 

@@ -78,6 +78,35 @@ func TestRateLimitDefaultsAndEnvVarNames(t *testing.T) {
 	assert.Equal(t, RateLimit{User: Tier{PerMinute: 1, Burst: 2}, Search: Tier{PerMinute: 3, Burst: 4}, Facets: Tier{PerMinute: 5, Burst: 6}}, set)
 }
 
+func TestMatchDefaultsAndEnvVarNames(t *testing.T) {
+	var defaults Match
+	require.NoError(t, envconfig.Process(defaults.Prefix(), &defaults))
+	assert.Equal(t, Match{Threshold: 0.85, Margin: 0.03}, defaults)
+	assert.NoError(t, defaults.ValidateMatch())
+
+	t.Setenv("MATCH_THRESHOLD", "0.9")
+	t.Setenv("MATCH_MARGIN", "0.05")
+
+	var set Match
+	require.NoError(t, envconfig.Process(set.Prefix(), &set))
+	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05}, set)
+}
+
+func TestMatch_ValidateMatch(t *testing.T) {
+	assert.NoError(t, Match{Threshold: 1, Margin: 0}.ValidateMatch())
+	assert.NoError(t, Match{Threshold: 0.01, Margin: 0.99}.ValidateMatch())
+
+	for name, m := range map[string]Match{
+		"zero threshold":     {Threshold: 0, Margin: 0.03},
+		"negative threshold": {Threshold: -0.1, Margin: 0.03},
+		"threshold over one": {Threshold: 1.1, Margin: 0.03},
+		"negative margin":    {Threshold: 0.85, Margin: -0.01},
+		"margin of one":      {Threshold: 0.85, Margin: 1},
+	} {
+		assert.Error(t, m.ValidateMatch(), name)
+	}
+}
+
 func TestRateLimit_ValidateRateLimit_NeedsEveryLimitPositive(t *testing.T) {
 	assert.NoError(t, DefaultRateLimit().ValidateRateLimit())
 

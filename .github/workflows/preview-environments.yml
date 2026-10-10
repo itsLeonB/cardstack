@@ -304,6 +304,12 @@ jobs:
             vercel env add VITE_CLERK_PUBLISHABLE_KEY preview "$HEAD_REF" \
               --token "$VERCEL_TOKEN" --force
 
+          # Card scanning is on for previews so the end-to-end suite can
+          # drive it; production leaves it unset (docs/agents/deployment.md).
+          printf '%s' "true" | \
+            vercel env add VITE_SCAN_ENABLED preview "$HEAD_REF" \
+              --token "$VERCEL_TOKEN" --force
+
           # Deliberately run from the repo root, not --cwd frontend: the
           # Vercel project already has Root Directory set to "frontend"
           # server-side (see frontend/.vercel/project.json), and Vercel
@@ -460,8 +466,9 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          # Remove the branch-scoped VITE_API_BASE_URL and
-          # VITE_CLERK_PUBLISHABLE_KEY that provision adds.
+          # Remove the branch-scoped VITE_API_BASE_URL,
+          # VITE_CLERK_PUBLISHABLE_KEY and VITE_SCAN_ENABLED that provision
+          # adds.
           # Uses the REST API rather than `vercel env rm`: the CLI exits
           # non-zero both for "no such entry" and for real failures, so it
           # can't make this step idempotent without swallowing auth/API
@@ -482,7 +489,8 @@ jobs:
           ids=$(echo "$page" | jq -r --arg branch "$HEAD_REF" \
             '.envs[]
               | select((.key == "VITE_API_BASE_URL"
-                  or .key == "VITE_CLERK_PUBLISHABLE_KEY")
+                  or .key == "VITE_CLERK_PUBLISHABLE_KEY"
+                  or .key == "VITE_SCAN_ENABLED")
                 and .gitBranch == $branch
                 and (.target | index("preview")))
               | .id')
