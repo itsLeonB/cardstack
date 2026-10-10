@@ -1,0 +1,21 @@
+.scratch/card-scanning/issues/05-embed-the-catalog.md
+  s_2e64512bed9e2e::t_d2acc8864e019d 6,36,52
+docs/adr/0018-card-image-embeddings-come-from-gemini-and-live-in-pgvector.md
+  s_2e64512bed9e2e::t_ea28f1a72ecd2a 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b0c94bcd45606377b5443200731437d5cbae90fb",
+  "prompts": {},
+  "sessions": {
+    "s_2e64512bed9e2e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_2e64512bed9e2e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
