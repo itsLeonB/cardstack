@@ -3,7 +3,7 @@
 # 05: Embed the catalog
 
 **Category:** enhancement
-**Status:** resolved
+**Status:** resolved (the real-provider batch run is pending: it needs a Gemini key with billing, see Answer)
 
 **Blocked by:** 01 (accuracy spike and provider pick)
 
@@ -33,7 +33,7 @@ Cards carry a hosted image key but no embedding. The database has no vector exte
 - [x] The migration applies and rolls back cleanly on a real Postgres with pgvector, and the vector dimension is within the index limit
 - [x] A repository test on real Postgres stores an embedding and returns nearest neighbours in order
 - [x] The batch job, with the provider faked, embeds only Cards with a hosted image, skips already-embedded Cards, continues after one failure, and re-embeds everything when the model changes
-- [x] The job runs against a seed Expansion Set using the real provider and the stored vectors are queryable
+- [ ] The job runs against a seed Expansion Set using the real provider and the stored vectors are queryable
 - [x] The ADR is written and the configuration is documented in the deployment docs
 - [x] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
 
@@ -45,8 +45,10 @@ Cards carry a hosted image key but no embedding. The database has no vector exte
 
 ## Answer
 
-Implemented on `feat/catalog-embeddings-backend` (merged into `feat/card-scanning`): migration `20261010000000_card_embeddings.sql` (`card_embeddings`, `vector(1536)`, HNSW cosine index), the `Embedder` and `ImageFetcher` seams with the Gemini client in `internal/adapters/embedding`, and `make embed-catalog` (`-set <code>`). ADR-0018 and `docs/agents/deployment/embeddings.md` record the decision and the run book. CI and end-to-end Postgres now use `pgvector/pgvector:pg18`.
+Implemented on `feat/catalog-embeddings-backend` and reworked on `feat/catalog-embeddings-batch-backend` after review (both merged into `feat/card-scanning`): migration `20261010000000_card_embeddings.sql` (`card_embeddings` keyed by `(card_id, model, source)`, `vector(1536)`, HNSW cosine index, plus `embedding_batches` and `embedding_batch_cards`), the `BatchEmbedder` and `ImageFetcher` seams with a Gemini client on the official SDK's Batch API in `internal/adapters/embedding`, and two commands: `make embed-catalog` (submit, optional `-set <code>`) and `make collect-embeddings`. ADR-0018 and `docs/agents/deployment/embeddings.md` record the decision and the run book. CI and end-to-end Postgres use `pgvector/pgvector:pg18`.
 
-Seed run with the real provider, on a local pgvector database holding 12 MA6 cards copied from production (one with its image key blanked): 11 embedded in 33 s, 1 skipped for no hosted image, 0 failed; a rerun embedded nothing and skipped all 12. The vectors are 1536-dimensional and unit length, and a nearest-neighbour query returned the queried card first at distance 0.
+Verified: build, vet, gofmt, golangci-lint and `go test -race ./...` pass against a pgvector Postgres 18; the migration applies, rolls back and re-applies; the repository tests store embeddings and return nearest neighbours in order; the service tests, with the provider and image host faked, cover hosted-only, skip embedded, outstanding batches, failure isolation, model change, failed and unreadable batches, and stale or missing result keys.
 
-Open for later tickets: Gemini accuracy on real phone photos is still unmeasured (ticket 07 must check it before the matcher ships). Production still needs `make job` (the migration needs permission to create the `vector` extension; Neon lists 0.8.6) and daily `make embed-catalog` runs on the free tier. The HNSW index covers all models, so a nearest-neighbour query filtered to one model can return fewer rows than asked while two models coexist during a model switch.
+**Not done: the seed run against the real provider with the Batch API.** The first version (per-image `embedContent` on the free tier, since replaced) did embed 11 MA6 cards for real, 0 failed, unit-length 1536-dimension vectors, nearest neighbour correct. The Batch API version was run once against the spike's free-tier key and was refused: `FAILED_PRECONDITION` for a plain text batch on both embedding models, so the project needs billing. Still unverified until a billing-enabled key runs it: that an embeddings batch accepts image parts, the JSONL upload type, and the result line shape (parsed in `resultLine` in `gemini.go`). To finish: set `GEMINI_API_KEY` to a billing-enabled key, run `make embed-catalog ARGS="-set MA6"` against a local pgvector database with explicit `DB_*` values, wait for the job, run `make collect-embeddings`, and tick the criterion above.
+
+Open for later tickets: Gemini accuracy on real phone photos is unmeasured (ticket 07 must check it before the matcher ships). Production still needs `make job` (the migration needs permission to create the `vector` extension; Neon lists 0.8.6). The HNSW index covers all models, so a query filtered to one model can return fewer rows than asked while two models coexist during a model switch; the matcher (ticket 06) also picks the best row per card, since a card may hold several.

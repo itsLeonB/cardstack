@@ -19,7 +19,7 @@ _Avoid_: assuming an Expansion Set is shared or reused across regions by default
 A specific printed card design within exactly one Expansion Set — number and rarity are scoped to that Expansion Set, not shared across regions. Where one upstream source bundles several locale names onto a single record (TCGDex's Asia-region SV data carries `id`/`ja`/`zh-tw`/`th` names on one shared file, because those storefronts happen to sell an identical print run), that's a detail of that source's data shape for that specific print edition — not a general rule that a Card spans regions. A future Japan or English Expansion Set gets its own, unrelated Cards, even for "the same" real-world card. This is the unit quantities are tracked against in MVP (see Card Variant).
 
 **Card Embedding**:
-The vector that an image-embedding model makes from a Card's hosted image, stored one row per Card together with the name of the model that produced it. Card scanning matches a photo to a Card by comparing the photo's vector with Card Embeddings of the same model; a Card with no hosted image has none and cannot be matched.
+The vector that an image-embedding model makes from a Card's hosted image, stored with the name of the model that produced it and a source naming which image was embedded, so a Card can hold several (one per model and source). Card scanning matches a photo to a Card by comparing the photo's vector with Card Embeddings of the same model; a Card with no hosted image has none and cannot be matched.
 _Avoid_: calling it a Card attribute or a Card Variant — it describes the picture, not the print, and changing the model replaces every row.
 
 **Card Category**:
