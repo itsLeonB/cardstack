@@ -23,6 +23,12 @@ const embeddingBatchSize = 500
 // catalogSource names the image that catalog embeddings come from.
 const catalogSource = "catalog"
 
+// staleEmbeddingBatchAge is how old a submitted batch may be before a check
+// that keeps failing marks it failed. Gemini keeps a job's output for about 48
+// hours, so a batch this old can no longer be read and would otherwise stay
+// submitted, and its cards pending, forever.
+const staleEmbeddingBatchAge = 72 * time.Hour
+
 // EmbeddingService submits the catalog's card images for batch embedding and
 // collects the batches that have finished.
 type EmbeddingService interface {
@@ -36,6 +42,7 @@ type embeddingService struct {
 	images    embedding.ImageFetcher
 	imageHost mapper.ImageHost
 	model     string
+	now       func() time.Time
 }
 
 func NewEmbeddingService(
@@ -45,12 +52,26 @@ func NewEmbeddingService(
 	imageHost mapper.ImageHost,
 	model string,
 ) EmbeddingService {
+	return newEmbeddingServiceAt(repo, embedder, images, imageHost, model, time.Now)
+}
+
+// newEmbeddingServiceAt is NewEmbeddingService with the clock injected, so the
+// batch age rule can be tested without sleeping.
+func newEmbeddingServiceAt(
+	repo repository.EmbeddingRepository,
+	embedder embedding.BatchEmbedder,
+	images embedding.ImageFetcher,
+	imageHost mapper.ImageHost,
+	model string,
+	now func() time.Time,
+) EmbeddingService {
 	return &embeddingService{
 		repo:      repo,
 		embedder:  embedder,
 		images:    images,
 		imageHost: imageHost,
 		model:     model,
+		now:       now,
 	}
 }
 
@@ -182,11 +203,18 @@ func (s *embeddingService) CollectBatches(ctx context.Context) (dto.CollectBatch
 
 // collectBatch asks the provider for one batch. A job that has finished is
 // stored (succeeded) or marked failed, and one still running is left submitted
-// for a later run. A check that errors is also left submitted, and counts as
-// failed so the run exits non-zero. Only database errors stop the run.
+// for a later run. A check that errors is left submitted and counts as failed
+// so the run exits non-zero, unless the batch is older than
+// staleEmbeddingBatchAge: then it is marked failed, so a job that can never be
+// read stops holding its cards. Only database errors stop the run.
 func (s *embeddingService) collectBatch(ctx context.Context, batch entity.EmbeddingBatch, position string, summary *dto.CollectBatchesSummary) error {
 	outcome, err := s.embedder.Collect(ctx, batch.JobName)
 	if err != nil {
+		if batch.CreatedAt.Before(s.now().Add(-staleEmbeddingBatchAge)) {
+			summary.FailedBatches++
+			logger.Warnf("%s batch %s has not been readable for over %s, so it is marked failed and its cards are pending again: %v", position, batch.JobName, staleEmbeddingBatchAge, err)
+			return s.repo.SetBatchState(ctx, batch.ID, entity.EmbeddingBatchFailed)
+		}
 		summary.Failed++
 		logger.Errorf("%s batch %s could not be checked, left submitted: %v", position, batch.JobName, err)
 		return nil

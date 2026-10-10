@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
@@ -29,6 +30,9 @@ type embeddingFixture struct {
 	service  EmbeddingService
 }
 
+// testNow is the fixed clock of the service tests, so the batch age rule is exact.
+var testNow = time.Date(2026, time.October, 10, 12, 0, 0, 0, time.UTC)
+
 func newEmbeddingFixture(t *testing.T) embeddingFixture {
 	t.Helper()
 	f := embeddingFixture{
@@ -36,7 +40,7 @@ func newEmbeddingFixture(t *testing.T) embeddingFixture {
 		embedder: mocks.NewMockBatchEmbedder(t),
 		images:   mocks.NewMockImageFetcher(t),
 	}
-	f.service = NewEmbeddingService(f.repo, f.embedder, f.images, mapper.NewImageHost("https://img.test"), testEmbeddingModel)
+	f.service = newEmbeddingServiceAt(f.repo, f.embedder, f.images, mapper.NewImageHost("https://img.test"), testEmbeddingModel, func() time.Time { return testNow })
 	return f
 }
 
@@ -300,6 +304,37 @@ func TestEmbeddingService_CollectBatches_LeavesABatchItCannotCheckAndGoesOn(t *t
 	assert.Equal(t, 1, summary.Running)
 }
 
+func TestEmbeddingService_CollectBatches_FailsABatchOlderThan72HoursThatCannotBeChecked(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	stale := submittedBatch("batches/gone")
+	stale.CreatedAt = testNow.Add(-staleEmbeddingBatchAge - time.Minute)
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{stale}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/gone").Return(embedding.Outcome{}, errors.New("HTTP 404"))
+	f.repo.EXPECT().SetBatchState(ctx, stale.ID, entity.EmbeddingBatchFailed).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.FailedBatches, "a batch that can never be read is failed so its cards re-queue")
+	assert.Zero(t, summary.Failed)
+}
+
+func TestEmbeddingService_CollectBatches_KeepsABatchExactly72HoursOldSubmitted(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	edge := submittedBatch("batches/edge")
+	edge.CreatedAt = testNow.Add(-staleEmbeddingBatchAge)
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{edge}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/edge").Return(embedding.Outcome{}, errors.New("HTTP 503"))
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, summary.FailedBatches, "only a batch older than the cutoff is failed")
+	assert.Equal(t, 1, summary.Failed, "the check error is counted and the batch stays submitted")
+}
+
 func TestEmbeddingService_CollectBatches_StopsWhenTheBatchCannotBeMarkedCollected(t *testing.T) {
 	f := newEmbeddingFixture(t)
 	ctx := context.Background()
@@ -334,7 +369,7 @@ func TestEmbeddingService_CollectBatches_DoesNothingWhenNoBatchIsSubmitted(t *te
 // submittedBatch is a batch the repository reports as awaiting collection.
 func submittedBatch(job string) entity.EmbeddingBatch {
 	return entity.EmbeddingBatch{
-		BaseEntity: crud.BaseEntity{ID: uuid.New()},
+		BaseEntity: crud.BaseEntity{ID: uuid.New(), CreatedAt: testNow.Add(-time.Hour)},
 		JobName:    job,
 		Model:      testEmbeddingModel,
 		Source:     "catalog",
