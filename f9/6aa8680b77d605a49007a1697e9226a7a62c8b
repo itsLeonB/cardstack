@@ -1,0 +1,19 @@
+backend/internal/domain/repository/embedding_repository.go
+  s_cadc858fd91937::t_641c0bf722d5a6 9,40,64,71-74,92-95,112-115,134-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f96aa8680b77d605a49007a1697e9226a7a62c8b",
+  "prompts": {},
+  "sessions": {
+    "s_cadc858fd91937": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cadc858fd91937",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
