@@ -1,0 +1,33 @@
+backend/.mockery.yaml
+  s_fc9682cf9ffa72::t_88c6c2ac3d2c97 9-12,20,29
+backend/internal/domain/dto/embedding_dto.go
+  s_fc9682cf9ffa72::t_59044f20bd1a5c 1-22
+backend/internal/domain/service/embedding_service.go
+  s_fc9682cf9ffa72::t_93239ec6664253 1-121
+backend/internal/domain/service/embedding_service_test.go
+  s_fc9682cf9ffa72::t_a6eb4b45df2b95 1-231
+backend/internal/mocks/Embedder.go
+  s_fc9682cf9ffa72::t_f710cda69075dd 1-95
+backend/internal/mocks/EmbeddingRepository.go
+  s_fc9682cf9ffa72::t_fdd643d1c083c7 1-265
+backend/internal/mocks/EmbeddingService.go
+  s_fc9682cf9ffa72::t_bc36e8e1f4051c 1-94
+backend/internal/mocks/ImageFetcher.go
+  s_fc9682cf9ffa72::t_a6d1c925e578c0 1-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "3236e8bb7d9ac0603736ea23d926e2bd3b37f2d9",
+  "prompts": {},
+  "sessions": {
+    "s_fc9682cf9ffa72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fc9682cf9ffa72",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
