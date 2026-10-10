@@ -1,0 +1,19 @@
+.scratch/card-scanning/issues/05-embed-the-catalog.md
+  s_ac5eb48024f8b0::t_ab6928a82e6caa 6,33-38,45-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a89a41f6900f7b9af52cc3721173cc023ec7361d",
+  "prompts": {},
+  "sessions": {
+    "s_ac5eb48024f8b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ac5eb48024f8b0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
