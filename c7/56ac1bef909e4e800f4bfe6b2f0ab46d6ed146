@@ -1,0 +1,33 @@
+backend/.env.example
+  s_8c32be347d161d::t_e85e2e55a22022 48-53
+backend/Makefile
+  s_8c32be347d161d::t_89dd5dc40d82f6 10,32-33,70-72
+backend/cmd/collect-embeddings/main.go
+  s_8c32be347d161d::t_f98ba50cb7f402 1-67
+backend/cmd/embed-catalog/main.go
+  s_8c32be347d161d::t_d5dfd5a802afee 1-75
+backend/internal/core/config/embedding_config.go
+  s_8c32be347d161d::t_a940b562a9afa9 3-5
+backend/internal/domain/dto/embedding_dto.go
+  s_8c32be347d161d::t_e02537578545fd 5-7,11-14,18-20,24-39
+backend/internal/domain/service/embedding_service.go
+  s_8c32be347d161d::t_47b1ec10e31f45 1-252
+backend/internal/domain/service/embedding_service_test.go
+  s_8c32be347d161d::t_61b625d511ea44 1-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c756ac1bef909e4e800f4bfe6b2f0ab46d6ed146",
+  "prompts": {},
+  "sessions": {
+    "s_8c32be347d161d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8c32be347d161d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
