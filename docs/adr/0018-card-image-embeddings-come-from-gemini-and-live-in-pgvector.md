@@ -22,7 +22,7 @@ The choice is an operator decision on operational grounds, not the outcome of th
 
 The batch commands need a Gemini key from a project with billing enabled: the Batch API refuses a free-tier key (a text-only test batch on the spike's free-tier key failed with `FAILED_PRECONDITION` on both embedding models). A paid key also means content sent is not used by Google to improve its products, which removes the free-tier privacy caveat for user photos at request time (ticket 06); check the current terms before relying on it.
 
-The batch file format and the result file shape are not fully documented for image embeddings (the input line follows the documented text shape, the output line follows the SDK's response types, and image parts inside an embeddings batch are not documented). The first real run is the check; the output parsing is isolated in one function (`resultLine` in `internal/adapters/embedding/gemini.go`) so a mismatch is a one-place fix.
+A real run on 11 cards of Expansion Set MA6 confirmed the batch design: an embeddings batch accepts PNG image parts, the uploaded JSONL input and the result lines parse as written, and the job finished in about three minutes. The vectors came back 1536-dimensional and unit length, and matched the earlier per-image `embedContent` results for the same cards. The output parsing stays isolated in one function (`resultLine` in `internal/adapters/embedding/gemini.go`) because the Go SDK marks `CreateEmbeddings` experimental and the result format is not documented for images.
 
 Two concurrent `embed-catalog` runs would submit the same Cards twice (no rows are duplicated, the work and cost are). There is one operator, so no lock is taken.
 
