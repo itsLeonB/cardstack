@@ -217,7 +217,7 @@ func TestGeminiEmbedder_RetriesRateLimitHonouringRetryDelay(t *testing.T) {
 	_, err := g.Embed(context.Background(), pngBytes(t))
 	require.NoError(t, err)
 	assert.Equal(t, int32(2), fake.calls.Load())
-	assert.GreaterOrEqual(t, time.Since(start), time.Second, "the retryDelay from the body is honoured")
+	assert.GreaterOrEqual(t, time.Since(start), 2*time.Second, "the retryDelay from the body is honoured, plus a second of margin")
 }
 
 func TestGeminiEmbedder_DailyQuotaStopsWithoutRetry(t *testing.T) {
@@ -228,6 +228,7 @@ func TestGeminiEmbedder_DailyQuotaStopsWithoutRetry(t *testing.T) {
 
 	_, err := g.Embed(context.Background(), pngBytes(t))
 	require.ErrorIs(t, err, embedding.ErrDailyQuotaExhausted)
+	assert.ErrorContains(t, err, "PerDay", "the body is carried for the stop log")
 	assert.Equal(t, int32(1), fake.calls.Load(), "a spent daily quota is not retried")
 }
 

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"image"
 	_ "image/gif" // registers the GIF decoder for image.Decode
 	"image/png"
@@ -35,7 +36,7 @@ const (
 	// geminiRequestsPerMinute stays under the free tier's 100 RPM with headroom.
 	geminiRequestsPerMinute = 90
 	geminiRequestTimeout    = 60 * time.Second
-	geminiMaxRetries        = 4
+	geminiMaxRetries        = 7
 	geminiRetryBase         = 2 * time.Second
 	geminiMaxResponseBytes  = 1 << 20
 )
@@ -142,7 +143,8 @@ func (g *GeminiEmbedder) post(ctx context.Context, body []byte) (values []float3
 		return values, 0, false, err
 	case resp.StatusCode == http.StatusTooManyRequests:
 		if isDailyQuota(raw) {
-			return nil, 0, false, embedding.ErrDailyQuotaExhausted
+			// Not ungerr.Wrap: it does not unwrap, so errors.Is would miss the sentinel.
+			return nil, 0, false, fmt.Errorf("%w: %s", embedding.ErrDailyQuotaExhausted, truncate(raw))
 		}
 		return nil, retryDelay(raw), true, ungerr.Unknownf("embedContent rate limited: HTTP %d: %s", resp.StatusCode, truncate(raw))
 	case resp.StatusCode >= http.StatusInternalServerError:
@@ -237,6 +239,8 @@ func isDailyQuota(raw []byte) bool {
 	return bytes.Contains(raw, []byte("PerDay")) || strings.Contains(strings.ToLower(string(raw)), "per day")
 }
 
+// retryDelay returns the wait a 429 body asks for plus a second of margin, as
+// the spike did, or zero when the body names none.
 func retryDelay(raw []byte) time.Duration {
 	m := retryDelayPattern.FindSubmatch(raw)
 	if m == nil {
@@ -246,7 +250,7 @@ func retryDelay(raw []byte) time.Duration {
 	if err != nil {
 		return 0
 	}
-	return time.Duration(secs * float64(time.Second))
+	return time.Duration(secs*float64(time.Second)) + time.Second
 }
 
 func truncate(raw []byte) string {

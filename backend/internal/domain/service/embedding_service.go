@@ -74,7 +74,7 @@ func (s *embeddingService) EmbedCatalog(ctx context.Context, req dto.EmbedCatalo
 
 	for i, card := range pending {
 		if err := ctx.Err(); err != nil {
-			return summary, ungerr.Wrap(err, "embedding interrupted")
+			return s.finish(summary, started), ungerr.Wrap(err, "embedding interrupted")
 		}
 
 		position := fmt.Sprintf("[%d/%d]", i+1, len(pending))
@@ -82,9 +82,8 @@ func (s *embeddingService) EmbedCatalog(ctx context.Context, req dto.EmbedCatalo
 		switch {
 		case errors.Is(err, embedding.ErrDailyQuotaExhausted):
 			summary.Stopped = true
-			summary.Elapsed = time.Since(started)
-			logger.Warnf("%s stopped: the daily embedding quota is spent after %d embedded; rerun to resume, embedded cards are skipped", position, summary.Embedded)
-			return summary, nil
+			logger.Warnf("%s stopped: %v; rerun to resume, embedded cards are skipped", position, err)
+			return s.finish(summary, started), nil
 		case err != nil:
 			summary.Failed++
 			logger.Errorf("%s card %s failed: %v", position, card.ID, err)
@@ -94,12 +93,22 @@ func (s *embeddingService) EmbedCatalog(ctx context.Context, req dto.EmbedCatalo
 		}
 	}
 
+	return s.finish(summary, started), nil
+}
+
+// finish stamps the elapsed time and logs the closing summary. Every run ends
+// here, stopped or not, so a stopped run still reports what it did.
+func (s *embeddingService) finish(summary dto.EmbedCatalogSummary, started time.Time) dto.EmbedCatalogSummary {
 	summary.Elapsed = time.Since(started)
+	verb := "done"
+	if summary.Stopped {
+		verb = "stopped"
+	}
 	logger.Infof(
-		"done in %s: %d embedded, %d skipped (%d no hosted image, %d already embedded), %d failed",
-		summary.Elapsed, summary.Embedded, summary.NoImage+summary.AlreadyEmbedded, summary.NoImage, summary.AlreadyEmbedded, summary.Failed,
+		"%s in %s: %d embedded, %d skipped (%d no hosted image, %d already embedded), %d failed",
+		verb, summary.Elapsed, summary.Embedded, summary.NoImage+summary.AlreadyEmbedded, summary.NoImage, summary.AlreadyEmbedded, summary.Failed,
 	)
-	return summary, nil
+	return summary
 }
 
 // embedCard fetches, embeds and stores one card. Its errors are the callee's
