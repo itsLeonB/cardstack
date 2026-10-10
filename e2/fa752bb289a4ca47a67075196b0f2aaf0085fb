@@ -1,0 +1,19 @@
+backend/internal/domain/service/embedding_service.go
+  s_42cbcc4f15d88a::t_32a91e122262cb 27-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e2fa752bb289a4ca47a67075196b0f2aaf0085fb",
+  "prompts": {},
+  "sessions": {
+    "s_42cbcc4f15d88a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_42cbcc4f15d88a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
