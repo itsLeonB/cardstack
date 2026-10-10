@@ -168,6 +168,7 @@ func TestEmbeddingService_CollectBatches_StoresSucceededVectorsAndMarksTheBatchC
 		Status:  embedding.JobSucceeded,
 		Vectors: map[string][]float32{card.String(): vector},
 	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{card}, nil)
 	f.repo.EXPECT().Upsert(ctx, []entity.CardEmbedding{{
 		CardID:    card,
 		Model:     testEmbeddingModel,
@@ -223,6 +224,7 @@ func TestEmbeddingService_CollectBatches_StoresTheRestOfABatchWithPerItemFailure
 		Vectors:  map[string][]float32{good.String(): unitVector(1)},
 		Failures: map[string]string{bad.String(): "image unreadable"},
 	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{good, bad}, nil)
 	f.repo.EXPECT().Upsert(ctx, mock.MatchedBy(func(rows []entity.CardEmbedding) bool {
 		return len(rows) == 1 && rows[0].CardID == good
 	})).Return(nil)
@@ -234,23 +236,53 @@ func TestEmbeddingService_CollectBatches_StoresTheRestOfABatchWithPerItemFailure
 	assert.Equal(t, 1, summary.Failed, "the failed card is counted and left pending, not stored")
 }
 
-func TestEmbeddingService_CollectBatches_SkipsAResultThatIsNotACardID(t *testing.T) {
+func TestEmbeddingService_CollectBatches_KeepsOnlyTheCardsOfTheBatch(t *testing.T) {
 	f := newEmbeddingFixture(t)
 	ctx := context.Background()
-	batch := submittedBatch("batches/job-odd-key")
+	card, deleted := uuid.New(), uuid.New()
+	batch := submittedBatch("batches/job-foreign-key")
 
 	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
-	f.embedder.EXPECT().Collect(ctx, "batches/job-odd-key").Return(embedding.Outcome{
-		Status:  embedding.JobSucceeded,
-		Vectors: map[string][]float32{"not-a-card": unitVector(0)},
+	f.embedder.EXPECT().Collect(ctx, "batches/job-foreign-key").Return(embedding.Outcome{
+		Status: embedding.JobSucceeded,
+		Vectors: map[string][]float32{
+			card.String():    unitVector(0),
+			deleted.String(): unitVector(0),
+		},
 	}, nil)
-	f.repo.EXPECT().Upsert(ctx, []entity.CardEmbedding{}).Return(nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{card}, nil)
+	f.repo.EXPECT().Upsert(ctx, mock.MatchedBy(func(rows []entity.CardEmbedding) bool {
+		return len(rows) == 1 && rows[0].CardID == card
+	})).Return(nil)
 	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(nil)
 
 	summary, err := f.service.CollectBatches(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, summary.Failed)
-	assert.Zero(t, summary.Embedded)
+	assert.Equal(t, 1, summary.Embedded)
+	assert.Equal(t, 1, summary.Failed, "a card deleted since the submit is counted, and its row is not written")
+}
+
+func TestEmbeddingService_CollectBatches_CountsACardWithNoLineInTheResultAsPending(t *testing.T) {
+	f := newEmbeddingFixture(t)
+	ctx := context.Background()
+	answered, silent := uuid.New(), uuid.New()
+	batch := submittedBatch("batches/job-missing-line")
+
+	f.repo.EXPECT().ListSubmittedBatches(ctx).Return([]entity.EmbeddingBatch{batch}, nil)
+	f.embedder.EXPECT().Collect(ctx, "batches/job-missing-line").Return(embedding.Outcome{
+		Status:  embedding.JobSucceeded,
+		Vectors: map[string][]float32{answered.String(): unitVector(0)},
+	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{answered, silent}, nil)
+	f.repo.EXPECT().Upsert(ctx, mock.MatchedBy(func(rows []entity.CardEmbedding) bool {
+		return len(rows) == 1 && rows[0].CardID == answered
+	})).Return(nil)
+	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(nil)
+
+	summary, err := f.service.CollectBatches(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, summary.Failed, "a card the result never mentions is counted, and stays pending")
+	assert.Equal(t, 1, summary.Embedded)
 }
 
 func TestEmbeddingService_CollectBatches_LeavesABatchItCannotCheckAndGoesOn(t *testing.T) {
@@ -280,6 +312,7 @@ func TestEmbeddingService_CollectBatches_StopsWhenTheBatchCannotBeMarkedCollecte
 		Status:  embedding.JobSucceeded,
 		Vectors: map[string][]float32{card.String(): vector},
 	}, nil)
+	f.repo.EXPECT().ListBatchCardIDs(ctx, batch.ID).Return([]uuid.UUID{card}, nil)
 	f.repo.EXPECT().Upsert(ctx, mock.Anything).Return(nil)
 	f.repo.EXPECT().SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected).Return(errors.New("connection lost"))
 

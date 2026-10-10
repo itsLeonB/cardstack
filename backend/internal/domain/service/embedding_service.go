@@ -13,7 +13,6 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/ungerr"
-	"github.com/pgvector/pgvector-go"
 )
 
 // embeddingBatchSize is how many cards one provider batch job embeds. The job
@@ -211,35 +210,41 @@ func (s *embeddingService) collectBatch(ctx context.Context, batch entity.Embedd
 // collected. A crash between the two repeats the upsert on the next run, which
 // replaces the same rows and so creates no duplicates.
 func (s *embeddingService) storeBatch(ctx context.Context, batch entity.EmbeddingBatch, outcome embedding.Outcome, position string, summary *dto.CollectBatchesSummary) error {
-	embeddings := make([]entity.CardEmbedding, 0, len(outcome.Vectors))
-	for key, vector := range outcome.Vectors {
-		cardID, err := uuid.Parse(key)
-		if err != nil {
-			summary.Failed++
-			logger.Errorf("%s batch %s has a result for %q, which is not a card ID", position, batch.JobName, key)
-			continue
-		}
-		embeddings = append(embeddings, entity.CardEmbedding{
-			CardID:    cardID,
-			Model:     batch.Model,
-			Source:    batch.Source,
-			Embedding: pgvector.NewVector(vector),
-		})
+	cardIDs, err := s.repo.ListBatchCardIDs(ctx, batch.ID)
+	if err != nil {
+		return err
+	}
+	rows, unmatched := mapper.ToCardEmbeddings(outcome.Vectors, cardIDs, batch.Model, batch.Source)
+	for _, key := range unmatched {
+		summary.Failed++
+		logger.Errorf("%s batch %s has a result for %q, which is not a card of the batch: left out", position, batch.JobName, key)
+	}
+
+	reported := make(map[string]bool, len(outcome.Vectors)+len(outcome.Failures))
+	for key := range outcome.Vectors {
+		reported[key] = true
 	}
 	for key, reason := range outcome.Failures {
+		reported[key] = true
 		summary.Failed++
 		logger.Errorf("%s batch %s card %s did not embed, it is pending again: %s", position, batch.JobName, key, reason)
 	}
+	for _, id := range cardIDs {
+		if !reported[id.String()] {
+			summary.Failed++
+			logger.Errorf("%s batch %s card %s has no line in the result, it is pending again", position, batch.JobName, id)
+		}
+	}
 
-	if err := s.repo.Upsert(ctx, embeddings); err != nil {
+	if err := s.repo.Upsert(ctx, rows); err != nil {
 		return err
 	}
 	if err := s.repo.SetBatchState(ctx, batch.ID, entity.EmbeddingBatchCollected); err != nil {
 		return err
 	}
 	summary.Collected++
-	summary.Embedded += len(embeddings)
-	logger.Infof("%s batch %s collected: %d embedded, %d did not", position, batch.JobName, len(embeddings), len(outcome.Failures))
+	summary.Embedded += len(rows)
+	logger.Infof("%s batch %s collected: %d embedded", position, batch.JobName, len(rows))
 	return nil
 }
 
