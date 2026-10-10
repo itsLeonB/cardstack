@@ -133,6 +133,65 @@ func (_c *MockEmbeddingRepository_CreateBatch_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// ListBatchCardIDs provides a mock function with given fields: ctx, batchID
+func (_m *MockEmbeddingRepository) ListBatchCardIDs(ctx context.Context, batchID uuid.UUID) ([]uuid.UUID, error) {
+	ret := _m.Called(ctx, batchID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBatchCardIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
+		return rf(ctx, batchID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
+		r0 = rf(ctx, batchID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, batchID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockEmbeddingRepository_ListBatchCardIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBatchCardIDs'
+type MockEmbeddingRepository_ListBatchCardIDs_Call struct {
+	*mock.Call
+}
+
+// ListBatchCardIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchID uuid.UUID
+func (_e *MockEmbeddingRepository_Expecter) ListBatchCardIDs(ctx interface{}, batchID interface{}) *MockEmbeddingRepository_ListBatchCardIDs_Call {
+	return &MockEmbeddingRepository_ListBatchCardIDs_Call{Call: _e.mock.On("ListBatchCardIDs", ctx, batchID)}
+}
+
+func (_c *MockEmbeddingRepository_ListBatchCardIDs_Call) Run(run func(ctx context.Context, batchID uuid.UUID)) *MockEmbeddingRepository_ListBatchCardIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockEmbeddingRepository_ListBatchCardIDs_Call) Return(_a0 []uuid.UUID, _a1 error) *MockEmbeddingRepository_ListBatchCardIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockEmbeddingRepository_ListBatchCardIDs_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]uuid.UUID, error)) *MockEmbeddingRepository_ListBatchCardIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPendingCards provides a mock function with given fields: ctx, model, source, setCode
 func (_m *MockEmbeddingRepository) ListPendingCards(ctx context.Context, model string, source string, setCode string) ([]entity.Card, error) {
 	ret := _m.Called(ctx, model, source, setCode)

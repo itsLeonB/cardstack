@@ -243,6 +243,26 @@ func TestEmbeddingRepository_BatchLifecycleStampsCollectedAt(t *testing.T) {
 	require.NotNil(t, stored.CollectedAt)
 }
 
+func TestEmbeddingRepository_ListBatchCardIDsReturnsOnlyThatBatchsCards(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	repo := NewEmbeddingRepository(crud.NewRepository[entity.CardEmbedding](db))
+	ctx := context.Background()
+	model := "batch-cards-" + uuid.NewString()
+	mine := []entity.Card{newHostedCard(t, fixture, db, set.ID, "cards/mine-a"), newHostedCard(t, fixture, db, set.ID, "cards/mine-b")}
+	other := newHostedCard(t, fixture, db, set.ID, "cards/other-batch")
+
+	batch := entity.EmbeddingBatch{JobName: "batches/" + uuid.NewString(), Model: model, Source: "catalog", State: entity.EmbeddingBatchSubmitted}
+	require.NoError(t, repo.CreateBatch(ctx, &batch, cardIDs(mine)))
+	otherBatch := entity.EmbeddingBatch{JobName: "batches/" + uuid.NewString(), Model: model, Source: "catalog", State: entity.EmbeddingBatchSubmitted}
+	require.NoError(t, repo.CreateBatch(ctx, &otherBatch, []uuid.UUID{other.ID}))
+
+	got, err := repo.ListBatchCardIDs(ctx, batch.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, cardIDs(mine), got)
+}
+
 // catalogEmbedding is the embedding of the card's catalog image from model.
 func catalogEmbedding(card entity.Card, model string, v []float32) entity.CardEmbedding {
 	return entity.CardEmbedding{CardID: card.ID, Model: model, Source: "catalog", Embedding: pgvector.NewVector(v)}

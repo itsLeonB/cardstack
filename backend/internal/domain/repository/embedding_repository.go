@@ -32,6 +32,8 @@ type EmbeddingRepository interface {
 	CreateBatch(ctx context.Context, batch *entity.EmbeddingBatch, cardIDs []uuid.UUID) error
 	// ListSubmittedBatches returns the batches still awaiting collection.
 	ListSubmittedBatches(ctx context.Context) ([]entity.EmbeddingBatch, error)
+	// ListBatchCardIDs returns the cards batchID was submitted with.
+	ListBatchCardIDs(ctx context.Context, batchID uuid.UUID) ([]uuid.UUID, error)
 	// SetBatchState moves a batch to state, stamping collected_at when it is
 	// collected.
 	SetBatchState(ctx context.Context, id uuid.UUID, state entity.EmbeddingBatchState) error
@@ -235,4 +237,22 @@ func (r *embeddingRepository) SetBatchState(ctx context.Context, id uuid.UUID, s
 		return ungerr.Wrap(err, "setting embedding batch state")
 	}
 	return nil
+}
+
+func (r *embeddingRepository) ListBatchCardIDs(ctx context.Context, batchID uuid.UUID) ([]uuid.UUID, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var cardIDs []uuid.UUID
+	err = db.
+		Model(&entity.EmbeddingBatchCard{}).
+		Where("batch_id = ?", batchID).
+		Pluck("card_id", &cardIDs).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "listing embedding batch cards")
+	}
+	return cardIDs, nil
 }
