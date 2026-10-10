@@ -1,0 +1,21 @@
+.github/workflows/backend-ci.yml
+  s_edf688f96a16f6::t_4aff552a1fbf0b 49
+.github/workflows/e2e.yml
+  s_edf688f96a16f6::t_939c70f2c6cc60 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e38204c9a42cfcae1b52b4b25b49bf66447eeeda",
+  "prompts": {},
+  "sessions": {
+    "s_edf688f96a16f6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_edf688f96a16f6",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
