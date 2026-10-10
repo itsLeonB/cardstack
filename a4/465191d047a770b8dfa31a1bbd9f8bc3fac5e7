@@ -1,0 +1,21 @@
+backend/internal/adapters/embedding/gemini.go
+  s_68de9c12539ac4::t_b019765f49a8a9 14,87,93-101
+backend/internal/adapters/embedding/gemini_test.go
+  s_68de9c12539ac4::t_0b9b56243e5f26 28-33,52-58,66-69,212-241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a4465191d047a770b8dfa31a1bbd9f8bc3fac5e7",
+  "prompts": {},
+  "sessions": {
+    "s_68de9c12539ac4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_68de9c12539ac4",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
