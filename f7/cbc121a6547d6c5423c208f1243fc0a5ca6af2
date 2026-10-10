@@ -1,0 +1,33 @@
+backend/internal/domain/entity/card_embedding.go
+  s_42c3ea1a064a38::t_1ca580eccaf444 1-22
+backend/go.mod
+  s_42c3ea1a064a38::t_e03a61d2fc3970 89,129
+backend/go.sum
+  s_42c3ea1a064a38::t_06d09cf5db07bb 177-178,311-312
+backend/internal/domain/repository/embedding_repository_test.go
+  s_42c3ea1a064a38::t_4cac06c88285b4 1-151
+backend/internal/domain/repository/repository_test_helper_test.go
+  s_42c3ea1a064a38::t_3625f6f1c8f606 21-22,28
+backend/internal/adapters/db/postgres/migrations/20261010000000_card_embeddings.sql
+  s_42c3ea1a064a38::t_8a6381c7d52e83 1-23
+backend/internal/adapters/db/postgres/migrations/card_embeddings_test.go
+  s_42c3ea1a064a38::t_e391c3c93a6b24 1-57
+backend/internal/domain/repository/embedding_repository.go
+  s_42c3ea1a064a38::t_880385401b07f7 1-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f7cbc121a6547d6c5423c208f1243fc0a5ca6af2",
+  "prompts": {},
+  "sessions": {
+    "s_42c3ea1a064a38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_42c3ea1a064a38",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
