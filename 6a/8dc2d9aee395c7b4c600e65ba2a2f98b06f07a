@@ -1,0 +1,19 @@
+.scratch/preview-environments/issues/01-inject-preview-only-env-vars.md
+  s_40b101c59807a1::t_a82504d0e0d22a 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6a8dc2d9aee395c7b4c600e65ba2a2f98b06f07a",
+  "prompts": {},
+  "sessions": {
+    "s_40b101c59807a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_40b101c59807a1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
