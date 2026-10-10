@@ -3,7 +3,7 @@
 # 01: Accuracy spike and provider pick
 
 **Category:** research
-**Status:** ready-for-agent
+**Status:** resolved (Gemini picked on operational grounds by the developer; the 40-photo accuracy run and the paid passes were skipped, see `.scratch/card-scanning/research/accuracy-spike-report.md`)
 
 **Blocked by:** None (can start immediately; the run itself needs the photo set, the catalog CSV and the API keys described below)
 
