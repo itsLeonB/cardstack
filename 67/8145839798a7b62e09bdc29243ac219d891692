@@ -1,0 +1,21 @@
+backend/internal/domain/service/embedding_service.go
+  s_cda7376c9c5241::t_784bd486cf8d9f 143-144
+backend/internal/domain/service/embedding_service_test.go
+  s_cda7376c9c5241::t_5ac9185a7083c5 147,153,156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "678145839798a7b62e09bdc29243ac219d891692",
+  "prompts": {},
+  "sessions": {
+    "s_cda7376c9c5241": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cda7376c9c5241",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
