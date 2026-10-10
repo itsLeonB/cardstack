@@ -1,0 +1,19 @@
+.scratch/card-scanning/issues/02-scan-api-contract-card-id-filter-and-stub-match.md
+  s_d4f11bb961626c::t_129ac8dc03873a 6,33-38,44-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7e19b5591e47badff623f59331c4a83d99ea955a",
+  "prompts": {},
+  "sessions": {
+    "s_d4f11bb961626c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d4f11bb961626c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}

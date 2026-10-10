@@ -1,0 +1,75 @@
+frontend/.env.example
+  s_50f5a2ea285784::t_ed8bc255964ae6 14-19
+frontend/orval.config.ts
+  s_50f5a2ea285784::t_c67054e4d27091 21
+frontend/src/components/scan/draft-tray.tsx
+  s_50f5a2ea285784::t_60ffeb84476832 1-138
+frontend/src/components/scan/scan-link.test.tsx
+  s_50f5a2ea285784::t_9d3836f9cb2b0b 1-46
+frontend/src/components/scan/scan-link.tsx
+  s_50f5a2ea285784::t_801def2c02788a 1-17
+frontend/src/components/scan/scan-screen.test.tsx
+  s_50f5a2ea285784::t_a2fc2134457e01 1-283
+frontend/src/components/scan/scan-screen.tsx
+  s_50f5a2ea285784::t_e99d2122497309 1-222
+frontend/src/generated/endpoints/catalog/catalog.ts
+  s_50f5a2ea285784::t_cf1e7efd37d2b2 90
+frontend/src/generated/endpoints/catalog/catalog.zod.ts
+  s_50f5a2ea285784::t_b35abf13189555 23-24,39
+frontend/src/generated/endpoints/index.ts
+  s_50f5a2ea285784::t_5be5ae48437bde 11
+frontend/src/generated/endpoints/index.zod.ts
+  s_50f5a2ea285784::t_92af87980d9084 5
+frontend/src/generated/endpoints/scan/scan.ts
+  s_50f5a2ea285784::t_6de7c295d979e3 1-141
+frontend/src/generated/endpoints/scan/scan.zod.ts
+  s_50f5a2ea285784::t_0100d660d3522e 1-47
+frontend/src/generated/models/envelopeMatchResult.ts
+  s_50f5a2ea285784::t_1dba1209dabf2d 1-11
+frontend/src/generated/models/index.ts
+  s_50f5a2ea285784::t_c6f61a8cc50407 25,45-46
+frontend/src/generated/models/matchCandidate.ts
+  s_50f5a2ea285784::t_0dc0a2ba962581 1-17
+frontend/src/generated/models/matchResult.ts
+  s_50f5a2ea285784::t_49008cd0263fb6 1-14
+frontend/src/generated/models/searchCatalogCardsParams.ts
+  s_50f5a2ea285784::t_ecb0bdf672a94b 38-42
+frontend/src/lib/draft-addition.test.ts
+  s_50f5a2ea285784::t_5ddc7d7bf65799 1-66
+frontend/src/lib/draft-addition.ts
+  s_50f5a2ea285784::t_12f86ac5a84f26 1-61
+frontend/src/lib/frame-crop.test.ts
+  s_50f5a2ea285784::t_692ffa4b8969ff 1-23
+frontend/src/lib/frame-crop.ts
+  s_50f5a2ea285784::t_641c6ccbfa5270 1-33
+frontend/src/lib/frame-source.ts
+  s_50f5a2ea285784::t_6e15c3f2f6e8d8 1-104
+frontend/src/lib/scan-flag.ts
+  s_50f5a2ea285784::t_2da943749f8cec 1-8
+frontend/src/lib/use-draft-addition.ts
+  s_50f5a2ea285784::t_8466857a5143c5 1-40
+frontend/src/routeTree.gen.ts
+  s_50f5a2ea285784::t_3bf1abeac1c88d 29,121-126,150,169,191,213,232,253,389-395,432,443-444
+frontend/src/routes/_authenticated/collections/$collectionId/-scan.test.tsx
+  s_50f5a2ea285784::t_107256b5232053 1-117
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_50f5a2ea285784::t_dbb4889443b106 12,76-81
+frontend/src/routes/_authenticated/collections/$collectionId/scan.tsx
+  s_50f5a2ea285784::t_3adecd6df6b895 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5bf5549ab6efb1bffa34fe48e20f3867d396780b",
+  "prompts": {},
+  "sessions": {
+    "s_50f5a2ea285784": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_50f5a2ea285784",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}

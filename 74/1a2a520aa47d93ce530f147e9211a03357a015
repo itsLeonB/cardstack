@@ -1,0 +1,35 @@
+frontend/e2e/card-scanning.spec.ts
+  s_43162a09bb394d::t_b90162c2af9da5 1-187
+frontend/playwright.config.ts
+  s_43162a09bb394d::t_cbf0ee3cea4b2e 69-70
+frontend/src/components/scan/draft-tray.tsx
+  s_43162a09bb394d::t_b3aa2fc6c1832d 4
+frontend/src/components/scan/review-step.tsx
+  s_43162a09bb394d::t_5a834fd31afe64 1-267
+frontend/src/components/scan/scan-review.test.tsx
+  s_43162a09bb394d::t_434e499d64d35d 1-357
+frontend/src/components/scan/scan-screen.test.tsx
+  s_43162a09bb394d::t_4d1286efab982f 88-92
+frontend/src/components/scan/scan-screen.tsx
+  s_43162a09bb394d::t_261931c7769b98 5,44,48-49,55,93-110,245
+frontend/src/components/scan/use-draft-cards.ts
+  s_43162a09bb394d::t_2979011db30569 1-51
+frontend/src/routes/_authenticated/collections/$collectionId/scan.tsx
+  s_43162a09bb394d::t_9a58b2bd63a841 1,39,64-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "741a2a520aa47d93ce530f147e9211a03357a015",
+  "prompts": {},
+  "sessions": {
+    "s_43162a09bb394d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_43162a09bb394d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}

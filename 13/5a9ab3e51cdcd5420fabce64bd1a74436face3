@@ -1,0 +1,19 @@
+docs/agents/deployment.md
+  s_26ac90702a9ec1::t_31f6a0366d5b1a 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "135a9ab3e51cdcd5420fabce64bd1a74436face3",
+  "prompts": {},
+  "sessions": {
+    "s_26ac90702a9ec1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_26ac90702a9ec1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}

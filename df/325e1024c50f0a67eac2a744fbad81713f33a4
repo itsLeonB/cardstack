@@ -1,0 +1,19 @@
+.scratch/card-scanning/issues/03-scan-a-card-into-a-draft-addition.md
+  s_206c9f2680b028::t_d76974f439087b 6,36-42,49-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "df325e1024c50f0a67eac2a744fbad81713f33a4",
+  "prompts": {},
+  "sessions": {
+    "s_206c9f2680b028": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_206c9f2680b028",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}

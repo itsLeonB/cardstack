@@ -1,0 +1,23 @@
+backend/internal/adapters/http/handler/catalog_handler.go
+  s_ea00a9c31623aa::t_c7c34ff49960d9 69-71,124-126
+backend/internal/adapters/http/routes/catalog_routes_test.go
+  s_ea00a9c31623aa::t_678fac928e4e74 94-128
+backend/internal/domain/dto/catalog_dto.go
+  s_ea00a9c31623aa::t_0bab6e3231586c 76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1a53dd84a2a2b3d52a6a1302dad725f43d868592",
+  "prompts": {},
+  "sessions": {
+    "s_ea00a9c31623aa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ea00a9c31623aa",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
