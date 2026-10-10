@@ -24,8 +24,9 @@ const embeddingBatchSize = 500
 const catalogSource = "catalog"
 
 // staleEmbeddingBatchAge is how old a submitted batch may be before a check
-// that keeps failing marks it failed. Gemini keeps a job's output for about 48
-// hours, so a batch this old can no longer be read and would otherwise stay
+// that keeps failing marks it failed. Gemini expires a job still pending or
+// running after about 48 hours, and an old job's output may already be gone, so
+// a batch this old can no longer be read. Without this rule it would stay
 // submitted, and its cards pending, forever.
 const staleEmbeddingBatchAge = 72 * time.Hour
 
