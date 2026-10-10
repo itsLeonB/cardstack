@@ -17,7 +17,7 @@ make embed-catalog                  # every Card with a hosted image
 make embed-catalog ARGS="-set MA6"  # one Expansion Set, for a seed run
 ```
 
-It logs one line per Card, a skipped count (already embedded by the current model, or no hosted image) and a closing summary. A failure on one Card is logged and the run continues. It paces itself under 90 requests a minute, backs off on a 429, and stops the whole run when Gemini reports the daily quota exhausted. Rerun it later: embedded Cards are skipped, so it resumes where it stopped.
+It logs one line per Card, a skipped count (already embedded by the current model, or no hosted image) and a closing summary. A failure on one Card is logged and the run continues. It paces itself under 90 requests a minute, backs off on a 429, and stops the whole run when Gemini reports the daily quota exhausted. Rerun it later: embedded Cards are skipped, so it resumes where it stopped. It exits 0 on success or a quota stop, and 1 if any Card failed or on a fatal error such as a missing `GEMINI_API_KEY` or `IMAGE_BASE_URL`.
 
 The free tier allows about 1,000 requests a day, so the full catalog takes about 12 daily reruns on it. Content sent on the free tier may be used by Google to improve its products; catalog images are public, but see ADR-0018 before sending user photos.
 
