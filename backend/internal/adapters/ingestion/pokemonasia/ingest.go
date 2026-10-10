@@ -467,7 +467,11 @@ func (in *Ingester) ingestCard(ctx context.Context, expansionSetID uuid.UUID, ex
 		return fmt.Errorf("resolving rarity %s: %w", rarityCode, err)
 	}
 
-	card := mapCard(detail, expansionSetID, rarityID, cardImageURL(id), raw)
+	imageURL := detail.ImageURL
+	if imageURL == "" {
+		imageURL = cardImageURL(id)
+	}
+	card := mapCard(detail, expansionSetID, rarityID, imageURL, raw)
 	saved, err := in.upsertCard(ctx, card)
 	if err != nil {
 		return fmt.Errorf("upserting card: %w", err)

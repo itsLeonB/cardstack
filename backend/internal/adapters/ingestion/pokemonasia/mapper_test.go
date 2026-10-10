@@ -235,6 +235,20 @@ func TestParseCardDetail(t *testing.T) {
 	}
 }
 
+// The image extension is per set (MA6 is .png, AS4D is .jpg), so the address
+// must come from the detail page, never be built from the id.
+func TestParseCardDetail_ImageURLIsScrapedVerbatim(t *testing.T) {
+	doc := mustParseFixture(t, `<html><body>
+<h1 class="pageHeader cardDetail">Ultra Ball</h1>
+<div class="cardImage"><img src="https://asia.pokemon-card.com/id/card-img/id00004193.jpg"></div>
+<section class="expansionColumn"><span class="collectorNumber">001/126</span></section>
+</body></html>`)
+
+	got := parseCardDetail(doc)
+
+	assert.Equal(t, "https://asia.pokemon-card.com/id/card-img/id00004193.jpg", got.ImageURL)
+}
+
 func TestDetectCategory(t *testing.T) {
 	tests := []struct {
 		name         string

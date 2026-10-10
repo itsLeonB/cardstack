@@ -154,8 +154,10 @@ func splitCollectorNumber(s string) string {
 }
 
 // cardImageURL builds a card's image URL from its detail-page id (not its
-// LocalID/collector number), per the site's fixed 8-digit zero-padded
-// filename convention.
+// LocalID/collector number), per the site's 8-digit zero-padded filename
+// convention. The extension is only a guess (.png): some sets serve .jpg and
+// answer 403 for the wrong one, so it is the fallback for a detail page
+// without a card image, never the first choice.
 func cardImageURL(id string) string {
 	n, err := strconv.Atoi(id)
 	if err != nil {
@@ -195,6 +197,7 @@ func parseCardDetail(doc *goquery.Document) cardDetail {
 	regulationMark := strings.TrimSpace(doc.Find("section.expansionColumn span.alpha").First().Text())
 	collectorNumber := strings.TrimSpace(doc.Find("section.expansionColumn span.collectorNumber").First().Text())
 	illustrator := strings.TrimSpace(doc.Find("div.illustrator a").First().Text())
+	imageURL, _ := doc.Find("div.cardImage img").First().Attr("src")
 
 	return cardDetail{
 		Name:           name,
@@ -203,6 +206,7 @@ func parseCardDetail(doc *goquery.Document) cardDetail {
 		LocalID:        splitCollectorNumber(collectorNumber),
 		Illustrator:    illustrator,
 		RegulationMark: regulationMark,
+		ImageURL:       strings.TrimSpace(imageURL),
 		Attributes:     attributes,
 	}
 }
