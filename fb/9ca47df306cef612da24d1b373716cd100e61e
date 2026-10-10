@@ -1,0 +1,27 @@
+.scratch/card-scanning/issues/05-embed-the-catalog.md
+  s_fb19c34831023e::t_eacbd0f330e76e 6,36,48,50,52-54
+GLOSSARY.md
+  s_fb19c34831023e::t_18668274c0312a 22
+docs/adr/0018-card-image-embeddings-come-from-gemini-and-live-in-pgvector.md
+  s_fb19c34831023e::t_04e58116e22231 3,5-9,16,18-19,23-25,27
+docs/agents/deployment.md
+  s_fb19c34831023e::t_fe96132120eb72 28
+docs/agents/deployment/embeddings.md
+  s_fb19c34831023e::t_9c2f7cccf5caca 3,7,9-11,16-18,21,23-25,34,36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "fb9ca47df306cef612da24d1b373716cd100e61e",
+  "prompts": {},
+  "sessions": {
+    "s_fb19c34831023e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fb19c34831023e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
