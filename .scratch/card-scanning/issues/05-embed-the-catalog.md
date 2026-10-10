@@ -3,7 +3,7 @@
 # 05: Embed the catalog
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** 01 (accuracy spike and provider pick)
 
@@ -30,15 +30,23 @@ Cards carry a hosted image key but no embedding. The database has no vector exte
 - A new command alongside the existing ingestion commands.
 
 **Acceptance criteria:**
-- [ ] The migration applies and rolls back cleanly on a real Postgres with pgvector, and the vector dimension is within the index limit
-- [ ] A repository test on real Postgres stores an embedding and returns nearest neighbours in order
-- [ ] The batch job, with the provider faked, embeds only Cards with a hosted image, skips already-embedded Cards, continues after one failure, and re-embeds everything when the model changes
-- [ ] The job runs against a seed Expansion Set using the real provider and the stored vectors are queryable
-- [ ] The ADR is written and the configuration is documented in the deployment docs
-- [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
+- [x] The migration applies and rolls back cleanly on a real Postgres with pgvector, and the vector dimension is within the index limit
+- [x] A repository test on real Postgres stores an embedding and returns nearest neighbours in order
+- [x] The batch job, with the provider faked, embeds only Cards with a hosted image, skips already-embedded Cards, continues after one failure, and re-embeds everything when the model changes
+- [x] The job runs against a seed Expansion Set using the real provider and the stored vectors are queryable
+- [x] The ADR is written and the configuration is documented in the deployment docs
+- [x] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
 
 **Out of scope:**
 - Changing the match endpoint (ticket 06)
 - Any frontend change
 - Embedding user photos at request time (ticket 06)
 - OCR, server-side card detection, and print-finish detection
+
+## Answer
+
+Implemented on `feat/catalog-embeddings-backend` (merged into `feat/card-scanning`): migration `20261010000000_card_embeddings.sql` (`card_embeddings`, `vector(1536)`, HNSW cosine index), the `Embedder` and `ImageFetcher` seams with the Gemini client in `internal/adapters/embedding`, and `make embed-catalog` (`-set <code>`). ADR-0018 and `docs/agents/deployment/embeddings.md` record the decision and the run book. CI and end-to-end Postgres now use `pgvector/pgvector:pg18`.
+
+Seed run with the real provider, on a local pgvector database holding 12 MA6 cards copied from production (one with its image key blanked): 11 embedded in 33 s, 1 skipped for no hosted image, 0 failed; a rerun embedded nothing and skipped all 12. The vectors are 1536-dimensional and unit length, and a nearest-neighbour query returned the queried card first at distance 0.
+
+Open for later tickets: Gemini accuracy on real phone photos is still unmeasured (ticket 07 must check it before the matcher ships). Production still needs `make job` (the migration needs permission to create the `vector` extension; Neon lists 0.8.6) and daily `make embed-catalog` runs on the free tier. The HNSW index covers all models, so a nearest-neighbour query filtered to one model can return fewer rows than asked while two models coexist during a model switch.
