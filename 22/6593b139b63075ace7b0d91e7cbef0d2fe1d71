@@ -1,0 +1,27 @@
+GLOSSARY.md
+  s_2c29b83feb7555::t_0aa66a12999da0 21-24
+docs/adr/0018-card-image-embeddings-come-from-gemini-and-live-in-pgvector.md
+  s_2c29b83feb7555::t_9ed72c55911034 1-21
+docs/agents/deployment.md
+  s_2c29b83feb7555::t_f226783a659da5 28
+docs/agents/deployment/embeddings.md
+  s_2c29b83feb7555::t_dc7cc52a4ead27 1-35
+docs/agents/testing.md
+  s_2c29b83feb7555::t_a7de068ac28138 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "226593b139b63075ace7b0d91e7cbef0d2fe1d71",
+  "prompts": {},
+  "sessions": {
+    "s_2c29b83feb7555": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_2c29b83feb7555",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
