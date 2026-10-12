@@ -1,0 +1,35 @@
+.github/workflows/preview-environments.yml
+  s_7c74dce6d366f4::t_c35251a4bc80ca 463-464,485
+.scratch/preview-environments/issues/01-inject-preview-only-env-vars.md
+  s_7c74dce6d366f4::t_09825ae9d39f02 8,10,12
+docs/agents/deployment/embeddings.md
+  s_7c74dce6d366f4::t_7601140d07db74 18
+docs/agents/testing.md
+  s_7c74dce6d366f4::t_74f56baf7b06c3 46
+frontend/e2e/card-scanning.spec.ts
+  s_7c74dce6d366f4::t_1a7ec4058591a1 13-14
+frontend/src/components/scan/scan-link.test.tsx
+  s_7c74dce6d366f4::t_6c40e0ad8bb3cb 30
+frontend/src/components/scan/scan-link.tsx
+  s_7c74dce6d366f4::t_8b7c1dd062d172 4
+frontend/src/routes/_authenticated/collections/$collectionId/-scan.test.tsx
+  s_7c74dce6d366f4::t_35194efc7ff97f 80,101-103
+frontend/src/routes/_authenticated/collections/$collectionId/scan.tsx
+  s_7c74dce6d366f4::t_34f1e3e4abfb60 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "fa277f18a106c13d6e27ce5498a4b380c61f1c75",
+  "prompts": {},
+  "sessions": {
+    "s_7c74dce6d366f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_7c74dce6d366f4",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
