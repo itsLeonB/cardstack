@@ -48,8 +48,12 @@ The atomic record of how many of one Card a user holds within one Collection. Th
 _Avoid_: "Inventory" alone — ambiguous between this (atomic, per-Collection) and Master Inventory (aggregate, per-user). Always say which one.
 
 **Draft Addition**:
-An unsaved, transient list of Cards, each with a quantity to add, that a user builds by scanning, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals.
+An unsaved, transient list of Scans that a user builds by photographing cards, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals, and the Scans that chose the same Card add together.
 _Avoid_: "inventory" or "collection" for the draft — it is neither; it is a pending change to one Collection's Inventory Entries.
+
+**Scan**:
+One photographed card in a Draft Addition, with the Card chosen for it and a quantity to add. A Scan shows the matcher's top candidate until the user picks another; when the matcher was not confident it also keeps the other candidates it ranked, so the user can change the choice, and when the matcher was confident it keeps only the top one. A Scan is pending while its photo is still being matched. Photographing the same Card twice makes two Scans; they are never merged, and the user may raise a Scan's quantity by hand.
+_Avoid_: "match" or "candidate" for the Scan itself — a candidate is one Card the matcher offered for a Scan, and the Scan is the row that holds the choice among them.
 
 **Master Inventory**:
 Not a stored entity. The aggregate of a user's Inventory Entries across *all* their Collections, grouped by Card — "how many of this card do I own in total, anywhere." Computed on read, not written to.

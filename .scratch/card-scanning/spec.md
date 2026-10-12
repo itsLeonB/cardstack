@@ -8,7 +8,7 @@ A collector who owns a stack of physical cards has to find each one in the catal
 
 ## Solution
 
-The user opens one of their Collections and presses "Scan cards". A camera viewfinder with a card-shaped guide appears. Each capture is sent to the backend, which matches the photo against the catalog. A confident match is added to a Draft Addition (a transient, unsaved list of Cards with quantities to add). A match that is not confident shows a few candidate cards to pick from, or the user skips it. The Draft Addition is held in the browser and survives a refresh. When the user is done they review the list, adjust quantities, and press "Add to Collection", which writes the quantities into that Collection's Inventory Entries through the existing bulk update. Cards the Collection cannot take (capacity) stay in the draft with the reason shown.
+The user opens one of their Collections and presses "Scan cards". A camera viewfinder with a card-shaped guide appears. Each capture is sent to the backend, which matches the photo against the catalog. Every capture becomes a Scan in a Draft Addition (a transient, unsaved list of Scans, each with a Card and a quantity to add) at once, showing the matcher's top candidate while a Scan that is still being matched shows as loading. A match that is not confident keeps its other candidates, and the user can pick a different one from a dropdown on that Scan. The Draft Addition is held in the browser and survives a refresh. When the user is done they review the list, adjust quantities, and press "Add to Collection", which writes the quantities into that Collection's Inventory Entries through the existing bulk update. Cards the Collection cannot take (capacity) stay in the draft with the reason shown.
 
 This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole binder page, recognising the layout, and storing card positions) is outlined under Out of Scope and gets its own spec after Phase 1 ships.
 
@@ -19,16 +19,16 @@ This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole bi
 3. As a collector, I want a live camera viewfinder with a card-shaped guide, so that I know how to frame the card.
 4. As a collector, I want to tap a capture button to photograph one card, so that I control exactly which card is scanned.
 5. As a collector, I want the app to crop to the guide and shrink the photo before sending it, so that scans are fast and use little mobile data.
-6. As a collector, I want a confident match to be added to my draft automatically, so that scanning a stack of cards takes one tap per card.
-7. As a collector, I want to see the card that was just matched (image, name, set, number) right after a capture, so that I can tell at a glance whether the app got it right.
-8. As a collector, I want to undo or remove a card that was matched wrongly, so that a bad match does not end up in my Collection.
-9. As a collector, I want to see a short list of candidate cards when the app is not sure, so that I can pick the right one with one tap.
-10. As a collector, I want to be able to skip a capture that has no good candidate, so that I can retake the photo without polluting my draft.
-11. As a collector, I want two lookalike reprints that the app cannot tell apart to be offered as candidates instead of silently choosing one, so that I never record the wrong edition.
-12. As a collector, I want scanning the same card twice to raise its quantity in the draft to 2, so that duplicates in a stack are counted.
-13. As a collector, I want to raise or lower the quantity of any row in my draft, so that I can correct counts without rescanning.
-14. As a collector, I want to remove a row from my draft, so that I can drop a card I scanned by mistake.
-15. As a collector, I want to see my draft as a tray of cards with counts while I scan, so that I know how many cards I have captured so far.
+6. As a collector, I want every capture to become a Scan in my draft at once, showing the top candidate, so that scanning a stack of cards takes one tap per card and never waits on a match.
+7. As a collector, I want to see each Scan's card (image, name, set, number) in the tray as soon as it is matched, so that I can tell at a glance whether the app got it right.
+8. As a collector, I want to remove a Scan that was matched wrongly, so that a bad match does not end up in my Collection.
+9. As a collector, I want a Scan the app is not sure about to offer its other candidates in a dropdown, defaulting to the top one, so that I can correct it with a couple of taps.
+10. As a collector, I want to remove a Scan with no good candidate, or one that failed, and retake the photo, so that my draft is not polluted.
+11. As a collector, I want two lookalike reprints that the app cannot tell apart to be marked as unsure, with the other edition in the dropdown, so that I can see the choice and change it. The Scan still defaults to the top candidate and does not block adding.
+12. As a collector, I want scanning the same card twice to make two Scans that the review step adds together, so that duplicates in a stack are counted.
+13. As a collector, I want to raise or lower the quantity of any Scan in my draft, so that I can correct counts without rescanning.
+14. As a collector, I want to remove a Scan from my draft, so that I can drop a card I scanned by mistake.
+15. As a collector, I want to see my draft as a tray of Scans while I scan, with the ones still loading marked, so that I know how many cards I have captured and which are still being matched.
 16. As a collector, I want a "Review and add" step that lists every card and quantity I am about to add, so that I can check everything before it changes my Collection.
 17. As a collector, I want the quantities in my draft to be additions to what the Collection already holds, so that scanning three copies of a card I already own makes my total go up by three and not reset it to three.
 18. As a collector, I want the review step to show how many copies of each card the Collection already holds, so that I can see the result of adding.
@@ -56,6 +56,9 @@ This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole bi
 40. As the site owner, I want the catalog's card images embedded once in a batch job that can be re-run, so that a model change or new cards only need a re-run.
 41. As the site owner, I want a card whose image failed to host to be skipped by the matcher without breaking it, so that one bad image does not block scanning.
 42. As a collector, I want to find a Card by its id in the catalog API, so that the app can show my draft's cards after a refresh.
+43. As a collector, I want to keep capturing while earlier photos are still being matched, with the app matching a few at a time and queuing the rest, so that a stack of cards scans at my pace.
+44. As a collector, I want a Scan that failed to match to show a clear failure on my own photo and offer Retry or Remove, so that one bad match does not lose the rest of my session.
+45. As a collector, I want "Review and add" to wait until every Scan has finished matching, so that nothing I photographed is left out by accident.
 
 ## Implementation Decisions
 
@@ -67,10 +70,10 @@ This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole bi
 - Scanning starts from a Collection and has its own screen scoped to that Collection. After a successful add, the user returns to the Collection's page.
 - The browser captures one still per tap, using the camera, or a file picker when the camera is unavailable. Both feed the same pipeline.
 - The browser crops to the on-screen guide and downsizes to about 1024 pixels on the long side, then uploads a JPEG. Server-side card detection and cropping are not part of Phase 1.
-- Capture adds 1 to the matched card's quantity in the draft, merging rows for the same card.
+- Each capture adds a Scan with quantity 1 to the draft at once, showing the top candidate. Up to three matches run at the same time and further captures queue. Scans are not merged; the review step adds up the quantities of Scans that chose the same Card.
 
 **Draft (frontend only)**
-- A list of (card id, quantity to add) for one Collection, held in memory and mirrored to local browser storage, keyed per Collection. The draft stores only ids and quantities; card details are fetched from the backend when rendering.
+- A list of Scans for one Collection, held in memory and mirrored to local browser storage, keyed per Collection. A stored Scan holds only ids and a quantity: the chosen card id, the quantity to add, and the ids of the alternative candidates. Card details are fetched from the backend when rendering. Photos are never stored, and Scans still queued, loading or failed live in memory only.
 - A draft whose Collection fails to load as missing is dropped.
 - On review, the frontend reads the Collection's current quantities for the draft's cards using the existing Collection entries lookup (card id filter, at most 100 per request), computes an absolute target per card as current plus added, and sends the existing bulk update. The bulk update is already idempotent on retry and reports applied, removed or declined per item with a machine-readable reason.
 - After the response: applied rows are removed from the draft, declined rows stay with their reason, and the whole draft clears only when nothing was declined. The review step shows the Collection's running total against its capacity limit as a warning only; the server remains the authority.
@@ -80,7 +83,7 @@ This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole bi
 
 **Match endpoint (new, authenticated)**
 - A new authenticated POST takes one uploaded image and returns ranked candidates, each with a score and a card summary (id, name, expansion set, card number, hosted image address), plus a `confident` flag.
-- The server owns the confidence threshold. `confident` is true only when the top score clears the threshold and the runner-up is clearly behind. A near-tie, such as the same artwork reprinted in two Expansion Sets, is non-confident and is never auto-picked.
+- The server owns the confidence threshold. `confident` is true only when the top score clears the threshold and the runner-up is clearly behind. A near-tie, such as the same artwork reprinted in two Expansion Sets, is non-confident. A non-confident result carries up to five candidates, and a confident one carries only the matched Card.
 - The uploaded image is processed in memory and not stored by Cardstack. The route has a body size cap and the existing rate limiting applies. The catalog holds only Indonesian prints, so only Indonesian cards are matchable and no foreign-edition handling is built or tested.
 - Cards without a hosted image have no embedding and are not matchable.
 - The endpoint's response schema is final from the first version, so the generated frontend client does not change when the matcher is replaced.
@@ -118,7 +121,7 @@ A good test exercises external behavior only: a request in and a response out at
 Seams, preferring existing ones:
 - **Backend: the Huma HTTP boundary against real Postgres** (ADR-0005; the backend feature tests described in the MVP spec). The match endpoint and the card id filter are tested here, end to end. The stub is tested for its contract and for being auth-only. The real matcher is tested with the embedding provider faked, covering the confident, near-tie and unembedded-card cases and the pgvector search against real Postgres.
 - **Backend: the embedding provider boundary** is the single new seam on the backend: faked in tests. The real provider is only ever called by the spike and the batch job, never in CI.
-- **Frontend: the scan route, rendered with the generated API client mocked** (the existing Vitest and Testing Library feature-test pattern). It covers capture to draft, merging duplicates, the candidate pick and skip, quantity edits, persistence across a re-render from local storage, review, absolute-target conversion, and applied versus declined handling. The new seam here is the frame source (camera or file picker) that yields a JPEG, faked in tests.
+- **Frontend: the scan route, rendered with the generated API client mocked** (the existing Vitest and Testing Library feature-test pattern). It covers capture to draft, parallel matching with a queue, loading and failed rows, the candidate dropdown, duplicates as separate Scans, quantity edits, persistence across a re-render from local storage, review, absolute-target conversion, and applied versus declined handling. The new seam here is the frame source (camera or file picker) that yields a JPEG, faked in tests.
 - **One Playwright end-to-end spec** on the file-picker path with a stubbed match response, signed in through the existing Clerk e2e setup, covering scan, review and add into a seeded Collection. It does not need a camera.
 - **The accuracy spike is an offline script and report**, not a CI test. It is run on demand, outside CI.
 
@@ -136,6 +139,7 @@ Prior art: the bulk update's service and route tests, the catalog and Collection
 - Any scan-screen privacy notice.
 - A backend feature switch for the stub.
 - Deduplicating a card held in view across several captures. Each tap is one capture.
+- A "none of these" option that searches the catalog by hand when no candidate is right.
 
 ## Further Notes
 
@@ -143,3 +147,4 @@ Prior art: the bulk update's service and route tests, the catalog and Collection
 - Free-tier limits for Gemini are unpublished and Voyage's free-trial rate limits are unverified, so the spike should also record real throughput for the batch job.
 - The research note lists a half-day spike design (30 real photos against about 200 catalog cards, Voyage, Gemini and a local control) that the spike ticket can reuse.
 - `VITE_*` values are baked in at build time, so enabling the scan button in production is a frontend rebuild (see the deployment docs).
+- Amended after ticket 04: the scan flow changed from "confident adds, otherwise pick or skip" to "every capture is a Scan row at once" (stories 6 to 15, 43 to 45, and the flow and draft decisions above). Tickets 08 (layout prototype) and 09 (implementation) carry the change. The backend is untouched, so a wrong confident match is fixed by removing the Scan and rescanning.
