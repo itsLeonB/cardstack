@@ -313,16 +313,20 @@ describe("the Review and add gate", () => {
   })
 
   it("is not blocked by a failed Scan", async () => {
-    replies = ["fail"]
+    replies = ["fail", { confident: true, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
     await rowOf("Could not match this photo.")
+    await capture()
+    await rowOf("Card 1")
+    await expandSheet()
 
+    expect(screen.getByText("Could not match this photo.")).toBeTruthy()
     expect(
       screen
         .getByRole("button", { name: "Review and add" })
         .hasAttribute("disabled")
-    ).toBe(true)
+    ).toBe(false)
   })
 })
 

@@ -52,6 +52,20 @@ describe("MatchQueue", () => {
     expect(started).toEqual(["a", "b", "c", "d"])
   })
 
+  it("aborts everything on cancelAll without starting a waiting match", () => {
+    const { queue, started, signals } = harness()
+    for (const id of ["a", "b", "c", "d", "e"]) queue.add(id, id)
+
+    queue.cancelAll()
+
+    expect(["a", "b", "c"].map((id) => signals.get(id)!.aborted)).toEqual([
+      true,
+      true,
+      true,
+    ])
+    expect(started).toEqual(["a", "b", "c"])
+  })
+
   it("keeps going after a match fails", async () => {
     const started: string[] = []
     const queue = new MatchQueue<string>(1, async (id) => {

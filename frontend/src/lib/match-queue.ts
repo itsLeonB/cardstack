@@ -37,8 +37,11 @@ export class MatchQueue<T> {
   }
 
   cancelAll() {
-    for (const id of [...this.running.keys()]) this.cancel(id)
+    // Drop the waiting items first: freeing a slot must not start one of them.
     this.waiting = []
+    const controllers = [...this.running.values()]
+    this.running.clear()
+    for (const controller of controllers) controller.abort()
   }
 
   private pump() {
