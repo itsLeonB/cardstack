@@ -48,6 +48,8 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	if len(adminEmails) > 0 {
 		// Guests pass Guard so AdminOnly can answer them with the same 404 as a
 		// signed-in non-Admin. perUser runs first, so probing is rate-limited.
-		endpoint.RegisterAll(api, handler.NewAdminHandler().Routes(), guestsAllowed, perUser, authpkg.AdminOnly(api, adminEmails))
+		adminOnly := authpkg.AdminOnly(api, adminEmails)
+		endpoint.RegisterAll(api, handler.NewAdminHandler().Routes(), guestsAllowed, perUser, adminOnly)
+		endpoint.RegisterAll(api, handler.NewAdminSetHandler(services.AdminSets).Routes(), guestsAllowed, perUser, adminOnly)
 	}
 }
