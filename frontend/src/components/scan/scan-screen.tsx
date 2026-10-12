@@ -82,7 +82,8 @@ export function ScanScreen({
   const hasCamera = source.camera === "starting" || source.camera === "ready"
 
   return (
-    <div className="mx-auto flex h-[calc(100svh-3.5rem)] w-full max-w-md flex-col">
+    // The header is 3.5rem plus its 1px bottom border.
+    <div className="mx-auto flex h-[calc(100svh-3.5rem-1px)] w-full max-w-md flex-col">
       {status}
       <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">
         {hasCamera ? (
@@ -134,7 +135,7 @@ export function ScanScreen({
             </Button>
           )}
           <label
-            className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
+            className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
           >
             Choose a photo
             <input
