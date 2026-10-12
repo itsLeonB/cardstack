@@ -43,7 +43,7 @@ export function ScanSheet({
   const cardIds = scans.flatMap((s) =>
     s.status === "resolved" ? [s.cardId!] : []
   )
-  const { cards } = useDraftCards(cardIds, seen)
+  const { cards, missing, retry } = useDraftCards(cardIds, seen)
   const shown = open ? scans : scans.slice(0, 1)
 
   return (
@@ -72,9 +72,7 @@ export function ScanSheet({
           </button>
         </h2>
         {pendingCount > 0 && (
-          <span className="text-sm text-muted-foreground">
-            {pendingCount} still matching
-          </span>
+          <span className="text-sm">{pendingCount} still matching</span>
         )}
         <Button size="sm" disabled={!reviewable} onClick={onReview}>
           Review and add
@@ -95,10 +93,12 @@ export function ScanSheet({
               scan={scan}
               card={scan.cardId ? cards.get(scan.cardId) : undefined}
               seen={seen}
+              lookup={missing}
               onRaise={() => onRaise(scan.key)}
               onLower={() => onLower(scan.key)}
               onChoose={(cardId) => onChoose(scan.key, cardId)}
               onRetry={() => onRetry(scan.key)}
+              onRetryLookup={retry}
               onRemove={() => onRemove(scan.key)}
             />
           ))}

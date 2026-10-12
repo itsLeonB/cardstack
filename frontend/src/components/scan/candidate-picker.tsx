@@ -70,7 +70,15 @@ function CandidateList({
 }) {
   const { cards, missing } = useDraftCards(candidateIds, seen)
   return (
-    <DropdownMenuRadioGroup value={chosen ?? ""} onValueChange={onChoose}>
+    <DropdownMenuRadioGroup
+      value={chosen ?? ""}
+      onValueChange={(cardId) => {
+        // The picked card shows at once, before the sheet's own lookup answers.
+        const card = cards.get(cardId)
+        if (card) seen.set(cardId, card)
+        onChoose(cardId)
+      }}
+    >
       {candidateIds.map((id) => {
         const card = cards.get(id)
         return (
@@ -89,7 +97,7 @@ function CardText({ card, name }: { card?: CardSummary; name: string }) {
     <span className="flex min-w-0 flex-1 flex-col">
       <span className="truncate text-sm font-medium">{name}</span>
       {card && (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs">
           {card.expansionSet.code} · No. {card.localId}
         </span>
       )}

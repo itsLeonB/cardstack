@@ -188,6 +188,37 @@ describe("the review rows", () => {
   })
 })
 
+describe("a decline reason that is out of date", () => {
+  it("goes once the declined Card's Scan is edited", async () => {
+    seed([scan(1), scan(2)])
+    declines.set("card-2", "capacity_exceeded")
+    await openReview()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+    expect(
+      await screen.findByText("Not added: Declined: capacity_exceeded")
+    ).toBeTruthy()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Back to scanning" })
+    )
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Draft \(/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Raise quantity of Card 2" })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Review and add" })
+    )
+
+    const row = await reviewRow("Card 2")
+    expect(within(row).getByText("+2")).toBeTruthy()
+    expect(screen.queryByText(/Not added/)).toBeNull()
+  })
+})
+
 describe("adding to the Collection", () => {
   it("sends absolute targets, held plus added, and returns to the Collection when all is applied", async () => {
     seed([scan(1), scan(1), scan(2, 3)])

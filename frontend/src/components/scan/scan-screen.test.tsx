@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -42,6 +43,8 @@ let matchCalls = 0
 let aborted = 0
 let uploads: Blob[] = []
 let catalogRequests: string[] = []
+let failLookup = new Set<string>()
+let holdLookup = new Set<string>()
 
 interface JsonBody {
   data?: unknown
@@ -82,6 +85,11 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   if (url.pathname === "/catalog/cards") {
     const ids = url.searchParams.getAll("cardId")
     catalogRequests.push(url.search)
+    if (ids.some((id) => failLookup.has(id)))
+      return Promise.resolve(json({ title: "boom" }, 500))
+    // A lookup for one card that never answers, so a row cannot get its card from it.
+    if (ids.length === 1 && holdLookup.has(ids[0]))
+      return new Promise<Response>(() => {})
     const data = ids.map((id) => cardOf(Number(id.replace("card-", ""))))
     return Promise.resolve(
       json({ data, meta: { total: data.length, page: 1, limit: 100 } })
@@ -131,6 +139,8 @@ beforeEach(() => {
   aborted = 0
   uploads = []
   catalogRequests = []
+  failLookup = new Set()
+  holdLookup = new Set()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   URL.createObjectURL = vi.fn(() => "blob:photo")
   URL.revokeObjectURL = vi.fn()
@@ -386,6 +396,84 @@ describe("persistence", () => {
     renderScreen("col-1")
 
     expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+  })
+})
+
+describe("announcements", () => {
+  it("reads a repeat of the same match again", async () => {
+    replies = [
+      { confident: true, candidates: [candidate(1)] },
+      { confident: true, candidates: [candidate(1)] },
+    ]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    const status = screen.getByRole("status")
+    const first = status.querySelector("span")
+
+    await capture()
+    await waitFor(() => expect(status.querySelector("span")).not.toBe(first))
+    expect(status.textContent).toBe("Matched Card 1.")
+  })
+
+  it("does not announce the result of a Scan removed while its answer was on the way", async () => {
+    holding = true
+    renderScreen()
+    await capture()
+    const row = await rowOf("Matching…")
+
+    answer({ confident: true, candidates: [candidate(1)] })
+    fireEvent.click(within(row).getByRole("button", { name: /^Remove/ }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(screen.getByRole("status").textContent).not.toContain("Matched")
+  })
+})
+
+describe("the candidates", () => {
+  it("shows no dropdown when the matcher offers a single candidate", async () => {
+    replies = [{ confident: false, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+
+    await rowOf("Card 1")
+    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
+  })
+
+  it("shows the picked card at once, before the sheet's own lookup of it answers", async () => {
+    saveDraft("col-1", [
+      { cardId: "card-2", quantity: 1, candidateIds: ["card-2", "card-4"] },
+    ])
+    holdLookup = new Set(["card-4"])
+    renderScreen()
+    await expandSheet()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Change card for Card 2" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: /Card 4/ })
+    )
+
+    const row = screen.getByRole("listitem")
+    expect(within(row).getByText("Card 4")).toBeTruthy()
+    expect(within(row).queryByText("Loading…")).toBeNull()
+  })
+})
+
+describe("a Card that will not load", () => {
+  it("says so and retries the lookup", async () => {
+    saveDraft("col-1", [{ cardId: "card-2", quantity: 1, candidateIds: [] }])
+    failLookup = new Set(["card-2"])
+    renderScreen()
+    await expandSheet()
+
+    const row = await rowOf("Could not load card")
+    failLookup = new Set()
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Retry loading scan" })
+    )
+
+    expect(await rowOf("Card 2")).toBeTruthy()
   })
 })
 

@@ -8,6 +8,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { CandidatePicker } from "./candidate-picker"
 import { CardThumb, PhotoThumb } from "./card-thumb"
+import { MISSING_NAME } from "./use-draft-cards"
+import type { Missing } from "./use-draft-cards"
 import type { Scan } from "@/lib/use-draft-addition"
 import type { CardSummary } from "@/generated/models"
 
@@ -20,19 +22,24 @@ export function ScanRow({
   scan,
   card,
   seen,
+  lookup,
   onRaise,
   onLower,
   onChoose,
   onRetry,
+  onRetryLookup,
   onRemove,
 }: {
   scan: Scan
   card?: CardSummary
   seen: Map<string, CardSummary>
+  /** Why the Card is still absent, when it is; from the sheet's lookup. */
+  lookup: Missing
   onRaise: () => void
   onLower: () => void
   onChoose: (cardId: string) => void
   onRetry: () => void
+  onRetryLookup: () => void
   onRemove: () => void
 }) {
   const label = card?.name ?? "scan"
@@ -42,10 +49,10 @@ export function ScanRow({
       <CardThumb card={card} />
       <span className="flex min-w-0 flex-1 flex-col text-left">
         <span className="truncate text-sm font-medium">
-          {card?.name ?? "Loading…"}
+          {card?.name ?? MISSING_NAME[lookup]}
         </span>
         {card && (
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="truncate text-xs">
             {card.expansionSet.name} · No. {card.localId}
           </span>
         )}
@@ -81,7 +88,7 @@ export function ScanRow({
 
   return (
     <li className="flex items-center gap-2 rounded-xl border p-2">
-      {resolved && scan.candidateIds.length > 0 ? (
+      {resolved && scan.candidateIds.length > 1 ? (
         <CandidatePicker
           scan={scan}
           seen={seen}
@@ -117,6 +124,16 @@ export function ScanRow({
       )}
       {scan.status === "failed" && (
         <Button variant="outline" size="xs" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+      {resolved && !card && lookup === "failed" && (
+        <Button
+          variant="outline"
+          size="xs"
+          aria-label={`Retry loading ${label}`}
+          onClick={onRetryLookup}
+        >
           Retry
         </Button>
       )}

@@ -46,6 +46,10 @@ export function useScanDraft(
   const cancelled = useRef(new Set<string>())
   const announceRef = useRef(announce)
   announceRef.current = announce
+  // A Scan removed or discarded mid-match must not announce its result.
+  const say = (key: string, message: string) => {
+    if (!cancelled.current.has(key)) announceRef.current(message)
+  }
 
   const patch = useCallback(
     (key: string, change: Partial<Scan>) =>
@@ -70,14 +74,14 @@ export function useScanDraft(
             const top = candidates?.[0]?.card
             if (!top) {
               patch(key, { status: "failed", reason: "No card matched." })
-              announceRef.current("Scan failed: no card matched.")
+              say(key, "Scan failed: no card matched.")
             } else if (confident) {
               patch(key, {
                 status: "resolved",
                 cardId: top.id,
                 candidateIds: [],
               })
-              announceRef.current(`Matched ${top.name}.`)
+              say(key, `Matched ${top.name}.`)
             } else {
               patch(key, {
                 status: "resolved",
@@ -86,7 +90,8 @@ export function useScanDraft(
                   .slice(0, MAX_CANDIDATES)
                   .map((c) => c.card.id),
               })
-              announceRef.current(
+              say(
+                key,
                 `Possible match: ${top.name}. Choose another card if it is wrong.`
               )
             }
@@ -96,7 +101,7 @@ export function useScanDraft(
               status: "failed",
               reason: "Could not match this photo.",
             })
-            announceRef.current("Scan failed: could not match this photo.")
+            say(key, "Scan failed: could not match this photo.")
           }
         },
         MATCH_TIMEOUT_MS

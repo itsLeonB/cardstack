@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ReviewStep } from "./review-step"
@@ -26,13 +26,30 @@ export function ScanScreen({
   /** Every Scan was applied: the user goes back to the Collection. */
   onAdded: () => void
 }) {
-  const [announcement, setAnnouncement] = useState("")
-  const draft = useScanDraft(collectionId, setAnnouncement)
+  // Each message is a new node, so a repeat of the same text is read again.
+  const [announcement, setAnnouncement] = useState<{
+    id: number
+    text: string
+  }>()
+  const announcementId = useRef(0)
+  const draft = useScanDraft(collectionId, (text) =>
+    setAnnouncement({ id: ++announcementId.current, text })
+  )
   const [error, setError] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
-  // Reasons the Collection gave for declining a Card, from the last commit.
+  // Why the Collection declined a Card in the last commit, by card id.
   const [declined, setDeclined] = useState<Record<string, string>>({})
+
+  // A reason describes its Card's Scans as they were, so an edit to them makes it stale.
+  function forget(...cardIds: (string | undefined)[]) {
+    setDeclined((reasons) =>
+      Object.fromEntries(
+        Object.entries(reasons).filter(([id]) => !cardIds.includes(id))
+      )
+    )
+  }
+  const cardOf = (key: string) => draft.scans.find((s) => s.key === key)?.cardId
 
   async function capture(takeFrame: () => Promise<Blob>) {
     setError(null)
@@ -58,23 +75,27 @@ export function ScanScreen({
 
   const status = (
     <p role="status" className="sr-only">
-      {announcement}
+      {announcement && <span key={announcement.id}>{announcement.text}</span>}
     </p>
   )
 
+  // A fixed layer under the site header (3.5rem plus its 1px border), so the
+  // page's footer never shows behind the scan screen.
   if (reviewing) {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
-        {backLink}
-        {status}
-        <ReviewStep
-          collectionId={collectionId}
-          rows={summedRows(draft.scans)}
-          seen={draft.seen}
-          declined={declined}
-          onCommitted={finishCommit}
-          onBack={() => setReviewing(false)}
-        />
+      <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 overflow-y-auto bg-background">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
+          {backLink}
+          {status}
+          <ReviewStep
+            collectionId={collectionId}
+            rows={summedRows(draft.scans)}
+            seen={draft.seen}
+            declined={declined}
+            onCommitted={finishCommit}
+            onBack={() => setReviewing(false)}
+          />
+        </div>
       </div>
     )
   }
@@ -82,94 +103,107 @@ export function ScanScreen({
   const hasCamera = source.camera === "starting" || source.camera === "ready"
 
   return (
-    // The header is 3.5rem plus its 1px bottom border.
-    <div className="mx-auto flex h-[calc(100svh-3.5rem-1px)] w-full max-w-md flex-col">
-      {status}
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">
-        {hasCamera ? (
-          // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
-          <div
-            className="relative w-full overflow-hidden"
-            style={{ aspectRatio: VIEW_ASPECT }}
-          >
-            <video
-              ref={source.videoRef}
-              playsInline
-              muted
-              aria-label="Camera viewfinder"
-              className="size-full object-cover"
-            />
+    <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 bg-background">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col">
+        {status}
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">
+          {hasCamera ? (
+            // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
             <div
-              aria-hidden
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
-              style={{
-                height: `${GUIDE_HEIGHT * 100}%`,
-                aspectRatio: CARD_ASPECT,
-              }}
-            />
-          </div>
-        ) : (
-          <p role="alert" className="px-4 pt-20 text-center text-sm">
-            {source.camera === "denied"
-              ? "Camera access was denied. Allow it in your browser's site settings, or choose a photo instead."
-              : "No camera is available here. Choose a photo instead."}
-          </p>
-        )}
-        {backLink && <div className="absolute top-3 left-3">{backLink}</div>}
-        {error && (
-          <p
-            role="alert"
-            className="absolute inset-x-3 top-14 rounded-lg bg-background p-2 text-sm text-destructive"
-          >
-            {error}
-          </p>
-        )}
-        <div className="absolute inset-x-0 bottom-3 flex flex-wrap justify-center gap-2 px-4">
-          {hasCamera && (
-            <Button
-              size="lg"
-              disabled={source.camera !== "ready"}
-              onClick={() => void capture(source.captureCamera)}
+              className="relative w-full overflow-hidden"
+              style={{ aspectRatio: VIEW_ASPECT }}
             >
-              Capture
-            </Button>
+              <video
+                ref={source.videoRef}
+                playsInline
+                muted
+                aria-label="Camera viewfinder"
+                className="size-full object-cover"
+              />
+              <div
+                aria-hidden
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
+                style={{
+                  height: `${GUIDE_HEIGHT * 100}%`,
+                  aspectRatio: CARD_ASPECT,
+                }}
+              />
+            </div>
+          ) : (
+            <p role="alert" className="px-4 pt-20 text-center text-sm">
+              {source.camera === "denied"
+                ? "Camera access was denied. Allow it in your browser's site settings, or choose a photo instead."
+                : "No camera is available here. Choose a photo instead."}
+            </p>
           )}
-          <label
-            className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
-          >
-            Choose a photo
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0]
-                event.currentTarget.value = ""
-                if (file) void capture(() => source.fromFile(file))
-              }}
-            />
-          </label>
+          {backLink && <div className="absolute top-3 left-3">{backLink}</div>}
+          {error && (
+            <p
+              role="alert"
+              className="absolute inset-x-3 top-14 rounded-lg bg-background p-2 text-sm text-destructive"
+            >
+              {error}
+            </p>
+          )}
+          <div className="absolute inset-x-0 bottom-3 flex flex-wrap justify-center gap-2 px-4">
+            {hasCamera && (
+              <Button
+                size="lg"
+                disabled={source.camera !== "ready"}
+                onClick={() => void capture(source.captureCamera)}
+              >
+                Capture
+              </Button>
+            )}
+            <label
+              className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
+            >
+              Choose a photo
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0]
+                  event.currentTarget.value = ""
+                  if (file) void capture(() => source.fromFile(file))
+                }}
+              />
+            </label>
+          </div>
         </div>
+        <ScanSheet
+          scans={draft.scans}
+          seen={draft.seen}
+          pendingCount={draft.pendingCount}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          reviewable={reviewable}
+          onRaise={(key) => {
+            forget(cardOf(key))
+            draft.raise(key)
+          }}
+          onLower={(key) => {
+            forget(cardOf(key))
+            draft.lower(key)
+          }}
+          onChoose={(key, cardId) => {
+            forget(cardOf(key), cardId)
+            draft.choose(key, cardId)
+          }}
+          onRetry={draft.retry}
+          onRemove={(key) => {
+            forget(cardOf(key))
+            draft.remove(key)
+          }}
+          onDiscard={() => {
+            draft.discard()
+            setDeclined({})
+            setSheetOpen(false)
+          }}
+          onReview={() => setReviewing(true)}
+        />
       </div>
-      <ScanSheet
-        scans={draft.scans}
-        seen={draft.seen}
-        pendingCount={draft.pendingCount}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        reviewable={reviewable}
-        onRaise={draft.raise}
-        onLower={draft.lower}
-        onChoose={draft.choose}
-        onRetry={draft.retry}
-        onRemove={draft.remove}
-        onDiscard={() => {
-          draft.discard()
-          setDeclined({})
-          setSheetOpen(false)
-        }}
-        onReview={() => setReviewing(true)}
-      />
     </div>
   )
 }
