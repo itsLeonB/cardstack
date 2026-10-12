@@ -5,22 +5,30 @@
  * OpenAPI spec version: 1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
-  ErrorModel
+  CardImageUploadInputBody,
+  EnvelopeAdminCard,
+  EnvelopeCardImageUpload,
+  ErrorModel,
+  UpsertCardInputBody
 } from '../../models';
 
 import { customFetch } from '../../../lib/http.ts';
@@ -52,7 +60,312 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export type adminCheckResponse204 = {
+export type upsertAdminCardResponse200 = {
+  data: EnvelopeAdminCard
+  status: 200
+}
+
+export type upsertAdminCardResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type upsertAdminCardResponseSuccess = (upsertAdminCardResponse200) & {
+  headers: Headers;
+};
+export type upsertAdminCardResponseError = (upsertAdminCardResponseDefault) & {
+  headers: Headers;
+};
+
+export type upsertAdminCardResponse = (upsertAdminCardResponseSuccess | upsertAdminCardResponseError)
+
+export const getUpsertAdminCardUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards`
+}
+
+/**
+ * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
+ */
+export const upsertAdminCard = async (upsertCardInputBody: UpsertCardInputBody, options?: Parameters<typeof customFetch>[1]): Promise<upsertAdminCardResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<upsertAdminCardResponse>(getUpsertAdminCardUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(upsertCardInputBody)
+  }
+);}
+
+
+
+
+
+export const getUpsertAdminCardMutationKey = () => ['upsertAdminCard'] as const;
+
+export const getUpsertAdminCardMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertAdminCard>>, TError,UpsertAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertAdminCard>>, TError,UpsertAdminCardMutationVariables, TContext> => {
+
+const mutationKey = getUpsertAdminCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertAdminCard>>, UpsertAdminCardMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  upsertAdminCard(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof upsertAdminCard>>>
+    export type UpsertAdminCardMutationBody = UpsertCardInputBody
+    export type UpsertAdminCardMutationError = ErrorModel
+    export type UpsertAdminCardMutationVariables = {data: UpsertCardInputBody}
+
+    /**
+ * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
+ */
+export const useUpsertAdminCard = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertAdminCard>>, TError,UpsertAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof upsertAdminCard>>,
+        TError,
+        UpsertAdminCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpsertAdminCardMutationOptions(options), queryClient);
+    }
+    export type confirmAdminCardImageResponse200 = {
+  data: EnvelopeAdminCard
+  status: 200
+}
+
+export type confirmAdminCardImageResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type confirmAdminCardImageResponseSuccess = (confirmAdminCardImageResponse200) & {
+  headers: Headers;
+};
+export type confirmAdminCardImageResponseError = (confirmAdminCardImageResponseDefault) & {
+  headers: Headers;
+};
+
+export type confirmAdminCardImageResponse = (confirmAdminCardImageResponseSuccess | confirmAdminCardImageResponseError)
+
+export const getConfirmAdminCardImageUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards/${id}/image-confirm`
+}
+
+/**
+ * @summary Check the uploaded image's first bytes and, if it is a JPEG, PNG or WebP, set it as the Card's image; otherwise delete it (422)
+ */
+export const confirmAdminCardImage = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<confirmAdminCardImageResponse> => {
+
+  return customFetch<confirmAdminCardImageResponse>(getConfirmAdminCardImageUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmAdminCardImageMutationKey = () => ['confirmAdminCardImage'] as const;
+
+export const getConfirmAdminCardImageMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmAdminCardImage>>, TError,ConfirmAdminCardImageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmAdminCardImage>>, TError,ConfirmAdminCardImageMutationVariables, TContext> => {
+
+const mutationKey = getConfirmAdminCardImageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmAdminCardImage>>, ConfirmAdminCardImageMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  confirmAdminCardImage(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmAdminCardImageMutationResult = NonNullable<Awaited<ReturnType<typeof confirmAdminCardImage>>>
+
+    export type ConfirmAdminCardImageMutationError = ErrorModel
+    export type ConfirmAdminCardImageMutationVariables = {id: string}
+
+    /**
+ * @summary Check the uploaded image's first bytes and, if it is a JPEG, PNG or WebP, set it as the Card's image; otherwise delete it (422)
+ */
+export const useConfirmAdminCardImage = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmAdminCardImage>>, TError,ConfirmAdminCardImageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof confirmAdminCardImage>>,
+        TError,
+        ConfirmAdminCardImageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmAdminCardImageMutationOptions(options), queryClient);
+    }
+    export type requestAdminCardImageUploadResponse200 = {
+  data: EnvelopeCardImageUpload
+  status: 200
+}
+
+export type requestAdminCardImageUploadResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type requestAdminCardImageUploadResponseSuccess = (requestAdminCardImageUploadResponse200) & {
+  headers: Headers;
+};
+export type requestAdminCardImageUploadResponseError = (requestAdminCardImageUploadResponseDefault) & {
+  headers: Headers;
+};
+
+export type requestAdminCardImageUploadResponse = (requestAdminCardImageUploadResponseSuccess | requestAdminCardImageUploadResponseError)
+
+export const getRequestAdminCardImageUploadUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards/${id}/image-upload`
+}
+
+/**
+ * @summary Sign a short-lived PUT address for the Card's image; the server picks the object key
+ */
+export const requestAdminCardImageUpload = async (id: string,
+    cardImageUploadInputBody: CardImageUploadInputBody, options?: Parameters<typeof customFetch>[1]): Promise<requestAdminCardImageUploadResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<requestAdminCardImageUploadResponse>(getRequestAdminCardImageUploadUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardImageUploadInputBody)
+  }
+);}
+
+
+
+
+
+export const getRequestAdminCardImageUploadMutationKey = () => ['requestAdminCardImageUpload'] as const;
+
+export const getRequestAdminCardImageUploadMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAdminCardImageUpload>>, TError,RequestAdminCardImageUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestAdminCardImageUpload>>, TError,RequestAdminCardImageUploadMutationVariables, TContext> => {
+
+const mutationKey = getRequestAdminCardImageUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestAdminCardImageUpload>>, RequestAdminCardImageUploadMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  requestAdminCardImageUpload(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestAdminCardImageUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestAdminCardImageUpload>>>
+    export type RequestAdminCardImageUploadMutationBody = CardImageUploadInputBody
+    export type RequestAdminCardImageUploadMutationError = ErrorModel
+    export type RequestAdminCardImageUploadMutationVariables = {id: string;data: CardImageUploadInputBody}
+
+    /**
+ * @summary Sign a short-lived PUT address for the Card's image; the server picks the object key
+ */
+export const useRequestAdminCardImageUpload = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAdminCardImageUpload>>, TError,RequestAdminCardImageUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof requestAdminCardImageUpload>>,
+        TError,
+        RequestAdminCardImageUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestAdminCardImageUploadMutationOptions(options), queryClient);
+    }
+    export type adminCheckResponse204 = {
   data: void
   status: 204
 }

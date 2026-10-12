@@ -8,6 +8,81 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
+ */
+export const upsertAdminCardBodyIllustratorMax = 200;
+
+export const upsertAdminCardBodyLocalIdMax = 32;
+
+export const upsertAdminCardBodyNameMax = 200;
+
+
+
+export const UpsertAdminCardBody = zod.object({
+  "category": zod.enum(['Pokémon', 'Trainer', 'Energi']),
+  "expansionSetId": zod.string().describe('The Expansion Set the Card belongs to (422 if unknown).'),
+  "illustrator": zod.string().max(upsertAdminCardBodyIllustratorMax).optional(),
+  "localId": zod.string().min(1).max(upsertAdminCardBodyLocalIdMax).describe('The collector number within the set, e.g. "001". Entering an existing set and number updates that Card.'),
+  "name": zod.string().min(1).max(upsertAdminCardBodyNameMax),
+  "rarityId": zod.string().optional().describe('A Rarity of the set\'s Game. Defaults to "Tanpa Tanda".'),
+  "tag": zod.enum(['Item', 'Supporter', 'Stadium']).optional().describe('Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise).')
+})
+
+export const UpsertAdminCardResponse = zod.object({
+  "data": zod.object({
+  "category": zod.string(),
+  "expansionSetId": zod.string(),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarityId": zod.string(),
+  "tag": zod.string()
+})
+})
+
+/**
+ * @summary Check the uploaded image's first bytes and, if it is a JPEG, PNG or WebP, set it as the Card's image; otherwise delete it (422)
+ */
+export const ConfirmAdminCardImageParams = zod.object({
+  "id": zod.string().describe('Card ID')
+})
+
+export const ConfirmAdminCardImageResponse = zod.object({
+  "data": zod.object({
+  "category": zod.string(),
+  "expansionSetId": zod.string(),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarityId": zod.string(),
+  "tag": zod.string()
+})
+})
+
+/**
+ * @summary Sign a short-lived PUT address for the Card's image; the server picks the object key
+ */
+export const RequestAdminCardImageUploadParams = zod.object({
+  "id": zod.string().describe('Card ID')
+})
+
+export const RequestAdminCardImageUploadBody = zod.object({
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']).describe('The Content-Type the PUT must carry; it is part of the signature.')
+})
+
+export const RequestAdminCardImageUploadResponse = zod.object({
+  "data": zod.object({
+  "contentType": zod.string(),
+  "expiresAt": zod.iso.datetime({"offset":true}),
+  "url": zod.string()
+})
+})
+
+/**
  * @summary Check that the caller is an Admin
  */
 export const AdminCheckResponse = zod.void()

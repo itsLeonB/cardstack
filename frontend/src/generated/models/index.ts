@@ -6,13 +6,19 @@
  */
 
 export * from './addEntryInputBody.ts';
+export * from './adminCard.ts';
 export * from './bulkUpdateEntriesInputBody.ts';
 export * from './bulkUpdateItem.ts';
 export * from './cardHolding.ts';
+export * from './cardImageUpload.ts';
+export * from './cardImageUploadInputBody.ts';
+export * from './cardImageUploadInputBodyContentType.ts';
 export * from './cardSummary.ts';
 export * from './catalogFacets.ts';
 export * from './collectionBody.ts';
 export * from './collectionSummary.ts';
+export * from './envelopeAdminCard.ts';
+export * from './envelopeCardImageUpload.ts';
 export * from './envelopeCatalogFacets.ts';
 export * from './envelopeCollectionSummary.ts';
 export * from './envelopeHealthStatus.ts';
@@ -52,3 +58,6 @@ export * from './seriesBrowseResult.ts';
 export * from './seriesSummary.ts';
 export * from './stringFacetOption.ts';
 export * from './updateEntryInputBody.ts';
+export * from './upsertCardInputBody.ts';
+export * from './upsertCardInputBodyCategory.ts';
+export * from './upsertCardInputBodyTag.ts';
