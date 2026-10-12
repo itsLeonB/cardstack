@@ -40,6 +40,10 @@ _Avoid_: conflating Card Tag with Card Variant — a Tag describes what a card *
 **Card Variant**:
 Not modeled in MVP. A specific print finish of a Card (normal, reverse holo, holo, first edition, ...) — dropped from the schema because no data source currently ingested supplies finish/variant data. Inventory Entry and Master Inventory track against Card directly until a source that carries finish data is actually added. Do not conflate with Card Tag (see above).
 
+**Curated**:
+A Card or Expansion Set whose contents were last written by an Admin rather than by an upstream source. Curation is sticky: once a row is curated, ingestion never overwrites it, even when the upstream source later publishes the same Expansion Set or Card; ingestion still fills in the numbers that are not curated. Only a manual change by the operator hands a curated row back to ingestion. Exists because some real Expansion Sets have no usable upstream source — the Indonesian promo set `SM-P` ("Kartu Promo Matahari & Bulan") is absent from the Asia site — so their Cards must be entered by hand.
+_Avoid_: calling a Card "custom" or "manual" — those say how it was typed, not that ingestion must leave it alone.
+
 **Collection**:
 A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit. May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement, no binder page/slot layout — that's a later feature). Strictly private to its owner in MVP; sharing is a post-MVP concern.
 
@@ -65,6 +69,10 @@ _Avoid_: "account" for the Clerk-side login and "user" for the Cardstack-side ro
 **Guest**:
 A caller with no `Authorization` header. A Guest gets a deliberate catalog preview: browse Series and Expansion Sets, name search, and one page of 24 results; filters on rarity, category and tag, facet counts and further pages require an Auth Identity. A request whose token is present but invalid is not a Guest, it is rejected with 401.
 _Avoid_: calling an expired-token caller a Guest.
+
+**Admin**:
+A signed-in caller the operator has named as allowed to write catalog content by hand (Expansion Sets and Cards, with their images). An Admin is an ordinary Auth Identity that the operator has listed; it is not a role stored in Cardstack, and nothing in the product shows a signed-in user that Admin exists. Whatever an Admin writes becomes Curated.
+_Avoid_: "admin user" or "admin account" — there is no separate account type, only an Auth Identity that happens to be listed.
 
 **Wishlist**:
 Not modeled in MVP. A future concept for cards a user wants but doesn't own; do not conflate with Inventory Entry (owned quantity) until it's actually built.

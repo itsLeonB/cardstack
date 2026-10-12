@@ -1,0 +1,23 @@
+# Catalog content with no upstream source is curated by hand through an in-app admin, and curated rows beat ingestion
+
+The Indonesian promo set `SM-P` ("Kartu Promo Matahari & Bulan", about 186 cards) is missing from `asia.pokemon-card.com`, and no other source has it in a usable form: TCGdex has no Indonesian copy, Bulbapedia and Pokepedia sit behind bot challenges, and the Hong Kong and Taiwan `SM-P` sets are different cards. Card scanning needs an image of the Indonesian print (ADR-0018), which only a person holding the card can supply. So the catalog needs a way to enter Expansion Sets and Cards by hand, with images, that does not depend on a scrapeable source.
+
+We build it as an admin area inside the existing app, not as a separate system. The API gets admin routes, gated by an env-configured set of emails (`ADMIN_EMAILS`) checked against the verified `email` claim of the Clerk token (ADR-0015); a signed-in caller who is not listed gets a 404. The routes are registered only when the allowlist and the R2 settings are both configured. The frontend gets one route-split `/admin` page that is linked from nowhere, so it loads for nobody who does not type the address. The API writes through the existing catalog domain code and the existing object-store adapter, and the admin can write to any Expansion Set or Card, whatever its source.
+
+Admin writes mark the row `curated` (a boolean on `cards` and `expansion_sets`), and ingestion never overwrites a curated row. This reverses the earlier lean that the Asia site should win if it later publishes `SM-P`: a hand-written row is a deliberate correction, and silently losing it on the next scrape is the worse failure. A curated row only returns to ingestion by a manual change in the database; there is no UI for it.
+
+Images are uploaded with a presigned PUT: the API signs a short-lived URL for a server-chosen key (`cards/<card id>`) and a signed content type, and the browser sends the bytes straight to R2. The checks on the file (type, size, dimensions) live in the admin frontend, not the backend, so the API does not carry upload bytes and the same upload helper can serve later uses. After the PUT the client confirms. The API reads the object's first bytes and checks for a JPEG, PNG or WebP signature; on a mismatch it deletes the object and refuses, and only a passing object gets its key set on the row.
+
+## Considered Options
+
+- An off-the-shelf CMS (Directus, Baserow, NocoDB, Keystatic) with its own store, and a new ingestion adapter that pulls from it. Rejected: none of them can call our image-hosting pipeline, so images would be re-hosted in a second step; each adds a service, a login (a second identity system next to Clerk) and a licence or hosting-tier risk; and the adapter plus export format is more code than the admin itself.
+- A local in-house tool writing a folder of JSON and images that the backend ingests. Rejected: it works, but needs the same upload and ingestion code, offers no way to correct a live row, and leaves the email allowlist with nothing to guard.
+- Letting the admin write only to sets it created. Rejected: fixing one wrong name on an Asia card would then need a database edit, and the next scrape would overwrite it anyway.
+
+## Consequences
+
+The Railway API now holds an R2 write credential, scoped to the one bucket and used only to sign admin uploads. R2 CORS must allow the frontend origin to PUT. R2 cannot cap object size in a presign and does not inspect the bytes, and the browser checks can be bypassed, so the frontend file checks are a convenience for one trusted editor, not a security boundary; the guardrails are the server-chosen key, the signed content type, a short expiry and the signature check on confirm. An oversized object can still be uploaded and is only caught if the signature check or a later embedding fails. The allowlist is only as strong as Clerk's email verification: the instance has required a verified email at sign-up from the start, so the allowlist matches the token's `email` claim alone. Turning that setting off would turn the allowlist into a guess.
+
+Embeddings are not made on save. After a session the operator runs `make embed-catalog ARGS="-set SM-P"` as for any other set (docs/agents/deployment/embeddings.md), so a curated Card cannot be scanned until that batch has run.
+
+The first content is `SM-P`. Its card list (number, English name, category code) comes from Bulbapedia's ITCG page as facts only, with attribution, because the page is CC BY-NC-SA 2.5 and the app must stay non-commercial to use it. Rarity is `Tanpa Tanda` for every card, names are English until corrected from the physical card, Pokémon cards carry no HP or attacks, and a Card exists only with a photographed image.
