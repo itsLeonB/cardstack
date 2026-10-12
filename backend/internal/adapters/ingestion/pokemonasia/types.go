@@ -29,5 +29,6 @@ type cardDetail struct {
 	LocalID        string
 	Illustrator    string
 	RegulationMark string
+	ImageURL       string
 	Attributes     map[string]any
 }
