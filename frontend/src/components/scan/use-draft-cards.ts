@@ -2,7 +2,6 @@ import { useRef } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { getSearchCatalogCardsQueryOptions } from "@/generated/endpoints/catalog/catalog"
 import type { CardSummary } from "@/generated/models"
-import type { DraftRow } from "@/lib/draft-addition"
 
 // The catalog's `cardId` filter takes at most 100 ids per request.
 export const MAX_CARD_IDS_PER_REQUEST = 100
@@ -15,16 +14,16 @@ export function chunked(ids: string[]) {
 }
 
 /**
- * Resolves the draft's card ids to cards. `matchedThisVisit` fills in cards
- * just matched, so a new row never flashes empty while the lookup runs.
+ * Resolves card ids to cards. `seen` holds the cards the matcher has returned
+ * this visit, so a new row never flashes empty while the lookup runs.
  * `missing` says why a card is still absent: `loading`, `unavailable` (every
  * lookup answered 200 without it) or `failed` (a lookup answered non-200; the
  * generated client does not throw, so only the status tells). `retry` re-asks
  * the lookups that did not answer 200.
  */
 export function useDraftCards(
-  rows: DraftRow[],
-  matchedThisVisit: Map<string, CardSummary>
+  cardIds: string[],
+  seen: Map<string, CardSummary>
 ) {
   // Sorted, so a quantity edit or a re-order keeps the same cache entry.
   // Every card answered so far. A changed id set is a new query with no data
@@ -32,7 +31,7 @@ export function useDraftCards(
   // in `useQueries`), so rows already read stay readable from here. Only ever
   // grows, so filling it during render is safe to repeat.
   const loaded = useRef(new Map<string, CardSummary>())
-  const ids = rows.map((r) => r.cardId).sort()
+  const ids = [...new Set(cardIds)].sort()
   const results = useQueries({
     queries: chunked(ids).map((cardId) =>
       getSearchCatalogCardsQueryOptions({
@@ -47,7 +46,7 @@ export function useDraftCards(
         loaded.current.set(card.id, card)
     }
   }
-  const cards = new Map([...matchedThisVisit, ...loaded.current])
+  const cards = new Map([...seen, ...loaded.current])
   const failed = results.filter((r) => !r.isPending && r.data?.status !== 200)
   const missing: Missing = results.some((r) => r.isPending)
     ? "loading"

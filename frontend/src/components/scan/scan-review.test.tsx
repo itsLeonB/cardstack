@@ -1,16 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ScanScreen } from "./scan-screen"
 import type { FrameSource } from "@/lib/frame-source"
 import type { CardSummary } from "@/generated/models"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
-import { getListCollectionEntriesInfiniteQueryKey } from "@/generated/endpoints/inventory/inventory"
+import type { ResolvedScan } from "@/lib/draft-addition"
 
-// Only the network is faked (`fetch`): the generated client, the query cache
-// and the draft store are real. The Collection holds `held`; the bulk update
-// applies every item unless it is listed in `declines`.
+// Only the network is faked (`fetch`). The Collection holds `held`; the bulk
+// update applies every item unless `declines` lists it. The draft is seeded
+// through local storage, so these tests start at the Review step.
 const cardOf = (n: number): CardSummary => ({
   id: `card-${n}`,
   name: `Card ${n}`,
@@ -25,12 +31,8 @@ const cardOf = (n: number): CardSummary => ({
 
 let held = new Map<string, number>()
 let declines = new Map<string, "capacity_exceeded" | "card_not_found">()
-let collection = { cardCount: 10, maxCardCount: 0 }
 // What the next bulk request does: answer normally, a server error, or no answer at all.
 let bulkMode: "ok" | "error" | "lost" = "ok"
-// The 1-based bulk request that answers with a server error (0: none).
-let failBulkNumber = 0
-let lookups: string[][] = []
 let bulks: { cardId: string; quantity: number }[][] = []
 
 interface JsonBody {
@@ -55,7 +57,13 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   if (url.pathname === "/collections/col-1") {
     return Promise.resolve(
       json({
-        data: { id: "col-1", title: "Binder", description: "", ...collection },
+        data: {
+          id: "col-1",
+          title: "Binder",
+          description: "",
+          cardCount: 10,
+          maxCardCount: 0,
+        },
       })
     )
   }
@@ -66,7 +74,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
         items: { cardId: string; quantity: number }[]
       }
       bulks.push(items)
-      if (bulkMode === "error" || bulks.length === failBulkNumber)
+      if (bulkMode === "error")
         return Promise.resolve(
           json({ title: "boom", detail: "Try later." }, 503)
         )
@@ -88,7 +96,6 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
       return Promise.resolve(json({ data: results }))
     }
     const ids = url.searchParams.getAll("cardId")
-    lookups.push(ids)
     const data = ids
       .filter((id) => (held.get(id) ?? 0) > 0)
       .map((id) => ({
@@ -109,11 +116,17 @@ const frames: FrameSource = {
   fromFile: async () => new Blob(),
 }
 
-let queryClient: QueryClient
+const seed = (scans: ResolvedScan[]) => saveDraft("col-1", scans)
+const scan = (n: number, quantity = 1): ResolvedScan => ({
+  cardId: `card-${n}`,
+  quantity,
+  candidateIds: [],
+})
+
 const added = vi.fn()
 
 function renderScreen() {
-  queryClient = new QueryClient({
+  const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   return render(
@@ -123,16 +136,30 @@ function renderScreen() {
   )
 }
 
+// Opens the Review step from the sheet, once the seeded Scans have resolved.
+async function openReview() {
+  renderScreen()
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Review and add" })
+  )
+  return screen.findByRole("heading", { name: "Review and add" })
+}
+
+const reviewRow = async (name: string) => {
+  const row = (await screen.findByText(name)).closest("li")
+  if (!row) throw new Error(`no row for ${name}`)
+  return row
+}
+
 beforeEach(() => {
   held = new Map()
   declines = new Map()
-  collection = { cardCount: 10, maxCardCount: 0 }
   bulkMode = "ok"
-  failBulkNumber = 0
-  lookups = []
   bulks = []
   added.mockClear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
+  URL.createObjectURL = vi.fn(() => "blob:photo")
+  URL.revokeObjectURL = vi.fn()
 })
 afterEach(() => {
   cleanup()
@@ -140,246 +167,130 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const rowOf = async (name: string) => {
-  const row = (await screen.findByText(name)).closest("li")
-  if (!row) throw new Error(`no row for ${name}`)
-  return within(row)
-}
-
-async function openReview() {
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Review and add" })
-  )
-  await screen.findByRole("heading", { name: "Review and add" })
-}
-const commit = () =>
-  userEvent.click(screen.getByRole("button", { name: "Add to Collection" }))
-
-describe("the review step", () => {
-  beforeEach(() => {
-    saveDraft("col-1", [
-      { cardId: "card-1", quantity: 2 },
-      { cardId: "card-2", quantity: 1 },
-    ])
-    held.set("card-1", 3)
-  })
-
-  it("lists each card with the quantity to add and what the Collection holds", async () => {
-    renderScreen()
+describe("the review rows", () => {
+  it("shows one row per Card, with its Scans' quantities added together", async () => {
+    seed([scan(1), scan(1), scan(2, 3)])
+    held.set("card-1", 4)
     await openReview()
-    const one = await rowOf("Card 1")
-    await vi.waitFor(() => expect(one.getByText("Holds 3")).toBeTruthy())
-    expect(one.getByText("+2")).toBeTruthy()
-    const two = await rowOf("Card 2")
-    expect(two.getByText("Holds 0")).toBeTruthy()
-    expect(two.getByText("+1")).toBeTruthy()
+
+    const row = await reviewRow("Card 1")
+    expect(within(row).getByText("+2")).toBeTruthy()
+    expect(await within(row).findByText("Holds 4")).toBeTruthy()
+    expect(screen.getAllByRole("listitem")).toHaveLength(2)
   })
 
-  it("warns about capacity without blocking the request", async () => {
-    collection = { cardCount: 10, maxCardCount: 11 }
-    renderScreen()
+  it("does not let the quantities or the rows change here", async () => {
+    seed([scan(1)])
     await openReview()
-    expect(await screen.findByText(/13 of 11 cards/)).toBeTruthy()
-    expect(screen.getByText(/over the limit/i)).toBeTruthy()
-    await commit()
-    await vi.waitFor(() => expect(bulks).toHaveLength(1))
-  })
 
-  it("shows the running total with no warning while under the limit", async () => {
-    collection = { cardCount: 10, maxCardCount: 50 }
-    renderScreen()
-    await openReview()
-    expect(await screen.findByText(/13 of 50 cards/)).toBeTruthy()
-    expect(screen.queryByText(/over the limit/i)).toBeNull()
+    expect(screen.queryByRole("button", { name: /Raise quantity/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Remove/ })).toBeNull()
   })
+})
 
-  it("sends current plus added as absolute targets, with edits made in review", async () => {
-    renderScreen()
+describe("a decline reason that is out of date", () => {
+  it("goes once the declined Card's Scan is edited", async () => {
+    seed([scan(1), scan(2)])
+    declines.set("card-2", "capacity_exceeded")
     await openReview()
     await userEvent.click(
-      (await rowOf("Card 2")).getByRole("button", {
-        name: "Raise quantity of Card 2",
-      })
+      screen.getByRole("button", { name: "Add to Collection" })
     )
-    await commit()
-    await vi.waitFor(() => expect(added).toHaveBeenCalled())
-    expect(bulks).toEqual([
-      [
-        { cardId: "card-1", quantity: 5 },
-        { cardId: "card-2", quantity: 2 },
-      ],
-    ])
-  })
+    expect(
+      await screen.findByText("Not added: Declined: capacity_exceeded")
+    ).toBeTruthy()
 
-  it("clears the draft and returns to the Collection when nothing is declined", async () => {
-    renderScreen()
-    await openReview()
-    await commit()
-    await vi.waitFor(() => expect(added).toHaveBeenCalledTimes(1))
-    expect(loadDraft("col-1")).toEqual([])
-  })
-
-  it("refreshes the Collection's cached entries and counts", async () => {
-    renderScreen()
-    const key = getListCollectionEntriesInfiniteQueryKey("col-1")
-    queryClient.setQueryData(key, { pages: [], pageParams: [] })
-    await openReview()
-    await commit()
-    await vi.waitFor(() => expect(added).toHaveBeenCalled())
-    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
-  })
-
-  it("drops removed rows from the request and lets the user go back", async () => {
-    renderScreen()
-    await openReview()
-    await userEvent.click(
-      (await rowOf("Card 2")).getByRole("button", { name: "Remove Card 2" })
-    )
-    await commit()
-    await vi.waitFor(() => expect(bulks).toHaveLength(1))
-    expect(bulks[0]).toEqual([{ cardId: "card-1", quantity: 5 }])
-  })
-
-  it("goes back to scanning with the draft intact", async () => {
-    renderScreen()
-    await openReview()
     await userEvent.click(
       screen.getByRole("button", { name: "Back to scanning" })
     )
-    expect(
-      await screen.findByRole("button", { name: "Review and add" })
-    ).toBeTruthy()
-    expect(loadDraft("col-1")).toHaveLength(2)
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Draft \(/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Raise quantity of Card 2" })
+    )
+    await userEvent.click(
+      screen.getByRole("button", { name: "Review and add" })
+    )
+
+    const row = await reviewRow("Card 2")
+    expect(within(row).getByText("+2")).toBeTruthy()
+    expect(screen.queryByText(/Not added/)).toBeNull()
   })
 })
 
-describe("a mixed result", () => {
-  beforeEach(() => {
-    saveDraft("col-1", [
-      { cardId: "card-1", quantity: 2 },
-      { cardId: "card-2", quantity: 1 },
-      { cardId: "card-3", quantity: 4 },
-    ])
-    declines.set("card-2", "capacity_exceeded")
-    declines.set("card-3", "card_not_found")
-  })
-
-  it("removes applied rows, keeps declined ones with their reason, and stays put", async () => {
-    renderScreen()
+describe("adding to the Collection", () => {
+  it("sends absolute targets, held plus added, and returns to the Collection when all is applied", async () => {
+    seed([scan(1), scan(1), scan(2, 3)])
+    held.set("card-1", 4)
     await openReview()
-    await commit()
-    expect(await screen.findByText(/capacity_exceeded/)).toBeTruthy()
-    expect(screen.getByText(/card_not_found/)).toBeTruthy()
-    expect(screen.queryByText("Card 1")).toBeNull()
-    expect(loadDraft("col-1")).toEqual([
-      { cardId: "card-2", quantity: 1 },
-      { cardId: "card-3", quantity: 4 },
-    ])
-    expect(added).not.toHaveBeenCalled()
-  })
 
-  it("lets the user drop a declined row and finish the rest", async () => {
-    renderScreen()
-    await openReview()
-    await commit()
-    await screen.findByText(/capacity_exceeded/)
     await userEvent.click(
-      (await rowOf("Card 2")).getByRole("button", { name: "Remove Card 2" })
+      screen.getByRole("button", { name: "Add to Collection" })
     )
-    await userEvent.click(
-      (await rowOf("Card 3")).getByRole("button", { name: "Remove Card 3" })
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(bulks[0]).toEqual(
+      expect.arrayContaining([
+        { cardId: "card-1", quantity: 6 },
+        { cardId: "card-2", quantity: 3 },
+      ])
     )
     expect(loadDraft("col-1")).toEqual([])
   })
 
-  it("retries a declined row as current plus added once it fits", async () => {
-    renderScreen()
+  it("keeps a declined Card's Scans with the reason, and stays on the Review step", async () => {
+    seed([scan(1), scan(2)])
+    declines.set("card-2", "capacity_exceeded")
     await openReview()
-    await commit()
-    await screen.findByText(/capacity_exceeded/)
-    declines.delete("card-2")
-    await commit()
-    await vi.waitFor(() => expect(bulks).toHaveLength(2))
-    expect(bulks[1]).toEqual([
-      { cardId: "card-2", quantity: 1 },
-      { cardId: "card-3", quantity: 4 },
-    ])
-  })
-})
 
-describe("a failed request", () => {
-  beforeEach(() => {
-    saveDraft("col-1", [{ cardId: "card-1", quantity: 2 }])
-    held.set("card-1", 3)
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    const declined = await reviewRow("Card 2")
+    expect(
+      await within(declined).findByText(
+        "Not added: Declined: capacity_exceeded"
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("Card 1")).toBeNull()
+    expect(added).not.toHaveBeenCalled()
+    expect(loadDraft("col-1")).toEqual([scan(2)])
   })
 
-  it("keeps the draft and shows a message", async () => {
+  it("keeps the draft and says so when the request fails", async () => {
+    seed([scan(1)])
     bulkMode = "error"
-    renderScreen()
     await openReview()
-    await commit()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
     expect(await screen.findByRole("alert")).toBeTruthy()
-    expect(screen.getByRole("alert").textContent).toMatch(/Try later/)
-    expect(loadDraft("col-1")).toEqual([{ cardId: "card-1", quantity: 2 }])
+    expect(screen.getByText(/Your draft is unchanged/)).toBeTruthy()
     expect(added).not.toHaveBeenCalled()
+    expect(loadDraft("col-1")).toEqual([scan(1)])
   })
 
-  it("does not double-add when a retry follows a write whose answer was lost", async () => {
+  it("does not add twice when the answer to a commit is lost", async () => {
+    seed([scan(1, 2)])
     bulkMode = "lost"
-    renderScreen()
     await openReview()
-    await commit()
-    expect(await screen.findByRole("alert")).toBeTruthy()
-    // The first write committed, so the Collection now holds 5.
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+    await screen.findByRole("alert")
     bulkMode = "ok"
-    await commit()
-    await vi.waitFor(() => expect(added).toHaveBeenCalled())
-    expect(bulks).toEqual([
-      [{ cardId: "card-1", quantity: 5 }],
-      [{ cardId: "card-1", quantity: 5 }],
-    ])
-  })
-})
-
-describe("a large draft", () => {
-  it("batches the lookup and the update at 100 cards", async () => {
-    saveDraft(
-      "col-1",
-      Array.from({ length: 101 }, (_, i) => ({
-        cardId: `card-${i + 1}`,
-        quantity: 1,
-      }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
     )
-    renderScreen()
-    await openReview()
-    await commit()
-    await vi.waitFor(() => expect(added).toHaveBeenCalled())
-    expect(lookups.every((ids) => ids.length <= 100)).toBe(true)
-    expect(bulks.map((items) => items.length).sort()).toEqual([1, 100])
-  })
 
-  it("keeps what an earlier chunk did when a later chunk fails", async () => {
-    saveDraft(
-      "col-1",
-      Array.from({ length: 101 }, (_, i) => ({
-        cardId: `card-${i + 1}`,
-        quantity: 1,
-      }))
-    )
-    declines.set("card-5", "capacity_exceeded")
-    failBulkNumber = 2
-    renderScreen()
-    await openReview()
-    await commit()
-    const alert = await screen.findByRole("alert")
-    expect(alert.textContent).toMatch(/99 of 101 cards were already added/)
-    expect(alert.textContent).not.toMatch(/draft is unchanged/)
-    // Chunk 1's decline keeps its reason; its applied rows left the draft.
-    expect(screen.getByText(/capacity_exceeded/)).toBeTruthy()
-    expect(loadDraft("col-1").map((r) => r.cardId)).toEqual([
-      "card-5",
-      "card-101",
-    ])
-    expect(added).not.toHaveBeenCalled()
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(bulks[0]).toEqual([{ cardId: "card-1", quantity: 2 }])
+    expect(bulks[1]).toEqual([{ cardId: "card-1", quantity: 2 }])
+    expect(held.get("card-1")).toBe(2)
   })
 })

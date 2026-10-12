@@ -1,249 +1,209 @@
 import { useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { CardThumb } from "./card-thumb"
-import { DraftTray } from "./draft-tray"
 import { ReviewStep } from "./review-step"
-import { matchScannedCard } from "@/generated/endpoints/scan/scan"
-import type { CardSummary, MatchCandidate } from "@/generated/models"
-import type { FrameSource } from "@/lib/frame-source"
+import type { CommitResult } from "./review-step"
+import { ScanSheet } from "./scan-sheet"
 import { CARD_ASPECT, GUIDE_HEIGHT, VIEW_ASPECT } from "@/lib/frame-crop"
-import { useDraftAddition } from "@/lib/use-draft-addition"
-
-// A match that takes longer than this is reported as failed.
-const MATCH_TIMEOUT_MS = 20_000
-
-type Outcome =
-  | { kind: "added"; card: CardSummary }
-  | { kind: "candidates"; candidates: MatchCandidate[] }
-  | { kind: "none" }
-
-const DRAFT_KEPT = "Your draft is unchanged."
-
-function CardFace({ card }: { card: CardSummary }) {
-  return (
-    <>
-      <CardThumb card={card} />
-      <span className="flex min-w-0 flex-col text-left">
-        <span className="truncate text-sm font-medium">{card.name}</span>
-        <span className="text-xs">
-          {card.expansionSet.name} · No. {card.localId}
-        </span>
-      </span>
-    </>
-  )
-}
+import type { FrameSource } from "@/lib/frame-source"
+import { summedRows, useScanDraft } from "@/lib/use-draft-addition"
 
 /**
- * The scan screen of one Collection: capture (camera or photo file), match,
- * then the Draft Addition. The frame source is injected so tests can fake the
- * camera. Remount per Collection (the route keys it) so drafts never mix.
+ * The scan screen: a full-screen viewfinder with the Draft Addition as a
+ * bottom sheet over it, and the Review step in place of both. Captures never
+ * wait for a match, so each one lands in the sheet at once.
  */
 export function ScanScreen({
   collectionId,
   source,
+  backLink,
   onAdded,
 }: {
   collectionId: string
   source: FrameSource
-  /** The whole draft went into the Collection. */
+  /** A visible link back to the Collection, kept over the viewfinder. */
+  backLink?: ReactNode
+  /** Every Scan was applied: the user goes back to the Collection. */
   onAdded: () => void
 }) {
-  const draft = useDraftAddition(collectionId)
-  const [outcome, setOutcome] = useState<Outcome | null>(null)
+  // Each message is a new node, so a repeat of the same text is read again.
+  const [announcement, setAnnouncement] = useState<{
+    id: number
+    text: string
+  }>()
+  const announcementId = useRef(0)
+  const draft = useScanDraft(collectionId, (text) =>
+    setAnnouncement({ id: ++announcementId.current, text })
+  )
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
   const [reviewing, setReviewing] = useState(false)
-  // Cards matched this visit, so the tray can show them before its lookup answers.
-  const matchedThisVisit = useRef(new Map<string, CardSummary>())
+  const [sheetOpen, setSheetOpen] = useState(false)
+  // Why the Collection declined a Card in the last commit, by card id.
+  const [declined, setDeclined] = useState<Record<string, string>>({})
 
-  function addCard(card: CardSummary) {
-    matchedThisVisit.current.set(card.id, card)
-    draft.add(card.id)
-    setOutcome({ kind: "added", card })
+  // A reason describes its Card's Scans as they were, so an edit to them makes it stale.
+  function forget(...cardIds: (string | undefined)[]) {
+    setDeclined((reasons) =>
+      Object.fromEntries(
+        Object.entries(reasons).filter(([id]) => !cardIds.includes(id))
+      )
+    )
   }
+  const cardOf = (key: string) => draft.scans.find((s) => s.key === key)?.cardId
 
-  async function scan(takeFrame: () => Promise<Blob>) {
-    setBusy(true)
+  async function capture(takeFrame: () => Promise<Blob>) {
     setError(null)
-    setOutcome(null)
     try {
-      let frame: Blob
-      try {
-        frame = await takeFrame()
-      } catch {
-        setError(`Could not capture that photo. ${DRAFT_KEPT}`)
-        return
-      }
-      const response = await matchScannedCard(frame, {
-        signal: AbortSignal.timeout(MATCH_TIMEOUT_MS),
-      })
-      if (response.status !== 200) throw new Error("match failed")
-      const { confident, candidates } = response.data.data
-      if (confident && candidates?.[0]) addCard(candidates[0].card)
-      else if (candidates?.length)
-        setOutcome({ kind: "candidates", candidates })
-      else setOutcome({ kind: "none" })
+      draft.capture(await takeFrame())
     } catch {
-      setError(`Could not match this photo. Try again. ${DRAFT_KEPT}`)
-    } finally {
-      setBusy(false)
+      setError("Could not capture that photo. Your draft is unchanged.")
     }
   }
 
+  function finishCommit({ applied, declined: next, failed }: CommitResult) {
+    draft.removeCards(applied)
+    setDeclined(next)
+    const left = draft.scans.some(
+      (s) => !(s.status === "resolved" && applied.includes(s.cardId!))
+    )
+    if (!left) onAdded()
+    else if (!failed && Object.keys(next).length === 0) setReviewing(false)
+  }
+
+  const reviewable =
+    draft.scans.some((s) => s.status === "resolved") && draft.pendingCount === 0
+
+  const status = (
+    <p role="status" className="sr-only">
+      {announcement && <span key={announcement.id}>{announcement.text}</span>}
+    </p>
+  )
+
+  // A fixed layer under the site header (3.5rem plus its 1px border), so the
+  // page's footer never shows behind the scan screen.
   if (reviewing) {
     return (
-      <ReviewStep
-        collectionId={collectionId}
-        rows={draft.rows}
-        matchedThisVisit={matchedThisVisit.current}
-        onRaise={draft.add}
-        onLower={draft.lower}
-        onRemove={draft.remove}
-        onBack={() => setReviewing(false)}
-        onAdded={() => {
-          draft.discard()
-          onAdded()
-        }}
-      />
+      <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 overflow-y-auto bg-background">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
+          {backLink}
+          {status}
+          <ReviewStep
+            collectionId={collectionId}
+            rows={summedRows(draft.scans)}
+            seen={draft.seen}
+            declined={declined}
+            onCommitted={finishCommit}
+            onBack={() => setReviewing(false)}
+          />
+        </div>
+      </div>
     )
   }
 
   const hasCamera = source.camera === "starting" || source.camera === "ready"
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        {hasCamera ? (
-          // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
-          <div
-            className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl bg-black"
-            style={{ aspectRatio: VIEW_ASPECT }}
-          >
-            <video
-              ref={source.videoRef}
-              playsInline
-              muted
-              aria-label="Camera viewfinder"
-              className="size-full object-cover"
-            />
+    <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 bg-background">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col">
+        {status}
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">
+          {hasCamera ? (
+            // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
             <div
-              aria-hidden
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
-              style={{
-                height: `${GUIDE_HEIGHT * 100}%`,
-                aspectRatio: CARD_ASPECT,
-              }}
-            />
-          </div>
-        ) : (
-          <p role="alert" className="text-sm text-destructive">
-            {source.camera === "denied"
-              ? "Camera access was denied. Allow it in your browser's site settings, or choose a photo instead."
-              : "No camera is available here. Choose a photo instead."}
-          </p>
-        )}
-        <div className="flex flex-wrap justify-center gap-2">
-          {hasCamera && (
-            <Button
-              disabled={busy || source.camera !== "ready"}
-              onClick={() => void scan(source.captureCamera)}
+              className="relative w-full overflow-hidden"
+              style={{ aspectRatio: VIEW_ASPECT }}
             >
-              Capture
-            </Button>
-          )}
-          <label
-            className={`${buttonVariants({ variant: "outline" })} has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
-          >
-            Choose a photo
-            <input
-              type="file"
-              accept="image/*"
-              disabled={busy}
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0]
-                event.currentTarget.value = ""
-                if (file) void scan(() => source.fromFile(file))
-              }}
-            />
-          </label>
-        </div>
-      </div>
-
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <div className="flex items-center gap-3">
-        {/* Text only: controls stay outside so the live region announces just the result. */}
-        <div role="status" className="min-w-0 flex-1">
-          {busy && <p className="text-sm">Matching…</p>}
-          {outcome?.kind === "added" && (
-            <div className="flex items-center gap-3 rounded-xl border p-2">
-              <CardFace card={outcome.card} />
-              <p className="sr-only">Added {outcome.card.name}</p>
+              <video
+                ref={source.videoRef}
+                playsInline
+                muted
+                aria-label="Camera viewfinder"
+                className="size-full object-cover"
+              />
+              <div
+                aria-hidden
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
+                style={{
+                  height: `${GUIDE_HEIGHT * 100}%`,
+                  aspectRatio: CARD_ASPECT,
+                }}
+              />
             </div>
-          )}
-          {outcome?.kind === "candidates" && (
-            <p className="text-sm">
-              {outcome.candidates.length} possible matches. Choose one below.
+          ) : (
+            <p role="alert" className="px-4 pt-20 text-center text-sm">
+              {source.camera === "denied"
+                ? "Camera access was denied. Allow it in your browser's site settings, or choose a photo instead."
+                : "No camera is available here. Choose a photo instead."}
             </p>
           )}
-          {outcome?.kind === "none" && (
-            <p className="text-sm">No card matched. Try another photo.</p>
-          )}
-        </div>
-        {outcome?.kind === "added" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              draft.undo(outcome.card.id)
-              setOutcome(null)
-            }}
-          >
-            Undo
-          </Button>
-        )}
-      </div>
-      {outcome?.kind === "candidates" && (
-        <section
-          aria-labelledby="candidates-heading"
-          className="flex flex-col gap-2"
-        >
-          <h2
-            id="candidates-heading"
-            className="font-heading text-lg font-medium"
-          >
-            Which card is it?
-          </h2>
-          {outcome.candidates.map(({ card }) => (
-            <button
-              key={card.id}
-              type="button"
-              aria-label={`Add ${card.name} (${card.expansionSet.code}, No. ${card.localId})`}
-              className="flex items-center gap-3 rounded-xl border p-2 hover:bg-muted"
-              onClick={() => addCard(card)}
+          {backLink && <div className="absolute top-3 left-3">{backLink}</div>}
+          {error && (
+            <p
+              role="alert"
+              className="absolute inset-x-3 top-14 rounded-lg bg-background p-2 text-sm text-destructive"
             >
-              <CardFace card={card} />
-            </button>
-          ))}
-          <Button variant="outline" onClick={() => setOutcome(null)}>
-            Skip
-          </Button>
-        </section>
-      )}
-
-      <DraftTray
-        rows={draft.rows}
-        matchedThisVisit={matchedThisVisit.current}
-        onRaise={draft.add}
-        onLower={draft.lower}
-        onRemove={draft.remove}
-        onDiscard={draft.discard}
-        onReview={() => setReviewing(true)}
-      />
+              {error}
+            </p>
+          )}
+          <div className="absolute inset-x-0 bottom-3 flex flex-wrap justify-center gap-2 px-4">
+            {hasCamera && (
+              <Button
+                size="lg"
+                disabled={source.camera !== "ready"}
+                onClick={() => void capture(source.captureCamera)}
+              >
+                Capture
+              </Button>
+            )}
+            <label
+              className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
+            >
+              Choose a photo
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0]
+                  event.currentTarget.value = ""
+                  if (file) void capture(() => source.fromFile(file))
+                }}
+              />
+            </label>
+          </div>
+        </div>
+        <ScanSheet
+          scans={draft.scans}
+          seen={draft.seen}
+          pendingCount={draft.pendingCount}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          reviewable={reviewable}
+          onRaise={(key) => {
+            forget(cardOf(key))
+            draft.raise(key)
+          }}
+          onLower={(key) => {
+            forget(cardOf(key))
+            draft.lower(key)
+          }}
+          onChoose={(key, cardId) => {
+            forget(cardOf(key), cardId)
+            draft.choose(key, cardId)
+          }}
+          onRetry={draft.retry}
+          onRemove={(key) => {
+            forget(cardOf(key))
+            draft.remove(key)
+          }}
+          onDiscard={() => {
+            draft.discard()
+            setDeclined({})
+            setSheetOpen(false)
+          }}
+          onReview={() => setReviewing(true)}
+        />
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { DraftRowItem } from "./draft-row"
+import { CardThumb } from "./card-thumb"
 import {
   MAX_CARD_IDS_PER_REQUEST,
   MISSING_NAME,
@@ -15,7 +15,6 @@ import {
 } from "@/generated/endpoints/inventory/inventory"
 import { InventoryChangeResultStatus } from "@/generated/models"
 import type { CardSummary } from "@/generated/models"
-import type { DraftRow } from "@/lib/draft-addition"
 import {
   NETWORK_ERROR,
   invalidateCollectionCounts,
@@ -25,42 +24,53 @@ import { invalidateMasterInventory } from "@/lib/master-inventory"
 
 class RequestError extends Error {}
 
+export interface ReviewRowData {
+  cardId: string
+  /** The quantities of this Card's Scans, added together. */
+  quantity: number
+}
+
+/** What one commit did: the Cards the Collection took, the reasons it declined the rest, and whether a request failed. */
+export interface CommitResult {
+  applied: string[]
+  declined: Record<string, string>
+  failed: boolean
+}
+
 /**
- * The review step of a Draft Addition: what each row adds, what the Collection
- * already holds, and the commit. A commit sends absolute targets (held plus
- * added) through the bulk update. Targets are fixed per row once computed and
- * reused by a retry, so a write whose answer was lost is not added twice. The
- * capacity total only warns: the server decides.
+ * The review step of a Draft Addition: one row per Card, what each adds, what
+ * the Collection already holds, and the commit. A commit sends absolute targets
+ * (held plus added) through the bulk update. Targets are fixed per row once
+ * computed and reused by a retry, so a write whose answer was lost is not added
+ * twice. The capacity total only warns: the server decides.
  */
 export function ReviewStep({
   collectionId,
   rows,
-  matchedThisVisit,
-  onRaise,
-  onLower,
-  onRemove,
+  seen,
+  declined,
+  onCommitted,
   onBack,
-  onAdded,
 }: {
   collectionId: string
-  rows: DraftRow[]
-  matchedThisVisit: Map<string, CardSummary>
-  onRaise: (cardId: string) => void
-  onLower: (cardId: string) => void
-  onRemove: (cardId: string) => void
+  rows: ReviewRowData[]
+  seen: Map<string, CardSummary>
+  /** Reasons from the last commit, by card id, shown on the rows they belong to. */
+  declined: Record<string, string>
+  onCommitted: (result: CommitResult) => void
   onBack: () => void
-  /** Every row was applied: the parent clears the draft and leaves. */
-  onAdded: () => void
 }) {
   const queryClient = useQueryClient()
   const {
     cards,
     missing: lookup,
     retry,
-  } = useDraftCards(rows, matchedThisVisit)
+  } = useDraftCards(
+    rows.map((r) => r.cardId),
+    seen
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [declined, setDeclined] = useState<Record<string, string>>({})
   const targets = useRef(new Map<string, { added: number; target: number }>())
 
   const ids = rows.map((r) => r.cardId).sort()
@@ -95,10 +105,10 @@ export function ReviewStep({
   async function commit() {
     setBusy(true)
     setError(null)
-    setDeclined({})
+    const applied: string[] = []
+    const declinedNow: Record<string, string> = {}
     let sent = false
-    let added = 0
-    let anyDeclined = false
+    let failed = false
     try {
       const missing = rows.filter(
         (r) => targets.current.get(r.cardId)?.added !== r.quantity
@@ -139,28 +149,23 @@ export function ReviewStep({
         // Applied per chunk, so a later chunk's failure cannot undo what this one did.
         for (const result of response.data.data ?? []) {
           targets.current.delete(result.cardId)
-          if (result.status === InventoryChangeResultStatus.declined) {
-            anyDeclined = true
-            setDeclined((prev) => ({
-              ...prev,
-              [result.cardId]: result.message ?? result.reason ?? "Declined.",
-            }))
-          } else {
-            added += 1
-            onRemove(result.cardId)
-          }
+          if (result.status === InventoryChangeResultStatus.declined)
+            declinedNow[result.cardId] =
+              result.message ?? result.reason ?? "Declined."
+          else applied.push(result.cardId)
         }
       }
-      if (!anyDeclined) onAdded()
     } catch (e) {
+      failed = true
       const reason = e instanceof RequestError ? e.message : NETWORK_ERROR
       setError(
-        added > 0
-          ? `${reason} ${added} of ${rows.length} cards were already added and left your draft; the rest are still here.`
+        applied.length > 0
+          ? `${reason} ${applied.length} of ${rows.length} cards were already added and left your draft; the rest are still here.`
           : `${reason} Your draft is unchanged.`
       )
     } finally {
       setBusy(false)
+      onCommitted({ applied, declined: declinedNow, failed })
       // A lost answer may hide a committed write, so refresh after any send.
       if (sent) {
         invalidateMasterInventory(queryClient)
@@ -200,32 +205,40 @@ export function ReviewStep({
           {rows.map((row) => {
             const card = cards.get(row.cardId)
             return (
-              <DraftRowItem
+              <li
                 key={row.cardId}
-                card={card}
-                name={card?.name ?? MISSING_NAME[lookup]}
-                onRetry={!card && lookup === "failed" ? retry : undefined}
-                detail={
-                  <span className="text-xs">
-                    {heldLoaded
-                      ? `Holds ${held.get(row.cardId) ?? 0}`
-                      : "Holds …"}
+                className="flex flex-col gap-1 rounded-xl border p-2"
+              >
+                <div className="flex items-center gap-2">
+                  <CardThumb card={card} />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-medium">
+                      {card?.name ?? MISSING_NAME[lookup]}
+                    </span>
+                    <span className="text-xs">
+                      {heldLoaded
+                        ? `Holds ${held.get(row.cardId) ?? 0}`
+                        : "Holds …"}
+                    </span>
+                    {!card && lookup === "failed" && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="mt-1 self-start"
+                        onClick={retry}
+                      >
+                        Retry
+                      </Button>
+                    )}
                   </span>
-                }
-                quantity={row.quantity}
-                quantityLabel={`+${row.quantity}`}
-                disabled={busy}
-                footer={
-                  declined[row.cardId] && (
-                    <p className="text-sm text-destructive">
-                      Not added: {declined[row.cardId]}
-                    </p>
-                  )
-                }
-                onRaise={() => onRaise(row.cardId)}
-                onLower={() => onLower(row.cardId)}
-                onRemove={() => onRemove(row.cardId)}
-              />
+                  <span className="tabular-nums">+{row.quantity}</span>
+                </div>
+                {declined[row.cardId] && (
+                  <p className="text-sm text-destructive">
+                    Not added: {declined[row.cardId]}
+                  </p>
+                )}
+              </li>
             )
           })}
         </ul>

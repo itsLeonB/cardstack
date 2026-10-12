@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ScanScreen } from "./scan-screen"
@@ -20,27 +27,30 @@ const cardOf = (n: number): CardSummary => ({
   expansionSet: { id: "set-1", code: "SCE", name: "Starter Set", imageUrl: "" },
   rarity: { id: "r-1", code: "RR", name: "Double Rare" },
 })
-const candidate = (n: number, score = 0.9): MatchCandidate => ({
+const candidate = (n: number): MatchCandidate => ({
   card: cardOf(n),
-  score,
+  score: 0.9,
 })
 
-type MatchReply =
-  { confident: boolean; candidates: MatchCandidate[] } | "fail" | "network"
-let replies: MatchReply[] = []
+type Reply = { confident: boolean; candidates: MatchCandidate[] } | "fail"
+
+// Replies come in order. In hold mode a match waits until the test answers it,
+// and an aborted one is dropped from the queue of waiting answers.
+let replies: Reply[] = []
+let holding = false
+let waiting: { answer: (reply: Reply) => void }[] = []
+let matchCalls = 0
+let aborted = 0
 let uploads: Blob[] = []
 let catalogRequests: string[] = []
-// Network conditions a test can set: requests that never answer, or a lookup that answers with an error status.
-let holdCatalog = false
-let holdMatch = false
-let catalogStatus = 200
-// Card ids the catalog no longer has.
-const gone = new Set<string>()
+let failLookup = new Set<string>()
+let holdLookup = new Set<string>()
 
 interface JsonBody {
   data?: unknown
   meta?: unknown
   title?: string
+  detail?: string
 }
 const json = (body: JsonBody, status = 200) =>
   new Response(JSON.stringify(body), { status })
@@ -48,19 +58,38 @@ const json = (body: JsonBody, status = 200) =>
 function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(String(input))
   if (url.pathname === "/scan/match") {
-    if (holdMatch) return new Promise<Response>(() => {})
+    matchCalls++
     if (init?.body instanceof Blob) uploads.push(init.body)
+    if (holding)
+      return new Promise<Response>((resolve, reject) => {
+        const entry = {
+          answer: (reply: Reply) =>
+            resolve(
+              reply === "fail"
+                ? json({ title: "boom" }, 503)
+                : json({ data: reply })
+            ),
+        }
+        waiting.push(entry)
+        init?.signal?.addEventListener("abort", () => {
+          aborted++
+          waiting = waiting.filter((w) => w !== entry)
+          reject(new DOMException("aborted", "AbortError"))
+        })
+      })
     const reply = replies.shift() ?? "fail"
-    if (reply === "network") return Promise.reject(new TypeError("offline"))
-    if (reply === "fail") return Promise.resolve(json({ title: "boom" }, 503))
-    return Promise.resolve(json({ data: reply }))
+    return Promise.resolve(
+      reply === "fail" ? json({ title: "boom" }, 503) : json({ data: reply })
+    )
   }
   if (url.pathname === "/catalog/cards") {
+    const ids = url.searchParams.getAll("cardId")
     catalogRequests.push(url.search)
-    if (holdCatalog) return new Promise<Response>(() => {})
-    if (catalogStatus !== 200)
-      return Promise.resolve(json({ title: "boom" }, catalogStatus))
-    const ids = url.searchParams.getAll("cardId").filter((id) => !gone.has(id))
+    if (ids.some((id) => failLookup.has(id)))
+      return Promise.resolve(json({ title: "boom" }, 500))
+    // A lookup for one card that never answers, so a row cannot get its card from it.
+    if (ids.length === 1 && holdLookup.has(ids[0]))
+      return new Promise<Response>(() => {})
     const data = ids.map((id) => cardOf(Number(id.replace("card-", ""))))
     return Promise.resolve(
       json({ data, meta: { total: data.length, page: 1, limit: 100 } })
@@ -68,6 +97,9 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   return Promise.resolve(json({ title: "unexpected" }, 500))
 }
+
+// Answers the oldest held match.
+const answer = (reply: Reply) => waiting.shift()!.answer(reply)
 
 const jpeg = () => new Blob(["jpeg"], { type: "image/jpeg" })
 function source(overrides: Partial<FrameSource> = {}): FrameSource {
@@ -80,7 +112,11 @@ function source(overrides: Partial<FrameSource> = {}): FrameSource {
   }
 }
 
-function renderScreen(collectionId = "col-1", frames = source()) {
+function renderScreen(
+  collectionId = "col-1",
+  frames = source(),
+  onAdded = () => {}
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -89,7 +125,7 @@ function renderScreen(collectionId = "col-1", frames = source()) {
       <ScanScreen
         collectionId={collectionId}
         source={frames}
-        onAdded={() => {}}
+        onAdded={onAdded}
       />
     </QueryClientProvider>
   )
@@ -97,19 +133,30 @@ function renderScreen(collectionId = "col-1", frames = source()) {
 
 beforeEach(() => {
   replies = []
+  holding = false
+  waiting = []
+  matchCalls = 0
+  aborted = 0
   uploads = []
   catalogRequests = []
-  holdCatalog = false
-  holdMatch = false
-  catalogStatus = 200
-  gone.clear()
+  failLookup = new Set()
+  holdLookup = new Set()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
+  URL.createObjectURL = vi.fn(() => "blob:photo")
+  URL.revokeObjectURL = vi.fn()
 })
 afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.unstubAllGlobals()
 })
+
+const capture = () =>
+  userEvent.click(screen.getByRole("button", { name: "Capture" }))
+
+// The sheet opens collapsed (newest Scan only); most assertions need every row.
+const expandSheet = async () =>
+  userEvent.click(await screen.findByRole("button", { name: /^Draft \(/ }))
 
 // The row (`li`) that shows a card by name.
 const rowOf = async (name: string | RegExp) => {
@@ -118,296 +165,340 @@ const rowOf = async (name: string | RegExp) => {
   return row
 }
 
-const capture = () =>
-  userEvent.click(screen.getByRole("button", { name: "Capture" }))
-
-describe("a confident match", () => {
-  it("uploads the JPEG, adds the card to the tray and shows it", async () => {
-    replies = [{ confident: true, candidates: [candidate(1)] }]
+describe("capturing", () => {
+  it("adds a Scan at once, before its match returns, and uploads the photo", async () => {
+    holding = true
     renderScreen()
     await capture()
 
-    const status = await screen.findByRole("status")
-    expect(within(status).getByText("Added Card 1")).toBeTruthy()
-    expect(within(status).getByText(/Starter Set/)).toBeTruthy()
-    expect(within(status).getByText(/No\. 1/)).toBeTruthy()
+    const row = await rowOf("Matching…")
+    expect(within(row).getByText("Matching…")).toBeTruthy()
     expect(uploads[0]).toBeInstanceOf(Blob)
     expect(uploads[0].type).toBe("image/jpeg")
-
-    const row = await screen.findByRole("listitem")
-    expect(within(row).getByText("Card 1")).toBeTruthy()
-    expect(within(row).getByText("1")).toBeTruthy()
+    // Capture stays usable while the match is out.
+    expect(screen.getByRole("button", { name: "Capture" })).toHaveProperty(
+      "disabled",
+      false
+    )
   })
 
-  it("undoes the added copy", async () => {
+  it("keeps three matches in flight and starts a fourth once one settles", async () => {
+    holding = true
+    renderScreen()
+    await expandSheet()
+    for (let i = 0; i < 4; i++) await capture()
+
+    expect(await screen.findAllByText("Matching…")).toHaveLength(3)
+    expect(screen.getByText("Queued")).toBeTruthy()
+    expect(matchCalls).toBe(3)
+
+    answer({ confident: true, candidates: [candidate(1)] })
+
+    await waitFor(() => expect(screen.queryByText("Queued")).toBeNull())
+    expect(matchCalls).toBe(4)
+  })
+
+  it("shows a confident match as its card, with no dropdown", async () => {
     replies = [{ confident: true, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
-    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
-    expect(screen.queryByRole("listitem")).toBeNull()
-    expect(loadDraft("col-1")).toEqual([])
+
+    const row = await rowOf("Card 1")
+    expect(within(row).getByText(/Starter Set · No\. 1/)).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
   })
 
-  it("merges a second scan of the same card into quantity 2", async () => {
-    replies = [
-      { confident: true, candidates: [candidate(1)] },
-      { confident: true, candidates: [candidate(1)] },
-    ]
-    renderScreen()
-    await capture()
-    await screen.findByText("Added Card 1")
-    await capture()
-    await screen.findByText("Added Card 1")
-    const rows = await screen.findAllByRole("listitem")
-    expect(rows).toHaveLength(1)
-    expect(within(rows[0]).getByText("2")).toBeTruthy()
-  })
-})
-
-describe("a match that is not confident", () => {
-  const unsure = () => ({
-    confident: false,
-    candidates: [candidate(1, 0.6), candidate(2, 0.58), candidate(3, 0.5)],
-  })
-
-  it("offers the candidates and adds the one the user taps", async () => {
-    replies = [unsure()]
-    renderScreen()
-    await capture()
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Card 2.*SCE.*2/ })
-    )
-    const row = await screen.findByRole("listitem")
-    expect(within(row).getByText("Card 2")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull()
-  })
-
-  it("leaves the draft untouched when the user skips", async () => {
-    replies = [unsure()]
-    renderScreen()
-    await capture()
-    await userEvent.click(await screen.findByRole("button", { name: "Skip" }))
-    expect(screen.queryByRole("listitem")).toBeNull()
-    expect(screen.queryByRole("button", { name: /Card 1/ })).toBeNull()
-  })
-})
-
-describe("a failed match", () => {
-  it.each(["fail", "network"] as const)(
-    "shows a message and keeps the draft (%s)",
-    async (reply) => {
-      saveDraft("col-1", [{ cardId: "card-1", quantity: 2 }])
-      replies = [reply]
-      renderScreen()
-      await capture()
-      const alert = await screen.findByRole("alert")
-      expect(alert.textContent).toMatch(/draft is unchanged/i)
-      const row = await screen.findByRole("listitem")
-      expect(within(row).getByText("2")).toBeTruthy()
-    }
-  )
-
-  it("shows a message when the frame cannot be captured", async () => {
-    renderScreen(
-      "col-1",
-      source({
-        captureCamera: () => Promise.reject(new Error("not ready")),
-      })
-    )
-    await capture()
-    expect((await screen.findByRole("alert")).textContent).toMatch(/capture/i)
-  })
-})
-
-describe("the tray", () => {
-  beforeEach(() => {
-    saveDraft("col-1", [
-      { cardId: "card-1", quantity: 2 },
-      { cardId: "card-2", quantity: 1 },
-    ])
-  })
-
-  it("raises, lowers and removes a row", async () => {
-    renderScreen()
-    const row = async () => within(await rowOf("Card 1"))
-    await userEvent.click(
-      (await row()).getByRole("button", { name: "Raise quantity of Card 1" })
-    )
-    expect((await row()).getByText("3")).toBeTruthy()
-    await userEvent.click(
-      (await row()).getByRole("button", { name: "Lower quantity of Card 1" })
-    )
-    await userEvent.click(
-      (await row()).getByRole("button", { name: "Lower quantity of Card 1" })
-    )
-    expect((await row()).getByText("1")).toBeTruthy()
-    expect(
-      (await row())
-        .getByRole("button", { name: "Lower quantity of Card 1" })
-        .hasAttribute("disabled")
-    ).toBe(true)
-    await userEvent.click(
-      (await row()).getByRole("button", { name: "Remove Card 1" })
-    )
-    expect(screen.queryByText("Card 1")).toBeNull()
-    expect(loadDraft("col-1")).toEqual([{ cardId: "card-2", quantity: 1 }])
-  })
-
-  it("discards the whole draft", async () => {
-    renderScreen()
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Discard draft" })
-    )
-    expect(screen.queryByRole("listitem")).toBeNull()
-    expect(loadDraft("col-1")).toEqual([])
-  })
-
-  it("renders a restored draft through the cardId filter", async () => {
-    renderScreen()
-    expect(await screen.findByText("Card 1")).toBeTruthy()
-    expect(await screen.findByText("Card 2")).toBeTruthy()
-    const params = new URLSearchParams(catalogRequests[0])
-    expect(params.getAll("cardId").sort()).toEqual(["card-1", "card-2"])
-  })
-
-  it("keeps a separate draft per Collection", async () => {
-    renderScreen("col-2")
-    expect(screen.queryByRole("listitem")).toBeNull()
-    expect(screen.getByText(/Draft \(0 cards\)/)).toBeTruthy()
-  })
-
-  it("has a Review and add button", async () => {
-    renderScreen()
-    expect(
-      await screen.findByRole("button", { name: "Review and add" })
-    ).toBeTruthy()
-  })
-})
-
-describe("the tray while cards load", () => {
-  it("keeps loaded rows readable when a scan adds a row", async () => {
-    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
-    replies = [{ confident: true, candidates: [candidate(2)] }]
-    renderScreen()
-    await screen.findByText("Card 1")
-
-    holdCatalog = true
-    await capture()
-    await screen.findByText("Added Card 2")
-
-    expect(screen.queryByText("Loading…")).toBeNull()
-    expect(screen.getByText("Card 1")).toBeTruthy()
-    expect(
-      screen.getByRole("button", { name: "Raise quantity of Card 1" })
-    ).toBeTruthy()
-    expect(
-      screen.getByRole("button", { name: "Raise quantity of Card 2" })
-    ).toBeTruthy()
-  })
-
-  it("marks a card the catalog no longer has, with controls still usable", async () => {
-    gone.add("card-9")
-    saveDraft("col-1", [
-      { cardId: "card-1", quantity: 1 },
-      { cardId: "card-9", quantity: 2 },
-    ])
-    renderScreen()
-    const row = within(await rowOf(/unavailable/i))
-    expect(screen.queryByText("Loading…")).toBeNull()
-    await userEvent.click(
-      row.getByRole("button", { name: "Raise quantity of card" })
-    )
-    expect(row.getByText("3")).toBeTruthy()
-    await userEvent.click(row.getByRole("button", { name: "Remove card" }))
-    expect(loadDraft("col-1")).toEqual([{ cardId: "card-1", quantity: 1 }])
-  })
-
-  it("shows a rate-limited lookup as an error with a retry, never as unavailable", async () => {
-    catalogStatus = 429
-    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
-    renderScreen()
-    const row = within(await rowOf("Could not load card"))
-    expect(screen.queryByText(/unavailable/i)).toBeNull()
-    expect(row.getByText("1")).toBeTruthy()
-    await userEvent.click(
-      row.getByRole("button", { name: "Raise quantity of card" })
-    )
-    expect(row.getByText("2")).toBeTruthy()
-
-    catalogStatus = 200
-    await userEvent.click(row.getByRole("button", { name: "Retry" }))
-    expect(await screen.findByText("Card 1")).toBeTruthy()
-    expect(screen.queryByText("Could not load card")).toBeNull()
-  })
-
-  it("keeps cards already loaded visible when a later lookup fails", async () => {
-    replies = [{ confident: true, candidates: [candidate(2)] }]
-    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
-    renderScreen()
-    await screen.findByText("Card 1")
-
-    catalogStatus = 429
-    await capture()
-    await screen.findByText("Added Card 2")
-
-    expect(screen.getByText("Card 1")).toBeTruthy()
-    expect(screen.queryByText(/unavailable/i)).toBeNull()
-  })
-})
-
-describe("announcements", () => {
-  it("keeps the Undo button out of the live region", async () => {
-    replies = [{ confident: true, candidates: [candidate(1)] }]
-    renderScreen()
-    await capture()
-    const status = await screen.findByRole("status")
-    await within(status).findByText("Added Card 1")
-    expect(within(status).queryByRole("button")).toBeNull()
-    expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy()
-  })
-
-  it("announces the matching state", async () => {
-    holdMatch = true
-    renderScreen()
-    await capture()
-    expect(
-      within(screen.getByRole("status")).getByText("Matching…")
-    ).toBeTruthy()
-  })
-
-  it("announces how many candidates to choose from, buttons outside", async () => {
+  it("shows an unsure match on its top candidate and lets the user pick another, keeping the quantity", async () => {
     replies = [
       {
         confident: false,
-        candidates: [candidate(1, 0.6), candidate(2, 0.58)],
+        candidates: [candidate(1), candidate(2), candidate(3)],
       },
     ]
     renderScreen()
     await capture()
-    const status = await screen.findByRole("status")
-    await within(status).findByText(/2 possible matches/)
-    expect(within(status).queryByRole("button")).toBeNull()
+    const row = await rowOf("Card 1")
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Raise quantity of Card 1" })
+    )
+
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: /Card 3/ })
+    )
+    // The collapsed sheet shows one row; the open menu's items sit outside it.
+    const updated = screen.getByRole("listitem")
+    await waitFor(() =>
+      expect(within(updated).getByText("Card 3")).toBeTruthy()
+    )
+    expect(within(updated).getByText("2")).toBeTruthy()
+  })
+
+  it("marks a failed match with its reason and retries from the photo held in memory", async () => {
+    replies = ["fail", { confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+
+    const row = await rowOf("Could not match this photo.")
+    await userEvent.click(within(row).getByRole("button", { name: "Retry" }))
+    expect(await rowOf("Card 1")).toBeTruthy()
+    expect(matchCalls).toBe(2)
+    expect(uploads[1]).toBe(uploads[0])
+  })
+
+  it("treats a match with no candidates as failed", async () => {
+    replies = [{ confident: false, candidates: [] }]
+    renderScreen()
+    await capture()
+
+    const row = await rowOf("No card matched.")
+    expect(within(row).getByRole("button", { name: "Retry" })).toBeTruthy()
   })
 })
 
-describe("the frame source", () => {
-  it("explains a denied camera and still takes a photo file", async () => {
-    replies = [{ confident: true, candidates: [candidate(1)] }]
-    renderScreen("col-1", source({ camera: "denied" }))
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /camera access was denied/i
-    )
-    expect(screen.queryByRole("button", { name: "Capture" })).toBeNull()
+describe("removing Scans", () => {
+  it("drops a queued Scan without sending its request", async () => {
+    holding = true
+    renderScreen()
+    await expandSheet()
+    for (let i = 0; i < 4; i++) await capture()
 
-    await userEvent.upload(
-      screen.getByLabelText("Choose a photo"),
-      new File(["x"], "card.jpg", { type: "image/jpeg" })
+    const queued = await rowOf("Queued")
+    await userEvent.click(
+      within(queued).getByRole("button", { name: /^Remove/ })
     )
-    expect(await screen.findByText("Added Card 1")).toBeTruthy()
+
+    expect(screen.queryByText("Queued")).toBeNull()
+    expect(matchCalls).toBe(3)
   })
 
-  it("says so when there is no camera", () => {
-    renderScreen("col-1", source({ camera: "unavailable" }))
-    expect(screen.getByRole("alert").textContent).toMatch(/no camera/i)
+  it("cancels the request of a loading Scan", async () => {
+    holding = true
+    renderScreen()
+    await capture()
+
+    const loading = await rowOf("Matching…")
+    await userEvent.click(
+      within(loading).getByRole("button", { name: /^Remove/ })
+    )
+
+    expect(aborted).toBe(1)
+    expect(screen.queryByText("Matching…")).toBeNull()
+  })
+})
+
+describe("the Review and add gate", () => {
+  it("is disabled while a Scan is matching, and says how many", async () => {
+    holding = true
+    renderScreen()
+    await capture()
+
+    expect(screen.getByText("1 still matching")).toBeTruthy()
+    expect(
+      screen
+        .getByRole("button", { name: "Review and add" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+
+    answer({ confident: true, candidates: [candidate(1)] })
+
+    await rowOf("Card 1")
+    expect(
+      screen
+        .getByRole("button", { name: "Review and add" })
+        .hasAttribute("disabled")
+    ).toBe(false)
+  })
+
+  it("is not blocked by a failed Scan", async () => {
+    replies = ["fail", { confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Could not match this photo.")
+    await capture()
+    await rowOf("Card 1")
+    await expandSheet()
+
+    expect(screen.getByText("Could not match this photo.")).toBeTruthy()
+    expect(
+      screen
+        .getByRole("button", { name: "Review and add" })
+        .hasAttribute("disabled")
+    ).toBe(false)
+  })
+})
+
+describe("the sheet", () => {
+  it("starts collapsed with the newest Scan, then lists every Scan when expanded", async () => {
+    replies = [
+      { confident: true, candidates: [candidate(1)] },
+      { confident: true, candidates: [candidate(2)] },
+    ]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await capture()
+    await rowOf("Card 2")
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(1)
+    await expandSheet()
+    expect(screen.getAllByRole("listitem")).toHaveLength(2)
+  })
+
+  it("says so when there are no Scans", () => {
+    renderScreen()
+
+    expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+  })
+
+  it("discards the whole draft from the expanded sheet", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await expandSheet()
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard draft" }))
+
+    expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+    expect(localStorage.getItem("cardstack:draft-addition:col-1")).toBeNull()
+  })
+})
+
+describe("persistence", () => {
+  it("restores resolved Scans with their alternatives after a reload", async () => {
+    saveDraft("col-1", [
+      { cardId: "card-2", quantity: 3, candidateIds: ["card-2", "card-4"] },
+    ])
+    renderScreen()
+    await expandSheet()
+
+    const row = await rowOf("Card 2")
+    expect(within(row).getByText("3")).toBeTruthy()
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 2" })
+    )
+    expect(
+      await screen.findByRole("menuitemradio", { name: /Card 4/ })
+    ).toBeTruthy()
+  })
+
+  it("keeps only resolved Scans in storage, so pending and failed ones are lost on reload", async () => {
+    holding = true
+    replies = []
+    renderScreen()
+    await capture()
+    await rowOf("Matching…")
+
+    expect(loadDraft("col-1")).toEqual([])
+  })
+
+  it("keeps each Collection's draft separate", () => {
+    saveDraft("col-2", [{ cardId: "card-9", quantity: 1, candidateIds: [] }])
+    renderScreen("col-1")
+
+    expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+  })
+})
+
+describe("announcements", () => {
+  it("reads a repeat of the same match again", async () => {
+    replies = [
+      { confident: true, candidates: [candidate(1)] },
+      { confident: true, candidates: [candidate(1)] },
+    ]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    const status = screen.getByRole("status")
+    const first = status.querySelector("span")
+
+    await capture()
+    await waitFor(() => expect(status.querySelector("span")).not.toBe(first))
+    expect(status.textContent).toBe("Matched Card 1.")
+  })
+
+  it("does not announce the result of a Scan removed while its answer was on the way", async () => {
+    holding = true
+    renderScreen()
+    await capture()
+    const row = await rowOf("Matching…")
+
+    answer({ confident: true, candidates: [candidate(1)] })
+    fireEvent.click(within(row).getByRole("button", { name: /^Remove/ }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(screen.getByRole("status").textContent).not.toContain("Matched")
+  })
+})
+
+describe("the candidates", () => {
+  it("shows no dropdown when the matcher offers a single candidate", async () => {
+    replies = [{ confident: false, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+
+    await rowOf("Card 1")
+    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
+  })
+
+  it("shows the picked card at once, before the sheet's own lookup of it answers", async () => {
+    saveDraft("col-1", [
+      { cardId: "card-2", quantity: 1, candidateIds: ["card-2", "card-4"] },
+    ])
+    holdLookup = new Set(["card-4"])
+    renderScreen()
+    await expandSheet()
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Change card for Card 2" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: /Card 4/ })
+    )
+
+    const row = screen.getByRole("listitem")
+    expect(within(row).getByText("Card 4")).toBeTruthy()
+    expect(within(row).queryByText("Loading…")).toBeNull()
+  })
+})
+
+describe("a Card that will not load", () => {
+  it("says so and retries the lookup", async () => {
+    saveDraft("col-1", [{ cardId: "card-2", quantity: 1, candidateIds: [] }])
+    failLookup = new Set(["card-2"])
+    renderScreen()
+    await expandSheet()
+
+    const row = await rowOf("Could not load card")
+    failLookup = new Set()
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Retry loading scan" })
+    )
+
+    expect(await rowOf("Card 2")).toBeTruthy()
+  })
+})
+
+describe("without a camera", () => {
+  it("explains the denial and still takes a picked photo", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    const picked = source({ camera: "denied" })
+    renderScreen("col-1", picked)
+
+    expect(screen.getByRole("alert").textContent).toMatch(/denied/)
+    expect(screen.queryByRole("button", { name: "Capture" })).toBeNull()
+
+    // SAFETY: the picker is the only file input on the screen.
+    const input = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    await userEvent.upload(
+      input,
+      new File(["x"], "card.jpg", { type: "image/jpeg" })
+    )
+
+    expect(await rowOf("Card 1")).toBeTruthy()
   })
 })

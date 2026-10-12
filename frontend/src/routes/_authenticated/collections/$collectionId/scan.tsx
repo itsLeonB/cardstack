@@ -1,9 +1,13 @@
-import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router"
+import {
+  Link,
+  createFileRoute,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
-import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { notFoundResource } from "@/components/layout/not-found"
-import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
+import { buttonVariants } from "@/components/ui/button"
 import { ScanScreen } from "@/components/scan/scan-screen"
 import { getGetCollectionQueryOptions } from "@/generated/endpoints/collections/collections"
 import { clearDraft } from "@/lib/draft-addition"
@@ -39,28 +43,27 @@ function ScanPage() {
   const navigate = useNavigate()
 
   return (
-    <PageContainer variant="narrow">
-      <Breadcrumbs
-        crumbs={[
-          { label: "Collections", link: { to: "/collections" } },
-          {
-            label: title ?? "Collection",
-            link: {
-              to: "/collections/$collectionId",
-              params: { collectionId },
-            },
-          },
-          { label: "Scan cards" },
-        ]}
-      />
-      <PageHeader
-        title="Scan cards"
-        description={title && `Adding to ${title}`}
-      />
+    <>
+      {/* The viewfinder takes the page's place, so the title is for screen readers only. */}
+      <div className="sr-only">
+        <PageHeader
+          title="Scan cards"
+          description={title && `Adding to ${title}`}
+        />
+      </div>
       <ScanScreen
         key={collectionId}
         collectionId={collectionId}
         source={source}
+        backLink={
+          <Link
+            to="/collections/$collectionId"
+            params={{ collectionId }}
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
+          >
+            {title ? `Back to ${title}` : "Back to Collection"}
+          </Link>
+        }
         onAdded={() =>
           void navigate({
             to: "/collections/$collectionId",
@@ -68,6 +71,6 @@ function ScanPage() {
           })
         }
       />
-    </PageContainer>
+    </>
   )
 }

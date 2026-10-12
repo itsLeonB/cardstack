@@ -3,7 +3,7 @@
 # 09: Scans appear in the tray as they load (frontend)
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** None (can start immediately). Ticket 08 is resolved and chose the sheet layout.
 
@@ -41,18 +41,19 @@ Capture is disabled until its match returns. A confident match is added at once,
 - Follow the frontend conventions for routes, data fetching and tests, and the accessibility rules already applied to the catalog grid.
 
 **Acceptance criteria:**
-- [ ] Capture stays usable while earlier Scans are loading, and a new Scan appears at the top of the tray at once
-- [ ] No more than 3 match requests are in flight; a fourth capture waits as a queued Scan and starts when one finishes
-- [ ] Queued and loading Scans show the user's photo with a spinner; a failed Scan, or one with no candidates, shows a red cross with Retry and Remove
-- [ ] Removing a queued Scan drops it, and removing a loading Scan cancels its request
-- [ ] A confident Scan has no dropdown; an unsure one defaults to the top candidate, lists up to 5, and picking another keeps the quantity
-- [ ] Photographing the same Card twice gives two Scans, and the Review step shows one row for that Card with the summed quantity
-- [ ] "Review and add" is disabled while any Scan is queued or loading, and failed Scans neither block it nor are added
-- [ ] After a partial add, declined Cards' Scans stay with their reason, and the user is taken to the Collection's page only when no Scans remain
-- [ ] A reload restores resolved Scans with their alternatives, drops the pending and failed ones, and a second Collection has its own draft
-- [ ] The screen is a full-screen viewfinder with a bottom sheet: collapsed it shows the toggle with the Scan count, the pending note, "Review and add" and the newest Scan; expanded it lists every Scan, and 30 or more Scans never push Capture or "Review and add" off screen at a phone width or a desktop width
-- [ ] With the camera denied or unavailable the sheet and "Choose a photo" still work, and a link back to the Collection is always visible
-- [ ] Feature tests render the scan route with the generated client mocked and a faked frame source; the Playwright spec from ticket 04 still passes on the file-picker path; the project's verification scripts pass
+- [x] Capture stays usable while earlier Scans are loading, and a new Scan appears at the top of the tray at once
+- [x] No more than 3 match requests are in flight; a fourth capture waits as a queued Scan and starts when one finishes
+- [x] Queued and loading Scans show the user's photo with a spinner; a failed Scan, or one with no candidates, shows a red cross with Retry and Remove
+- [x] Removing a queued Scan drops it, and removing a loading Scan cancels its request
+- [x] A confident Scan has no dropdown; an unsure one defaults to the top candidate, lists up to 5, and picking another keeps the quantity
+- [x] Photographing the same Card twice gives two Scans, and the Review step shows one row for that Card with the summed quantity
+- [x] "Review and add" is disabled while any Scan is queued or loading, and failed Scans neither block it nor are added
+- [x] After a partial add, declined Cards' Scans stay with their reason, and the user is taken to the Collection's page only when no Scans remain
+- [x] A reload restores resolved Scans with their alternatives, drops the pending and failed ones, and a second Collection has its own draft
+- [x] The screen is a full-screen viewfinder with a bottom sheet: collapsed it shows the toggle with the Scan count, the pending note, "Review and add" and the newest Scan; expanded it lists every Scan, and 30 or more Scans never push Capture or "Review and add" off screen at a phone width or a desktop width
+- [x] With the camera denied or unavailable the sheet and "Choose a photo" still work, and a link back to the Collection is always visible
+- [x] Feature tests render the scan route with the generated client mocked and a faked frame source; the Playwright spec from ticket 04 still passes on the file-picker path; the project's verification scripts pass
+  - Feature tests, the project verification scripts and the Playwright spec (run against the Clerk dev instance) pass.
 
 **Out of scope:**
 - Any backend change; the matcher still returns only the top candidate when it is confident, so a wrong confident match is fixed by removing the Scan and rescanning
