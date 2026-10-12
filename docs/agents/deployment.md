@@ -27,6 +27,10 @@ Vite bakes `VITE_*` vars into the bundle at build time, so a changed value needs
 - `docs/agents/deployment/embeddings.md`: `card_embeddings` empty, `GEMINI_API_KEY`, `EMBEDDING_MODEL`, `MATCH_THRESHOLD`, `MATCH_MARGIN`, scans answering 500, `make embed-catalog`, `make collect-embeddings`, enabling pgvector.
 - `docs/agents/deployment/api-protection.md`: the API answers 403 or 429, `APP_EDGE_SECRET`, the Cloudflare rule, `RATE_LIMIT_*`.
 
+## Catalog admin rollout order
+
+Apply the migration that adds `curated` to `cards` and `expansion_sets` with `make job` against the production database first (additive: `not null default false`, so the running API is unaffected), then deploy the API, then the frontend. The ingester reads the column, so run it only after the migration; it never overwrites a Curated row (ADR-0019).
+
 ## A failed Vercel build keeps serving the old bundle
 
 If production shows stale behavior (missing images, old UI), suspect a failed Vercel build before suspecting the code: the previous deployment stays live. Check in this order:

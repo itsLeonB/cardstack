@@ -145,6 +145,90 @@ func TestIngester_UpsertExpansionSet_IdempotentAndPopulatesReleaseDate(t *testin
 	assert.Len(t, rows, 1)
 }
 
+func TestIngester_UpsertExpansionSet_KeepsCuratedSetWhenSiteListsSameCode(t *testing.T) {
+	in := testIngester(t)
+	ctx := context.Background()
+
+	game, err := in.upsertGame(ctx)
+	require.NoError(t, err)
+	locale, err := in.upsertLocale(ctx, "id")
+	require.NoError(t, err)
+	handSeries, err := in.upsertSeries(ctx, game.ID, "Hand Series "+uniqueCode(t))
+	require.NoError(t, err)
+	siteSeries, err := in.upsertSeries(ctx, game.ID, "Site Series "+uniqueCode(t))
+	require.NoError(t, err)
+
+	code := uniqueCode(t)
+	handDate := mustParseDate(t, "01-02-2026")
+	curated, err := in.sets.Insert(ctx, entity.ExpansionSet{
+		GameID: game.ID, Code: code, Name: "Hand Name", LocaleID: locale.ID,
+		SeriesID: &handSeries.ID, ReleaseDate: &handDate, Curated: true,
+	})
+	require.NoError(t, err)
+
+	got, err := in.upsertExpansionSet(ctx, game.ID, locale.ID, siteSeries.ID, expansionListing{
+		Series: siteSeries.Name, Code: code, Name: "Site Name", ReleaseDate: mustParseDate(t, "05-06-2026"), ImageURL: "https://example.test/site.png",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, curated.ID, got.ID)
+	stored, err := in.sets.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{Model: entity.ExpansionSet{GameID: game.ID, Code: code}})
+	require.NoError(t, err)
+	assert.Equal(t, "Hand Name", stored.Name)
+	assert.Equal(t, handSeries.ID, *stored.SeriesID)
+	assert.True(t, stored.ReleaseDate.Equal(handDate))
+	assert.Empty(t, stored.SourceImageURL)
+	assert.True(t, stored.Curated, "ingestion must never clear the flag")
+}
+
+func TestIngester_UpsertCard_KeepsCuratedCardButUpdatesSiblings(t *testing.T) {
+	in := testIngester(t)
+	ctx := context.Background()
+
+	game, err := in.upsertGame(ctx)
+	require.NoError(t, err)
+	in.gameID = game.ID
+	locale, err := in.upsertLocale(ctx, "id")
+	require.NoError(t, err)
+	series, err := in.upsertSeries(ctx, game.ID, "Test Series "+uniqueCode(t))
+	require.NoError(t, err)
+	set, err := in.upsertExpansionSet(ctx, game.ID, locale.ID, series.ID, expansionListing{
+		Code: uniqueCode(t), Name: "Set", ReleaseDate: mustParseDate(t, "01-01-2026"),
+	})
+	require.NoError(t, err)
+	rarityID, err := in.resolveRarityID(ctx, "C")
+	require.NoError(t, err)
+	otherRarityID, err := in.resolveRarityID(ctx, "U")
+	require.NoError(t, err)
+
+	hand := mapCard(cardDetail{LocalID: "001", Name: "Hand", Category: categoryTrainer}, set.ID, rarityID, "", nil)
+	hand.Curated = true
+	hand.ImageKey = "cards/hand"
+	curated, err := in.cards.Insert(ctx, hand)
+	require.NoError(t, err)
+	sibling, err := in.upsertCard(ctx, mapCard(cardDetail{LocalID: "002", Name: "Sibling", Category: categoryTrainer}, set.ID, rarityID, "img", []byte("raw")))
+	require.NoError(t, err)
+
+	got, err := in.upsertCard(ctx, mapCard(cardDetail{LocalID: "001", Name: "Site", Category: categoryTrainer}, set.ID, otherRarityID, "site-img", []byte("site-raw")))
+	require.NoError(t, err)
+	assert.Equal(t, curated.ID, got.ID)
+	siblingAgain, err := in.upsertCard(ctx, mapCard(cardDetail{LocalID: "002", Name: "Sibling v2", Category: categoryTrainer}, set.ID, rarityID, "img", []byte("raw")))
+	require.NoError(t, err)
+	assert.Equal(t, sibling.ID, siblingAgain.ID)
+	assert.Equal(t, "Sibling v2", siblingAgain.Name)
+	created, err := in.upsertCard(ctx, mapCard(cardDetail{LocalID: "003", Name: "New", Category: categoryTrainer}, set.ID, rarityID, "img3", []byte("raw")))
+	require.NoError(t, err)
+	assert.Equal(t, "New", created.Name)
+
+	stored, err := in.cards.FindFirst(ctx, crud.Specification[entity.Card]{Model: entity.Card{ExpansionSetID: set.ID, LocalID: "001"}})
+	require.NoError(t, err)
+	assert.Equal(t, "Hand", stored.Name)
+	assert.Equal(t, rarityID, stored.RarityID)
+	assert.Empty(t, stored.SourceImageURL)
+	assert.Equal(t, "cards/hand", stored.ImageKey)
+	assert.True(t, stored.Curated, "ingestion must never clear the flag")
+}
+
 func TestIngester_ExpansionSet_UniqueConstraint(t *testing.T) {
 	in := testIngester(t)
 	ctx := context.Background()

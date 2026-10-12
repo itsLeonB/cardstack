@@ -537,6 +537,10 @@ func (in *Ingester) upsertExpansionSet(
 		return entity.ExpansionSet{}, err
 	}
 
+	if existing.Curated {
+		return existing, nil // docs/adr/0019
+	}
+
 	releaseDate := listing.ReleaseDate
 	if existing.IsZero() {
 		return in.sets.Insert(ctx, entity.ExpansionSet{
@@ -567,6 +571,9 @@ func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Ca
 	}
 	if existing.IsZero() {
 		return in.cards.Insert(ctx, card)
+	}
+	if existing.Curated {
+		return existing, nil // docs/adr/0019
 	}
 
 	existing.Name = card.Name
