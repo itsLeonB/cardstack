@@ -365,6 +365,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeExpansionSetSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExpansionSetSummary"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeHealthStatus": {
         "additionalProperties": false,
         "properties": {
@@ -1045,6 +1057,33 @@
           "category"
         ],
         "type": "object"
+      },
+      "UpsertExpansionSetInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "The set's name.",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "releaseDate": {
+            "description": "Release date, YYYY-MM-DD.",
+            "format": "date",
+            "type": "string"
+          },
+          "seriesId": {
+            "description": "An existing Series (see GET /catalog/series).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "releaseDate",
+          "seriesId"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1237,6 +1276,67 @@
           }
         ],
         "summary": "Check that the caller is an Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/expansion-sets/{code}": {
+      "put": {
+        "operationId": "upsert-expansion-set",
+        "parameters": [
+          {
+            "description": "The set's code, e.g. SM-P. Creates the set, or updates the one with this code.",
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "description": "The set's code, e.g. SM-P. Creates the set, or updates the one with this code.",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertExpansionSetInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeExpansionSetSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create or update an Expansion Set and mark it Curated",
         "tags": [
           "admin"
         ]

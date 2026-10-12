@@ -50,6 +50,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 		// signed-in non-Admin. perUser runs first, so probing is rate-limited.
 		adminOnly := authpkg.AdminOnly(api, adminEmails)
 		endpoint.RegisterAll(api, handler.NewAdminHandler().Routes(), guestsAllowed, perUser, adminOnly)
+		endpoint.RegisterAll(api, handler.NewAdminSetHandler(services.AdminSets).Routes(), guestsAllowed, perUser, adminOnly)
 		endpoint.RegisterAll(api, handler.NewAdminCardsHandler(services.CardAdmin).Routes(), guestsAllowed, perUser, adminOnly)
 	}
 }
