@@ -12,3 +12,38 @@ import * as zod from 'zod';
  */
 export const AdminCheckResponse = zod.void()
 
+/**
+ * @summary Create or update an Expansion Set and mark it Curated
+ */
+export const upsertExpansionSetPathCodeMax = 32;
+
+
+export const upsertExpansionSetPathCodeRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9_-]*$');
+
+
+export const UpsertExpansionSetParams = zod.object({
+  "code": zod.string().min(1).max(upsertExpansionSetPathCodeMax).regex(upsertExpansionSetPathCodeRegExp).describe('The set\'s code, e.g. SM-P. Creates the set, or updates the one with this code.')
+})
+
+export const upsertExpansionSetBodyNameMax = 200;
+
+
+export const upsertExpansionSetBodyNameRegExp = new RegExp('\\S');
+
+
+export const UpsertExpansionSetBody = zod.object({
+  "name": zod.string().min(1).max(upsertExpansionSetBodyNameMax).regex(upsertExpansionSetBodyNameRegExp).describe('The set\'s name.'),
+  "releaseDate": zod.iso.date().describe('Release date, YYYY-MM-DD.'),
+  "seriesId": zod.string().describe('An existing Series (see GET /catalog/series).')
+})
+
+export const UpsertExpansionSetResponse = zod.object({
+  "data": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+})
+})
+
