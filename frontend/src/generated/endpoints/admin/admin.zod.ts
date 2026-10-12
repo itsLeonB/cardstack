@@ -8,6 +8,20 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it
+ */
+export const deleteAdminCardQueryLocalIdMax = 32;
+
+
+
+export const DeleteAdminCardQueryParams = zod.object({
+  "expansionSetId": zod.string().describe('The Expansion Set the Card belongs to.'),
+  "localId": zod.string().min(1).max(deleteAdminCardQueryLocalIdMax).describe('The Card\'s collector number within the set.')
+})
+
+export const DeleteAdminCardResponse = zod.void()
+
+/**
  * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
  */
 export const upsertAdminCardBodyIllustratorMax = 200;

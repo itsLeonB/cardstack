@@ -46,6 +46,12 @@ type CardImageUpload struct {
 	ExpiresAt   time.Time `json:"expiresAt"`
 }
 
+// CardDelete names the Card an Admin deletes.
+type CardDelete struct {
+	ExpansionSetID uuid.UUID
+	LocalID        string
+}
+
 // CardImageConfirm names the Card whose uploaded image is to be checked.
 type CardImageConfirm struct {
 	CardID uuid.UUID

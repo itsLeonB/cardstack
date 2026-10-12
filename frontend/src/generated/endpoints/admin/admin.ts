@@ -25,6 +25,7 @@ import type {
 
 import type {
   CardImageUploadInputBody,
+  DeleteAdminCardParams,
   EnvelopeAdminCard,
   EnvelopeCardImageUpload,
   EnvelopeExpansionSetSummary,
@@ -62,7 +63,106 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export type upsertAdminCardResponse200 = {
+export type deleteAdminCardResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteAdminCardResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type deleteAdminCardResponseSuccess = (deleteAdminCardResponse204) & {
+  headers: Headers;
+};
+export type deleteAdminCardResponseError = (deleteAdminCardResponseDefault) & {
+  headers: Headers;
+};
+
+export type deleteAdminCardResponse = (deleteAdminCardResponseSuccess | deleteAdminCardResponseError)
+
+export const getDeleteAdminCardUrl = (params: DeleteAdminCardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards`
+}
+
+/**
+ * @summary Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it
+ */
+export const deleteAdminCard = async (params: DeleteAdminCardParams, options?: Parameters<typeof customFetch>[1]): Promise<deleteAdminCardResponse> => {
+
+  return customFetch<deleteAdminCardResponse>(getDeleteAdminCardUrl(params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminCardMutationKey = () => ['deleteAdminCard'] as const;
+
+export const getDeleteAdminCardMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminCard>>, DeleteAdminCardMutationVariables> = (props) => {
+          const {params} = props ?? {};
+
+          return  deleteAdminCard(params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminCard>>>
+
+    export type DeleteAdminCardMutationError = ErrorModel
+    export type DeleteAdminCardMutationVariables = {params: DeleteAdminCardParams}
+
+    /**
+ * @summary Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it
+ */
+export const useDeleteAdminCard = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminCard>>,
+        TError,
+        DeleteAdminCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminCardMutationOptions(options), queryClient);
+    }
+    export type upsertAdminCardResponse200 = {
   data: EnvelopeAdminCard
   status: 200
 }

@@ -260,3 +260,81 @@ func TestAdminCards_RoutesAnswerNotFoundToANonAdmin(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, api.Post("/admin/cards/"+uuid.NewString()+"/image-upload", nonAdmin, map[string]any{"contentType": "image/png"}).Code)
 	assert.Equal(t, http.StatusNotFound, api.Post("/admin/cards/"+uuid.NewString()+"/image-confirm", nonAdmin).Code)
 }
+
+// cardPath is the delete address of the Card at localID in the catalog's set.
+func (c adminCatalog) cardPath(localID string) string {
+	return "/admin/cards?expansionSetId=" + c.set.ID.String() + "&localId=" + localID
+}
+
+func TestAdminCards_DeleteRemovesRowObjectEmbeddingsAndBatchMembership(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	_, card := upsertCard(t, api, c, c.cardBody("001", "Mistake", "Pokémon"))
+	_, kept := upsertCard(t, api, c, c.cardBody("002", "Keeper", "Pokémon"))
+	api.storeEmbedding(t, card.Data.ID, api.model, axisVector(0))
+	api.storeEmbedding(t, kept.Data.ID, api.model, axisVector(0))
+	batch := entity.EmbeddingBatch{JobName: "job-" + uuid.NewString(), Model: api.model, Source: "catalog", State: entity.EmbeddingBatchSubmitted}
+	require.NoError(t, api.db.Create(&batch).Error)
+	require.NoError(t, api.db.Create(&[]entity.EmbeddingBatchCard{{BatchID: batch.ID, CardID: card.Data.ID}, {BatchID: batch.ID, CardID: kept.Data.ID}}).Error)
+	api.store.EXPECT().Delete(mock.Anything, "cards/"+card.Data.ID.String()).Return(nil).Once()
+
+	resp := api.Delete(c.cardPath("001"), c.bearerHeader)
+
+	require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
+	count := func(model any, where string, args ...any) int64 {
+		var n int64
+		require.NoError(t, api.db.Model(model).Where(where, args...).Count(&n).Error)
+		return n
+	}
+	assert.Zero(t, count(&entity.Card{}, "id = ?", card.Data.ID), "the row is gone")
+	assert.Zero(t, count(&entity.CardEmbedding{}, "card_id = ?", card.Data.ID), "its embeddings are gone")
+	// An outstanding batch loses the card, so collecting it later finds a vector
+	// for a card that is not in the batch and leaves it out, as it already does.
+	assert.Zero(t, count(&entity.EmbeddingBatchCard{}, "card_id = ?", card.Data.ID))
+	assert.EqualValues(t, 1, count(&entity.EmbeddingBatchCard{}, "card_id = ?", kept.Data.ID), "other cards are untouched")
+	assert.EqualValues(t, 1, count(&entity.CardEmbedding{}, "card_id = ?", kept.Data.ID))
+	assert.EqualValues(t, 1, count(&entity.Card{}, "id = ?", kept.Data.ID))
+}
+
+func TestAdminCards_DeleteIsRefusedWhileACollectionHoldsTheCard(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	_, card := upsertCard(t, api, c, c.cardBody("001", "Owned", "Pokémon"))
+	owner := bearer(api.newUserToken(t))
+	created := api.Post("/collections", owner, map[string]any{"title": "Binder"})
+	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	var col collectionEnvelope
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &col))
+	entries := "/collections/" + col.Data.ID + "/entries"
+	require.Equal(t, http.StatusCreated, api.Post(entries, owner, map[string]any{"cardId": card.Data.ID, "quantity": 2}).Code)
+
+	resp := api.Delete(c.cardPath("001"), c.bearerHeader)
+
+	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, card.Data.ID, api.cardRow(t, card.Data.ID).ID, "the card survives")
+	var entry entity.InventoryEntry
+	require.NoError(t, api.db.First(&entry, "card_id = ?", card.Data.ID).Error)
+	assert.Equal(t, 2, entry.Quantity, "the collector's entry is untouched")
+
+	// Once the collector removes it, the Admin can delete.
+	require.Equal(t, http.StatusNoContent, api.Delete(entries+"/"+card.Data.ID.String(), owner).Code)
+	api.store.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
+	assert.Equal(t, http.StatusNoContent, api.Delete(c.cardPath("001"), c.bearerHeader).Code)
+}
+
+func TestAdminCards_DeleteOfAnUnknownCardIsNotFound(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+
+	assert.Equal(t, http.StatusNotFound, api.Delete(c.cardPath("404"), c.bearerHeader).Code)
+}
+
+func TestAdminCards_DeleteAnswersNotFoundToANonAdmin(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	_, card := upsertCard(t, api, c, c.cardBody("001", "Safe", "Pokémon"))
+
+	assert.Equal(t, http.StatusNotFound, api.Delete(c.cardPath("001"), bearer(api.newUserToken(t))).Code, "signed-in non-Admin")
+	assert.Equal(t, http.StatusNotFound, api.Delete(c.cardPath("001")).Code, "guest")
+	assert.Equal(t, card.Data.ID, api.cardRow(t, card.Data.ID).ID)
+}

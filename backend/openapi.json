@@ -1101,6 +1101,59 @@
   "openapi": "3.1.0",
   "paths": {
     "/admin/cards": {
+      "delete": {
+        "operationId": "delete-admin-card",
+        "parameters": [
+          {
+            "description": "The Expansion Set the Card belongs to.",
+            "explode": false,
+            "in": "query",
+            "name": "expansionSetId",
+            "required": true,
+            "schema": {
+              "description": "The Expansion Set the Card belongs to.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Card's collector number within the set.",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "required": true,
+            "schema": {
+              "description": "The Card's collector number within the set.",
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it",
+        "tags": [
+          "admin"
+        ]
+      },
       "put": {
         "operationId": "upsert-admin-card",
         "requestBody": {
