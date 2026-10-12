@@ -225,7 +225,8 @@ test.describe("Card scanning", { tag: SIGNED_IN_TAG }, () => {
     await expect(
       page.getByRole("heading", { name: "Review and add" })
     ).toBeVisible()
-    await expect(page.getByText("Card 7")).toBeVisible()
+    // Exact: the status region also says "Matched Card 7."
+    await expect(page.getByText("Card 7", { exact: true })).toBeVisible()
     expect(page.url()).toContain("/scan")
     expect(api.bulkBodies).toHaveLength(1)
   })
