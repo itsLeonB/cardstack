@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -29,6 +29,7 @@ type Services struct {
 	Collection service.CollectionService
 	Inventory  service.InventoryService
 	Match      service.MatchService
+	CardAdmin  service.CardAdminService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -117,7 +118,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, match service.MatchService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, match service.MatchService, cardAdmin service.CardAdminService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Verifier:   verifier,
@@ -126,5 +127,6 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		Collection: collection,
 		Inventory:  inventory,
 		Match:      match,
+		CardAdmin:  cardAdmin,
 	}
 }

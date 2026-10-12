@@ -3,12 +3,15 @@ package objectstore
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	corestore "github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
@@ -25,8 +28,9 @@ const maxGetBytes = 32 << 20
 
 // R2Store is the Cloudflare R2 adapter, speaking R2's S3-compatible API.
 type R2Store struct {
-	client *s3.Client
-	bucket string
+	client    *s3.Client
+	presigner *s3.PresignClient
+	bucket    string
 }
 
 var _ corestore.ObjectStore = (*R2Store)(nil)
@@ -48,7 +52,7 @@ func NewR2Store(cfg config.R2) *R2Store {
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
 	})
-	return &R2Store{client: client, bucket: cfg.Bucket}
+	return &R2Store{client: client, presigner: s3.NewPresignClient(client), bucket: cfg.Bucket}
 }
 
 func (s *R2Store) Put(ctx context.Context, key, contentType string, body []byte) error {
@@ -61,6 +65,53 @@ func (s *R2Store) Put(ctx context.Context, key, contentType string, body []byte)
 	})
 	if err != nil {
 		return ungerr.Wrapf(err, "putting object %q", key)
+	}
+	return nil
+}
+
+// PresignPut signs a PUT of key whose Content-Type header must equal
+// contentType. No cache-control is signed: an admin re-upload replaces the same
+// key, so the object must not be marked immutable.
+func (s *R2Store) PresignPut(ctx context.Context, key, contentType string, ttl time.Duration) (string, time.Time, error) {
+	req, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String(contentType),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", time.Time{}, ungerr.Wrapf(err, "presigning put of %q", key)
+	}
+	return req.URL, time.Now().Add(ttl), nil
+}
+
+func (s *R2Store) ReadHead(ctx context.Context, key string, n int) ([]byte, error) {
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+		Range:  aws.String(fmt.Sprintf("bytes=0-%d", n-1)),
+	})
+	if err != nil {
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok && (apiErr.ErrorCode() == "NoSuchKey" || apiErr.ErrorCode() == "NotFound") {
+			return nil, corestore.ErrNotFound
+		}
+		return nil, ungerr.Wrapf(err, "reading head of object %q", key)
+	}
+	defer func() {
+		if err := out.Body.Close(); err != nil {
+			logger.Errorf("closing object %q: %v", key, err)
+		}
+	}()
+	head, err := io.ReadAll(io.LimitReader(out.Body, int64(n)))
+	if err != nil {
+		return nil, ungerr.Wrapf(err, "reading head of object %q", key)
+	}
+	return head, nil
+}
+
+func (s *R2Store) Delete(ctx context.Context, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	if err != nil {
+		return ungerr.Wrapf(err, "deleting object %q", key)
 	}
 	return nil
 }

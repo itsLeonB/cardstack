@@ -22,6 +22,50 @@
         ],
         "type": "object"
       },
+      "AdminCard": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "expansionSetId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "illustrator": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "localId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rarityId": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expansionSetId",
+          "localId",
+          "name",
+          "category",
+          "tag",
+          "rarityId",
+          "illustrator",
+          "imageUrl"
+        ],
+        "type": "object"
+      },
       "BulkUpdateEntriesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -78,6 +122,45 @@
         "required": [
           "collection",
           "quantity"
+        ],
+        "type": "object"
+      },
+      "CardImageUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "contentType": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "contentType",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "CardImageUploadInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "contentType": {
+            "description": "The Content-Type the PUT must carry; it is part of the signature.",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "contentType"
         ],
         "type": "object"
       },
@@ -231,6 +314,30 @@
           "description",
           "maxCardCount",
           "cardCount"
+        ],
+        "type": "object"
+      },
+      "EnvelopeAdminCard": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminCard"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeCardImageUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CardImageUpload"
+          }
+        },
+        "required": [
+          "data"
         ],
         "type": "object"
       },
@@ -886,6 +993,58 @@
           "quantity"
         ],
         "type": "object"
+      },
+      "UpsertCardInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "Pokémon",
+              "Trainer",
+              "Energi"
+            ],
+            "type": "string"
+          },
+          "expansionSetId": {
+            "description": "The Expansion Set the Card belongs to (422 if unknown).",
+            "type": "string"
+          },
+          "illustrator": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "localId": {
+            "description": "The collector number within the set, e.g. \"001\". Entering an existing set and number updates that Card.",
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "rarityId": {
+            "description": "A Rarity of the set's Game. Defaults to \"Tanpa Tanda\".",
+            "type": "string"
+          },
+          "tag": {
+            "description": "Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise).",
+            "enum": [
+              "Item",
+              "Supporter",
+              "Stadium"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "expansionSetId",
+          "localId",
+          "name",
+          "category"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -902,6 +1061,158 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/cards": {
+      "put": {
+        "operationId": "upsert-admin-card",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCardInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeAdminCard"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/cards/{id}/image-confirm": {
+      "post": {
+        "operationId": "confirm-admin-card-image",
+        "parameters": [
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeAdminCard"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Check the uploaded image's first bytes and, if it is a JPEG, PNG or WebP, set it as the Card's image; otherwise delete it (422)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/cards/{id}/image-upload": {
+      "post": {
+        "operationId": "request-admin-card-image-upload",
+        "parameters": [
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardImageUploadInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCardImageUpload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign a short-lived PUT address for the Card's image; the server picks the object key",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/check": {
       "get": {
         "operationId": "admin-check",
