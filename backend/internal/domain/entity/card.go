@@ -40,6 +40,9 @@ type Card struct {
 	ImageKey       string            `gorm:"not null;default:''"`
 	Attributes     datatypes.JSONMap `gorm:"not null"`
 	Raw            string            `gorm:"not null;default:''"`
+	// Curated marks a row written by hand through the admin; ingestion never
+	// overwrites it (docs/adr/0019).
+	Curated bool `gorm:"not null;default:false"`
 
 	// Relations, loaded only via crud.Specification.PreloadRelations.
 	Rarity       Rarity       `gorm:"foreignKey:RarityID"`
