@@ -1,0 +1,33 @@
+frontend/src/components/admin/admin-page.tsx
+  s_c04438e4d6604e::t_41c7dec542f74b 1-14
+frontend/src/generated/endpoints/admin/admin.ts
+  s_c04438e4d6604e::t_de386d97eb8b8a 1-173
+frontend/src/generated/endpoints/admin/admin.zod.ts
+  s_c04438e4d6604e::t_ae881a193243f5 1-14
+frontend/src/generated/endpoints/index.ts
+  s_c04438e4d6604e::t_a47832f7774c44 1-7
+frontend/src/generated/endpoints/index.zod.ts
+  s_c04438e4d6604e::t_6f6fd2c35a93a4 1
+frontend/src/routeTree.gen.ts
+  s_c04438e4d6604e::t_2bf24ab809e0bb 14,42-46,143,163,186,209,229,251,274,297-303,477
+frontend/src/routes/-admin.test.tsx
+  s_c04438e4d6604e::t_c563c477ab1376 1-108
+frontend/src/routes/admin.tsx
+  s_c04438e4d6604e::t_c9de7af703a604 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "267e407832a3d9fc9bcb60a847105e1efd7476b0",
+  "prompts": {},
+  "sessions": {
+    "s_c04438e4d6604e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c04438e4d6604e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
