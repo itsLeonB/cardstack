@@ -185,7 +185,10 @@ test.describe("Card scanning", { tag: SIGNED_IN_TAG }, () => {
       mimeType: "image/png",
       buffer: png(300, 420),
     })
-    await expect(page.getByText("Added Card 7")).toBeAttached()
+    // The Scan appears in the sheet at once; "Review and add" enables when its match returns.
+    await expect(
+      page.getByRole("button", { name: "Review and add" })
+    ).toBeEnabled()
     await page.getByRole("button", { name: "Review and add" }).click()
     await expect(page.getByText("Holds 3")).toBeVisible()
   }

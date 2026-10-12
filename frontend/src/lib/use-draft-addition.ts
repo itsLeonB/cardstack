@@ -1,40 +1,191 @@
-import { useCallback, useEffect, useState } from "react"
-import {
-  addOne,
-  loadDraft,
-  lowerOne,
-  removeRow,
-  saveDraft,
-} from "./draft-addition"
-import type { DraftRow } from "./draft-addition"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { matchScannedCard } from "@/generated/endpoints/scan/scan"
+import type { CardSummary } from "@/generated/models"
+import { loadDraft, saveDraft } from "./draft-addition"
+import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
 
-/** The Draft Addition for one Collection, mirrored to local storage on every change. Remount (or `key`) per Collection. */
-export function useDraftAddition(collectionId: string) {
-  const [rows, setRows] = useState<DraftRow[]>(() => loadDraft(collectionId))
+const MATCH_TIMEOUT_MS = 20_000
+/** How many candidates an unsure Scan keeps for its dropdown. */
+export const MAX_CANDIDATES = 5
 
-  useEffect(() => saveDraft(collectionId, rows), [collectionId, rows])
+export type ScanStatus = "queued" | "loading" | "resolved" | "failed"
+
+/**
+ * One photographed card in the Draft Addition. Only `resolved` Scans are kept
+ * in local storage; the photo of a pending or failed one lives in memory so
+ * Retry can re-send it.
+ */
+export interface Scan {
+  key: string
+  status: ScanStatus
+  quantity: number
+  photo?: Blob
+  cardId?: string
+  /** Up to MAX_CANDIDATES Cards when the matcher was not confident, top first; empty when it was. */
+  candidateIds: string[]
+  reason?: string
+}
+
+let lastKey = 0
+const newKey = () => `scan-${++lastKey}`
+
+/** The Draft Addition for one Collection (remount per Collection). Matches run through a queue of at most MAX_MATCHES_IN_FLIGHT. */
+export function useScanDraft(
+  collectionId: string,
+  announce: (message: string) => void
+) {
+  const [scans, setScans] = useState<Scan[]>(() =>
+    loadDraft(collectionId).map((s) => ({
+      ...s,
+      key: newKey(),
+      status: "resolved",
+    }))
+  )
+  // Cards the matcher has returned this visit, so a row shows at once.
+  const seen = useRef(new Map<string, CardSummary>())
+  const cancelled = useRef(new Set<string>())
+  const announceRef = useRef(announce)
+  announceRef.current = announce
+
+  const patch = useCallback(
+    (key: string, change: Partial<Scan>) =>
+      setScans((list) =>
+        list.map((s) => (s.key === key ? { ...s, ...change } : s))
+      ),
+    []
+  )
+
+  const [queue] = useState(
+    () =>
+      new MatchQueue<Blob>(
+        MAX_MATCHES_IN_FLIGHT,
+        async (key, photo, signal) => {
+          patch(key, { status: "loading" })
+          try {
+            const response = await matchScannedCard(photo, { signal })
+            if (response.status !== 200) throw new Error("match failed")
+            const { confident, candidates } = response.data.data
+            for (const { card } of candidates ?? [])
+              seen.current.set(card.id, card)
+            const top = candidates?.[0]?.card
+            if (!top) {
+              patch(key, { status: "failed", reason: "No card matched." })
+              announceRef.current("Scan failed: no card matched.")
+            } else if (confident) {
+              patch(key, {
+                status: "resolved",
+                cardId: top.id,
+                candidateIds: [],
+              })
+              announceRef.current(`Matched ${top.name}.`)
+            } else {
+              patch(key, {
+                status: "resolved",
+                cardId: top.id,
+                candidateIds: candidates!
+                  .slice(0, MAX_CANDIDATES)
+                  .map((c) => c.card.id),
+              })
+              announceRef.current(
+                `Possible match: ${top.name}. Choose another card if it is wrong.`
+              )
+            }
+          } catch {
+            if (cancelled.current.has(key)) return
+            patch(key, {
+              status: "failed",
+              reason: "Could not match this photo.",
+            })
+            announceRef.current("Scan failed: could not match this photo.")
+          }
+        },
+        MATCH_TIMEOUT_MS
+      )
+  )
+
+  useEffect(() => () => queue.cancelAll(), [queue])
+  useEffect(
+    () =>
+      saveDraft(
+        collectionId,
+        scans.flatMap((s) =>
+          s.status === "resolved"
+            ? [
+                {
+                  cardId: s.cardId!,
+                  quantity: s.quantity,
+                  candidateIds: s.candidateIds,
+                },
+              ]
+            : []
+        )
+      ),
+    [collectionId, scans]
+  )
 
   return {
-    rows,
-    add: useCallback((cardId: string) => setRows((r) => addOne(r, cardId)), []),
-    lower: useCallback(
-      (cardId: string) => setRows((r) => lowerOne(r, cardId)),
-      []
-    ),
-    remove: useCallback(
-      (cardId: string) => setRows((r) => removeRow(r, cardId)),
-      []
-    ),
-    /** Takes back one copy: the last one removes the row. */
-    undo: useCallback(
-      (cardId: string) =>
-        setRows((r) =>
-          r.find((x) => x.cardId === cardId)?.quantity === 1
-            ? removeRow(r, cardId)
-            : lowerOne(r, cardId)
-        ),
-      []
-    ),
-    discard: useCallback(() => setRows([]), []),
+    scans,
+    seen: seen.current,
+    pendingCount: scans.filter(
+      (s) => s.status === "queued" || s.status === "loading"
+    ).length,
+    capture(photo: Blob) {
+      const key = newKey()
+      setScans((list) => [
+        { key, status: "queued", quantity: 1, photo, candidateIds: [] },
+        ...list,
+      ])
+      queue.add(key, photo)
+    },
+    retry(key: string) {
+      const scan = scans.find((s) => s.key === key)
+      if (!scan?.photo) return
+      patch(key, { status: "queued", reason: undefined })
+      queue.add(key, scan.photo)
+    },
+    remove(key: string) {
+      cancelled.current.add(key)
+      queue.cancel(key)
+      setScans((list) => list.filter((s) => s.key !== key))
+    },
+    raise: (key: string) =>
+      setScans((list) =>
+        list.map((s) =>
+          s.key === key && s.status === "resolved"
+            ? { ...s, quantity: s.quantity + 1 }
+            : s
+        )
+      ),
+    lower: (key: string) =>
+      setScans((list) =>
+        list.map((s) =>
+          s.key === key && s.status === "resolved"
+            ? { ...s, quantity: Math.max(1, s.quantity - 1) }
+            : s
+        )
+      ),
+    choose: (key: string, cardId: string) => patch(key, { cardId }),
+    discard() {
+      for (const s of scans) cancelled.current.add(s.key)
+      queue.cancelAll()
+      setScans([])
+    },
+    /** Drops the resolved Scans of these Cards, once the Collection has them. */
+    removeCards(cardIds: string[]) {
+      setScans((list) =>
+        list.filter(
+          (s) => !(s.status === "resolved" && cardIds.includes(s.cardId!))
+        )
+      )
+    },
   }
+}
+
+/** One row per Card: the quantities of its resolved Scans, added together, in first-seen order. */
+export function summedRows(scans: Scan[]) {
+  const rows = new Map<string, number>()
+  for (const s of scans)
+    if (s.status === "resolved")
+      rows.set(s.cardId!, (rows.get(s.cardId!) ?? 0) + s.quantity)
+  return [...rows].map(([cardId, quantity]) => ({ cardId, quantity }))
 }
