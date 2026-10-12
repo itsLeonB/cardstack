@@ -32,7 +32,8 @@ func InitializeProviders() (*Providers, func(), error) {
 	}
 	matchSettings := ProvideMatchSettings()
 	matchService := ProvideMatchService(dataSources, imageHost, imageEmbedder, matchSettings)
-	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, matchService)
+	adminSetService := ProvideAdminSetService(dataSources, imageHost)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, matchService, adminSetService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,
