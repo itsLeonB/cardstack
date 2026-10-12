@@ -1,4 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
 import { cva } from "class-variance-authority"
 import type { VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -42,14 +44,24 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const classes = cn(buttonVariants({ variant, size, className }))
+  // A `render` here is always a link. ButtonPrimitive would warn about a
+  // non-<button> element, and `nativeButton={false}` would add role="button"
+  // to the <a>, so style the link directly and keep its link semantics.
+  const link = useRender({
+    enabled: render !== undefined,
+    render,
+    props: mergeProps({ className: classes }, props),
+    state: { slot: "button", disabled: props.disabled ?? false },
+  })
+
   return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
+    link ?? (
+      <ButtonPrimitive data-slot="button" className={classes} {...props} />
+    )
   )
 }
 
