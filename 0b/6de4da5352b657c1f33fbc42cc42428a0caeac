@@ -1,0 +1,53 @@
+backend/cmd/genspec/main.go
+  s_a8d32164afce6f::t_5bde7cac8380bd 33
+backend/internal/adapters/http/handler/admin_cards_handler.go
+  s_a8d32164afce6f::t_8ef981318e76d7 1-98
+backend/internal/adapters/http/routes/admin_cards_routes_test.go
+  s_a8d32164afce6f::t_53c469ec6a94c3 1-262
+backend/internal/adapters/http/routes/register_routes.go
+  s_a8d32164afce6f::t_de19eb8dad75ea 51-53
+backend/internal/adapters/http/routes/testenv_test.go
+  s_a8d32164afce6f::t_25a9e66275e4d7 59-60,106,114,120
+backend/internal/adapters/objectstore/r2.go
+  s_a8d32164afce6f::t_ec1fc6b866ee4d 6,9,14,31-33,55,72-118
+backend/internal/adapters/objectstore/r2_test.go
+  s_a8d32164afce6f::t_2f0d731b0f7062 8,10,13,82-140
+backend/internal/core/objectstore/objectstore.go
+  s_a8d32164afce6f::t_8d8dc9a48feeb7 1-4,7-14,24-32
+backend/internal/domain/dto/admin_card_dto.go
+  s_a8d32164afce6f::t_15041dc2284b05 1-52
+backend/internal/domain/mapper/admin_card_mapper.go
+  s_a8d32164afce6f::t_947de5a68e0bcd 1-26
+backend/internal/domain/repository/catalog_repository.go
+  s_a8d32164afce6f::t_7c1b5e20d96579 297-299
+backend/internal/domain/service/card_admin_service.go
+  s_a8d32164afce6f::t_6adadc716b8ed1 1-241
+backend/internal/mocks/ObjectStore.go
+  s_a8d32164afce6f::t_1784c03241bb68 9-10,26-72,132-197,247-306
+backend/internal/provider/card_admin_provider.go
+  s_a8d32164afce6f::t_a51e4ab2e9e296 1-33
+backend/internal/provider/service_provider.go
+  s_a8d32164afce6f::t_0a43ff9a22b3b2 22,32,121,130
+backend/internal/provider/wire_gen.go
+  s_a8d32164afce6f::t_00851863eb31b3 35-37
+backend/openapi.json
+  s_a8d32164afce6f::t_ff4fff57aea2e9 25-68,128-166,320-343,996-1047,1064-1215
+docs/agents/deployment/images.md
+  s_a8d32164afce6f::t_870ef8a1d9d9eb 10-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "0b6de4da5352b657c1f33fbc42cc42428a0caeac",
+  "prompts": {},
+  "sessions": {
+    "s_a8d32164afce6f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a8d32164afce6f",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
