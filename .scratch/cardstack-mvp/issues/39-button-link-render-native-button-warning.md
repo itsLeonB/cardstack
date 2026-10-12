@@ -3,7 +3,7 @@
 # 39: `Button` rendered as a link logs a Base UI `nativeButton` warning
 
 **Category:** bug
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** None (can start immediately)
 
@@ -28,10 +28,10 @@
 - Do NOT fix this by passing `nativeButton={false}` to `ButtonPrimitive`. Base UI's `useButton` then adds `role="button"` to the `<a>`, so navigation links announce as buttons to screen readers.
 
 **Acceptance criteria:**
-- [ ] No Base UI `nativeButton` warning is logged on the home (guest and signed-in), collections index and not-found pages
-- [ ] A link-rendered `Button` has no `role="button"` and still navigates with Enter and a click
-- [ ] A `Button` used as a Base UI trigger's `render` still renders a `<button>` with no new warning
-- [ ] A frontend test covers the link-rendered case (element is an `<a>`, no `role="button"`); both verification scripts pass
+- [x] No Base UI `nativeButton` warning is logged on the home (guest and signed-in), collections index and not-found pages
+- [x] A link-rendered `Button` has no `role="button"` and still navigates with Enter and a click
+- [x] A `Button` used as a Base UI trigger's `render` still renders a `<button>` with no new warning
+- [x] A frontend test covers the link-rendered case (element is an `<a>`, no `role="button"`); both verification scripts pass
 
 **Out of scope:**
 - Migrating call sites to a separate `LinkButton` component
