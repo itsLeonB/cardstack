@@ -1,0 +1,31 @@
+backend/internal/adapters/db/postgres/migrations/20261011000000_curated_flag.sql
+  s_92670997c80280::t_853ed89ec762cf 1-10
+backend/internal/adapters/ingestion/pokemonasia/images.go
+  s_92670997c80280::t_7c2187ed9d0680 143,156
+backend/internal/adapters/ingestion/pokemonasia/ingest.go
+  s_92670997c80280::t_4b05692dc4684a 540-543,575-577
+backend/internal/adapters/ingestion/pokemonasia/ingest_test.go
+  s_92670997c80280::t_bbc3ba177fa70d 148-231
+backend/internal/domain/entity/card.go
+  s_92670997c80280::t_aef1fcbc9f5ded 43-45
+backend/internal/domain/entity/expansion_set.go
+  s_92670997c80280::t_a026a5892af3d1 32-33
+docs/agents/deployment.md
+  s_92670997c80280::t_070c09161843bc 30-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2ca0337b910d928c69a8379b67f431af03cfb630",
+  "prompts": {},
+  "sessions": {
+    "s_92670997c80280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_92670997c80280",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
