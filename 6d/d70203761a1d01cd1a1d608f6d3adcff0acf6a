@@ -1,0 +1,33 @@
+frontend/src/components/admin/admin-page.tsx
+  s_ad4cf0f00aade1::t_079d6ab4a82305 1,5,13-18
+frontend/src/components/admin/expansion-set-form.test.tsx
+  s_ad4cf0f00aade1::t_53ed809f47cdce 1-202
+frontend/src/components/admin/expansion-set-form.tsx
+  s_ad4cf0f00aade1::t_fc95ccacf1d85e 1-182
+frontend/src/generated/endpoints/admin/admin.ts
+  s_ad4cf0f00aade1::t_ab5a7c8a55b71f 8,15,20-21,27-29,180-286
+frontend/src/generated/endpoints/admin/admin.zod.ts
+  s_ad4cf0f00aade1::t_2cda8f8982c583 15-49
+frontend/src/generated/models/envelopeExpansionSetSummary.ts
+  s_ad4cf0f00aade1::t_6b04c697ac271c 1-11
+frontend/src/generated/models/index.ts
+  s_ad4cf0f00aade1::t_9a62c4409b8ab1 18,56
+frontend/src/generated/models/upsertExpansionSetInputBody.ts
+  s_ad4cf0f00aade1::t_869b3f93fca90a 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6dd70203761a1d01cd1a1d608f6d3adcff0acf6a",
+  "prompts": {},
+  "sessions": {
+    "s_ad4cf0f00aade1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ad4cf0f00aade1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
