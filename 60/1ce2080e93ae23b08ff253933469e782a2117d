@@ -1,0 +1,55 @@
+backend/.env.example
+  s_e1b46869627f51::t_2847d682de086b 38-41,49-54
+backend/cmd/genspec/main.go
+  s_e1b46869627f51::t_2fcf8026595851 31-33
+backend/internal/adapters/http/auth/claims.go
+  s_e1b46869627f51::t_3165d6658f09d2 17-18
+backend/internal/adapters/http/auth/middleware.go
+  s_e1b46869627f51::t_31a1f6a8f4780e 50-69
+backend/internal/adapters/http/handler/admin_handler.go
+  s_e1b46869627f51::t_8846aeede753eb 1-39
+backend/internal/adapters/http/routes/admin_routes_test.go
+  s_e1b46869627f51::t_a9b35cd7e7b93a 1-73
+backend/internal/adapters/http/routes/register_routes.go
+  s_e1b46869627f51::t_0367e371fcabfb 15-19,47-52
+backend/internal/adapters/http/routes/register_routes_test.go
+  s_e1b46869627f51::t_65a302b953079c 26
+backend/internal/adapters/http/routes/testenv_test.go
+  s_e1b46869627f51::t_b192e5fc0f4617 74-87,114
+backend/internal/adapters/http/server.go
+  s_e1b46869627f51::t_2e719586c00c9b 32-34,59,77-89
+backend/internal/adapters/http/server_test.go
+  s_e1b46869627f51::t_4839f8b29ab3a5 1-32
+backend/internal/core/config/admin_config.go
+  s_e1b46869627f51::t_59f18a69fb8d3c 1-31
+backend/internal/core/config/config.go
+  s_e1b46869627f51::t_ee09f13e029446 17,59-63,88
+backend/internal/core/config/config_test.go
+  s_e1b46869627f51::t_f549f0a091c59d 151-175
+backend/internal/core/config/image_config.go
+  s_e1b46869627f51::t_a1eb92befd5947 11-14
+backend/openapi.json
+  s_e1b46869627f51::t_2aa8ef10920f93 905-933
+docs/agents/deployment.md
+  s_e1b46869627f51::t_59d65da5d3a667 25-26
+docs/agents/deployment/clerk.md
+  s_e1b46869627f51::t_c8b1cc3fa244cf 9-17
+docs/agents/deployment/images.md
+  s_e1b46869627f51::t_f15626642e4c08 3,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "601ce2080e93ae23b08ff253933469e782a2117d",
+  "prompts": {},
+  "sessions": {
+    "s_e1b46869627f51": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e1b46869627f51",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
