@@ -1,0 +1,241 @@
+package service
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	"github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
+	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
+	"gorm.io/datatypes"
+)
+
+const (
+	// DefaultRarityName is the rarity of a Card entered without one: the promo
+	// mark of the Indonesian SM-P set (docs/adr/0019).
+	DefaultRarityName = "Tanpa Tanda"
+
+	// cardImageUploadTTL is how long a signed upload address stays valid.
+	cardImageUploadTTL = 5 * time.Minute
+
+	// signatureBytes is the longest file header isImageSignature reads (WebP's
+	// RIFF....WEBP).
+	signatureBytes = 12
+
+	categoryTrainer = "Trainer"
+)
+
+const (
+	adminSetNotFoundMsg   = "expansion set not found"
+	adminRarityInvalidMsg = "rarity not found in this expansion set's game"
+	adminTagNotAllowedMsg = "only a Trainer card carries a tag"
+	adminCardNotFoundMsg  = "card not found"
+	noUploadMsg           = "no image has been uploaded for this card"
+	notAnImageMsg         = "the uploaded file is not a JPEG, PNG or WebP image and was deleted"
+)
+
+// CardAdminService is the Admin's write access to Cards and their images
+// (docs/adr/0019). Every write marks the Card Curated.
+type CardAdminService interface {
+	// UpsertCard creates the Card at (Expansion Set, collector number) or
+	// updates the one already there. A new Card has no image and stays out of
+	// the catalog until ConfirmImage sets one.
+	UpsertCard(ctx context.Context, req dto.AdminCardUpsert) (dto.AdminCard, error)
+	// RequestImageUpload signs a short-lived PUT address for the Card's image
+	// key, which the server derives from the Card's id.
+	RequestImageUpload(ctx context.Context, req dto.CardImageUploadRequest) (dto.CardImageUpload, error)
+	// ConfirmImage checks the first bytes of the object uploaded for the Card
+	// and, only if they are a JPEG, PNG or WebP signature, sets the Card's
+	// image key. Otherwise it deletes the object and refuses.
+	ConfirmImage(ctx context.Context, req dto.CardImageConfirm) (dto.AdminCard, error)
+}
+
+type cardAdminService struct {
+	transactor crud.Transactor
+	cards      crud.Repository[entity.Card]
+	sets       crud.Repository[entity.ExpansionSet]
+	rarities   crud.Repository[entity.Rarity]
+	store      objectstore.ObjectStore
+	images     mapper.ImageHost
+}
+
+func NewCardAdminService(
+	transactor crud.Transactor,
+	cards crud.Repository[entity.Card],
+	sets crud.Repository[entity.ExpansionSet],
+	rarities crud.Repository[entity.Rarity],
+	store objectstore.ObjectStore,
+	images mapper.ImageHost,
+) CardAdminService {
+	return &cardAdminService{transactor: transactor, cards: cards, sets: sets, rarities: rarities, store: store, images: images}
+}
+
+func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpsert) (dto.AdminCard, error) {
+	if req.Tag != "" && req.Category != categoryTrainer {
+		return dto.AdminCard{}, ungerr.UnprocessableEntityError(adminTagNotAllowedMsg)
+	}
+
+	var saved entity.Card
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		// Locking the set serializes writers to its cards, so two saves of the
+		// same number cannot both insert.
+		set, err := s.getSet(ctx, req.ExpansionSetID, true)
+		if err != nil {
+			return err
+		}
+		rarityID, err := s.resolveRarity(ctx, set, req.RarityID)
+		if err != nil {
+			return err
+		}
+
+		tags := datatypes.JSONSlice[string]{}
+		if req.Tag != "" {
+			tags = append(tags, req.Tag)
+		}
+
+		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+			Model: entity.Card{ExpansionSetID: set.ID, LocalID: req.LocalID},
+		})
+		if err != nil {
+			return err
+		}
+		if card.IsZero() {
+			saved, err = s.cards.Insert(ctx, entity.Card{
+				ExpansionSetID: set.ID, LocalID: req.LocalID, Name: req.Name, Category: req.Category,
+				Illustrator: req.Illustrator, Tags: tags, RarityID: rarityID, Attributes: datatypes.JSONMap{}, Curated: true,
+			})
+			return err
+		}
+
+		card.Name, card.Category, card.Illustrator, card.Tags, card.RarityID, card.Curated =
+			req.Name, req.Category, req.Illustrator, tags, rarityID, true
+		saved, err = s.cards.Update(ctx, card)
+		return err
+	})
+	if err != nil {
+		return dto.AdminCard{}, err
+	}
+	return mapper.ToAdminCard(s.images, saved), nil
+}
+
+func (s *cardAdminService) getSet(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.ExpansionSet, error) {
+	if id == uuid.Nil {
+		return entity.ExpansionSet{}, ungerr.UnprocessableEntityError(adminSetNotFoundMsg)
+	}
+	set, err := s.sets.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{
+		Model:     entity.ExpansionSet{BaseEntity: crud.BaseEntity{ID: id}},
+		ForUpdate: forUpdate,
+	})
+	if err != nil {
+		return entity.ExpansionSet{}, err
+	}
+	if set.IsZero() {
+		return entity.ExpansionSet{}, ungerr.UnprocessableEntityError(adminSetNotFoundMsg)
+	}
+	return set, nil
+}
+
+// resolveRarity returns the chosen Rarity of set's Game, or the Game's
+// DefaultRarityName one when none is chosen.
+func (s *cardAdminService) resolveRarity(ctx context.Context, set entity.ExpansionSet, id uuid.UUID) (uuid.UUID, error) {
+	model := entity.Rarity{GameID: set.GameID, Name: DefaultRarityName}
+	if id != uuid.Nil {
+		model = entity.Rarity{BaseEntity: crud.BaseEntity{ID: id}, GameID: set.GameID}
+	}
+	rarity, err := s.rarities.FindFirst(ctx, crud.Specification[entity.Rarity]{Model: model})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if rarity.IsZero() {
+		return uuid.Nil, ungerr.UnprocessableEntityError(adminRarityInvalidMsg)
+	}
+	return rarity.ID, nil
+}
+
+func (s *cardAdminService) getCard(ctx context.Context, id uuid.UUID) (entity.Card, error) {
+	if id == uuid.Nil {
+		return entity.Card{}, ungerr.NotFoundError(adminCardNotFoundMsg)
+	}
+	card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{Model: entity.Card{BaseEntity: crud.BaseEntity{ID: id}}})
+	if err != nil {
+		return entity.Card{}, err
+	}
+	if card.IsZero() {
+		return entity.Card{}, ungerr.NotFoundError(adminCardNotFoundMsg)
+	}
+	return card, nil
+}
+
+// cardImageKey is the object key of a Card's hosted image, the same one the
+// ingester uses (docs/adr/0016).
+func cardImageKey(id uuid.UUID) string { return "cards/" + id.String() }
+
+func (s *cardAdminService) RequestImageUpload(ctx context.Context, req dto.CardImageUploadRequest) (dto.CardImageUpload, error) {
+	card, err := s.getCard(ctx, req.CardID)
+	if err != nil {
+		return dto.CardImageUpload{}, err
+	}
+	url, expiresAt, err := s.store.PresignPut(ctx, cardImageKey(card.ID), req.ContentType, cardImageUploadTTL)
+	if err != nil {
+		return dto.CardImageUpload{}, err
+	}
+	return dto.CardImageUpload{URL: url, ContentType: req.ContentType, ExpiresAt: expiresAt}, nil
+}
+
+func (s *cardAdminService) ConfirmImage(ctx context.Context, req dto.CardImageConfirm) (dto.AdminCard, error) {
+	card, err := s.getCard(ctx, req.CardID)
+	if err != nil {
+		return dto.AdminCard{}, err
+	}
+	key := cardImageKey(card.ID)
+
+	head, err := s.store.ReadHead(ctx, key, signatureBytes)
+	if errors.Is(err, objectstore.ErrNotFound) {
+		return dto.AdminCard{}, ungerr.UnprocessableEntityError(noUploadMsg)
+	}
+	if err != nil {
+		return dto.AdminCard{}, err
+	}
+
+	if !isImageSignature(head) {
+		if err := s.store.Delete(ctx, key); err != nil {
+			logger.Errorf("deleting rejected upload %q: %v", key, err)
+		}
+		// A re-upload has already replaced the old image under the same key, so
+		// a Card that pointed at it would now point at nothing.
+		if card.ImageKey != "" {
+			card.ImageKey = ""
+			if _, err := s.cards.Update(ctx, card); err != nil {
+				return dto.AdminCard{}, err
+			}
+		}
+		return dto.AdminCard{}, ungerr.UnprocessableEntityError(notAnImageMsg)
+	}
+
+	card.ImageKey, card.Curated = key, true
+	saved, err := s.cards.Update(ctx, card)
+	if err != nil {
+		return dto.AdminCard{}, err
+	}
+	return mapper.ToAdminCard(s.images, saved), nil
+}
+
+var (
+	jpegMagic = []byte{0xff, 0xd8, 0xff}
+	pngMagic  = []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a}
+)
+
+// isImageSignature reports whether head starts like a JPEG, a PNG or a WebP
+// (a RIFF container whose form type is WEBP).
+func isImageSignature(head []byte) bool {
+	return bytes.HasPrefix(head, jpegMagic) ||
+		bytes.HasPrefix(head, pngMagic) ||
+		(len(head) >= signatureBytes && bytes.HasPrefix(head, []byte("RIFF")) && bytes.Equal(head[8:12], []byte("WEBP")))
+}
