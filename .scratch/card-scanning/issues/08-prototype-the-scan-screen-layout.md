@@ -3,7 +3,7 @@
 # 08: Prototype the scan screen layout (frontend)
 
 **Category:** research (UI prototype)
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** None (can start immediately)
 
@@ -51,14 +51,28 @@ With 30 or more Scans in the tray, which layout keeps the scan loop (aim, tap, g
 - None. The prototype is throwaway and must be named so a casual reader sees it is one. It starts from one command in the project's task runner.
 
 **Acceptance criteria:**
-- [ ] One command starts a route with the three variants and a floating switch between them
-- [ ] All five row states are reachable in every variant, along with a tray of 30 or more rows
+- [x] One command starts a route with the three variants and a floating switch between them
+- [x] All five row states are reachable in every variant, along with a tray of 30 or more rows
 - [ ] The user has tried each variant at a phone width and at a desktop width
-- [ ] The user's verdict is recorded under `## Answer`: the winning layout, and why
-- [ ] The prototype is committed to a throwaway branch that is not merged into main, and this ticket points to it
-- [ ] Main keeps no prototype code
+- [x] The user's verdict is recorded under `## Answer`: the winning layout, and why
+- [x] The prototype is committed to a throwaway branch that is not merged into main, and this ticket points to it
+- [x] Main keeps no prototype code
 
 **Out of scope:**
 - Wiring to the real match endpoint, the draft store or the Review step
 - Tests, accessibility polish and visual polish beyond what makes the variants comparable
 - Choosing the Review step's layout (it stays as it is today)
+
+## Answer
+
+**Verdict: layout (c), the sheet.** The user tried the variants and chose a full-screen viewfinder with the Draft Addition as a collapsible bottom sheet over it. Ticket 09 implements it.
+
+What (c) does in the prototype, and what ticket 09 keeps:
+- The viewfinder fills the screen below the site header, and Capture sits just above the sheet, so aiming, tapping and the newest row stay in one view at any tray size.
+- The collapsed sheet is one header line plus the newest row. The header holds the toggle with the Scan count, the "N still matching" note, and "Review and add", so the button is reachable at every tray size and the disabled state explains itself.
+- Expanding the sheet gives a scrollable list of every Scan, newest first, with the quantity, dropdown and Remove controls.
+- On a desktop the viewfinder and sheet sit in a phone-width column (about 28rem) centred on the screen.
+
+Not covered by the prototype, left to ticket 09: the page header and breadcrumbs (the full-screen viewfinder hides them, so a way back to the Collection is needed), the camera denied and unavailable states, "Choose a photo", and "Discard draft".
+
+**Prototype (primary source):** branch `proto/scan-screen-layout`, commit `82d51e3`, never merged. The three variants are in `frontend/src/routes/prototype-scan-layout.tsx`, run with `bun run prototype:scan` and opened at `/prototype-scan-layout?variant=a|b|c`. It uses fake data only. The headless checks (typecheck, lint, Playwright screenshots at 390px and 1280px) covered all five row states and a tray of 36 rows, and the user's judgement came from trying it by hand.

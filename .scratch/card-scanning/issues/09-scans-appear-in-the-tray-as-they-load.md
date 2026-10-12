@@ -5,9 +5,9 @@
 **Category:** enhancement
 **Status:** ready-for-agent
 
-**Blocked by:** 08 (prototype the scan screen layout)
+**Blocked by:** None (can start immediately). Ticket 08 is resolved and chose the sheet layout.
 
-Spec: `.scratch/card-scanning/spec.md`. Glossary: Scan, Draft Addition. Builds on tickets 03 and 04.
+Spec: `.scratch/card-scanning/spec.md`. Glossary: Scan, Draft Addition. Builds on tickets 03 and 04. Layout decided in ticket 08 (its `## Answer` points to the prototype branch `proto/scan-screen-layout`, to read for reference only and never to merge or copy as production code).
 
 ## Agent Brief
 
@@ -26,7 +26,13 @@ Capture is disabled until its match returns. A confident match is added at once,
 6. **Persistence.** Resolved Scans are mirrored to local storage per Collection as the chosen card id, the quantity and the ids of the alternatives, so the dropdown works after a reload. Photos are never persisted. Scans that are queued, loading or failed are held in memory only and are lost on a refresh or on leaving the screen, which also cancels their requests. A draft stored in the old format (card ids and quantities only) is discarded. Alternative Cards are fetched by id with the catalog `cardId` filter, no more than 100 per request, and only when a dropdown opens.
 7. **Review and add.** The button is disabled while any Scan is queued or loading, with a note saying how many are still matching. Failed Scans do not disable it and are left out of the review. The Review step lists one row per Card, with the quantities of that Card's Scans added together and what the Collection already holds. Quantities and removal are not editable there: "Back to scanning" is where Scans are edited. The total against the capacity limit and the reason shown for a declined Card work as they do today.
 8. **After adding.** Scans of applied Cards leave the draft. Scans of declined Cards stay, with the reason shown on the Review row. The user returns to the Collection's page only when no Scans are left, so failed Scans keep the user on the scan screen with their red crosses.
-9. **Layout.** The scan screen follows the layout chosen in ticket 08.
+9. **Layout: the sheet.** The scan screen is a full-screen viewfinder under the site header, with the Draft Addition as a bottom sheet over it, as chosen in ticket 08.
+   - **Viewfinder and Capture.** The viewfinder fills the screen and Capture sits just above the sheet. "Choose a photo" stays beside it, because the file-picker path remains a supported way to scan. When the camera is denied or unavailable, the viewfinder area shows today's message, and the sheet and "Choose a photo" still work.
+   - **Collapsed sheet.** One header line and the newest Scan. The header holds the toggle with the Scan count, a "N still matching" note while any Scan is queued or loading, and "Review and add". A sheet with no Scans shows "Scanned cards will appear here."
+   - **Expanded sheet.** Opened by the toggle, it covers most of the screen and scrolls, listing every Scan newest first with the row controls from item 2. "Discard draft" lives here. Open and closed is screen state, not stored, and the sheet starts collapsed.
+   - **Width.** On a wide screen the viewfinder and sheet sit in a phone-width column (about 28rem) centred on the screen.
+   - **Way back.** The full-screen viewfinder replaces the page header and breadcrumbs, so keep a visible link back to the Collection over it, and keep the screen's single `main` landmark and document title.
+   - **Review.** "Review and add" opens the Review step as today, and "Back to scanning" returns to the sheet layout with the sheet in the state it was left.
 
 **Key interfaces:**
 - The generated match client, unchanged. Its response still holds only the matched Card when the matcher is confident.
@@ -44,6 +50,8 @@ Capture is disabled until its match returns. A confident match is added at once,
 - [ ] "Review and add" is disabled while any Scan is queued or loading, and failed Scans neither block it nor are added
 - [ ] After a partial add, declined Cards' Scans stay with their reason, and the user is taken to the Collection's page only when no Scans remain
 - [ ] A reload restores resolved Scans with their alternatives, drops the pending and failed ones, and a second Collection has its own draft
+- [ ] The screen is a full-screen viewfinder with a bottom sheet: collapsed it shows the toggle with the Scan count, the pending note, "Review and add" and the newest Scan; expanded it lists every Scan, and 30 or more Scans never push Capture or "Review and add" off screen at a phone width or a desktop width
+- [ ] With the camera denied or unavailable the sheet and "Choose a photo" still work, and a link back to the Collection is always visible
 - [ ] Feature tests render the scan route with the generated client mocked and a faked frame source; the Playwright spec from ticket 04 still passes on the file-picker path; the project's verification scripts pass
 
 **Out of scope:**
