@@ -1,11 +1,26 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { MAX_IMAGE_BYTES } from "@/lib/admin-card-upload"
 import { CardForm } from "./card-form"
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
+// jsdom decodes no images and makes no object URLs, so the browser's decoder
+// reports `size`, and previews are fake addresses.
+let decoded = { width: 720, height: 1005 }
+beforeEach(() => {
+  decoded = { width: 720, height: 1005 }
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn(async () => ({ ...decoded, close: () => {} }))
+  )
+  URL.createObjectURL = vi.fn(() => "blob:preview")
+  URL.revokeObjectURL = vi.fn()
 })
 
 const SIGNED_URL = "https://bucket.test/cards/c1?sig=1"
@@ -81,10 +96,16 @@ function fill(fields: Record<string, string>) {
   }
 }
 
-const chooseImage = () =>
+const pickImage = (file = new File(["x"], "card.png", { type: "image/png" })) =>
   fireEvent.change(screen.getByLabelText("Image"), {
-    target: { files: [new File(["x"], "card.png", { type: "image/png" })] },
+    target: { files: [file] },
   })
+
+/** Picks an image the checks accept and waits for its preview. */
+async function chooseImage(file?: File) {
+  pickImage(file)
+  await screen.findByRole("img", { name: "Preview of the chosen image" })
+}
 
 const save = () => fireEvent.click(screen.getByRole("button", { name: "Save" }))
 
@@ -117,7 +138,7 @@ describe("CardForm", () => {
       Type: "Supporter",
       Rarity: "r-2",
     })
-    chooseImage()
+    await chooseImage()
     save()
 
     await screen.findByText(/Saved SM-P 002/)
@@ -146,7 +167,7 @@ describe("CardForm", () => {
       "Collector number": "003",
       Name: "Pikachu",
     })
-    chooseImage()
+    await chooseImage()
     save()
 
     await screen.findByText(/Saved SM-P 003/)
@@ -158,6 +179,128 @@ describe("CardForm", () => {
     })
   })
 
+  it.each([
+    [
+      "a wrong type",
+      () => new File(["x"], "card.gif", { type: "image/gif" }),
+      /JPEG, PNG or WebP/,
+    ],
+    [
+      "an oversize file",
+      () => {
+        const file = new File(["x"], "card.png", { type: "image/png" })
+        Object.defineProperty(file, "size", { value: MAX_IMAGE_BYTES + 1 })
+        return file
+      },
+      /at most 10 MB/,
+    ],
+    [
+      "wrong dimensions",
+      () => {
+        decoded = { width: 1005, height: 720 }
+        return new File(["x"], "card.png", { type: "image/png" })
+      },
+      /portrait/,
+    ],
+  ])("rejects %s before anything is sent", async (_name, file, reason) => {
+    const calls = stubApi(() => json(200, { data: { id: "c1" } }))
+    await renderForm()
+    fill({
+      "Expansion set": "set-1",
+      "Collector number": "005",
+      Name: "Pikachu",
+    })
+
+    pickImage(file())
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(reason)
+    expect(screen.queryByRole("img")).toBeNull()
+    save()
+    await screen.findByText(/cannot be saved without one/)
+    expect(calls).toEqual([])
+  })
+
+  it("previews the chosen image", async () => {
+    stubApi(() => json(200, { data: { id: "c1" } }))
+    await renderForm()
+
+    await chooseImage()
+
+    expect(
+      screen
+        .getByRole("img", { name: "Preview of the chosen image" })
+        .getAttribute("src")
+    ).toBe("blob:preview")
+  })
+
+  it("saves and moves to the next number in the same set", async () => {
+    const calls = stubApi(() =>
+      json(200, { data: { id: "c1", imageUrl: "https://img.test/c1" } })
+    )
+    await renderForm()
+
+    fill({
+      "Expansion set": "set-1",
+      "Collector number": "009",
+      Name: "Pikachu",
+    })
+    await chooseImage()
+    fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
+
+    await screen.findByText(/Saved SM-P 009/)
+    expect(calls.map((c) => c.path)).toContain("/admin/cards/c1/image-confirm")
+    expect(
+      screen.getByLabelText<HTMLSelectElement>("Expansion set").value
+    ).toBe("set-1")
+    expect(
+      screen.getByLabelText<HTMLInputElement>("Collector number").value
+    ).toBe("010")
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("")
+    expect(screen.queryByRole("img")).toBeNull()
+    fill({ Name: "Raichu" })
+    save()
+    await screen.findByText(/cannot be saved without one/)
+  })
+
+  it("carries the number past its padding", async () => {
+    stubApi(() => json(200, { data: { id: "c1" } }))
+    await renderForm()
+
+    fill({
+      "Expansion set": "set-1",
+      "Collector number": "99",
+      Name: "Pikachu",
+    })
+    await chooseImage()
+    fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
+
+    await screen.findByText(/Saved SM-P 99/)
+    expect(
+      screen.getByLabelText<HTMLInputElement>("Collector number").value
+    ).toBe("100")
+  })
+
+  it("keeps the form as it is when a save and next fails", async () => {
+    stubApi(() => json(422, { status: 422, detail: "not an image" }))
+    await renderForm()
+
+    fill({
+      "Expansion set": "set-1",
+      "Collector number": "009",
+      Name: "Pikachu",
+    })
+    await chooseImage()
+    fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
+
+    await screen.findByRole("alert")
+    expect(
+      screen.getByLabelText<HTMLInputElement>("Collector number").value
+    ).toBe("009")
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+      "Pikachu"
+    )
+  })
+
   it("shows why a refused image was not saved", async () => {
     stubApi(() => json(422, { status: 422, detail: "not an image" }))
     await renderForm()
@@ -167,7 +310,7 @@ describe("CardForm", () => {
       "Collector number": "004",
       Name: "Pikachu",
     })
-    chooseImage()
+    await chooseImage()
     save()
 
     expect((await screen.findByRole("alert")).textContent).toMatch(

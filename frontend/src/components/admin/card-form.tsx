@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +15,11 @@ import {
   getListCatalogSeriesQueryOptions,
 } from "@/generated/endpoints/catalog/catalog"
 import type { UpsertCardInputBody } from "@/generated/models"
-import { CardUploadError, uploadCardImage } from "@/lib/admin-card-upload"
+import {
+  CardUploadError,
+  uploadCardImage,
+  validateCardImage,
+} from "@/lib/admin-card-upload"
 
 // What the admin picks as a card's type. Item, Supporter and Stadium are
 // Trainer cards told apart by their tag; Pokémon and Energi carry no tag.
@@ -33,6 +37,13 @@ function fieldsOf(kind: Kind): Pick<UpsertCardInputBody, "category" | "tag"> {
 // behaviour for free.
 const selectClass =
   "h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+
+/** "009" -> "010", "99" -> "100": the next number, keeping the entered padding. */
+function nextCollectorNumber(localId: string): string {
+  const match = /^(.*?)(\d+)$/.exec(localId)
+  if (!match) return ""
+  return match[1] + String(Number(match[2]) + 1).padStart(match[2].length, "0")
+}
 
 interface Saved {
   setCode: string
@@ -64,6 +75,9 @@ export function CardForm() {
   const [rarityId, setRarityId] = useState("")
   const [illustrator, setIllustrator] = useState("")
   const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const picked = useRef(0)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<Saved | null>(null)
 
@@ -79,8 +93,44 @@ export function CardForm() {
     },
   })
 
+  useEffect(() => {
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    return () => {
+      URL.revokeObjectURL(url)
+      setPreview(null)
+    }
+  }, [file])
+
+  // Checks the file before it can be saved, so a mistake shows at once and
+  // nothing is sent for it. Only the latest pick counts.
+  async function handlePick(chosen: File | undefined) {
+    const pick = ++picked.current
+    setFile(null)
+    setError(null)
+    if (!chosen) return
+    try {
+      await validateCardImage(chosen)
+    } catch (err) {
+      if (pick !== picked.current) return
+      setError(
+        err instanceof CardUploadError
+          ? err.message
+          : "Could not read the image."
+      )
+      return
+    }
+    if (pick === picked.current) setFile(chosen)
+  }
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    submit(false)
+  }
+
+  /** Saves the card; with `advance`, keeps the set and readies the next number. */
+  function submit(advance: boolean) {
     setError(null)
     setSaved(null)
 
@@ -104,7 +154,15 @@ export function CardForm() {
     if (illustrator.trim()) body.illustrator = illustrator.trim()
 
     save.mutate(body, {
-      onSuccess: () => setSaved({ setCode, localId: localId.trim() }),
+      onSuccess: () => {
+        setSaved({ setCode, localId: localId.trim() })
+        if (!advance) return
+        setLocalId(nextCollectorNumber(localId.trim()))
+        setName("")
+        picked.current++
+        setFile(null)
+        if (fileInput.current) fileInput.current.value = ""
+      },
       onError: (err) =>
         setError(
           err instanceof CardUploadError
@@ -197,11 +255,22 @@ export function CardForm() {
           <FieldLabel htmlFor="card-image">Image</FieldLabel>
           <Input
             id="card-image"
+            ref={fileInput}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => void handlePick(e.target.files?.[0])}
           />
-          <FieldDescription>JPEG, PNG or WebP. Required.</FieldDescription>
+          <FieldDescription>
+            JPEG, PNG or WebP, a portrait photo of the card, up to 10 MB.
+            Required.
+          </FieldDescription>
+          {preview && (
+            <img
+              src={preview}
+              alt="Preview of the chosen image"
+              className="max-h-64 w-fit rounded-xl"
+            />
+          )}
         </Field>
         {error && <FieldError>{error}</FieldError>}
         {saved && (
@@ -212,6 +281,14 @@ export function CardForm() {
         <Field>
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? "Saving..." : "Save"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={save.isPending}
+            onClick={() => submit(true)}
+          >
+            Save and next
           </Button>
         </Field>
       </FieldGroup>
