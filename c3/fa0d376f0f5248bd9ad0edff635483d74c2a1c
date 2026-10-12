@@ -1,0 +1,53 @@
+backend/cmd/genspec/main.go
+  s_0068b24426e3dd::t_7171a76da9982a 33
+backend/internal/adapters/http/handler/admin_set_handler.go
+  s_0068b24426e3dd::t_b4ced707460c32 1-66
+backend/internal/adapters/http/routes/admin_sets_routes_test.go
+  s_0068b24426e3dd::t_13a54f66c69816 1-180
+backend/internal/adapters/http/routes/register_routes.go
+  s_0068b24426e3dd::t_df78d1e7084e4b 53
+backend/internal/adapters/http/routes/testenv_test.go
+  s_0068b24426e3dd::t_04d9ce9454d163 114
+backend/internal/domain/dto/admin_dto.go
+  s_0068b24426e3dd::t_e2c929788663e0 1-16
+backend/internal/domain/service/admin_set_service.go
+  s_0068b24426e3dd::t_76314687884ded 1-109
+backend/internal/provider/service_provider.go
+  s_0068b24426e3dd::t_0256b8e9675d43 22,32,91-101,133,142
+backend/internal/provider/wire_gen.go
+  s_0068b24426e3dd::t_0597ad9960f9dc 35,38
+backend/openapi.json
+  s_0068b24426e3dd::t_6b62da7cce609e 368-379,1060-1086,1284-1344
+frontend/src/components/admin/admin-page.tsx
+  s_0068b24426e3dd::t_120394effa565f 2,6,14-25
+frontend/src/components/admin/expansion-set-form.test.tsx
+  s_0068b24426e3dd::t_e1100d6cb97a34 1-202
+frontend/src/components/admin/expansion-set-form.tsx
+  s_0068b24426e3dd::t_004341dcc8ae55 1-182
+frontend/src/generated/endpoints/admin/admin.ts
+  s_0068b24426e3dd::t_6f859621c4fe96 30,32-33,489-595
+frontend/src/generated/endpoints/admin/admin.zod.ts
+  s_0068b24426e3dd::t_6a1b0a78736409 90-124
+frontend/src/generated/models/envelopeExpansionSetSummary.ts
+  s_0068b24426e3dd::t_9ea2023613be25 1-11
+frontend/src/generated/models/index.ts
+  s_0068b24426e3dd::t_029dcfe44f18e4 24,65
+frontend/src/generated/models/upsertExpansionSetInputBody.ts
+  s_0068b24426e3dd::t_c4878189e6e78f 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c3fa0d376f0f5248bd9ad0edff635483d74c2a1c",
+  "prompts": {},
+  "sessions": {
+    "s_0068b24426e3dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_0068b24426e3dd",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
