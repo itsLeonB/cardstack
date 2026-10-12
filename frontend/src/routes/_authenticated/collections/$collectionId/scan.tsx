@@ -1,9 +1,4 @@
-import {
-  Link,
-  createFileRoute,
-  notFound,
-  useNavigate,
-} from "@tanstack/react-router"
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { notFoundResource } from "@/components/layout/not-found"
 import { PageHeader } from "@/components/layout/page-header"
@@ -12,15 +7,10 @@ import { ScanScreen } from "@/components/scan/scan-screen"
 import { getGetCollectionQueryOptions } from "@/generated/endpoints/collections/collections"
 import { clearDraft } from "@/lib/draft-addition"
 import { useCameraFrameSource } from "@/lib/frame-source"
-import { scanEnabled } from "@/lib/scan-flag"
 
 export const Route = createFileRoute(
   "/_authenticated/collections/$collectionId/scan"
 )({
-  // With the flag off the route does not exist.
-  beforeLoad: () => {
-    if (!scanEnabled()) throw notFound()
-  },
   loader: async ({ context: { queryClient }, params }) => {
     const response = await queryClient.ensureQueryData(
       getGetCollectionQueryOptions(params.collectionId)

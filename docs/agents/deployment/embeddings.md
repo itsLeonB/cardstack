@@ -15,7 +15,7 @@ Local values: `backend/.env.example`.
 
 `POST /scan/match` embeds the uploaded JPEG with one synchronous Gemini call (8 second timeout, under `APP_TIMEOUT`), takes the five nearest stored vectors of `EMBEDDING_MODEL` and returns those Cards best first. The photo is processed in memory and never stored. A Card with no embedding for the model cannot appear. A Gemini failure, quota error or timeout is logged in full and answered as a redacted 500, which the frontend shows as "Could not match this photo". Each scan is one billed embedding call, and the per-user rate limits apply.
 
-The production frontend flag (`VITE_SCAN_ENABLED`, `docs/agents/deployment.md`) is turned on by a frontend rebuild once the production catalog is embedded and a real photo has matched the right Card on the deployed API.
+Card scanning has no feature flag: the "Scan cards" button and the scan route ship in every frontend build. Before deploying to production, make sure the production catalog is embedded, `GEMINI_API_KEY` is set on the API, and a real photo has matched the right Card on the deployed API, otherwise scans answer 500 or never find a Card.
 
 ## Running it
 

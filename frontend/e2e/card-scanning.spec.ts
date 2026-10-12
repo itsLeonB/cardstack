@@ -10,10 +10,8 @@ import {
 
 // The scan, review and add flow on the file-picker path (no camera): a stubbed
 // match answers the photo, the stubbed Collection holds 3 copies of the card,
-// and its page must show 4 after the add. Needs VITE_SCAN_ENABLED=true in the
-// app's build (playwright.config.ts sets it for the dev server it starts).
-// Signed in through Clerk's real development instance; the stubs are what the
-// real session token reads.
+// and its page must show 4 after the add. Signed in through Clerk's real
+// development instance; the stubs are what the real session token reads.
 const card = {
   id: "card-7",
   name: "Card 7",

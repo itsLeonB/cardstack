@@ -25,22 +25,11 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 
 afterEach(() => {
   cleanup()
-  vi.unstubAllEnvs()
 })
 
-it("links to the Collection's scan screen when the flag is on", () => {
-  vi.stubEnv("VITE_SCAN_ENABLED", "true")
+it("links to the Collection's scan screen ", () => {
   render(<ScanLink collectionId="col-1" />)
   expect(
     screen.getByRole("link", { name: "Scan cards" }).getAttribute("href")
   ).toBe("/collections/col-1/scan")
 })
-
-it.each<string | undefined>([undefined, "", "false", "1"])(
-  "renders nothing when the flag is %j",
-  (value) => {
-    vi.stubEnv("VITE_SCAN_ENABLED", value)
-    render(<ScanLink collectionId="col-1" />)
-    expect(screen.queryByRole("link")).toBeNull()
-  }
-)

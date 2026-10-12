@@ -44,7 +44,6 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.unstubAllGlobals()
-  vi.unstubAllEnvs()
 })
 
 async function renderScan() {
@@ -78,14 +77,7 @@ async function renderScan() {
 }
 
 describe("the scan route", () => {
-  it("is not found while the feature flag is off", async () => {
-    await renderScan()
-    await screen.findByRole("heading", { name: "Page not found" })
-    expect(screen.queryByText("Choose a photo")).toBeNull()
-  })
-
-  it("shows the scan screen for a Collection when the flag is on", async () => {
-    vi.stubEnv("VITE_SCAN_ENABLED", "true")
+  it("shows the scan screen for a Collection", async () => {
     await renderScan()
     await screen.findByRole("heading", { level: 1, name: "Scan cards" })
     expect(screen.getByText("Adding to Binder")).toBeTruthy()
@@ -93,7 +85,6 @@ describe("the scan route", () => {
   })
 
   it("drops the draft quietly when the Collection is missing", async () => {
-    vi.stubEnv("VITE_SCAN_ENABLED", "true")
     collectionStatus = 404
     saveDraft("col-1", [{ cardId: "card-1", quantity: 1, candidateIds: [] }])
     await renderScan()
@@ -107,11 +98,7 @@ describe("the scan route", () => {
  * SAFETY: `any` because the per-route generics of a file route can't be
  * spelled for a hand-built tree.
  */
-function pick(options: {
-  beforeLoad?: unknown
-  loader?: unknown
-  component?: unknown
-}): any {
-  const { beforeLoad, loader, component } = options
-  return { beforeLoad, loader, component }
+function pick(options: { loader?: unknown; component?: unknown }): any {
+  const { loader, component } = options
+  return { loader, component }
 }
