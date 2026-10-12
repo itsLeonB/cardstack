@@ -1,0 +1,43 @@
+backend/internal/adapters/http/handler/admin_cards_handler.go
+  s_efa6105f8185ea::t_c2caca68981c08 47-58,109-117
+backend/internal/adapters/http/routes/admin_cards_routes_test.go
+  s_efa6105f8185ea::t_9d930b34f0cffe 263-340
+backend/internal/domain/dto/admin_card_dto.go
+  s_efa6105f8185ea::t_c1eb233ee662b0 49-54
+backend/internal/domain/service/card_admin_service.go
+  s_efa6105f8185ea::t_ec91cd6b828464 42,59-63,71,81,85,238-283
+backend/internal/provider/card_admin_provider.go
+  s_efa6105f8185ea::t_2aba5b77a2ef8d 30
+backend/openapi.json
+  s_efa6105f8185ea::t_5213df5e08e536 1104-1156
+frontend/src/components/admin/admin-page.tsx
+  s_efa6105f8185ea::t_428e342c143b1f 2,27-35
+frontend/src/components/admin/delete-card-form.test.tsx
+  s_efa6105f8185ea::t_0aa4a0d0e9cc46 1-146
+frontend/src/components/admin/delete-card-form.tsx
+  s_efa6105f8185ea::t_6428b853651421 1-147
+frontend/src/generated/endpoints/admin/admin.ts
+  s_efa6105f8185ea::t_be958abda3582d 28,66-165
+frontend/src/generated/endpoints/admin/admin.zod.ts
+  s_efa6105f8185ea::t_457551ca0fa7d3 10-23
+frontend/src/generated/models/deleteAdminCardParams.ts
+  s_efa6105f8185ea::t_3ac5c87cc8d8f1 1-19
+frontend/src/generated/models/index.ts
+  s_efa6105f8185ea::t_cce5c50d34610b 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "3704f8dc9adec932802c49519ec14bf2384d7bef",
+  "prompts": {},
+  "sessions": {
+    "s_efa6105f8185ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_efa6105f8185ea",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
