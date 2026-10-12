@@ -22,8 +22,8 @@ Vite bakes `VITE_*` vars into the bundle at build time, so a changed value needs
 
 ## Backend settings, one file each
 
-- `docs/agents/deployment/clerk.md`: sign-in fails or every request gets a 401, `CLERK_SECRET_KEY`, `CLERK_ISSUER`, `APP_CLIENT_URLS`, the rollout order of the Clerk migration.
-- `docs/agents/deployment/images.md`: card or Expansion Set images missing or empty, `IMAGE_BASE_URL`, `VITE_IMAGE_HOST`, the R2 settings, `make host-images`.
+- `docs/agents/deployment/clerk.md`: sign-in fails or every request gets a 401, `CLERK_SECRET_KEY`, `CLERK_ISSUER`, `APP_CLIENT_URLS`, `ADMIN_EMAILS` (the catalog admin allowlist), the rollout order of the Clerk migration.
+- `docs/agents/deployment/images.md`: card or Expansion Set images missing or empty, `IMAGE_BASE_URL`, `VITE_IMAGE_HOST`, the R2 settings (also needed by the API for admin uploads), `make host-images`.
 - `docs/agents/deployment/embeddings.md`: `card_embeddings` empty, `GEMINI_API_KEY`, `EMBEDDING_MODEL`, `MATCH_THRESHOLD`, `MATCH_MARGIN`, scans answering 500, `make embed-catalog`, `make collect-embeddings`, enabling pgvector.
 - `docs/agents/deployment/api-protection.md`: the API answers 403 or 429, `APP_EDGE_SECRET`, the Cloudflare rule, `RATE_LIMIT_*`.
 

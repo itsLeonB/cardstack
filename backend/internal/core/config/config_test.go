@@ -148,3 +148,28 @@ func TestApp_ValidateClientUrls_RejectsEntriesThatCanNeverMatchAnOrigin(t *testi
 		assert.ErrorContains(t, App{ClientUrls: entries}.ValidateClientUrls(), fmt.Sprintf("%q", bad))
 	}
 }
+
+func TestAdminEnvVarName(t *testing.T) {
+	t.Setenv("ADMIN_EMAILS", "a@example.com,B@example.com")
+
+	var admin Admin
+	require.NoError(t, envconfig.Process(admin.Prefix(), &admin))
+
+	assert.Equal(t, []string{"a@example.com", "B@example.com"}, admin.Emails)
+}
+
+func TestAdmin_ValidateAdminEmails_NamesTheBadEntry(t *testing.T) {
+	for _, ok := range [][]string{nil, {"a@example.com"}, {"a@example.com", "B.c+d@Example.org"}} {
+		assert.NoError(t, Admin{Emails: ok}.ValidateAdminEmails(), "%q", ok)
+	}
+
+	for bad, entries := range map[string][]string{
+		"":                            {"a@example.com", ""},
+		"not-an-email":                {"not-an-email"},
+		" a@example.com":              {" a@example.com"},
+		"Ann <a@example.com>":         {"Ann <a@example.com>"},
+		"a@example.com,b@example.com": {"a@example.com,b@example.com"},
+	} {
+		assert.ErrorContains(t, Admin{Emails: entries}.ValidateAdminEmails(), fmt.Sprintf("%q", bad))
+	}
+}

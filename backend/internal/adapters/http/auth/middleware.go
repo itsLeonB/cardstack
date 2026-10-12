@@ -47,7 +47,26 @@ func Guard(api huma.API, verifier TokenVerifier, users service.UserService, allo
 			return
 		}
 
-		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID}))
+		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID, Email: identity.Email}))
+	}
+}
+
+// AdminOnly lets through only a caller whose email is in emails, compared
+// case-insensitively, and answers everyone else, Guest or signed in, with the
+// same 404 so an admin route does not reveal itself. It must run after Guard.
+func AdminOnly(api huma.API, emails []string) func(huma.Context, func(huma.Context)) {
+	allowed := make(map[string]struct{}, len(emails))
+	for _, email := range emails {
+		allowed[strings.ToLower(email)] = struct{}{}
+	}
+
+	return func(ctx huma.Context, next func(huma.Context)) {
+		caller := CallerFrom(ctx.Context())
+		if _, ok := allowed[strings.ToLower(caller.Email)]; caller.IsGuest() || !ok {
+			writeErr(api, ctx, ungerr.NotFoundError("not found"))
+			return
+		}
+		next(ctx)
 	}
 }
 

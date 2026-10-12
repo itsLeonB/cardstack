@@ -902,6 +902,35 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/check": {
+      "get": {
+        "operationId": "admin-check",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Check that the caller is an Admin",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/catalog/cards": {
       "get": {
         "operationId": "search-catalog-cards",

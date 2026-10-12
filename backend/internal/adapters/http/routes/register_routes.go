@@ -12,7 +12,11 @@ import (
 // RegisterRoutes mounts every Huma operation on api. It takes the already
 // constructed *provider.Services rather than the full *provider.Providers
 // so cmd/genspec can register routes without booting a DB connection.
-func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.Limits) {
+//
+// adminEmails are the Admins (ADMIN_EMAILS). The caller passes none unless the
+// R2 settings are also present, and with none the admin routes are not
+// registered at all (docs/adr/0019).
+func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.Limits, adminEmails []string) {
 	healthHandler := handler.NewHealthHandler(services.Health)
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
@@ -40,4 +44,10 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
+
+	if len(adminEmails) > 0 {
+		// Guests pass Guard so AdminOnly can answer them with the same 404 as a
+		// signed-in non-Admin. perUser runs first, so probing is rate-limited.
+		endpoint.RegisterAll(api, handler.NewAdminHandler().Routes(), guestsAllowed, perUser, authpkg.AdminOnly(api, adminEmails))
+	}
 }

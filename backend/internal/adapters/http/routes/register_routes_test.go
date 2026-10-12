@@ -23,7 +23,7 @@ func (stubHealthService) Check() service.HealthStatus {
 func TestRegisterRoutes_Health(t *testing.T) {
 	_, api := humatest.New(t, httpapi.NewConfig())
 
-	RegisterRoutes(api, &provider.Services{Health: stubHealthService{}}, ratelimit.Limits{})
+	RegisterRoutes(api, &provider.Services{Health: stubHealthService{}}, ratelimit.Limits{}, nil)
 
 	resp := api.Get("/health")
 
