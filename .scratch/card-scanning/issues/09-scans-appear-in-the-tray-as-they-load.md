@@ -52,8 +52,8 @@ Capture is disabled until its match returns. A confident match is added at once,
 - [x] A reload restores resolved Scans with their alternatives, drops the pending and failed ones, and a second Collection has its own draft
 - [x] The screen is a full-screen viewfinder with a bottom sheet: collapsed it shows the toggle with the Scan count, the pending note, "Review and add" and the newest Scan; expanded it lists every Scan, and 30 or more Scans never push Capture or "Review and add" off screen at a phone width or a desktop width
 - [x] With the camera denied or unavailable the sheet and "Choose a photo" still work, and a link back to the Collection is always visible
-- [ ] Feature tests render the scan route with the generated client mocked and a faked frame source; the Playwright spec from ticket 04 still passes on the file-picker path; the project's verification scripts pass
-  - Feature tests and the project verification scripts pass. The Playwright spec was updated (one stale banner assertion) but not run: it needs Clerk dev credentials, so run it before shipping.
+- [x] Feature tests render the scan route with the generated client mocked and a faked frame source; the Playwright spec from ticket 04 still passes on the file-picker path; the project's verification scripts pass
+  - Feature tests, the project verification scripts and the Playwright spec (run against the Clerk dev instance) pass.
 
 **Out of scope:**
 - Any backend change; the matcher still returns only the top candidate when it is confident, so a wrong confident match is fixed by removing the Scan and rescanning
