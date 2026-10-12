@@ -29,6 +29,9 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	if err := configs.ValidateClientUrls(); err != nil {
 		return nil, nil, err
 	}
+	if err := configs.ValidateAdminEmails(); err != nil {
+		return nil, nil, err
+	}
 	if len(configs.ClientUrls) == 0 {
 		// A preview has none until its frontend is deployed.
 		logger.Error("APP_CLIENT_URLS is empty: every token will be rejected, since none can come from a configured frontend origin")
@@ -53,7 +56,7 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 
 	api := humagin.New(r, httpapi.NewServerConfig(configs.Env))
 	httpapi.UseRecovery(api)
-	routes.RegisterRoutes(api, providers.Services, ratelimit.NewLimits(configs.RateLimit, time.Now))
+	routes.RegisterRoutes(api, providers.Services, ratelimit.NewLimits(configs.RateLimit, time.Now), adminEmails(configs))
 
 	httpCfg := httpserver.ProductionConfig()
 	httpCfg.LoggerConfig = &httpserver.LoggerConfig{
@@ -70,4 +73,17 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	)
 
 	return srv, cleanup, nil
+}
+
+// adminEmails returns the Admins when the admin routes may exist: the
+// allowlist and the R2 write settings must both be set (docs/adr/0019), else
+// none are returned and RegisterRoutes mounts no admin route.
+func adminEmails(configs config.Config) []string {
+	if !configs.Configured() {
+		if len(configs.Emails) > 0 {
+			logger.Error("ADMIN_EMAILS is set but the R2 settings are not: the admin routes are off")
+		}
+		return nil
+	}
+	return configs.Emails
 }

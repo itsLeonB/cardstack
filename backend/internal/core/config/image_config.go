@@ -8,9 +8,10 @@ type Image struct {
 
 func (Image) Prefix() string { return "IMAGE" }
 
-// R2 configures the Cloudflare R2 bucket the ingester copies images into.
-// Image hosting is optional: with any of the four required fields empty the
-// ingester logs a warning and hosts nothing. Endpoint overrides the address
+// R2 configures the Cloudflare R2 bucket the ingester copies images into and
+// the API signs Admin uploads for. Image hosting is optional: with any of the
+// four required fields empty the ingester logs a warning and hosts nothing,
+// and the API registers no admin routes. Endpoint overrides the address
 // derived from AccountID, for tests and S3-compatible stand-ins.
 type R2 struct {
 	AccountID       string `envconfig:"ACCOUNT_ID"`

@@ -71,6 +71,20 @@ func newTestAPI(t *testing.T) testAPI {
 
 func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 	t.Helper()
+	return newTestAPIWith(t, limits, nil)
+}
+
+// newTestAPIWithAdmins is the API as booted with ADMIN_EMAILS set to emails
+// (and the R2 settings present); nil emails leaves the admin routes off.
+func newTestAPIWithAdmins(t *testing.T, emails []string) testAPI {
+	t.Helper()
+
+	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
+	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), emails)
+}
+
+func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string) testAPI {
+	t.Helper()
 
 	db, sqlDB := openTestDB(t)
 	migrateTestDB(t, sqlDB)
@@ -97,7 +111,7 @@ func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services, limits)
+	RegisterRoutes(api, services, limits, adminEmails)
 
 	return testAPI{TestAPI: api, db: db, key: key, embedder: embedder, model: settings.Model}
 }

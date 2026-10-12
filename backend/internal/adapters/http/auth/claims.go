@@ -14,6 +14,8 @@ type callerKey struct{}
 type Caller struct {
 	UserID    uuid.UUID
 	ProfileID uuid.UUID
+	// Email is the verified email claim of the token; empty for a Guest.
+	Email string
 }
 
 func (c Caller) IsGuest() bool { return c.ProfileID == uuid.Nil }
