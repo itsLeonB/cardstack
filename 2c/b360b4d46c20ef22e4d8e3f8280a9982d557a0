@@ -1,0 +1,19 @@
+.scratch/card-scanning/issues/09-scans-appear-in-the-tray-as-they-load.md
+  s_019dfa13f3e445::t_6ecaa41d4d707c 55-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2cb360b4d46c20ef22e4d8e3f8280a9982d557a0",
+  "prompts": {},
+  "sessions": {
+    "s_019dfa13f3e445": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_019dfa13f3e445",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
