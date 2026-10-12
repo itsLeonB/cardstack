@@ -27,6 +27,7 @@ func ProvideCardAdminService(ds *DataSources, images mapper.ImageHost, store obj
 		crud.NewRepository[entity.Card](ds.Gorm),
 		crud.NewRepository[entity.ExpansionSet](ds.Gorm),
 		crud.NewRepository[entity.Rarity](ds.Gorm),
+		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
 		store,
 		images,
 	)

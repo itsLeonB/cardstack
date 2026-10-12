@@ -1,4 +1,5 @@
 import { CardForm } from "@/components/admin/card-form"
+import { DeleteCardForm } from "@/components/admin/delete-card-form"
 import { ExpansionSetForm } from "@/components/admin/expansion-set-form"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
@@ -22,6 +23,15 @@ export function AdminPage() {
           Card
         </h2>
         <CardForm />
+      </section>
+      <section
+        aria-labelledby="admin-delete-heading"
+        className="mt-10 max-w-xl"
+      >
+        <h2 id="admin-delete-heading" className="mb-4 text-lg font-medium">
+          Delete a card
+        </h2>
+        <DeleteCardForm />
       </section>
     </PageContainer>
   )

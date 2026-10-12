@@ -44,6 +44,18 @@ type cardImageConfirmInput struct {
 	ID uuid.UUID `path:"id" doc:"Card ID"`
 }
 
+// deleteCardInput names the Card by its set and collector number, the identity
+// the Admin enters it by, so a Card whose upload failed (and so is in no
+// catalog list) can still be found and deleted.
+type deleteCardInput struct {
+	ExpansionSetID uuid.UUID `query:"expansionSetId" required:"true" doc:"The Expansion Set the Card belongs to."`
+	LocalID        string    `query:"localId" required:"true" minLength:"1" maxLength:"32" doc:"The Card's collector number within the set."`
+}
+
+func (h *AdminCardsHandler) deleteCard(ctx context.Context, in deleteCardInput) error {
+	return h.cards.DeleteCard(ctx, dto.CardDelete{ExpansionSetID: in.ExpansionSetID, LocalID: in.LocalID})
+}
+
 func (h *AdminCardsHandler) upsertCard(ctx context.Context, in upsertCardInput) (dto.AdminCard, error) {
 	b := in.Body
 	return h.cards.UpsertCard(ctx, dto.AdminCardUpsert{
@@ -93,6 +105,15 @@ func (h *AdminCardsHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.confirmImage,
+		}),
+		endpoint.NewNoBody(endpoint.NoBodyEndpoint[deleteCardInput]{
+			OperationID: "delete-admin-card",
+			Method:      http.MethodDelete,
+			Path:        "/admin/cards",
+			Summary:     "Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it",
+			Tags:        []string{"admin"},
+			Secured:     true,
+			HandlerFunc: h.deleteCard,
 		}),
 	}
 }

@@ -17,6 +17,7 @@ export * from './cardSummary.ts';
 export * from './catalogFacets.ts';
 export * from './collectionBody.ts';
 export * from './collectionSummary.ts';
+export * from './deleteAdminCardParams.ts';
 export * from './envelopeAdminCard.ts';
 export * from './envelopeCardImageUpload.ts';
 export * from './envelopeCatalogFacets.ts';

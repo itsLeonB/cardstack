@@ -39,6 +39,7 @@ const (
 	adminCardNotFoundMsg  = "card not found"
 	noUploadMsg           = "no image has been uploaded for this card"
 	notAnImageMsg         = "the uploaded file is not a JPEG, PNG or WebP image and was deleted"
+	cardCollectedMsg      = "card is in a collection and cannot be deleted"
 )
 
 // CardAdminService is the Admin's write access to Cards and their images
@@ -55,6 +56,11 @@ type CardAdminService interface {
 	// and, only if they are a JPEG, PNG or WebP signature, sets the Card's
 	// image key. Otherwise it deletes the object and refuses.
 	ConfirmImage(ctx context.Context, req dto.CardImageConfirm) (dto.AdminCard, error)
+	// DeleteCard removes the Card, its hosted image object and (by cascade) its
+	// embeddings and batch membership. A Card some Collection still holds is
+	// refused with a conflict, because deleting it would erase a collector's
+	// records.
+	DeleteCard(ctx context.Context, req dto.CardDelete) error
 }
 
 type cardAdminService struct {
@@ -62,6 +68,7 @@ type cardAdminService struct {
 	cards      crud.Repository[entity.Card]
 	sets       crud.Repository[entity.ExpansionSet]
 	rarities   crud.Repository[entity.Rarity]
+	entries    crud.Repository[entity.InventoryEntry]
 	store      objectstore.ObjectStore
 	images     mapper.ImageHost
 }
@@ -71,10 +78,11 @@ func NewCardAdminService(
 	cards crud.Repository[entity.Card],
 	sets crud.Repository[entity.ExpansionSet],
 	rarities crud.Repository[entity.Rarity],
+	entries crud.Repository[entity.InventoryEntry],
 	store objectstore.ObjectStore,
 	images mapper.ImageHost,
 ) CardAdminService {
-	return &cardAdminService{transactor: transactor, cards: cards, sets: sets, rarities: rarities, store: store, images: images}
+	return &cardAdminService{transactor: transactor, cards: cards, sets: sets, rarities: rarities, entries: entries, store: store, images: images}
 }
 
 func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpsert) (dto.AdminCard, error) {
@@ -225,6 +233,52 @@ func (s *cardAdminService) ConfirmImage(ctx context.Context, req dto.CardImageCo
 		return dto.AdminCard{}, err
 	}
 	return mapper.ToAdminCard(s.images, saved), nil
+}
+
+func (s *cardAdminService) DeleteCard(ctx context.Context, req dto.CardDelete) error {
+	// A zero field would drop out of the Model below and widen the match.
+	if req.ExpansionSetID == uuid.Nil || req.LocalID == "" {
+		return ungerr.NotFoundError(adminCardNotFoundMsg)
+	}
+	var deleted uuid.UUID
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		// The lock blocks a concurrent Inventory Entry insert (its foreign key
+		// check shares the Card row), so the check below cannot go stale.
+		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+			Model:     entity.Card{ExpansionSetID: req.ExpansionSetID, LocalID: req.LocalID},
+			ForUpdate: true,
+		})
+		if err != nil {
+			return err
+		}
+		if card.IsZero() {
+			return ungerr.NotFoundError(adminCardNotFoundMsg)
+		}
+		held, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
+			Model: entity.InventoryEntry{CardID: card.ID},
+		})
+		if err != nil {
+			return err
+		}
+		if !held.IsZero() {
+			return ungerr.ConflictError(cardCollectedMsg)
+		}
+		deleted = card.ID
+		return s.cards.Delete(ctx, card)
+	})
+	if err != nil {
+		return err
+	}
+
+	// After the commit, so a failed delete never leaves a Card without its
+	// image. The key comes from the id, not the row, because an upload that was
+	// never confirmed leaves an object under it too. A failure leaves an orphan
+	// object, which the logged key lets the owner remove.
+	key := cardImageKey(deleted)
+	if err := s.store.Delete(ctx, key); err != nil {
+		logger.Errorf("deleting image object %q of a deleted card: %v", key, err)
+	}
+	return nil
 }
 
 var (
