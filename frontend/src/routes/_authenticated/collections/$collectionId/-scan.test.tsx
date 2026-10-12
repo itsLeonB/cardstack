@@ -95,7 +95,7 @@ describe("the scan route", () => {
   it("drops the draft quietly when the Collection is missing", async () => {
     vi.stubEnv("VITE_SCAN_ENABLED", "true")
     collectionStatus = 404
-    saveDraft("col-1", [{ cardId: "card-1", quantity: 1 }])
+    saveDraft("col-1", [{ cardId: "card-1", quantity: 1, candidateIds: [] }])
     await renderScan()
     await screen.findByRole("heading", { name: "Collection not found" })
     expect(loadDraft("col-1")).toEqual([])
