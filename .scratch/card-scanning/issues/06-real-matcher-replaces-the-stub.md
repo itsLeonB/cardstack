@@ -3,7 +3,7 @@
 # 06: Real matcher replaces the stub
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** 02 (scan API contract and stub match endpoint), 05 (embed the catalog), 07 (tune the matcher on the full catalog)
 
@@ -31,13 +31,13 @@ After ticket 02 the match endpoint returns random Cards with random confidence. 
 - Regenerate `openapi.json`; the diff should show no schema change, which is the check that the contract held.
 
 **Acceptance criteria:**
-- [ ] With the provider faked and stored embeddings in real Postgres, a photo whose embedding is closest to one Card by a clear margin returns that Card with `confident: true`
-- [ ] A near-tie returns both Cards as candidates with `confident: false`; a weak top score returns `confident: false`
-- [ ] A Card without an embedding never appears in results, and results only come from the current model's embeddings
-- [ ] A provider error or timeout returns a classified error with no provider internals
-- [ ] The random stub is gone and `openapi.json` is unchanged
-- [ ] A manual check with the real provider against the seeded Expansion Set from ticket 05 returns the right Card for a real photo
-- [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
+- [x] With the provider faked and stored embeddings in real Postgres, a photo whose embedding is closest to one Card by a clear margin returns that Card with `confident: true`
+- [x] A near-tie returns both Cards as candidates with `confident: false`; a weak top score returns `confident: false`
+- [x] A Card without an embedding never appears in results, and results only come from the current model's embeddings
+- [x] A provider error or timeout returns a classified error with no provider internals
+- [x] The random stub is gone and `openapi.json` is unchanged
+- [x] A manual check with the real provider against the seeded Expansion Set from ticket 05 returns the right Card for a real photo
+- [x] `go build ./...`, `go vet ./...`, `gofmt -l .` and `go test ./...` pass
 
 **Out of scope:**
 - Any frontend change, including turning on the production flag
