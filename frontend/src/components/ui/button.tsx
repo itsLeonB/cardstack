@@ -3,10 +3,11 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva } from "class-variance-authority"
 import type { VariantProps } from "class-variance-authority"
+import { isValidElement } from "react"
 import { cn } from "cn"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-4xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-4xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -48,14 +49,31 @@ function Button({
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   const classes = cn(buttonVariants({ variant, size, className }))
-  // A `render` here is always a link. ButtonPrimitive would warn about a
-  // non-<button> element, and `nativeButton={false}` would add role="button"
-  // to the <a>, so style the link directly and keep its link semantics.
+  // Rendering a non-<button> through ButtonPrimitive warns, and
+  // `nativeButton={false}` would add role="button" to a link, so style the
+  // rendered element directly and keep its own semantics. That skips
+  // ButtonPrimitive's button defaults, which are restored below.
+  const nativeButton =
+    isValidElement<{ type?: string }>(render) && render.type === "button"
+  const { disabled, ...rest } = props
   const link = useRender({
     enabled: render !== undefined,
     render,
-    props: mergeProps({ className: classes }, props),
-    state: { slot: "button", disabled: props.disabled ?? false },
+    props: mergeProps(
+      { className: classes },
+      nativeButton && render.props.type === undefined
+        ? { type: "button" as const }
+        : {},
+      // <a> has no `disabled`: block the click (Enter fires one too) and say so.
+      disabled
+        ? {
+            "aria-disabled": true,
+            onClick: (event: React.MouseEvent) => event.preventDefault(),
+          }
+        : {},
+      nativeButton ? props : rest
+    ),
+    state: { slot: "button", disabled: disabled ?? false },
   })
 
   return (
