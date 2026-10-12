@@ -1,0 +1,19 @@
+frontend/e2e/card-scanning.spec.ts
+  s_a43eddd0befce9::t_90dd8efd335df7 228-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f316713fc9cad089a327ea9eca393c3deacc00fb",
+  "prompts": {},
+  "sessions": {
+    "s_a43eddd0befce9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a43eddd0befce9",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
