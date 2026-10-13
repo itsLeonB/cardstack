@@ -18,6 +18,7 @@ import {
   getListCatalogSeriesQueryKey,
   useListCatalogSeries,
 } from "@/generated/endpoints/catalog/catalog"
+import type { ExpansionSetSummary } from "@/generated/models"
 
 // Mirrors the API's `code` pattern, so a bad code is caught before sending.
 const CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
@@ -54,16 +55,22 @@ export function ExpansionSetForm() {
   const browse =
     seriesQuery.data?.status === 200 ? seriesQuery.data.data.data : undefined
   const series = browse?.series ?? []
-  const sets: SetOption[] = series.flatMap((s) =>
-    (s.expansionSets ?? []).map((set) => ({
-      id: set.id,
-      code: set.code,
-      name: set.name,
-      // The API sends a timestamp; the date input and the API want YYYY-MM-DD.
-      releaseDate: set.releaseDate?.slice(0, 10) ?? "",
-      seriesId: s.id,
-    }))
-  )
+  const toOption = (set: ExpansionSetSummary, seriesId: string): SetOption => ({
+    id: set.id,
+    code: set.code,
+    name: set.name,
+    // The API sends a timestamp; the date input and the API want YYYY-MM-DD.
+    releaseDate: set.releaseDate?.slice(0, 10) ?? "",
+    seriesId,
+  })
+  // A set with no Series loads with an empty Series, so validate() makes the
+  // Admin pick one before the PUT, which requires it.
+  const sets: SetOption[] = [
+    ...series.flatMap((s) =>
+      (s.expansionSets ?? []).map((set) => toOption(set, s.id))
+    ),
+    ...(browse?.ungroupedExpansionSets ?? []).map((set) => toOption(set, "")),
+  ]
   const pending = create.isPending || update.isPending
 
   function chooseExisting(value: string) {

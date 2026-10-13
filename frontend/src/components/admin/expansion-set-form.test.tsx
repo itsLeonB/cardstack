@@ -26,7 +26,15 @@ const SERIES = {
       ],
     },
   ],
-  ungroupedExpansionSets: [],
+  ungroupedExpansionSets: [
+    {
+      id: "set-loose",
+      code: "LOOSE",
+      name: "Set tanpa Series",
+      releaseDate: "2020-01-01T00:00:00Z",
+      imageUrl: "",
+    },
+  ],
 }
 
 interface Write {
@@ -157,6 +165,39 @@ describe("ExpansionSetForm", () => {
         body: {
           name: "Koleksi Matahari (diperbaiki)",
           releaseDate: "2016-12-02",
+          seriesId: "series-sm",
+        },
+      },
+    ])
+  })
+
+  it("lists a set with no Series and requires a Series before the PUT", async () => {
+    const puts = renderForm()
+
+    await screen.findByRole("option", { name: /LOOSE/ })
+    fireEvent.change(screen.getByLabelText("Existing set"), {
+      target: { value: "set-loose" },
+    })
+    expect(screen.getByLabelText("Name")).toHaveProperty(
+      "value",
+      "Set tanpa Series"
+    )
+
+    save()
+    await screen.findByText("Series is required.")
+    expect(puts).toEqual([])
+
+    await chooseSeries("Matahari & Bulan")
+    save()
+
+    await screen.findByText("Saved LOOSE.")
+    expect(puts).toEqual([
+      {
+        method: "PUT",
+        path: "/admin/expansion-sets/set-loose",
+        body: {
+          name: "Set tanpa Series",
+          releaseDate: "2020-01-01",
           seriesId: "series-sm",
         },
       },
