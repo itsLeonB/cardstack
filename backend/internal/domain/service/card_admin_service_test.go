@@ -56,8 +56,8 @@ func (f cardAdminFixture) expectLockedSet() {
 	}).Return(f.set, nil).Once()
 }
 
-func (f cardAdminFixture) upsertReq() dto.AdminCardUpsert {
-	return dto.AdminCardUpsert{ExpansionSetID: f.set.ID, LocalID: "001", Name: "Pikachu", Category: "Pokémon"}
+func (f cardAdminFixture) createReq() dto.AdminCardCreate {
+	return dto.AdminCardCreate{ExpansionSetID: f.set.ID, LocalID: "001", Name: "Pikachu", Category: "Pokémon"}
 }
 
 func (f cardAdminFixture) expectCardAt(localID string, found entity.Card) {
@@ -86,30 +86,30 @@ func lockedCardSpec(id uuid.UUID) crud.Specification[entity.Card] {
 	return crud.Specification[entity.Card]{Model: entity.Card{BaseEntity: baseEntity(id)}, ForUpdate: true}
 }
 
-func TestCardAdminService_UpsertCard_TagOnlyOnTrainer(t *testing.T) {
+func TestCardAdminService_CreateCard_TagOnlyOnTrainer(t *testing.T) {
 	f := newCardAdminFixture(t)
-	req := f.upsertReq()
-	req.Tag = "Item"
+	req := f.createReq()
+	req.Tags = []string{"Item"}
 
-	_, err := f.svc.UpsertCard(f.ctx, req)
+	_, err := f.svc.CreateCard(f.ctx, req)
 
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 }
 
-func TestCardAdminService_UpsertCard_UnknownSetIsRefused(t *testing.T) {
+func TestCardAdminService_CreateCard_UnknownSetIsRefused(t *testing.T) {
 	f := newCardAdminFixture(t)
-	req := f.upsertReq()
+	req := f.createReq()
 	f.sets.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.ExpansionSet{}, nil).Once()
 
-	_, err := f.svc.UpsertCard(f.ctx, req)
+	_, err := f.svc.CreateCard(f.ctx, req)
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 
 	req.ExpansionSetID = uuid.Nil
-	_, err = f.svc.UpsertCard(f.ctx, req)
+	_, err = f.svc.CreateCard(f.ctx, req)
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 }
 
-func TestCardAdminService_UpsertCard_NewCardDefaultsToTanpaTandaAndIsCurated(t *testing.T) {
+func TestCardAdminService_CreateCard_DefaultsToTanpaTandaAndIsCurated(t *testing.T) {
 	f := newCardAdminFixture(t)
 	promo := entity.Rarity{BaseEntity: baseEntity(uuid.New()), Name: DefaultRarityName}
 	f.expectLockedSet()
@@ -123,52 +123,62 @@ func TestCardAdminService_UpsertCard_NewCardDefaultsToTanpaTandaAndIsCurated(t *
 	inserted.BaseEntity = baseEntity(uuid.New())
 	f.cards.EXPECT().Insert(f.ctx, want).Return(inserted, nil).Once()
 
-	got, err := f.svc.UpsertCard(f.ctx, f.upsertReq())
+	got, err := f.svc.CreateCard(f.ctx, f.createReq())
 
 	require.NoError(t, err)
 	assert.Equal(t, inserted.ID, got.ID)
 	assert.Equal(t, promo.ID, got.RarityID)
 }
 
-func TestCardAdminService_UpsertCard_NewTrainerCardKeepsItsTagAndChosenRarity(t *testing.T) {
+func TestCardAdminService_CreateCard_TrainerKeepsItsTagsAndChosenRarity(t *testing.T) {
 	f := newCardAdminFixture(t)
 	chosen := entity.Rarity{BaseEntity: baseEntity(uuid.New()), Name: "Double Rare"}
-	req := f.upsertReq()
-	req.Category, req.Tag, req.RarityID, req.Illustrator = "Trainer", "Supporter", chosen.ID, "Someone"
+	req := f.createReq()
+	req.Category, req.Tags, req.RarityID, req.Illustrator = "Trainer", []string{"Item", "Supporter"}, chosen.ID, "Someone"
 	f.expectLockedSet()
 	f.expectCardAt("001", entity.Card{})
 	f.expectRarityByID(chosen.ID, chosen)
 	f.cards.EXPECT().Insert(f.ctx, entity.Card{
 		ExpansionSetID: f.set.ID, LocalID: "001", Name: "Pikachu", Category: "Trainer", Illustrator: "Someone",
-		Tags: datatypes.JSONSlice[string]{"Supporter"}, RarityID: chosen.ID, Attributes: datatypes.JSONMap{}, Curated: true,
-	}).Return(entity.Card{BaseEntity: baseEntity(uuid.New()), Tags: datatypes.JSONSlice[string]{"Supporter"}}, nil).Once()
+		Tags: datatypes.JSONSlice[string]{"Item", "Supporter"}, RarityID: chosen.ID, Attributes: datatypes.JSONMap{}, Curated: true,
+	}).Return(entity.Card{BaseEntity: baseEntity(uuid.New()), Tags: datatypes.JSONSlice[string]{"Item", "Supporter"}}, nil).Once()
 
-	got, err := f.svc.UpsertCard(f.ctx, req)
+	got, err := f.svc.CreateCard(f.ctx, req)
 
 	require.NoError(t, err)
-	assert.Equal(t, "Supporter", got.Tag)
+	assert.Equal(t, []string{"Item", "Supporter"}, got.Tags)
 }
 
-func TestCardAdminService_UpsertCard_NewCardWithRarityOfAnotherGameIsRefused(t *testing.T) {
+func TestCardAdminService_CreateCard_AnExistingNumberIsAConflictAndWritesNothing(t *testing.T) {
 	f := newCardAdminFixture(t)
-	req := f.upsertReq()
+	f.expectLockedSet()
+	f.expectCardAt("001", storedCard(f))
+
+	_, err := f.svc.CreateCard(f.ctx, f.createReq())
+
+	requireStatus(t, err, http.StatusConflict)
+}
+
+func TestCardAdminService_CreateCard_RarityOfAnotherGameIsRefused(t *testing.T) {
+	f := newCardAdminFixture(t)
+	req := f.createReq()
 	req.RarityID = uuid.New()
 	f.expectLockedSet()
 	f.expectCardAt("001", entity.Card{})
 	f.expectRarityByID(req.RarityID, entity.Rarity{})
 
-	_, err := f.svc.UpsertCard(f.ctx, req)
+	_, err := f.svc.CreateCard(f.ctx, req)
 
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 }
 
-func TestCardAdminService_UpsertCard_NewCardWithoutAPromoRarityIsRefused(t *testing.T) {
+func TestCardAdminService_CreateCard_WithoutAPromoRarityIsRefused(t *testing.T) {
 	f := newCardAdminFixture(t)
 	f.expectLockedSet()
 	f.expectCardAt("001", entity.Card{})
 	f.expectRarityByName(entity.Rarity{})
 
-	_, err := f.svc.UpsertCard(f.ctx, f.upsertReq())
+	_, err := f.svc.CreateCard(f.ctx, f.createReq())
 
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 }
@@ -180,55 +190,94 @@ func storedCard(f cardAdminFixture) entity.Card {
 	}
 }
 
-func TestCardAdminService_UpsertCard_EditKeepsOmittedRarityAndIllustrator(t *testing.T) {
-	f := newCardAdminFixture(t)
-	stored := storedCard(f)
-	f.expectLockedSet()
-	f.expectCardAt("001", stored)
-	// No rarity lookup is expected: an omitted rarity is not resolved.
-	want := stored
-	want.Name, want.Category, want.Tags, want.Curated = "Pikachu", "Pokémon", datatypes.JSONSlice[string]{}, true
-	f.cards.EXPECT().Update(f.ctx, want).Return(want, nil).Once()
-
-	got, err := f.svc.UpsertCard(f.ctx, f.upsertReq())
-
-	require.NoError(t, err)
-	assert.Equal(t, stored.RarityID, got.RarityID)
-	assert.Equal(t, "Arita", got.Illustrator)
-	assert.Empty(t, got.Tag, "the tag follows the request, not the stored card")
-	assert.Equal(t, testImageBase+"/cards/keep", got.ImageURL)
+func (f cardAdminFixture) updateReq(stored entity.Card, rarityID uuid.UUID) dto.AdminCardUpdate {
+	return dto.AdminCardUpdate{ID: stored.ID, Name: "Pikachu", Category: "Pokémon", RarityID: rarityID}
 }
 
-func TestCardAdminService_UpsertCard_EditReplacesAGivenRarityAndIllustrator(t *testing.T) {
+// expectUpdateReads sets up the locked Card read and the unlocked read of its set.
+func (f cardAdminFixture) expectUpdateReads(stored entity.Card) {
+	f.cards.EXPECT().FindFirst(f.ctx, lockedCardSpec(stored.ID)).Return(stored, nil).Once()
+	f.sets.EXPECT().FindFirst(f.ctx, crud.Specification[entity.ExpansionSet]{
+		Model: entity.ExpansionSet{BaseEntity: baseEntity(f.set.ID)},
+	}).Return(f.set, nil).Once()
+}
+
+func TestCardAdminService_UpdateCard_ReplacesEveryFieldWithTheRequests(t *testing.T) {
 	f := newCardAdminFixture(t)
 	stored := storedCard(f)
 	chosen := entity.Rarity{BaseEntity: baseEntity(uuid.New()), Name: "Double Rare"}
-	req := f.upsertReq()
-	req.RarityID, req.Illustrator = chosen.ID, "Someone"
-	f.expectLockedSet()
-	f.expectCardAt("001", stored)
+	req := f.updateReq(stored, chosen.ID)
+	req.Tags = []string{"Item"}
+	req.Category = "Trainer"
+	f.expectUpdateReads(stored)
 	f.expectRarityByID(chosen.ID, chosen)
+	// The illustrator is not in the request, so it is cleared, not kept.
 	want := stored
-	want.Name, want.Category, want.Tags, want.Curated = "Pikachu", "Pokémon", datatypes.JSONSlice[string]{}, true
-	want.RarityID, want.Illustrator = chosen.ID, "Someone"
+	want.Name, want.Category, want.Tags, want.RarityID, want.Illustrator, want.Curated =
+		"Pikachu", "Trainer", datatypes.JSONSlice[string]{"Item"}, chosen.ID, "", true
 	f.cards.EXPECT().Update(f.ctx, want).Return(want, nil).Once()
 
-	got, err := f.svc.UpsertCard(f.ctx, req)
+	got, err := f.svc.UpdateCard(f.ctx, req)
 
 	require.NoError(t, err)
 	assert.Equal(t, chosen.ID, got.RarityID)
-	assert.Equal(t, "Someone", got.Illustrator)
+	assert.Empty(t, got.Illustrator)
+	assert.Equal(t, []string{"Item"}, got.Tags)
+	assert.Equal(t, testImageBase+"/cards/keep", got.ImageURL, "the hosted image stays")
 }
 
-func TestCardAdminService_UpsertCard_EditWithUnknownRarityWritesNothing(t *testing.T) {
+func TestCardAdminService_UpdateCard_NoTagsClearsTheStoredOnes(t *testing.T) {
 	f := newCardAdminFixture(t)
-	req := f.upsertReq()
-	req.RarityID = uuid.New()
-	f.expectLockedSet()
-	f.expectCardAt("001", storedCard(f))
-	f.expectRarityByID(req.RarityID, entity.Rarity{})
+	stored := storedCard(f)
+	chosen := entity.Rarity{BaseEntity: baseEntity(uuid.New())}
+	f.expectUpdateReads(stored)
+	f.expectRarityByID(chosen.ID, chosen)
+	f.cards.EXPECT().Update(f.ctx, mock.MatchedBy(func(c entity.Card) bool {
+		return c.Tags != nil && len(c.Tags) == 0
+	})).Return(stored, nil).Once()
 
-	_, err := f.svc.UpsertCard(f.ctx, req)
+	_, err := f.svc.UpdateCard(f.ctx, f.updateReq(stored, chosen.ID))
+
+	require.NoError(t, err)
+}
+
+func TestCardAdminService_UpdateCard_RarityIsRequired(t *testing.T) {
+	f := newCardAdminFixture(t)
+
+	// Nothing is read: an omitted rarity is refused, never defaulted or kept.
+	_, err := f.svc.UpdateCard(f.ctx, f.updateReq(storedCard(f), uuid.Nil))
+
+	requireStatus(t, err, http.StatusUnprocessableEntity)
+}
+
+func TestCardAdminService_UpdateCard_TagOnlyOnTrainer(t *testing.T) {
+	f := newCardAdminFixture(t)
+	req := f.updateReq(storedCard(f), uuid.New())
+	req.Tags = []string{"Item"}
+
+	_, err := f.svc.UpdateCard(f.ctx, req)
+
+	requireStatus(t, err, http.StatusUnprocessableEntity)
+}
+
+func TestCardAdminService_UpdateCard_UnknownCardIsNotFound(t *testing.T) {
+	f := newCardAdminFixture(t)
+	missing := uuid.New()
+	f.cards.EXPECT().FindFirst(f.ctx, lockedCardSpec(missing)).Return(entity.Card{}, nil).Once()
+
+	_, err := f.svc.UpdateCard(f.ctx, dto.AdminCardUpdate{ID: missing, Name: "X", Category: "Pokémon", RarityID: uuid.New()})
+
+	requireStatus(t, err, http.StatusNotFound)
+}
+
+func TestCardAdminService_UpdateCard_UnknownRarityWritesNothing(t *testing.T) {
+	f := newCardAdminFixture(t)
+	stored := storedCard(f)
+	rarityID := uuid.New()
+	f.expectUpdateReads(stored)
+	f.expectRarityByID(rarityID, entity.Rarity{})
+
+	_, err := f.svc.UpdateCard(f.ctx, f.updateReq(stored, rarityID))
 
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 }
@@ -379,42 +428,35 @@ func TestCardAdminService_GetCard_BlankIdentityIsNotFoundWithoutAQuery(t *testin
 }
 
 func TestCardAdminService_DeleteCard(t *testing.T) {
-	deleteSpec := func(f cardAdminFixture) crud.Specification[entity.Card] {
-		return crud.Specification[entity.Card]{Model: entity.Card{ExpansionSetID: f.set.ID, LocalID: "001"}, ForUpdate: true}
-	}
-	req := func(f cardAdminFixture) dto.CardDelete {
-		return dto.CardDelete{ExpansionSetID: f.set.ID, LocalID: "001"}
-	}
-
-	t.Run("a blank identity is not found without a query", func(t *testing.T) {
+	t.Run("a nil id is not found without a query", func(t *testing.T) {
 		f := newCardAdminFixture(t)
-		requireStatus(t, f.svc.DeleteCard(f.ctx, dto.CardDelete{ExpansionSetID: uuid.Nil, LocalID: "001"}), http.StatusNotFound)
-		requireStatus(t, f.svc.DeleteCard(f.ctx, dto.CardDelete{ExpansionSetID: f.set.ID}), http.StatusNotFound)
+		requireStatus(t, f.svc.DeleteCard(f.ctx, dto.CardDelete{}), http.StatusNotFound)
 	})
 
 	t.Run("unknown card", func(t *testing.T) {
 		f := newCardAdminFixture(t)
-		f.cards.EXPECT().FindFirst(f.ctx, deleteSpec(f)).Return(entity.Card{}, nil).Once()
-		requireStatus(t, f.svc.DeleteCard(f.ctx, req(f)), http.StatusNotFound)
+		missing := uuid.New()
+		f.cards.EXPECT().FindFirst(f.ctx, lockedCardSpec(missing)).Return(entity.Card{}, nil).Once()
+		requireStatus(t, f.svc.DeleteCard(f.ctx, dto.CardDelete{ID: missing}), http.StatusNotFound)
 	})
 
 	t.Run("a collected card is a conflict and keeps its object", func(t *testing.T) {
 		f := newCardAdminFixture(t)
 		card := entity.Card{BaseEntity: baseEntity(uuid.New())}
-		f.cards.EXPECT().FindFirst(f.ctx, deleteSpec(f)).Return(card, nil).Once()
+		f.cards.EXPECT().FindFirst(f.ctx, lockedCardSpec(card.ID)).Return(card, nil).Once()
 		f.entries.EXPECT().FindFirst(f.ctx, crud.Specification[entity.InventoryEntry]{Model: entity.InventoryEntry{CardID: card.ID}}).
 			Return(entity.InventoryEntry{BaseEntity: baseEntity(uuid.New())}, nil).Once()
-		requireStatus(t, f.svc.DeleteCard(f.ctx, req(f)), http.StatusConflict)
+		requireStatus(t, f.svc.DeleteCard(f.ctx, dto.CardDelete{ID: card.ID}), http.StatusConflict)
 	})
 
 	t.Run("deletes the row, then the object derived from its id", func(t *testing.T) {
 		f := newCardAdminFixture(t)
 		card := entity.Card{BaseEntity: baseEntity(uuid.New())}
-		f.cards.EXPECT().FindFirst(f.ctx, deleteSpec(f)).Return(card, nil).Once()
+		f.cards.EXPECT().FindFirst(f.ctx, lockedCardSpec(card.ID)).Return(card, nil).Once()
 		f.entries.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.InventoryEntry{}, nil).Once()
 		f.cards.EXPECT().Delete(f.ctx, card).Return(nil).Once()
 		f.store.EXPECT().Delete(f.ctx, "cards/"+card.ID.String()).Return(errors.New("bucket down")).Once()
 
-		assert.NoError(t, f.svc.DeleteCard(f.ctx, req(f)), "a failed object delete is logged, not returned")
+		assert.NoError(t, f.svc.DeleteCard(f.ctx, dto.CardDelete{ID: card.ID}), "a failed object delete is logged, not returned")
 	})
 }

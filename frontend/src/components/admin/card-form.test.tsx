@@ -39,13 +39,31 @@ function json<T>(status: number, body: T) {
 }
 
 interface Stub {
-  upsert?: () => Response
-  lookup?: () => Response
+  /** The lookup of the Card at a collector number; defaults to "no such card". */
+  lookup?: (localId: string) => Response
+  create?: () => Response
+  update?: () => Response
   confirm?: () => Response
 }
 
-/** The API as the form meets it: lookups, the upsert and the upload calls. */
-function stubApi({ upsert, lookup, confirm }: Stub = {}) {
+const missing = () => json(404, { status: 404, detail: "card not found" })
+
+/** A Card ingestion wrote: a Trainer with a tag, a rarity and an illustrator. */
+const stored = () =>
+  json(200, {
+    data: {
+      id: "c9",
+      name: "Typo",
+      category: "Trainer",
+      tags: ["Supporter"],
+      rarityId: "r-2",
+      illustrator: "Arita",
+      imageUrl: "https://img.test/c9",
+    },
+  })
+
+/** The API as the form meets it: lookups, the create and update, the upload calls. */
+function stubApi({ lookup, create, update, confirm }: Stub = {}) {
   const calls: Call[] = []
   vi.stubGlobal(
     "fetch",
@@ -73,10 +91,14 @@ function stubApi({ upsert, lookup, confirm }: Stub = {}) {
         })
       }
       if (path === "/admin/cards" && method === "GET") {
-        return lookup ? lookup() : json(200, { data: { id: "c1" } })
+        const localId = new URL(url).searchParams.get("localId") ?? ""
+        return lookup ? lookup(localId) : missing()
       }
       if (path === "/admin/cards") {
-        return upsert ? upsert() : json(200, { data: { id: "c1" } })
+        return create ? create() : json(201, { data: { id: "c1" } })
+      }
+      if (method === "PUT" && path.startsWith("/admin/cards/")) {
+        return update ? update() : json(200, { data: { id: "c9" } })
       }
       if (path.endsWith("/image-upload")) {
         return json(200, {
@@ -89,6 +111,9 @@ function stubApi({ upsert, lookup, confirm }: Stub = {}) {
   )
   return calls
 }
+
+/** Everything the form sent that changes something: no lookups. */
+const writes = (calls: Call[]) => calls.filter((c) => c.method !== "GET")
 
 async function renderForm() {
   const queryClient = new QueryClient({
@@ -109,6 +134,18 @@ function fill(fields: Record<string, string>) {
   }
 }
 
+const NEW_CARD = /New card\./
+const EXISTING_CARD = /Editing the existing card SM-P/
+
+/** Enters the set and number, and waits until the lookup has answered. */
+async function enter(localId: string, answer: RegExp = NEW_CARD) {
+  fill({ "Expansion set": "set-1", "Collector number": localId })
+  await screen.findByText(answer)
+}
+
+const value = (label: string) =>
+  screen.getByLabelText<HTMLInputElement>(label).value
+
 const pickImage = (file = new File(["x"], "card.png", { type: "image/png" })) =>
   fireEvent.change(screen.getByLabelText("Image"), {
     target: { files: [file] },
@@ -124,16 +161,16 @@ const save = () => fireEvent.click(screen.getByRole("button", { name: "Save" }))
 const upload = () =>
   fireEvent.click(screen.getByRole("button", { name: "Upload image" }))
 
-const saved = (imageUrl?: string) => json(200, { data: { id: "c1", imageUrl } })
+const created = (imageUrl?: string) =>
+  json(201, { data: { id: "c1", imageUrl } })
 
-describe("CardForm details", () => {
-  it("saves a card without an image and says it stays hidden", async () => {
-    const calls = stubApi({ upsert: () => saved() })
+describe("CardForm details, a new card", () => {
+  it("creates a card without an image and says it stays hidden", async () => {
+    const calls = stubApi({ create: () => created() })
     await renderForm()
 
+    await enter("002")
     fill({
-      "Expansion set": "set-1",
-      "Collector number": "002",
       Name: "Professor's Research",
       Type: "Supporter",
       Rarity: "r-2",
@@ -143,28 +180,25 @@ describe("CardForm details", () => {
     expect((await screen.findByRole("status")).textContent).toMatch(
       /Saved SM-P 002.*hidden from the catalog until an image is uploaded/
     )
-    expect(calls.map((c) => [c.method, c.path])).toEqual([
-      ["PUT", "/admin/cards"],
+    expect(writes(calls).map((c) => [c.method, c.path])).toEqual([
+      ["POST", "/admin/cards"],
     ])
-    expect(JSON.parse(String(calls[0].body))).toEqual({
+    expect(JSON.parse(String(writes(calls)[0].body))).toEqual({
       expansionSetId: "set-1",
       localId: "002",
       name: "Professor's Research",
       category: "Trainer",
-      tag: "Supporter",
+      tags: ["Supporter"],
       rarityId: "r-2",
     })
   })
 
   it("does not call a card hidden once it has an image", async () => {
-    stubApi({ upsert: () => saved("https://img.test/c1") })
+    stubApi({ create: () => created("https://img.test/c1") })
     await renderForm()
 
-    fill({
-      "Expansion set": "set-1",
-      "Collector number": "002",
-      Name: "Fixed name",
-    })
+    await enter("002")
+    fill({ Name: "Fixed name" })
     save()
 
     const status = await screen.findByRole("status")
@@ -172,19 +206,16 @@ describe("CardForm details", () => {
     expect(status.textContent).not.toMatch(/hidden/)
   })
 
-  it("leaves the tag and rarity out for a Pokémon on the default rarity", async () => {
+  it("leaves the tags and rarity out for a Pokémon on the default rarity", async () => {
     const calls = stubApi()
     await renderForm()
 
-    fill({
-      "Expansion set": "set-1",
-      "Collector number": "003",
-      Name: "Pikachu",
-    })
+    await enter("003")
+    fill({ Name: "Pikachu" })
     save()
 
     await screen.findByText(/Saved SM-P 003/)
-    expect(JSON.parse(String(calls[0].body))).toEqual({
+    expect(JSON.parse(String(writes(calls)[0].body))).toEqual({
       expansionSetId: "set-1",
       localId: "003",
       name: "Pikachu",
@@ -202,74 +233,73 @@ describe("CardForm details", () => {
     expect(calls).toEqual([])
   })
 
+  it("shows the API's conflict when the number turns out to exist", async () => {
+    const calls = stubApi({
+      create: () =>
+        json(409, { status: 409, detail: "a card with this number exists" }),
+    })
+    await renderForm()
+
+    await enter("002")
+    fill({ Name: "Pikachu" })
+    save()
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /number exists/
+    )
+    expect(writes(calls).map((c) => c.method)).toEqual(["POST"])
+  })
+
   it("saves and moves to the next number in the same set", async () => {
     const calls = stubApi()
     await renderForm()
 
-    fill({
-      "Expansion set": "set-1",
-      "Collector number": "009",
-      Name: "Pikachu",
-    })
+    await enter("009")
+    fill({ Name: "Pikachu" })
     fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
 
     await screen.findByText(/Saved SM-P 009/)
-    expect(calls.map((c) => c.path)).toEqual(["/admin/cards"])
+    expect(writes(calls).map((c) => c.path)).toEqual(["/admin/cards"])
     expect(
       screen.getByLabelText<HTMLSelectElement>("Expansion set").value
     ).toBe("set-1")
-    expect(
-      screen.getByLabelText<HTMLInputElement>("Collector number").value
-    ).toBe("010")
-    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("")
+    expect(value("Collector number")).toBe("010")
+    expect(value("Name")).toBe("")
   })
 
   it("carries the number past its padding", async () => {
     stubApi()
     await renderForm()
 
-    fill({
-      "Expansion set": "set-1",
-      "Collector number": "99",
-      Name: "Pikachu",
-    })
+    await enter("99")
+    fill({ Name: "Pikachu" })
     fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
 
     await screen.findByText(/Saved SM-P 99/)
-    expect(
-      screen.getByLabelText<HTMLInputElement>("Collector number").value
-    ).toBe("100")
+    expect(value("Collector number")).toBe("100")
   })
 
   it("keeps the form as it is when a save and next fails", async () => {
-    stubApi({ upsert: () => json(422, { status: 422, detail: "bad rarity" }) })
+    stubApi({
+      create: () => json(422, { status: 422, detail: "bad rarity" }),
+    })
     await renderForm()
 
-    fill({
-      "Expansion set": "set-1",
-      "Collector number": "009",
-      Name: "Pikachu",
-    })
+    await enter("009")
+    fill({ Name: "Pikachu" })
     fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
 
     expect((await screen.findByRole("alert")).textContent).toMatch(/bad rarity/)
-    expect(
-      screen.getByLabelText<HTMLInputElement>("Collector number").value
-    ).toBe("009")
-    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
-      "Pikachu"
-    )
+    expect(value("Collector number")).toBe("009")
+    expect(value("Name")).toBe("Pikachu")
   })
 
   it("forgets the chosen image when it moves to the next number", async () => {
     stubApi()
     await renderForm()
 
-    fill({
-      "Expansion set": "set-1",
-      "Collector number": "009",
-      Name: "Pikachu",
-    })
+    await enter("009")
+    fill({ Name: "Pikachu" })
     await chooseImage()
     fireEvent.click(screen.getByRole("button", { name: "Save and next" }))
 
@@ -279,6 +309,101 @@ describe("CardForm details", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /Choose an image file/
     )
+  })
+
+  it("sends nothing while the lookup cannot say whether the card exists", async () => {
+    const calls = stubApi({
+      lookup: () => json(500, { status: 500, detail: "boom" }),
+    })
+    await renderForm()
+
+    fill({ "Expansion set": "set-1", "Collector number": "002", Name: "X" })
+    await screen.findByText(/Could not check whether this card exists\./)
+    save()
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /Could not check/
+    )
+    expect(writes(calls)).toEqual([])
+  })
+})
+
+describe("CardForm details, an existing card", () => {
+  it("loads every field of the card the set and number name", async () => {
+    stubApi({ lookup: stored })
+    await renderForm()
+
+    await enter("002", EXISTING_CARD)
+
+    expect(value("Name")).toBe("Typo")
+    expect(value("Type")).toBe("Supporter")
+    expect(value("Rarity")).toBe("r-2")
+    expect(value("Illustrator")).toBe("Arita")
+  })
+
+  it("replaces the card by id with every field of the form, not only the changed one", async () => {
+    const calls = stubApi({
+      lookup: stored,
+      update: () =>
+        json(200, { data: { id: "c9", imageUrl: "https://img.test/c9" } }),
+    })
+    await renderForm()
+    await enter("002", EXISTING_CARD)
+
+    fill({ Name: "Fixed" })
+    save()
+
+    const status = await screen.findByRole("status")
+    expect(status.textContent).toMatch(/Saved SM-P 002/)
+    expect(status.textContent).not.toMatch(/hidden/)
+    expect(writes(calls).map((c) => [c.method, c.path])).toEqual([
+      ["PUT", "/admin/cards/c9"],
+    ])
+    expect(JSON.parse(String(writes(calls)[0].body))).toEqual({
+      name: "Fixed",
+      category: "Trainer",
+      tags: ["Supporter"],
+      rarityId: "r-2",
+      illustrator: "Arita",
+    })
+  })
+
+  it("sends a cleared illustrator as empty, since a PUT replaces the card", async () => {
+    const calls = stubApi({ lookup: stored })
+    await renderForm()
+    await enter("002", EXISTING_CARD)
+
+    fill({ Illustrator: "" })
+    save()
+
+    await screen.findByText(/Saved SM-P 002/)
+    expect(JSON.parse(String(writes(calls)[0].body))).toMatchObject({
+      illustrator: "",
+    })
+  })
+
+  it("has no default rarity to fall back to, so the card keeps a chosen one", async () => {
+    stubApi({ lookup: stored })
+    await renderForm()
+    await enter("002", EXISTING_CARD)
+
+    expect(
+      screen.queryByRole("option", { name: /Default \(Tanpa Tanda\)/ })
+    ).toBeNull()
+  })
+
+  it("empties the form when the number moves to one with no card", async () => {
+    stubApi({ lookup: (localId) => (localId === "002" ? stored() : missing()) })
+    await renderForm()
+    await enter("002", EXISTING_CARD)
+
+    fill({ "Collector number": "003" })
+    await screen.findByText(NEW_CARD)
+
+    expect(value("Name")).toBe("")
+    expect(value("Illustrator")).toBe("")
+    expect(value("Rarity")).toBe("")
+    expect(value("Type")).toBe("Pokémon")
   })
 })
 
@@ -293,14 +418,16 @@ describe("CardForm image", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /Choose an image file/
     )
-    expect(calls).toEqual([])
+    expect(writes(calls)).toEqual([])
   })
 
   it("uploads the image for the card at the set and number in the form", async () => {
-    const calls = stubApi()
+    const calls = stubApi({
+      lookup: () => json(200, { data: { id: "c1", category: "Pokémon" } }),
+    })
     await renderForm()
 
-    fill({ "Expansion set": "set-1", "Collector number": "002" })
+    await enter("002", EXISTING_CARD)
     await chooseImage()
     upload()
 
@@ -315,19 +442,17 @@ describe("CardForm image", () => {
   })
 
   it("asks for the card's details first when there is no such card", async () => {
-    const calls = stubApi({
-      lookup: () => json(404, { status: 404, detail: "card not found" }),
-    })
+    const calls = stubApi()
     await renderForm()
 
-    fill({ "Expansion set": "set-1", "Collector number": "002" })
+    await enter("002")
     await chooseImage()
     upload()
 
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /no card SM-P 002 yet.*Save its details first/
     )
-    expect(calls.map((c) => c.path)).toEqual(["/admin/cards"])
+    expect(writes(calls)).toEqual([])
   })
 
   it.each([
@@ -364,7 +489,7 @@ describe("CardForm image", () => {
     expect(screen.queryByRole("img")).toBeNull()
     upload()
     await screen.findByText(/Choose an image file/)
-    expect(calls).toEqual([])
+    expect(writes(calls)).toEqual([])
   })
 
   it("previews the chosen image", async () => {
@@ -382,11 +507,12 @@ describe("CardForm image", () => {
 
   it("shows why a refused image was not accepted", async () => {
     stubApi({
+      lookup: () => json(200, { data: { id: "c1", category: "Pokémon" } }),
       confirm: () => json(422, { status: 422, detail: "not an image" }),
     })
     await renderForm()
 
-    fill({ "Expansion set": "set-1", "Collector number": "004" })
+    await enter("004", EXISTING_CARD)
     await chooseImage()
     upload()
 

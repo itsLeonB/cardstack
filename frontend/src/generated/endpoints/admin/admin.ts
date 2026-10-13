@@ -25,14 +25,15 @@ import type {
 
 import type {
   CardImageUploadInputBody,
-  DeleteAdminCardParams,
+  CreateCardInputBody,
+  CreateExpansionSetInputBody,
   EnvelopeAdminCard,
   EnvelopeCardImageUpload,
   EnvelopeExpansionSetSummary,
   ErrorModel,
   GetAdminCardParams,
-  UpsertCardInputBody,
-  UpsertExpansionSetInputBody
+  UpdateCardInputBody,
+  UpdateExpansionSetInputBody
 } from '../../models';
 
 import { customFetch } from '../../../lib/http.ts';
@@ -64,106 +65,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export type deleteAdminCardResponse204 = {
-  data: void
-  status: 204
-}
-
-export type deleteAdminCardResponseDefault = {
-  data: ErrorModel
-  status: Exclude<HTTPStatusCodes, 204>
-}
-
-export type deleteAdminCardResponseSuccess = (deleteAdminCardResponse204) & {
-  headers: Headers;
-};
-export type deleteAdminCardResponseError = (deleteAdminCardResponseDefault) & {
-  headers: Headers;
-};
-
-export type deleteAdminCardResponse = (deleteAdminCardResponseSuccess | deleteAdminCardResponseError)
-
-export const getDeleteAdminCardUrl = (params: DeleteAdminCardParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards`
-}
-
-/**
- * @summary Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it
- */
-export const deleteAdminCard = async (params: DeleteAdminCardParams, options?: Parameters<typeof customFetch>[1]): Promise<deleteAdminCardResponse> => {
-
-  return customFetch<deleteAdminCardResponse>(getDeleteAdminCardUrl(params),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getDeleteAdminCardMutationKey = () => ['deleteAdminCard'] as const;
-
-export const getDeleteAdminCardMutationOptions = <TError = ErrorModel,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext> => {
-
-const mutationKey = getDeleteAdminCardMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminCard>>, DeleteAdminCardMutationVariables> = (props) => {
-          const {params} = props ?? {};
-
-          return  deleteAdminCard(params,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminCard>>>
-
-    export type DeleteAdminCardMutationError = ErrorModel
-    export type DeleteAdminCardMutationVariables = {params: DeleteAdminCardParams}
-
-    /**
- * @summary Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it
- */
-export const useDeleteAdminCard = <TError = ErrorModel,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof deleteAdminCard>>,
-        TError,
-        DeleteAdminCardMutationVariables,
-        TContext
-      > => {
-      return useMutation(getDeleteAdminCardMutationOptions(options), queryClient);
-    }
-    export type getAdminCardResponse200 = {
+export type getAdminCardResponse200 = {
   data: EnvelopeAdminCard
   status: 200
 }
@@ -289,26 +191,26 @@ export function useGetAdminCard<TData = Awaited<ReturnType<typeof getAdminCard>>
 
 
 
-export type upsertAdminCardResponse200 = {
+export type createAdminCardResponse201 = {
   data: EnvelopeAdminCard
-  status: 200
+  status: 201
 }
 
-export type upsertAdminCardResponseDefault = {
+export type createAdminCardResponseDefault = {
   data: ErrorModel
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 201>
 }
 
-export type upsertAdminCardResponseSuccess = (upsertAdminCardResponse200) & {
+export type createAdminCardResponseSuccess = (createAdminCardResponse201) & {
   headers: Headers;
 };
-export type upsertAdminCardResponseError = (upsertAdminCardResponseDefault) & {
+export type createAdminCardResponseError = (createAdminCardResponseDefault) & {
   headers: Headers;
 };
 
-export type upsertAdminCardResponse = (upsertAdminCardResponseSuccess | upsertAdminCardResponseError)
+export type createAdminCardResponse = (createAdminCardResponseSuccess | createAdminCardResponseError)
 
-export const getUpsertAdminCardUrl = () => {
+export const getCreateAdminCardUrl = () => {
 
 
 
@@ -317,9 +219,9 @@ export const getUpsertAdminCardUrl = () => {
 }
 
 /**
- * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
+ * @summary Create a Card, Curated; one already at the Expansion Set and collector number is a 409
  */
-export const upsertAdminCard = async (upsertCardInputBody: UpsertCardInputBody, options?: Parameters<typeof customFetch>[1]): Promise<upsertAdminCardResponse> => {
+export const createAdminCard = async (createCardInputBody: CreateCardInputBody, options?: Parameters<typeof customFetch>[1]): Promise<createAdminCardResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -335,12 +237,12 @@ export const upsertAdminCard = async (upsertCardInputBody: UpsertCardInputBody, 
     }
     return headers;
   };
-return customFetch<upsertAdminCardResponse>(getUpsertAdminCardUrl(),
+return customFetch<createAdminCardResponse>(getCreateAdminCardUrl(),
   {
     ...options,
-    method: 'PUT',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(upsertCardInputBody)
+    body: JSON.stringify(createCardInputBody)
   }
 );}
 
@@ -348,13 +250,13 @@ return customFetch<upsertAdminCardResponse>(getUpsertAdminCardUrl(),
 
 
 
-export const getUpsertAdminCardMutationKey = () => ['upsertAdminCard'] as const;
+export const getCreateAdminCardMutationKey = () => ['createAdminCard'] as const;
 
-export const getUpsertAdminCardMutationOptions = <TError = ErrorModel,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertAdminCard>>, TError,UpsertAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof upsertAdminCard>>, TError,UpsertAdminCardMutationVariables, TContext> => {
+export const getCreateAdminCardMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminCard>>, TError,CreateAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminCard>>, TError,CreateAdminCardMutationVariables, TContext> => {
 
-const mutationKey = getUpsertAdminCardMutationKey();
+const mutationKey = getCreateAdminCardMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -364,10 +266,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertAdminCard>>, UpsertAdminCardMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminCard>>, CreateAdminCardMutationVariables> = (props) => {
           const {data} = props ?? {};
 
-          return  upsertAdminCard(data,requestOptions)
+          return  createAdminCard(data,requestOptions)
         }
 
 
@@ -377,23 +279,222 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpsertAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof upsertAdminCard>>>
-    export type UpsertAdminCardMutationBody = UpsertCardInputBody
-    export type UpsertAdminCardMutationError = ErrorModel
-    export type UpsertAdminCardMutationVariables = {data: UpsertCardInputBody}
+    export type CreateAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminCard>>>
+    export type CreateAdminCardMutationBody = CreateCardInputBody
+    export type CreateAdminCardMutationError = ErrorModel
+    export type CreateAdminCardMutationVariables = {data: CreateCardInputBody}
 
     /**
- * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
+ * @summary Create a Card, Curated; one already at the Expansion Set and collector number is a 409
  */
-export const useUpsertAdminCard = <TError = ErrorModel,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertAdminCard>>, TError,UpsertAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useCreateAdminCard = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminCard>>, TError,CreateAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof upsertAdminCard>>,
+        Awaited<ReturnType<typeof createAdminCard>>,
         TError,
-        UpsertAdminCardMutationVariables,
+        CreateAdminCardMutationVariables,
         TContext
       > => {
-      return useMutation(getUpsertAdminCardMutationOptions(options), queryClient);
+      return useMutation(getCreateAdminCardMutationOptions(options), queryClient);
+    }
+    export type deleteAdminCardResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteAdminCardResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type deleteAdminCardResponseSuccess = (deleteAdminCardResponse204) & {
+  headers: Headers;
+};
+export type deleteAdminCardResponseError = (deleteAdminCardResponseDefault) & {
+  headers: Headers;
+};
+
+export type deleteAdminCardResponse = (deleteAdminCardResponseSuccess | deleteAdminCardResponseError)
+
+export const getDeleteAdminCardUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards/${id}`
+}
+
+/**
+ * @summary Delete the Card with its hosted image and embeddings; refused with 409 while a Collection holds it
+ */
+export const deleteAdminCard = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<deleteAdminCardResponse> => {
+
+  return customFetch<deleteAdminCardResponse>(getDeleteAdminCardUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminCardMutationKey = () => ['deleteAdminCard'] as const;
+
+export const getDeleteAdminCardMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminCard>>, DeleteAdminCardMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminCard(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminCard>>>
+
+    export type DeleteAdminCardMutationError = ErrorModel
+    export type DeleteAdminCardMutationVariables = {id: string}
+
+    /**
+ * @summary Delete the Card with its hosted image and embeddings; refused with 409 while a Collection holds it
+ */
+export const useDeleteAdminCard = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminCard>>, TError,DeleteAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminCard>>,
+        TError,
+        DeleteAdminCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminCardMutationOptions(options), queryClient);
+    }
+    export type updateAdminCardResponse200 = {
+  data: EnvelopeAdminCard
+  status: 200
+}
+
+export type updateAdminCardResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type updateAdminCardResponseSuccess = (updateAdminCardResponse200) & {
+  headers: Headers;
+};
+export type updateAdminCardResponseError = (updateAdminCardResponseDefault) & {
+  headers: Headers;
+};
+
+export type updateAdminCardResponse = (updateAdminCardResponseSuccess | updateAdminCardResponseError)
+
+export const getUpdateAdminCardUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards/${id}`
+}
+
+/**
+ * @summary Replace the Card's name, category, tags, rarity and illustrator with the request's, keeping its set, number and image; the Card becomes Curated
+ */
+export const updateAdminCard = async (id: string,
+    updateCardInputBody: UpdateCardInputBody, options?: Parameters<typeof customFetch>[1]): Promise<updateAdminCardResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<updateAdminCardResponse>(getUpdateAdminCardUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateCardInputBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminCardMutationKey = () => ['updateAdminCard'] as const;
+
+export const getUpdateAdminCardMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminCard>>, TError,UpdateAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminCard>>, TError,UpdateAdminCardMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminCard>>, UpdateAdminCardMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAdminCard(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminCardMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminCard>>>
+    export type UpdateAdminCardMutationBody = UpdateCardInputBody
+    export type UpdateAdminCardMutationError = ErrorModel
+    export type UpdateAdminCardMutationVariables = {id: string;data: UpdateCardInputBody}
+
+    /**
+ * @summary Replace the Card's name, category, tags, rarity and illustrator with the request's, keeping its set, number and image; the Card becomes Curated
+ */
+export const useUpdateAdminCard = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminCard>>, TError,UpdateAdminCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminCard>>,
+        TError,
+        UpdateAdminCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminCardMutationOptions(options), queryClient);
     }
     export type confirmAdminCardImageResponse200 = {
   data: EnvelopeAdminCard
@@ -713,38 +814,37 @@ export function useAdminCheck<TData = Awaited<ReturnType<typeof adminCheck>>, TE
 
 
 
-export type upsertExpansionSetResponse200 = {
+export type createExpansionSetResponse201 = {
   data: EnvelopeExpansionSetSummary
-  status: 200
+  status: 201
 }
 
-export type upsertExpansionSetResponseDefault = {
+export type createExpansionSetResponseDefault = {
   data: ErrorModel
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 201>
 }
 
-export type upsertExpansionSetResponseSuccess = (upsertExpansionSetResponse200) & {
+export type createExpansionSetResponseSuccess = (createExpansionSetResponse201) & {
   headers: Headers;
 };
-export type upsertExpansionSetResponseError = (upsertExpansionSetResponseDefault) & {
+export type createExpansionSetResponseError = (createExpansionSetResponseDefault) & {
   headers: Headers;
 };
 
-export type upsertExpansionSetResponse = (upsertExpansionSetResponseSuccess | upsertExpansionSetResponseError)
+export type createExpansionSetResponse = (createExpansionSetResponseSuccess | createExpansionSetResponseError)
 
-export const getUpsertExpansionSetUrl = (code: string,) => {
-
-
+export const getCreateExpansionSetUrl = () => {
 
 
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/expansion-sets/${code}`
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/expansion-sets`
 }
 
 /**
- * @summary Create or update an Expansion Set and mark it Curated
+ * @summary Create an Expansion Set and mark it Curated; a code its Game already has is a 409
  */
-export const upsertExpansionSet = async (code: string,
-    upsertExpansionSetInputBody: UpsertExpansionSetInputBody, options?: Parameters<typeof customFetch>[1]): Promise<upsertExpansionSetResponse> => {
+export const createExpansionSet = async (createExpansionSetInputBody: CreateExpansionSetInputBody, options?: Parameters<typeof customFetch>[1]): Promise<createExpansionSetResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -760,12 +860,12 @@ export const upsertExpansionSet = async (code: string,
     }
     return headers;
   };
-return customFetch<upsertExpansionSetResponse>(getUpsertExpansionSetUrl(code),
+return customFetch<createExpansionSetResponse>(getCreateExpansionSetUrl(),
   {
     ...options,
-    method: 'PUT',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(upsertExpansionSetInputBody)
+    body: JSON.stringify(createExpansionSetInputBody)
   }
 );}
 
@@ -773,13 +873,13 @@ return customFetch<upsertExpansionSetResponse>(getUpsertExpansionSetUrl(code),
 
 
 
-export const getUpsertExpansionSetMutationKey = () => ['upsertExpansionSet'] as const;
+export const getCreateExpansionSetMutationKey = () => ['createExpansionSet'] as const;
 
-export const getUpsertExpansionSetMutationOptions = <TError = ErrorModel,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertExpansionSet>>, TError,UpsertExpansionSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof upsertExpansionSet>>, TError,UpsertExpansionSetMutationVariables, TContext> => {
+export const getCreateExpansionSetMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExpansionSet>>, TError,CreateExpansionSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExpansionSet>>, TError,CreateExpansionSetMutationVariables, TContext> => {
 
-const mutationKey = getUpsertExpansionSetMutationKey();
+const mutationKey = getCreateExpansionSetMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -789,10 +889,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertExpansionSet>>, UpsertExpansionSetMutationVariables> = (props) => {
-          const {code,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExpansionSet>>, CreateExpansionSetMutationVariables> = (props) => {
+          const {data} = props ?? {};
 
-          return  upsertExpansionSet(code,data,requestOptions)
+          return  createExpansionSet(data,requestOptions)
         }
 
 
@@ -802,21 +902,128 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpsertExpansionSetMutationResult = NonNullable<Awaited<ReturnType<typeof upsertExpansionSet>>>
-    export type UpsertExpansionSetMutationBody = UpsertExpansionSetInputBody
-    export type UpsertExpansionSetMutationError = ErrorModel
-    export type UpsertExpansionSetMutationVariables = {code: string;data: UpsertExpansionSetInputBody}
+    export type CreateExpansionSetMutationResult = NonNullable<Awaited<ReturnType<typeof createExpansionSet>>>
+    export type CreateExpansionSetMutationBody = CreateExpansionSetInputBody
+    export type CreateExpansionSetMutationError = ErrorModel
+    export type CreateExpansionSetMutationVariables = {data: CreateExpansionSetInputBody}
 
     /**
- * @summary Create or update an Expansion Set and mark it Curated
+ * @summary Create an Expansion Set and mark it Curated; a code its Game already has is a 409
  */
-export const useUpsertExpansionSet = <TError = ErrorModel,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertExpansionSet>>, TError,UpsertExpansionSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useCreateExpansionSet = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExpansionSet>>, TError,CreateExpansionSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof upsertExpansionSet>>,
+        Awaited<ReturnType<typeof createExpansionSet>>,
         TError,
-        UpsertExpansionSetMutationVariables,
+        CreateExpansionSetMutationVariables,
         TContext
       > => {
-      return useMutation(getUpsertExpansionSetMutationOptions(options), queryClient);
+      return useMutation(getCreateExpansionSetMutationOptions(options), queryClient);
+    }
+    export type updateExpansionSetResponse200 = {
+  data: EnvelopeExpansionSetSummary
+  status: 200
+}
+
+export type updateExpansionSetResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type updateExpansionSetResponseSuccess = (updateExpansionSetResponse200) & {
+  headers: Headers;
+};
+export type updateExpansionSetResponseError = (updateExpansionSetResponseDefault) & {
+  headers: Headers;
+};
+
+export type updateExpansionSetResponse = (updateExpansionSetResponseSuccess | updateExpansionSetResponseError)
+
+export const getUpdateExpansionSetUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/expansion-sets/${id}`
+}
+
+/**
+ * @summary Replace an Expansion Set's name, release date and Series and mark it Curated; the code stays
+ */
+export const updateExpansionSet = async (id: string,
+    updateExpansionSetInputBody: UpdateExpansionSetInputBody, options?: Parameters<typeof customFetch>[1]): Promise<updateExpansionSetResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<updateExpansionSetResponse>(getUpdateExpansionSetUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateExpansionSetInputBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateExpansionSetMutationKey = () => ['updateExpansionSet'] as const;
+
+export const getUpdateExpansionSetMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExpansionSet>>, TError,UpdateExpansionSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateExpansionSet>>, TError,UpdateExpansionSetMutationVariables, TContext> => {
+
+const mutationKey = getUpdateExpansionSetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateExpansionSet>>, UpdateExpansionSetMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateExpansionSet(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateExpansionSetMutationResult = NonNullable<Awaited<ReturnType<typeof updateExpansionSet>>>
+    export type UpdateExpansionSetMutationBody = UpdateExpansionSetInputBody
+    export type UpdateExpansionSetMutationError = ErrorModel
+    export type UpdateExpansionSetMutationVariables = {id: string;data: UpdateExpansionSetInputBody}
+
+    /**
+ * @summary Replace an Expansion Set's name, release date and Series and mark it Curated; the code stays
+ */
+export const useUpdateExpansionSet = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExpansionSet>>, TError,UpdateExpansionSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateExpansionSet>>,
+        TError,
+        UpdateExpansionSetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateExpansionSetMutationOptions(options), queryClient);
     }

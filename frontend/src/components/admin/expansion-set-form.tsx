@@ -10,16 +10,20 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useUpsertExpansionSet } from "@/generated/endpoints/admin/admin"
+import {
+  useCreateExpansionSet,
+  useUpdateExpansionSet,
+} from "@/generated/endpoints/admin/admin"
 import {
   getListCatalogSeriesQueryKey,
   useListCatalogSeries,
 } from "@/generated/endpoints/catalog/catalog"
 
-// Mirrors the API's `code` path pattern, so a bad code is caught before sending.
+// Mirrors the API's `code` pattern, so a bad code is caught before sending.
 const CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 
 interface SetOption {
+  id: string
   code: string
   name: string
   releaseDate: string
@@ -27,15 +31,17 @@ interface SetOption {
 }
 
 /**
- * Creates or edits one Expansion Set (ADR-0019): the API upserts by code and
- * marks the set Curated. Picking an existing set, including one the Asia site
- * ingested, fills the form from it and locks its code; leaving "New set" lets
- * any code be typed, and an existing code is edited the same way.
+ * Creates or edits one Expansion Set (ADR-0019); the API marks it Curated.
+ * "New set" lets a code be typed and creates the set (POST), and a code that
+ * already exists is refused. Picking an existing set, including one the Asia
+ * site ingested, loads its name, release date and Series into the form and
+ * locks its code; saving replaces them with the form (PUT by id).
  */
 export function ExpansionSetForm() {
   const queryClient = useQueryClient()
   const seriesQuery = useListCatalogSeries()
-  const upsert = useUpsertExpansionSet()
+  const create = useCreateExpansionSet()
+  const update = useUpdateExpansionSet()
 
   const [existing, setExisting] = useState("")
   const [code, setCode] = useState("")
@@ -50,6 +56,7 @@ export function ExpansionSetForm() {
   const series = browse?.series ?? []
   const sets: SetOption[] = series.flatMap((s) =>
     (s.expansionSets ?? []).map((set) => ({
+      id: set.id,
       code: set.code,
       name: set.name,
       // The API sends a timestamp; the date input and the API want YYYY-MM-DD.
@@ -57,11 +64,12 @@ export function ExpansionSetForm() {
       seriesId: s.id,
     }))
   )
+  const pending = create.isPending || update.isPending
 
   function chooseExisting(value: string) {
     setExisting(value)
     setSaved(null)
-    const set = sets.find((s) => s.code === value)
+    const set = sets.find((s) => s.id === value)
     setCode(set?.code ?? "")
     setName(set?.name ?? "")
     setReleaseDate(set?.releaseDate ?? "")
@@ -85,20 +93,36 @@ export function ExpansionSetForm() {
     setError(problem)
     if (problem) return
 
-    upsert.mutate(
-      { code, data: { name: name.trim(), releaseDate, seriesId } },
+    const fields = { name: name.trim(), releaseDate, seriesId }
+    const finish = () => {
+      setSaved(`Saved ${code}.`)
+      void queryClient.invalidateQueries({
+        queryKey: getListCatalogSeriesQueryKey(),
+      })
+    }
+    const failed = () => setError("Could not save the set.")
+
+    if (existing) {
+      update.mutate(
+        { id: existing, data: fields },
+        {
+          onSuccess: (response) =>
+            response.status === 200
+              ? finish()
+              : setError(response.data.detail ?? "Could not save the set."),
+          onError: failed,
+        }
+      )
+      return
+    }
+    create.mutate(
+      { data: { code, ...fields } },
       {
-        onSuccess: (response) => {
-          if (response.status !== 200) {
-            setError(response.data.detail ?? "Could not save the set.")
-            return
-          }
-          setSaved(`Saved ${code}.`)
-          void queryClient.invalidateQueries({
-            queryKey: getListCatalogSeriesQueryKey(),
-          })
-        },
-        onError: () => setError("Could not save the set."),
+        onSuccess: (response) =>
+          response.status === 201
+            ? finish()
+            : setError(response.data.detail ?? "Could not save the set."),
+        onError: failed,
       }
     )
   }
@@ -116,11 +140,15 @@ export function ExpansionSetForm() {
           >
             <option value="">New set</option>
             {sets.map((set) => (
-              <option key={set.code} value={set.code}>
+              <option key={set.id} value={set.id}>
                 {set.code} - {set.name}
               </option>
             ))}
           </select>
+          <FieldDescription>
+            Pick a set to load it and edit it. Saving replaces its name, release
+            date and Series with the form.
+          </FieldDescription>
         </Field>
         <Field>
           <FieldLabel htmlFor="set-code">Code</FieldLabel>
@@ -131,7 +159,8 @@ export function ExpansionSetForm() {
             onChange={(event) => setCode(event.target.value.trim())}
           />
           <FieldDescription>
-            Entering a code that already exists edits that set.
+            A new set's code cannot be changed afterwards, and a code that
+            already exists is refused.
           </FieldDescription>
         </Field>
         <Field>
@@ -170,8 +199,8 @@ export function ExpansionSetForm() {
         {error && <FieldError>{error}</FieldError>}
         {saved && <p role="status">{saved}</p>}
         <Field>
-          <Button type="submit" disabled={upsert.isPending}>
-            {upsert.isPending ? "Saving..." : "Save set"}
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving..." : "Save set"}
           </Button>
         </Field>
       </FieldGroup>

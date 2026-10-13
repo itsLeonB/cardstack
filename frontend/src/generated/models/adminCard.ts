@@ -14,5 +14,6 @@ export interface AdminCard {
   localId: string;
   name: string;
   rarityId: string;
-  tag: string;
+  /** @nullable */
+  tags: string[] | null;
 }

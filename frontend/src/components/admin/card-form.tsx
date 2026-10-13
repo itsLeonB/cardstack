@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { SELECT_CLASS, flattenSets } from "@/components/admin/form-shared"
+import {
+  SELECT_CLASS,
+  flattenSets,
+  useCardLookup,
+} from "@/components/admin/form-shared"
+import type { CardLookup } from "@/components/admin/form-shared"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -11,14 +16,18 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
-  getAdminCard,
-  upsertAdminCard,
+  createAdminCard,
+  updateAdminCard,
 } from "@/generated/endpoints/admin/admin"
 import {
   getListCatalogRaritiesQueryOptions,
   getListCatalogSeriesQueryOptions,
 } from "@/generated/endpoints/catalog/catalog"
-import type { UpsertCardInputBody } from "@/generated/models"
+import type {
+  AdminCard,
+  CreateCardInputBody,
+  UpdateCardInputBody,
+} from "@/generated/models"
 import {
   CardUploadError,
   uploadCardImage,
@@ -26,22 +35,66 @@ import {
 } from "@/lib/admin-card-upload"
 
 // What the admin picks as a card's type. Item, Supporter and Stadium are
-// Trainer cards told apart by their tag; Pokémon and Energi carry no tag.
-const KINDS = ["Pokémon", "Item", "Supporter", "Stadium", "Energi"] as const
+// Trainer cards told apart by their tag; Pokémon and Energi carry no tag, and
+// "Trainer" is one with none.
+const KINDS = [
+  "Pokémon",
+  "Item",
+  "Supporter",
+  "Stadium",
+  "Trainer",
+  "Energi",
+] as const
 type Kind = (typeof KINDS)[number]
 
-function fieldsOf(kind: Kind): Pick<UpsertCardInputBody, "category" | "tag"> {
+type KindFields = Pick<UpdateCardInputBody, "category" | "tags">
+
+function fieldsOf(kind: Kind): KindFields {
   if (kind === "Item" || kind === "Supporter" || kind === "Stadium") {
-    return { category: "Trainer", tag: kind }
+    return { category: "Trainer", tags: [kind] }
   }
   return { category: kind }
 }
+
+/** The type that reads back as the Card's category and tag. */
+function kindOf(card: AdminCard): Kind {
+  if (card.category === "Energi") return "Energi"
+  if (card.category !== "Trainer") return "Pokémon"
+  const tag = card.tags?.[0]
+  return tag === "Item" || tag === "Supporter" || tag === "Stadium"
+    ? tag
+    : "Trainer"
+}
+
+// A write is a create (POST) of a new Card or an update (PUT) of the Card
+// the lookup found, which replaces it with every field of the form.
+type CardWrite =
+  { create: CreateCardInputBody } | { id: string; update: UpdateCardInputBody }
 
 /** "009" -> "010", "99" -> "100": the next number, keeping the entered padding. */
 function nextCollectorNumber(localId: string): string {
   const match = /^(.*?)(\d+)$/.exec(localId)
   if (!match) return ""
   return match[1] + String(Number(match[2]) + 1).padStart(match[2].length, "0")
+}
+
+function lookupNote(
+  state: CardLookup["state"],
+  setCode: string,
+  number: string
+): string {
+  switch (state) {
+    case "checking":
+      return "Checking for an existing card..."
+    case "found":
+      return `Editing the existing card ${setCode} ${number}: its details are loaded, and saving replaces them with the form.`
+    case "missing":
+      return "New card."
+    case "failed":
+      return "Could not check whether this card exists."
+    case "idle":
+      return "Choose a set and enter a number to load the card, if there is one."
+  }
 }
 
 interface Saved {
@@ -52,12 +105,14 @@ interface Saved {
 }
 
 /**
- * Enters or corrects one Card (docs/adr/0019) in two sections. The details
- * section saves the Card alone: saving the same set and number again updates
- * that Card and never touches its image. The image section uploads a photo
- * straight to the bucket and confirms it for the Card at the set and number in
- * the form. A Card with no confirmed image stays out of the catalog until one
- * is uploaded.
+ * Enters or corrects one Card (docs/adr/0019) in two sections. Entering a set
+ * and collector number looks the Card up: one that exists is loaded into the
+ * form, every field, and saving replaces it with the form (PUT by id), so
+ * nothing the admin leaves alone is lost; one that does not is created (POST),
+ * with "Tanpa Tanda" as its rarity unless another is chosen. Neither touches
+ * the image. The image section uploads a photo straight to the bucket and
+ * confirms it for the Card at the set and number in the form. A Card with no
+ * confirmed image stays out of the catalog until one is uploaded.
  */
 export function CardForm() {
   const series = useQuery(getListCatalogSeriesQueryOptions())
@@ -85,10 +140,35 @@ export function CardForm() {
 
   const setCode = sets.find((s) => s.id === setId)?.code ?? ""
   const number = localId.trim()
+  const lookup = useCardLookup(setId, number)
+  const existing = lookup.card
+
+  // Loads the Card the lookup found into every field of the form, and empties
+  // the fields again once the entry no longer names a Card, so one Card's
+  // values are never saved under another's number.
+  const loadedId = useRef<string | null>(null)
+  useEffect(() => {
+    const id = existing?.id ?? null
+    if (id === loadedId.current) return
+    loadedId.current = id
+    setName(existing?.name ?? "")
+    setKind(existing ? kindOf(existing) : "Pokémon")
+    setRarityId(existing?.rarityId ?? "")
+    setIllustrator(existing?.illustrator ?? "")
+  }, [existing])
 
   const save = useMutation({
-    mutationFn: async (body: UpsertCardInputBody) => {
-      const card = await upsertAdminCard(body)
+    mutationFn: async (write: CardWrite) => {
+      if ("create" in write) {
+        const card = await createAdminCard(write.create)
+        if (card.status !== 201) {
+          throw new CardUploadError(
+            card.data.detail ?? `Could not save the card (${card.status}).`
+          )
+        }
+        return card.data.data
+      }
+      const card = await updateAdminCard(write.id, write.update)
       if (card.status !== 200) {
         throw new CardUploadError(
           card.data.detail ?? `Could not save the card (${card.status}).`
@@ -100,23 +180,25 @@ export function CardForm() {
 
   const upload = useMutation({
     mutationFn: async (image: File) => {
-      const card = await getAdminCard({
-        expansionSetId: setId,
-        localId: number,
-      })
-      if (card.status === 404) {
+      if (!existing) {
         throw new CardUploadError(
           `There is no card ${setCode} ${number} yet. Save its details first.`
         )
       }
-      if (card.status !== 200) {
-        throw new CardUploadError(
-          card.data.detail ?? `Could not find the card (${card.status}).`
-        )
-      }
-      await uploadCardImage(card.data.data.id, image)
+      await uploadCardImage(existing.id, image)
     },
   })
+
+  /** Why the entry cannot be written or uploaded to yet, if it cannot. */
+  function lookupProblem(): string | null {
+    if (lookup.state === "checking") {
+      return "Still checking whether this card exists. Try again in a moment."
+    }
+    if (lookup.state === "failed") {
+      return "Could not check whether this card exists. Try again."
+    }
+    return null
+  }
 
   useEffect(() => {
     if (!file) return
@@ -165,18 +247,44 @@ export function CardForm() {
       return
     }
 
-    const body: UpsertCardInputBody = {
-      expansionSetId: setId,
-      localId: number,
-      name: name.trim(),
-      ...fieldsOf(kind),
+    const problem = lookupProblem()
+    if (problem) {
+      setError(problem)
+      return
     }
-    if (rarityId) body.rarityId = rarityId
-    if (illustrator.trim()) body.illustrator = illustrator.trim()
 
-    save.mutate(body, {
+    let write: CardWrite
+    if (existing) {
+      // A PUT replaces the Card, so it carries a rarity and every other field.
+      if (!rarityId) {
+        setError("Choose a rarity.")
+        return
+      }
+      write = {
+        id: existing.id,
+        update: {
+          name: name.trim(),
+          ...fieldsOf(kind),
+          rarityId,
+          illustrator: illustrator.trim(),
+        },
+      }
+    } else {
+      const create: CreateCardInputBody = {
+        expansionSetId: setId,
+        localId: number,
+        name: name.trim(),
+        ...fieldsOf(kind),
+      }
+      if (rarityId) create.rarityId = rarityId
+      if (illustrator.trim()) create.illustrator = illustrator.trim()
+      write = { create }
+    }
+
+    save.mutate(write, {
       onSuccess: (card) => {
         setSaved({ setCode, localId: number, hidden: !card.imageUrl })
+        lookup.refresh()
         if (!advance) return
         setLocalId(nextCollectorNumber(number))
         setName("")
@@ -207,6 +315,11 @@ export function CardForm() {
     }
     if (!file) {
       setImageError("Choose an image file to upload.")
+      return
+    }
+    const problem = lookupProblem()
+    if (problem) {
+      setImageError(problem)
       return
     }
 
@@ -254,9 +367,9 @@ export function CardForm() {
               onChange={(e) => setLocalId(e.target.value)}
             />
             <FieldDescription>
-              An existing number in the set updates that card and keeps its
-              image. A card with no image is hidden from browse, search and
-              Collections until one is uploaded.
+              {lookupNote(lookup.state, setCode, number)} A card with no image
+              is hidden from browse, search and Collections until one is
+              uploaded.
             </FieldDescription>
           </Field>
           <Field>
@@ -279,7 +392,7 @@ export function CardForm() {
             >
               {KINDS.map((k) => (
                 <option key={k} value={k}>
-                  {k}
+                  {k === "Trainer" ? "Trainer (no tag)" : k}
                 </option>
               ))}
             </select>
@@ -292,7 +405,9 @@ export function CardForm() {
               value={rarityId}
               onChange={(e) => setRarityId(e.target.value)}
             >
-              <option value="">Default (Tanpa Tanda)</option>
+              {/* "Tanpa Tanda" is the default of a new card only; saving an
+                  existing one replaces its rarity, so one must be chosen. */}
+              {!existing && <option value="">Default (Tanpa Tanda)</option>}
               {rarityOptions.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}

@@ -49,8 +49,14 @@
           "rarityId": {
             "type": "string"
           },
-          "tag": {
-            "type": "string"
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -59,7 +65,7 @@
           "localId",
           "name",
           "category",
-          "tag",
+          "tags",
           "rarityId",
           "illustrator",
           "imageUrl"
@@ -314,6 +320,101 @@
           "description",
           "maxCardCount",
           "cardCount"
+        ],
+        "type": "object"
+      },
+      "CreateCardInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "Pokémon",
+              "Trainer",
+              "Energi"
+            ],
+            "type": "string"
+          },
+          "expansionSetId": {
+            "description": "The Expansion Set the Card belongs to (422 if unknown).",
+            "type": "string"
+          },
+          "illustrator": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "localId": {
+            "description": "The collector number within the set, e.g. \"001\". A number the set already has is a 409; it cannot be changed afterwards.",
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "rarityId": {
+            "description": "A Rarity of the set's Game. Defaults to \"Tanpa Tanda\".",
+            "type": "string"
+          },
+          "tags": {
+            "description": "Only a Trainer card carries tags; Pokémon and Energi cards leave them empty (422 otherwise).",
+            "items": {
+              "enum": [
+                "Item",
+                "Supporter",
+                "Stadium"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "expansionSetId",
+          "localId",
+          "name",
+          "category"
+        ],
+        "type": "object"
+      },
+      "CreateExpansionSetInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "The set's code, e.g. SM-P. A code the set's Game already has is a 409; the code cannot be changed afterwards.",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "name": {
+            "description": "The set's name.",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "releaseDate": {
+            "description": "Release date, YYYY-MM-DD.",
+            "format": "date",
+            "type": "string"
+          },
+          "seriesId": {
+            "description": "An existing Series (see GET /catalog/series).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "releaseDate",
+          "seriesId"
         ],
         "type": "object"
       },
@@ -990,6 +1091,56 @@
         ],
         "type": "object"
       },
+      "UpdateCardInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "Pokémon",
+              "Trainer",
+              "Energi"
+            ],
+            "type": "string"
+          },
+          "illustrator": {
+            "description": "Left out, it clears the Card's illustrator.",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "rarityId": {
+            "description": "A Rarity of the Card's Game (422 otherwise).",
+            "type": "string"
+          },
+          "tags": {
+            "description": "Only a Trainer card carries tags; Pokémon and Energi cards leave them empty (422 otherwise).",
+            "items": {
+              "enum": [
+                "Item",
+                "Supporter",
+                "Stadium"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "rarityId"
+        ],
+        "type": "object"
+      },
       "UpdateEntryInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1006,60 +1157,7 @@
         ],
         "type": "object"
       },
-      "UpsertCardInputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "category": {
-            "enum": [
-              "Pokémon",
-              "Trainer",
-              "Energi"
-            ],
-            "type": "string"
-          },
-          "expansionSetId": {
-            "description": "The Expansion Set the Card belongs to (422 if unknown).",
-            "type": "string"
-          },
-          "illustrator": {
-            "description": "Left out when updating a Card, it keeps the Card's illustrator.",
-            "maxLength": 200,
-            "type": "string"
-          },
-          "localId": {
-            "description": "The collector number within the set, e.g. \"001\". Entering an existing set and number updates that Card.",
-            "maxLength": 32,
-            "minLength": 1,
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "type": "string"
-          },
-          "rarityId": {
-            "description": "A Rarity of the set's Game. Defaults to \"Tanpa Tanda\" for a new Card; left out when updating a Card, it keeps the Card's rarity.",
-            "type": "string"
-          },
-          "tag": {
-            "description": "Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise).",
-            "enum": [
-              "Item",
-              "Supporter",
-              "Stadium"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "expansionSetId",
-          "localId",
-          "name",
-          "category"
-        ],
-        "type": "object"
-      },
-      "UpsertExpansionSetInputBody": {
+      "UpdateExpansionSetInputBody": {
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -1075,7 +1173,7 @@
             "type": "string"
           },
           "seriesId": {
-            "description": "An existing Series (see GET /catalog/series).",
+            "description": "An existing Series of the set's Game (422 otherwise). The set's code is not editable.",
             "type": "string"
           }
         },
@@ -1102,59 +1200,6 @@
   "openapi": "3.1.0",
   "paths": {
     "/admin/cards": {
-      "delete": {
-        "operationId": "delete-admin-card",
-        "parameters": [
-          {
-            "description": "The Expansion Set the Card belongs to.",
-            "explode": false,
-            "in": "query",
-            "name": "expansionSetId",
-            "required": true,
-            "schema": {
-              "description": "The Expansion Set the Card belongs to.",
-              "type": "string"
-            }
-          },
-          {
-            "description": "The Card's collector number within the set.",
-            "explode": false,
-            "in": "query",
-            "name": "localId",
-            "required": true,
-            "schema": {
-              "description": "The Card's collector number within the set.",
-              "maxLength": 32,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "summary": "Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it",
-        "tags": [
-          "admin"
-        ]
-      },
       "get": {
         "operationId": "get-admin-card",
         "parameters": [
@@ -1215,13 +1260,110 @@
           "admin"
         ]
       },
-      "put": {
-        "operationId": "upsert-admin-card",
+      "post": {
+        "operationId": "create-admin-card",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertCardInputBody"
+                "$ref": "#/components/schemas/CreateCardInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeAdminCard"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a Card, Curated; one already at the Expansion Set and collector number is a 409",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/cards/{id}": {
+      "delete": {
+        "operationId": "delete-admin-card",
+        "parameters": [
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Delete the Card with its hosted image and embeddings; refused with 409 while a Collection holds it",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "update-admin-card",
+        "parameters": [
+          {
+            "description": "Card ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Card ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCardInputBody"
               }
             }
           },
@@ -1254,7 +1396,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated",
+        "summary": "Replace the Card's name, category, tags, rarity and illustrator with the request's, keeping its set, number and image; the Card becomes Curated",
         "tags": [
           "admin"
         ]
@@ -1395,20 +1537,63 @@
         ]
       }
     },
-    "/admin/expansion-sets/{code}": {
+    "/admin/expansion-sets": {
+      "post": {
+        "operationId": "create-expansion-set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExpansionSetInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeExpansionSetSummary"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create an Expansion Set and mark it Curated; a code its Game already has is a 409",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/expansion-sets/{id}": {
       "put": {
-        "operationId": "upsert-expansion-set",
+        "operationId": "update-expansion-set",
         "parameters": [
           {
-            "description": "The set's code, e.g. SM-P. Creates the set, or updates the one with this code.",
+            "description": "Expansion Set ID",
             "in": "path",
-            "name": "code",
+            "name": "id",
             "required": true,
             "schema": {
-              "description": "The set's code, e.g. SM-P. Creates the set, or updates the one with this code.",
-              "maxLength": 32,
-              "minLength": 1,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "description": "Expansion Set ID",
               "type": "string"
             }
           }
@@ -1417,7 +1602,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpsertExpansionSetInputBody"
+                "$ref": "#/components/schemas/UpdateExpansionSetInputBody"
               }
             }
           },
@@ -1450,7 +1635,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Create or update an Expansion Set and mark it Curated",
+        "summary": "Replace an Expansion Set's name, release date and Series and mark it Curated; the code stays",
         "tags": [
           "admin"
         ]

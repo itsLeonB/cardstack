@@ -29,21 +29,28 @@ const SERIES = {
   ungroupedExpansionSets: [],
 }
 
-interface Put {
+interface Write {
+  method: string
   path: string
   body: unknown
 }
 
-/** Stubs the API: GET /catalog/series and PUT /admin/expansion-sets/{code}. */
-function renderForm(putResponse: () => Response = () => savedResponse()) {
-  const puts: Put[] = []
+/**
+ * Stubs the API: GET /catalog/series, POST /admin/expansion-sets and PUT
+ * /admin/expansion-sets/{id}. `writes` records the two writes.
+ */
+function renderForm(writeResponse?: () => Response) {
+  const writes: Write[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input)).pathname
-      if (init?.method === "PUT") {
-        puts.push({ path, body: JSON.parse(String(init.body)) })
-        return putResponse()
+      const method = init?.method ?? "GET"
+      if (method === "POST" || method === "PUT") {
+        writes.push({ method, path, body: JSON.parse(String(init?.body)) })
+        return writeResponse
+          ? writeResponse()
+          : savedResponse(method === "POST" ? 201 : 200)
       }
       return json({ data: SERIES })
     })
@@ -56,7 +63,7 @@ function renderForm(putResponse: () => Response = () => savedResponse()) {
       <ExpansionSetForm />
     </QueryClientProvider>
   )
-  return puts
+  return writes
 }
 
 interface StubBody {
@@ -73,8 +80,8 @@ function json(body: StubBody, status = 200) {
   })
 }
 
-function savedResponse() {
-  return json({ data: { id: "x", code: "x", name: "x", imageUrl: "" } })
+function savedResponse(status: number) {
+  return json({ data: { id: "x", code: "x", name: "x", imageUrl: "" } }, status)
 }
 
 function fill(label: string, value: string) {
@@ -108,8 +115,10 @@ describe("ExpansionSetForm", () => {
     await screen.findByText("Saved SM-P.")
     expect(puts).toEqual([
       {
-        path: "/admin/expansion-sets/SM-P",
+        method: "POST",
+        path: "/admin/expansion-sets",
         body: {
+          code: "SM-P",
           name: "Kartu Promo Matahari & Bulan",
           releaseDate: "2019-05-08",
           seriesId: "series-sm",
@@ -118,12 +127,12 @@ describe("ExpansionSetForm", () => {
     ])
   })
 
-  it("edits an existing set: fills its fields, keeps its code, sends the changes", async () => {
+  it("edits an existing set: loads its fields, keeps its code, PUTs every field by id", async () => {
     const puts = renderForm()
 
     await screen.findByRole("option", { name: /SM1/ })
     fireEvent.change(screen.getByLabelText("Existing set"), {
-      target: { value: "SM1" },
+      target: { value: "set-sm1" },
     })
 
     expect(screen.getByLabelText("Code")).toHaveProperty("value", "SM1")
@@ -143,7 +152,8 @@ describe("ExpansionSetForm", () => {
     await screen.findByText("Saved SM1.")
     expect(puts).toEqual([
       {
-        path: "/admin/expansion-sets/SM1",
+        method: "PUT",
+        path: "/admin/expansion-sets/set-sm1",
         body: {
           name: "Koleksi Matahari (diperbaiki)",
           releaseDate: "2016-12-02",
@@ -198,5 +208,28 @@ describe("ExpansionSetForm", () => {
     const alert = await screen.findByRole("alert")
     expect(alert.textContent).toContain("series not found")
     expect(screen.queryByText("Saved SM-P.")).toBeNull()
+  })
+
+  it("shows a duplicate code as the API's conflict, not as an update", async () => {
+    const writes = renderForm(() =>
+      json(
+        {
+          status: 409,
+          title: "Conflict",
+          detail: "an expansion set with this code already exists",
+        },
+        409
+      )
+    )
+    await chooseSeries("Matahari & Bulan")
+
+    fill("Code", "SM1")
+    fill("Name", "Promo")
+    fill("Release date", "2019-05-08")
+    save()
+
+    const alert = await screen.findByRole("alert")
+    expect(alert.textContent).toContain("already exists")
+    expect(writes.map((w) => w.method)).toEqual(["POST"])
   })
 })

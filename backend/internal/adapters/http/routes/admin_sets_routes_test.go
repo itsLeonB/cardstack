@@ -41,9 +41,24 @@ func newAdminSetFixture(t *testing.T) adminSetFixture {
 	return adminSetFixture{api: api, token: api.tokenFor(t, adminEmail), game: game, series: series, suffix: s[:8]}
 }
 
-func (f adminSetFixture) put(t *testing.T, code string, body map[string]any) (int, string) {
+// create POSTs a new set with code; body carries the rest of its fields.
+func (f adminSetFixture) create(t *testing.T, code string, body map[string]any) (int, string) {
 	t.Helper()
-	resp := f.api.Put("/admin/expansion-sets/"+code, bearer(f.token), body)
+	resp := f.api.Post("/admin/expansion-sets", bearer(f.token), withCode(code, body))
+	return resp.Code, resp.Body.String()
+}
+
+func withCode(code string, body map[string]any) map[string]any {
+	out := map[string]any{"code": code}
+	for k, v := range body {
+		out[k] = v
+	}
+	return out
+}
+
+func (f adminSetFixture) update(t *testing.T, id uuid.UUID, body map[string]any) (int, string) {
+	t.Helper()
+	resp := f.api.Put("/admin/expansion-sets/"+id.String(), bearer(f.token), body)
 	return resp.Code, resp.Body.String()
 }
 
@@ -76,9 +91,9 @@ func TestAdminSets_CreateMakesACuratedSetThatBrowseShowsUnderItsSeries(t *testin
 	f := newAdminSetFixture(t)
 	code := "SM-P-" + f.suffix
 
-	status, body := f.put(t, code, map[string]any{"name": "Kartu Promo Matahari & Bulan", "releaseDate": "2019-05-08", "seriesId": f.series.ID})
+	status, body := f.create(t, code, map[string]any{"name": "Kartu Promo Matahari & Bulan", "releaseDate": "2019-05-08", "seriesId": f.series.ID})
 
-	require.Equal(t, http.StatusOK, status, body)
+	require.Equal(t, http.StatusCreated, status, body)
 	var got setEnvelope
 	require.NoError(t, json.Unmarshal([]byte(body), &got))
 	assert.Equal(t, code, got.Data.Code)
@@ -108,28 +123,70 @@ func TestAdminSets_EditingAnIngestedSetKeepsItsIdentityAndMarksItCurated(t *test
 	seeded := f.seedSet(t, code, time.Date(2016, 12, 2, 0, 0, 0, 0, time.UTC))
 	require.False(t, seeded.Curated)
 
-	status, body := f.put(t, code, map[string]any{"name": "Corrected name", "releaseDate": "2016-12-03", "seriesId": f.series.ID})
+	status, body := f.update(t, seeded.ID, map[string]any{"name": "Corrected name", "releaseDate": "2016-12-03", "seriesId": f.series.ID})
 
 	require.Equal(t, http.StatusOK, status, body)
 	row := f.setByCode(t, code)
 	assert.Equal(t, seeded.ID, row.ID, "updated in place, not duplicated")
+	assert.Equal(t, code, row.Code, "the code is not editable")
 	assert.Equal(t, seeded.LocaleID, row.LocaleID)
 	assert.Equal(t, "Corrected name", row.Name)
 	assert.Equal(t, "2016-12-03", row.ReleaseDate.Format(time.DateOnly))
 	assert.True(t, row.Curated)
 
-	status, body = f.put(t, code, map[string]any{"name": "Corrected name", "releaseDate": "2016-12-03", "seriesId": f.series.ID})
+	status, body = f.update(t, seeded.ID, map[string]any{"name": "Corrected name", "releaseDate": "2016-12-03", "seriesId": f.series.ID})
 	require.Equal(t, http.StatusOK, status, body)
 	var n int64
 	require.NoError(t, f.api.db.Model(&entity.ExpansionSet{}).Where("game_id = ? AND code = ?", f.game.ID, code).Count(&n).Error)
-	assert.EqualValues(t, 1, n, "entering the same code again is not a second set")
+	assert.EqualValues(t, 1, n, "putting the same set again is not a second set")
+}
+
+func TestAdminSets_UpdateMovesASetToAnotherSeriesOfItsGameButNotOfAnotherGame(t *testing.T) {
+	f := newAdminSetFixture(t)
+	seeded := f.seedSet(t, "MV-"+f.suffix, time.Date(2016, 12, 2, 0, 0, 0, 0, time.UTC))
+	sameGame := entity.Series{GameID: f.game.ID, Code: "alt-" + f.suffix, Name: "Alt " + f.suffix}
+	require.NoError(t, f.api.db.Create(&sameGame).Error)
+	otherGame := entity.Game{Slug: "oth-" + f.suffix, Name: "Oth " + f.suffix}
+	require.NoError(t, f.api.db.Create(&otherGame).Error)
+	foreign := entity.Series{GameID: otherGame.ID, Code: "for-" + f.suffix, Name: "For " + f.suffix}
+	require.NoError(t, f.api.db.Create(&foreign).Error)
+
+	status, body := f.update(t, seeded.ID, map[string]any{"name": "Moved", "releaseDate": "2016-12-02", "seriesId": sameGame.ID})
+	require.Equal(t, http.StatusOK, status, body)
+	assert.Equal(t, sameGame.ID, *f.setByCode(t, seeded.Code).SeriesID)
+
+	status, body = f.update(t, seeded.ID, map[string]any{"name": "Moved", "releaseDate": "2016-12-02", "seriesId": foreign.ID})
+	assert.Equal(t, http.StatusUnprocessableEntity, status, body)
+	assert.Equal(t, sameGame.ID, *f.setByCode(t, seeded.Code).SeriesID, "a refused move changes nothing")
+}
+
+func TestAdminSets_UpdateOfAnUnknownSetIsNotFound(t *testing.T) {
+	f := newAdminSetFixture(t)
+
+	status, body := f.update(t, uuid.New(), map[string]any{"name": "Ghost", "releaseDate": "2019-05-08", "seriesId": f.series.ID})
+
+	assert.Equal(t, http.StatusNotFound, status, body)
+}
+
+func TestAdminSets_CreateOfAnExistingCodeIsAConflictAndChangesNothing(t *testing.T) {
+	f := newAdminSetFixture(t)
+	code := "ASIA-" + f.suffix
+	seeded := f.seedSet(t, code, time.Date(2016, 12, 2, 0, 0, 0, 0, time.UTC))
+
+	status, body := f.create(t, code, map[string]any{"name": "Other", "releaseDate": "2019-05-08", "seriesId": f.series.ID})
+
+	assert.Equal(t, http.StatusConflict, status, body)
+	row := f.setByCode(t, code)
+	assert.Equal(t, seeded.ID, row.ID)
+	assert.Equal(t, seeded.Name, row.Name, "a duplicate is not an update")
+	assert.False(t, row.Curated)
 }
 
 func TestAdminSets_UnknownSeriesIsAValidationErrorAndWritesNothing(t *testing.T) {
 	f := newAdminSetFixture(t)
 	code := "NOPE-" + f.suffix
 
-	status, body := f.put(t, code, map[string]any{"name": "Orphan", "releaseDate": "2019-05-08", "seriesId": uuid.New()})
+	status, body := f.create(t, code, map[string]any{"name": "Orphan", "releaseDate": "2019-05-08", "seriesId": uuid.New()})
 
 	assert.Equal(t, http.StatusUnprocessableEntity, status, body)
 	var n int64
@@ -157,8 +214,8 @@ func TestAdminSets_AddingALaterSetDoesNotReorderSeries(t *testing.T) {
 	olderBefore, newerBefore := order()
 	require.Less(t, newerBefore, olderBefore, "most recent Series first")
 
-	status, body := f.put(t, "SM-P-"+f.suffix, map[string]any{"name": "Promo", "releaseDate": "2019-05-08", "seriesId": f.series.ID})
-	require.Equal(t, http.StatusOK, status, body)
+	status, body := f.create(t, "SM-P-"+f.suffix, map[string]any{"name": "Promo", "releaseDate": "2019-05-08", "seriesId": f.series.ID})
+	require.Equal(t, http.StatusCreated, status, body)
 
 	olderAfter, newerAfter := order()
 	assert.Less(t, newerAfter, olderAfter, "a set later than the Series' earliest leaves its place unchanged")
@@ -168,12 +225,18 @@ func TestAdminSets_OnlyAnAdminMayWrite(t *testing.T) {
 	f := newAdminSetFixture(t)
 	code := "SM-P-" + f.suffix
 	payload := map[string]any{"name": "Promo", "releaseDate": "2019-05-08", "seriesId": f.series.ID}
+	seeded := f.seedSet(t, "OWN-"+f.suffix, time.Date(2016, 12, 2, 0, 0, 0, 0, time.UTC))
+	nonAdmin := bearer(f.api.newUserToken(t))
 
-	signedIn := f.api.Put("/admin/expansion-sets/"+code, bearer(f.api.newUserToken(t)), payload)
-	guest := f.api.Put("/admin/expansion-sets/"+code, payload)
-
-	assert.Equal(t, http.StatusNotFound, signedIn.Code)
-	assert.Equal(t, http.StatusNotFound, guest.Code)
+	for name, resp := range map[string]int{
+		"signed-in create": f.api.Post("/admin/expansion-sets", nonAdmin, withCode(code, payload)).Code,
+		"guest create":     f.api.Post("/admin/expansion-sets", withCode(code, payload)).Code,
+		"signed-in update": f.api.Put("/admin/expansion-sets/"+seeded.ID.String(), nonAdmin, payload).Code,
+		"guest update":     f.api.Put("/admin/expansion-sets/"+seeded.ID.String(), payload).Code,
+	} {
+		assert.Equal(t, http.StatusNotFound, resp, name)
+	}
+	assert.Equal(t, seeded.Name, f.setByCode(t, seeded.Code).Name)
 	var n int64
 	require.NoError(t, f.api.db.Model(&entity.ExpansionSet{}).Where("code = ?", code).Count(&n).Error)
 	assert.Zero(t, n)

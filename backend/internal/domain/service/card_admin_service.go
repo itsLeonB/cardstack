@@ -37,18 +37,25 @@ const (
 	adminRarityInvalidMsg = "rarity not found in this expansion set's game"
 	adminTagNotAllowedMsg = "only a Trainer card carries a tag"
 	adminCardNotFoundMsg  = "card not found"
-	noUploadMsg           = "no image has been uploaded for this card"
-	notAnImageMsg         = "the uploaded file is not a JPEG, PNG or WebP image and was deleted"
-	cardCollectedMsg      = "card is in a collection and cannot be deleted"
+
+	adminRarityRequiredMsg = "rarity is required"
+	cardExistsMsg          = "a card with this expansion set and collector number already exists"
+	noUploadMsg            = "no image has been uploaded for this card"
+	notAnImageMsg          = "the uploaded file is not a JPEG, PNG or WebP image and was deleted"
+	cardCollectedMsg       = "card is in a collection and cannot be deleted"
 )
 
 // CardAdminService is the Admin's write access to Cards and their images
 // (docs/adr/0019). Every write marks the Card Curated.
 type CardAdminService interface {
-	// UpsertCard creates the Card at (Expansion Set, collector number) or
-	// updates the one already there. A new Card has no image and stays out of
-	// the catalog until ConfirmImage sets one.
-	UpsertCard(ctx context.Context, req dto.AdminCardUpsert) (dto.AdminCard, error)
+	// CreateCard creates the Card at (Expansion Set, collector number); one
+	// already there is a conflict, never an update. A new Card has no image and
+	// stays out of the catalog until ConfirmImage sets one.
+	CreateCard(ctx context.Context, req dto.AdminCardCreate) (dto.AdminCard, error)
+	// UpdateCard replaces the name, category, tags, rarity and illustrator of
+	// the Card with req.ID with the request's, keeping nothing the request
+	// leaves out. Its set, number and image stay.
+	UpdateCard(ctx context.Context, req dto.AdminCardUpdate) (dto.AdminCard, error)
 	// GetCard returns the Card at (Expansion Set, collector number), or not
 	// found. It finds a Card that has no image yet, which no catalog list shows,
 	// so the Admin can upload that Card's image.
@@ -89,53 +96,68 @@ func NewCardAdminService(
 	return &cardAdminService{transactor: transactor, cards: cards, sets: sets, rarities: rarities, entries: entries, store: store, images: images}
 }
 
-func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpsert) (dto.AdminCard, error) {
-	if req.Tag != "" && req.Category != categoryTrainer {
-		return dto.AdminCard{}, ungerr.UnprocessableEntityError(adminTagNotAllowedMsg)
+func (s *cardAdminService) CreateCard(ctx context.Context, req dto.AdminCardCreate) (dto.AdminCard, error) {
+	if err := validateTags(req.Category, req.Tags); err != nil {
+		return dto.AdminCard{}, err
 	}
 
 	var saved entity.Card
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		// Locking the set serializes writers to its cards, so two saves of the
+		// Locking the set serializes writers to its cards, so two creates of the
 		// same number cannot both insert.
 		set, err := s.getSet(ctx, req.ExpansionSetID, true)
 		if err != nil {
 			return err
 		}
-		tags := datatypes.JSONSlice[string]{}
-		if req.Tag != "" {
-			tags = append(tags, req.Tag)
-		}
-
-		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+		existing, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
 			Model: entity.Card{ExpansionSetID: set.ID, LocalID: req.LocalID},
 		})
 		if err != nil {
 			return err
 		}
-		if card.IsZero() {
-			rarityID, err := s.resolveRarity(ctx, set, req.RarityID)
-			if err != nil {
-				return err
-			}
-			saved, err = s.cards.Insert(ctx, entity.Card{
-				ExpansionSetID: set.ID, LocalID: req.LocalID, Name: req.Name, Category: req.Category,
-				Illustrator: req.Illustrator, Tags: tags, RarityID: rarityID, Attributes: datatypes.JSONMap{}, Curated: true,
-			})
+		if !existing.IsZero() {
+			return ungerr.ConflictError(cardExistsMsg)
+		}
+		rarityID, err := s.resolveRarity(ctx, set, req.RarityID)
+		if err != nil {
 			return err
 		}
+		saved, err = s.cards.Insert(ctx, entity.Card{
+			ExpansionSetID: set.ID, LocalID: req.LocalID, Name: req.Name, Category: req.Category,
+			Illustrator: req.Illustrator, Tags: tagsOf(req.Tags), RarityID: rarityID, Attributes: datatypes.JSONMap{}, Curated: true,
+		})
+		return err
+	})
+	if err != nil {
+		return dto.AdminCard{}, err
+	}
+	return mapper.ToAdminCard(s.images, saved), nil
+}
 
-		// An edit that leaves the rarity or the illustrator out keeps what the
-		// Card has, so fixing a name does not erase what an import filled in.
-		if req.RarityID != uuid.Nil {
-			if card.RarityID, err = s.resolveRarity(ctx, set, req.RarityID); err != nil {
-				return err
-			}
+func (s *cardAdminService) UpdateCard(ctx context.Context, req dto.AdminCardUpdate) (dto.AdminCard, error) {
+	if err := validateTags(req.Category, req.Tags); err != nil {
+		return dto.AdminCard{}, err
+	}
+	// A PUT replaces the Card, so a missing rarity is an error, never the default.
+	if req.RarityID == uuid.Nil {
+		return dto.AdminCard{}, ungerr.UnprocessableEntityError(adminRarityRequiredMsg)
+	}
+
+	var saved entity.Card
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		card, err := s.getCard(ctx, req.ID, true)
+		if err != nil {
+			return err
 		}
-		if req.Illustrator != "" {
-			card.Illustrator = req.Illustrator
+		set, err := s.getSet(ctx, card.ExpansionSetID, false)
+		if err != nil {
+			return err
 		}
-		card.Name, card.Category, card.Tags, card.Curated = req.Name, req.Category, tags, true
+		if card.RarityID, err = s.resolveRarity(ctx, set, req.RarityID); err != nil {
+			return err
+		}
+		card.Name, card.Category, card.Tags = req.Name, req.Category, tagsOf(req.Tags)
+		card.Illustrator, card.Curated = req.Illustrator, true
 		saved, err = s.cards.Update(ctx, card)
 		return err
 	})
@@ -143,6 +165,19 @@ func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpse
 		return dto.AdminCard{}, err
 	}
 	return mapper.ToAdminCard(s.images, saved), nil
+}
+
+// validateTags refuses a tag on a card that is not a Trainer. The tag
+// vocabulary itself is closed by the request schema.
+func validateTags(category string, tags []string) error {
+	if len(tags) > 0 && category != categoryTrainer {
+		return ungerr.UnprocessableEntityError(adminTagNotAllowedMsg)
+	}
+	return nil
+}
+
+func tagsOf(tags []string) datatypes.JSONSlice[string] {
+	return append(datatypes.JSONSlice[string]{}, tags...)
 }
 
 func (s *cardAdminService) GetCard(ctx context.Context, req dto.CardLookup) (dto.AdminCard, error) {
@@ -286,23 +321,12 @@ func (s *cardAdminService) updateCard(ctx context.Context, id uuid.UUID, change 
 }
 
 func (s *cardAdminService) DeleteCard(ctx context.Context, req dto.CardDelete) error {
-	// A zero field would drop out of the Model below and widen the match.
-	if req.ExpansionSetID == uuid.Nil || req.LocalID == "" {
-		return ungerr.NotFoundError(adminCardNotFoundMsg)
-	}
-	var deleted uuid.UUID
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		// The lock blocks a concurrent Inventory Entry insert (its foreign key
 		// check shares the Card row), so the check below cannot go stale.
-		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-			Model:     entity.Card{ExpansionSetID: req.ExpansionSetID, LocalID: req.LocalID},
-			ForUpdate: true,
-		})
+		card, err := s.getCard(ctx, req.ID, true)
 		if err != nil {
 			return err
-		}
-		if card.IsZero() {
-			return ungerr.NotFoundError(adminCardNotFoundMsg)
 		}
 		held, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
 			Model: entity.InventoryEntry{CardID: card.ID},
@@ -313,7 +337,6 @@ func (s *cardAdminService) DeleteCard(ctx context.Context, req dto.CardDelete) e
 		if !held.IsZero() {
 			return ungerr.ConflictError(cardCollectedMsg)
 		}
-		deleted = card.ID
 		return s.cards.Delete(ctx, card)
 	})
 	if err != nil {
@@ -324,7 +347,7 @@ func (s *cardAdminService) DeleteCard(ctx context.Context, req dto.CardDelete) e
 	// image. The key comes from the id, not the row, because an upload that was
 	// never confirmed leaves an object under it too. A failure leaves an orphan
 	// object, which the logged key lets the owner remove.
-	key := cardImageKey(deleted)
+	key := cardImageKey(req.ID)
 	if err := s.store.Delete(ctx, key); err != nil {
 		logger.Errorf("deleting image object %q of a deleted card: %v", key, err)
 	}
