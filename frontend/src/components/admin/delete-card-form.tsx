@@ -9,7 +9,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { SELECT_CLASS, flattenSets } from "@/components/admin/form-shared"
+import {
+  SELECT_CLASS,
+  flattenSets,
+  useCardLookup,
+} from "@/components/admin/form-shared"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -23,10 +27,13 @@ import { useDeleteAdminCard } from "@/generated/endpoints/admin/admin"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 
 /**
- * Deletes a Card entered by mistake (docs/adr/0019), named by its set and
- * collector number as it was entered. The API removes the row, the hosted
- * image and the embeddings, and refuses while a Collection still holds the
- * Card, which this shows as its reason.
+ * Deletes a Card entered by mistake (docs/adr/0019). The Card is looked up by
+ * the set and collector number it was entered under, so one whose upload
+ * failed and that no catalog list shows can still be found. Asking to delete
+ * opens a confirmation that names the Card, and only confirming sends the
+ * delete, by the Card's id. The API removes the row, the hosted image and the
+ * embeddings, and refuses while a Collection still holds the Card, which this
+ * shows as its reason.
  */
 export function DeleteCardForm() {
   const seriesQuery = useListCatalogSeries()
@@ -43,6 +50,8 @@ export function DeleteCardForm() {
   const sets = flattenSets(browse)
   const setCode = sets.find((s) => s.id === setId)?.code ?? ""
   const number = localId.trim()
+  const lookup = useCardLookup(setId, number)
+  const card = lookup.card
 
   function handleAsk(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -52,12 +61,25 @@ export function DeleteCardForm() {
       setError("Choose an expansion set and enter a collector number.")
       return
     }
+    if (lookup.state === "checking" || lookup.state === "failed") {
+      setError(
+        lookup.state === "checking"
+          ? "Still looking for the card. Try again in a moment."
+          : "Could not look the card up. Try again."
+      )
+      return
+    }
+    if (!card) {
+      setError(`There is no card ${setCode} ${number}.`)
+      return
+    }
     setConfirming(true)
   }
 
   function handleConfirm() {
+    if (!card) return
     remove.mutate(
-      { params: { expansionSetId: setId, localId: number } },
+      { id: card.id },
       {
         onSuccess: (response) => {
           setConfirming(false)
@@ -103,6 +125,8 @@ export function DeleteCardForm() {
             onChange={(e) => setLocalId(e.target.value)}
           />
           <FieldDescription>
+            {card ? `Found: ${card.name}. ` : ""}
+            {lookup.state === "missing" ? "There is no card there. " : ""}
             Removes the card, its image and its embeddings for good.
           </FieldDescription>
         </Field>
@@ -118,7 +142,7 @@ export function DeleteCardForm() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {setCode} {number}?
+              Delete {setCode} {number} {card?.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               This permanently deletes the card, its image and its embeddings.

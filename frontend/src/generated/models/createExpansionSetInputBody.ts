@@ -5,7 +5,14 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface UpsertExpansionSetInputBody {
+export interface CreateExpansionSetInputBody {
+  /**
+     * The set's code, e.g. SM-P. A code the set's Game already has is a 409; the code cannot be changed afterwards.
+     * @minLength 1
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9_-]*$
+     */
+  code: string;
   /**
      * The set's name.
      * @minLength 1

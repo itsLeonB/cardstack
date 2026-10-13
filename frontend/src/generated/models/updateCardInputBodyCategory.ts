@@ -5,10 +5,10 @@
  * OpenAPI spec version: 1.0
  */
 
-export type UpsertCardInputBodyCategory = typeof UpsertCardInputBodyCategory[keyof typeof UpsertCardInputBodyCategory];
+export type UpdateCardInputBodyCategory = typeof UpdateCardInputBodyCategory[keyof typeof UpdateCardInputBodyCategory];
 
 
-export const UpsertCardInputBodyCategory = {
+export const UpdateCardInputBodyCategory = {
   Pokémon: 'Pokémon',
   Trainer: 'Trainer',
   Energi: 'Energi',

@@ -27,8 +27,16 @@ function json<T>(status: number, body: T) {
   })
 }
 
-/** The API as the form meets it: the set list, then the delete call. */
-function stubApi(remove: () => Response) {
+interface Stub {
+  lookup?: () => Response
+  remove?: () => Response
+}
+
+const FOUND = () => json(200, { data: { id: "c1", name: "Pikachu" } })
+const REMOVED = () => new Response(null, { status: 204 })
+
+/** The API as the form meets it: the set list, the lookup, then the delete. */
+function stubApi({ lookup = FOUND, remove = REMOVED }: Stub = {}) {
   const calls: Call[] = []
   vi.stubGlobal(
     "fetch",
@@ -46,11 +54,13 @@ function stubApi(remove: () => Response) {
         })
       }
       calls.push({ method, path: url.pathname, search: url.search })
-      return remove()
+      return method === "DELETE" ? remove() : lookup()
     })
   )
   return calls
 }
+
+const deletes = (calls: Call[]) => calls.filter((c) => c.method === "DELETE")
 
 async function renderForm() {
   const queryClient = new QueryClient({
@@ -76,6 +86,12 @@ function choose(setId: string, number: string) {
 const openConfirm = () =>
   fireEvent.click(screen.getByRole("button", { name: "Delete card" }))
 
+/** Enters a card and waits until the lookup has named it. */
+async function chooseFound(number = "007") {
+  choose("set-1", number)
+  await screen.findByText(/Found: Pikachu/)
+}
+
 const confirm = () =>
   fireEvent.click(
     within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -85,7 +101,7 @@ const confirm = () =>
 
 describe("DeleteCardForm", () => {
   it("asks for a set and a number before it offers to delete", async () => {
-    const calls = stubApi(() => new Response(null, { status: 204 }))
+    const calls = stubApi()
     await renderForm()
 
     openConfirm()
@@ -97,42 +113,88 @@ describe("DeleteCardForm", () => {
     expect(calls).toEqual([])
   })
 
-  it("sends nothing until the deletion is confirmed", async () => {
-    const calls = stubApi(() => new Response(null, { status: 204 }))
+  it("looks the card up by set and number, and names it in the confirmation", async () => {
+    const calls = stubApi()
     await renderForm()
-    choose("set-1", "007")
+    await chooseFound()
 
     openConfirm()
 
-    expect((await screen.findByRole("alertdialog")).textContent).toMatch(
-      /SM-P 007/
-    )
-    expect(calls).toEqual([])
-  })
-
-  it("deletes the card at that set and number once confirmed", async () => {
-    const calls = stubApi(() => new Response(null, { status: 204 }))
-    await renderForm()
-    choose("set-1", "007")
-    openConfirm()
-    await screen.findByRole("alertdialog")
-
-    confirm()
-
-    await screen.findByText(/Deleted SM-P 007/)
+    const dialog = (await screen.findByRole("alertdialog")).textContent
+    expect(dialog).toMatch(/Delete SM-P 007 Pikachu\?/)
     expect(calls).toEqual([
       {
-        method: "DELETE",
+        method: "GET",
         path: "/admin/cards",
         search: "?expansionSetId=set-1&localId=007",
       },
     ])
   })
 
-  it("shows why a card was not deleted", async () => {
-    stubApi(() => json(409, { status: 409, detail: "card is in a collection" }))
+  it("sends no delete until the deletion is confirmed", async () => {
+    const calls = stubApi()
     await renderForm()
-    choose("set-1", "007")
+    await chooseFound()
+
+    openConfirm()
+    await screen.findByRole("alertdialog")
+
+    expect(deletes(calls)).toEqual([])
+  })
+
+  it("sends no delete when the confirmation is cancelled", async () => {
+    const calls = stubApi()
+    await renderForm()
+    await chooseFound()
+    openConfirm()
+    const dialog = await screen.findByRole("alertdialog")
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }))
+
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+    expect(deletes(calls)).toEqual([])
+    expect(screen.queryByText(/Deleted SM-P/)).toBeNull()
+  })
+
+  it("deletes the card by id once confirmed", async () => {
+    const calls = stubApi()
+    await renderForm()
+    await chooseFound()
+    openConfirm()
+    await screen.findByRole("alertdialog")
+
+    confirm()
+
+    await screen.findByText(/Deleted SM-P 007/)
+    expect(deletes(calls)).toEqual([
+      { method: "DELETE", path: "/admin/cards/c1", search: "" },
+    ])
+  })
+
+  it("offers nothing to confirm for a card that does not exist", async () => {
+    const calls = stubApi({
+      lookup: () => json(404, { status: 404, detail: "card not found" }),
+    })
+    await renderForm()
+    choose("set-1", "404")
+    await screen.findByText(/There is no card there/)
+
+    openConfirm()
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(
+      /no card SM-P 404/
+    )
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+    expect(deletes(calls)).toEqual([])
+  })
+
+  it("shows why a card was not deleted", async () => {
+    stubApi({
+      remove: () =>
+        json(409, { status: 409, detail: "card is in a collection" }),
+    })
+    await renderForm()
+    await chooseFound()
     openConfirm()
     await screen.findByRole("alertdialog")
 

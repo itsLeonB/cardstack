@@ -8,20 +8,6 @@ import * as zod from 'zod';
 
 
 /**
- * @summary Delete the Card at an Expansion Set and collector number with its hosted image and embeddings; refused with 409 while a Collection holds it
- */
-export const deleteAdminCardQueryLocalIdMax = 32;
-
-
-
-export const DeleteAdminCardQueryParams = zod.object({
-  "expansionSetId": zod.string().describe('The Expansion Set the Card belongs to.'),
-  "localId": zod.string().min(1).max(deleteAdminCardQueryLocalIdMax).describe('The Card\'s collector number within the set.')
-})
-
-export const DeleteAdminCardResponse = zod.void()
-
-/**
  * @summary Find the Card at an Expansion Set and collector number, including one with no image yet (404 if there is none)
  */
 export const getAdminCardQueryLocalIdMax = 32;
@@ -43,32 +29,34 @@ export const GetAdminCardResponse = zod.object({
   "localId": zod.string(),
   "name": zod.string(),
   "rarityId": zod.string(),
-  "tag": zod.string()
+  "tags": zod.array(zod.string()).nullable()
 })
 })
 
 /**
- * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
+ * @summary Create a Card, Curated; one already at the Expansion Set and collector number is a 409
  */
-export const upsertAdminCardBodyIllustratorMax = 200;
+export const createAdminCardBodyIllustratorMax = 200;
 
-export const upsertAdminCardBodyLocalIdMax = 32;
+export const createAdminCardBodyLocalIdMax = 32;
 
-export const upsertAdminCardBodyNameMax = 200;
+export const createAdminCardBodyNameMax = 200;
+
+export const createAdminCardBodyTagsMax = 3;
 
 
 
-export const UpsertAdminCardBody = zod.object({
+export const CreateAdminCardBody = zod.object({
   "category": zod.enum(['Pokémon', 'Trainer', 'Energi']),
   "expansionSetId": zod.string().describe('The Expansion Set the Card belongs to (422 if unknown).'),
-  "illustrator": zod.string().max(upsertAdminCardBodyIllustratorMax).optional().describe('Left out when updating a Card, it keeps the Card\'s illustrator.'),
-  "localId": zod.string().min(1).max(upsertAdminCardBodyLocalIdMax).describe('The collector number within the set, e.g. "001". Entering an existing set and number updates that Card.'),
-  "name": zod.string().min(1).max(upsertAdminCardBodyNameMax),
-  "rarityId": zod.string().optional().describe('A Rarity of the set\'s Game. Defaults to "Tanpa Tanda" for a new Card; left out when updating a Card, it keeps the Card\'s rarity.'),
-  "tag": zod.enum(['Item', 'Supporter', 'Stadium']).optional().describe('Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise).')
+  "illustrator": zod.string().max(createAdminCardBodyIllustratorMax).optional(),
+  "localId": zod.string().min(1).max(createAdminCardBodyLocalIdMax).describe('The collector number within the set, e.g. "001". A number the set already has is a 409; it cannot be changed afterwards.'),
+  "name": zod.string().min(1).max(createAdminCardBodyNameMax),
+  "rarityId": zod.string().optional().describe('A Rarity of the set\'s Game. Defaults to "Tanpa Tanda".'),
+  "tags": zod.array(zod.enum(['Item', 'Supporter', 'Stadium'])).max(createAdminCardBodyTagsMax).nullish().describe('Only a Trainer card carries tags; Pokémon and Energi cards leave them empty (422 otherwise).')
 })
 
-export const UpsertAdminCardResponse = zod.object({
+export const CreateAdminCardResponse = zod.object({
   "data": zod.object({
   "category": zod.string(),
   "expansionSetId": zod.string(),
@@ -78,7 +66,53 @@ export const UpsertAdminCardResponse = zod.object({
   "localId": zod.string(),
   "name": zod.string(),
   "rarityId": zod.string(),
-  "tag": zod.string()
+  "tags": zod.array(zod.string()).nullable()
+})
+})
+
+/**
+ * @summary Delete the Card with its hosted image and embeddings; refused with 409 while a Collection holds it
+ */
+export const DeleteAdminCardParams = zod.object({
+  "id": zod.string().describe('Card ID')
+})
+
+export const DeleteAdminCardResponse = zod.void()
+
+/**
+ * @summary Replace the Card's name, category, tags, rarity and illustrator with the request's, keeping its set, number and image; the Card becomes Curated
+ */
+export const UpdateAdminCardParams = zod.object({
+  "id": zod.string().describe('Card ID')
+})
+
+export const updateAdminCardBodyIllustratorMax = 200;
+
+export const updateAdminCardBodyNameMax = 200;
+
+export const updateAdminCardBodyTagsMax = 3;
+
+
+
+export const UpdateAdminCardBody = zod.object({
+  "category": zod.enum(['Pokémon', 'Trainer', 'Energi']),
+  "illustrator": zod.string().max(updateAdminCardBodyIllustratorMax).optional().describe('Left out, it clears the Card\'s illustrator.'),
+  "name": zod.string().min(1).max(updateAdminCardBodyNameMax),
+  "rarityId": zod.string().describe('A Rarity of the Card\'s Game (422 otherwise).'),
+  "tags": zod.array(zod.enum(['Item', 'Supporter', 'Stadium'])).max(updateAdminCardBodyTagsMax).nullish().describe('Only a Trainer card carries tags; Pokémon and Energi cards leave them empty (422 otherwise).')
+})
+
+export const UpdateAdminCardResponse = zod.object({
+  "data": zod.object({
+  "category": zod.string(),
+  "expansionSetId": zod.string(),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarityId": zod.string(),
+  "tags": zod.array(zod.string()).nullable()
 })
 })
 
@@ -99,7 +133,7 @@ export const ConfirmAdminCardImageResponse = zod.object({
   "localId": zod.string(),
   "name": zod.string(),
   "rarityId": zod.string(),
-  "tag": zod.string()
+  "tags": zod.array(zod.string()).nullable()
 })
 })
 
@@ -128,31 +162,55 @@ export const RequestAdminCardImageUploadResponse = zod.object({
 export const AdminCheckResponse = zod.void()
 
 /**
- * @summary Create or update an Expansion Set and mark it Curated
+ * @summary Create an Expansion Set and mark it Curated; a code its Game already has is a 409
  */
-export const upsertExpansionSetPathCodeMax = 32;
+export const createExpansionSetBodyCodeMax = 32;
 
 
-export const upsertExpansionSetPathCodeRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9_-]*$');
+export const createExpansionSetBodyCodeRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9_-]*$');
+export const createExpansionSetBodyNameMax = 200;
 
 
-export const UpsertExpansionSetParams = zod.object({
-  "code": zod.string().min(1).max(upsertExpansionSetPathCodeMax).regex(upsertExpansionSetPathCodeRegExp).describe('The set\'s code, e.g. SM-P. Creates the set, or updates the one with this code.')
-})
-
-export const upsertExpansionSetBodyNameMax = 200;
+export const createExpansionSetBodyNameRegExp = new RegExp('\\S');
 
 
-export const upsertExpansionSetBodyNameRegExp = new RegExp('\\S');
-
-
-export const UpsertExpansionSetBody = zod.object({
-  "name": zod.string().min(1).max(upsertExpansionSetBodyNameMax).regex(upsertExpansionSetBodyNameRegExp).describe('The set\'s name.'),
+export const CreateExpansionSetBody = zod.object({
+  "code": zod.string().min(1).max(createExpansionSetBodyCodeMax).regex(createExpansionSetBodyCodeRegExp).describe('The set\'s code, e.g. SM-P. A code the set\'s Game already has is a 409; the code cannot be changed afterwards.'),
+  "name": zod.string().min(1).max(createExpansionSetBodyNameMax).regex(createExpansionSetBodyNameRegExp).describe('The set\'s name.'),
   "releaseDate": zod.iso.date().describe('Release date, YYYY-MM-DD.'),
   "seriesId": zod.string().describe('An existing Series (see GET /catalog/series).')
 })
 
-export const UpsertExpansionSetResponse = zod.object({
+export const CreateExpansionSetResponse = zod.object({
+  "data": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+})
+})
+
+/**
+ * @summary Replace an Expansion Set's name, release date and Series and mark it Curated; the code stays
+ */
+export const UpdateExpansionSetParams = zod.object({
+  "id": zod.string().describe('Expansion Set ID')
+})
+
+export const updateExpansionSetBodyNameMax = 200;
+
+
+export const updateExpansionSetBodyNameRegExp = new RegExp('\\S');
+
+
+export const UpdateExpansionSetBody = zod.object({
+  "name": zod.string().min(1).max(updateExpansionSetBodyNameMax).regex(updateExpansionSetBodyNameRegExp).describe('The set\'s name.'),
+  "releaseDate": zod.iso.date().describe('Release date, YYYY-MM-DD.'),
+  "seriesId": zod.string().describe('An existing Series of the set\'s Game (422 otherwise). The set\'s code is not editable.')
+})
+
+export const UpdateExpansionSetResponse = zod.object({
   "data": zod.object({
   "code": zod.string(),
   "id": zod.string(),
