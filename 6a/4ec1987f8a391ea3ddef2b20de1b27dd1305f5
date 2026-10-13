@@ -1,0 +1,23 @@
+backend/internal/adapters/http/routes/testenv_test.go
+  s_1b914ebd39cb5e::t_d50798cf3a7d98 138-140
+backend/internal/adapters/ingestion/pokemonasia/testdb_test.go
+  s_1b914ebd39cb5e::t_29479da54115d2 65-66
+backend/internal/domain/repository/repository_test_helper_test.go
+  s_1b914ebd39cb5e::t_e739dc51c4d670 56-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "6a4ec1987f8a391ea3ddef2b20de1b27dd1305f5",
+  "prompts": {},
+  "sessions": {
+    "s_1b914ebd39cb5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1b914ebd39cb5e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
