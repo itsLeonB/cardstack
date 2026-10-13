@@ -1,6 +1,6 @@
 # 04: Add a Card with an image from admin
 
-**What to build:** An Admin can add or correct a Card in any Expansion Set, with a required photographed image, from the `/admin` page. The image goes straight from the browser to R2 through a presigned PUT, and a confirm step checks the object's first bytes before the Card's image key is set. A Card with no confirmed image never appears in the catalog. Every write marks the Card Curated (ADR-0019, glossary entries Curated and Admin).
+**What to build:** An Admin can add or correct a Card in any Expansion Set, with a photographed image uploaded separately from its details, from the `/admin` page. The image goes straight from the browser to R2 through a presigned PUT, and a confirm step checks the object's first bytes before the Card's image key is set. A Card with no confirmed image never appears in the catalog. Every write marks the Card Curated (ADR-0019, glossary entries Curated and Admin).
 
 **Blocked by:** 01, 02.
 
@@ -11,7 +11,7 @@
 - [ ] An upload operation returns a short-lived signed PUT address for a key the server derives from the Card's id, with a signed content type; the client never supplies the key
 - [ ] A confirm operation reads the object's first bytes and accepts only a JPEG, PNG or WebP signature; on a mismatch it deletes the object and refuses; on a match it sets the hosted image key and marks the Card Curated
 - [ ] A Card without a confirmed image is never visible in browse, search or Collections, however the implementation avoids image-less rows (writing the row at confirm, or hiding empty keys)
-- [ ] The card form uploads with a PUT and then confirms; the browser can reach R2 (bucket CORS allows the frontend origin to PUT)
+- [ ] The card form's image section uploads with a PUT and then confirms, for the Card found by set and collector number; the browser can reach R2 (bucket CORS allows the frontend origin to PUT)
 - [ ] Route tests on real Postgres with the object-store mock cover upsert and idempotent re-entry, validation errors, a passing and a failing signature (object deleted, key unset), and the Curated flag
 - [ ] The deployment docs describe the bucket CORS rule and the write credential scope
 - [ ] Manual end-to-end acceptance: one real image uploaded to a development bucket, confirmed, and visible on the catalog card, since presigned PUT and CORS cannot be exercised by mocks
