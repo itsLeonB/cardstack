@@ -1,0 +1,21 @@
+frontend/src/components/admin/expansion-set-form.test.tsx
+  s_4dcf27da027e19::t_a363a305561444 29-37,174-206
+frontend/src/components/admin/expansion-set-form.tsx
+  s_4dcf27da027e19::t_06742ddc0d89f5 21,58-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d59fce75911d7dc60724ff61e9017a1fd984ff6b",
+  "prompts": {},
+  "sessions": {
+    "s_4dcf27da027e19": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_4dcf27da027e19",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
