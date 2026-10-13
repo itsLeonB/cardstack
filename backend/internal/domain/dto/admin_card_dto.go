@@ -7,7 +7,9 @@ import (
 )
 
 // AdminCardUpsert is what an Admin enters for a Card. RarityID is optional:
-// without it the Card gets the promo rarity "Tanpa Tanda" of its Game.
+// without it a new Card gets the promo rarity "Tanpa Tanda" of its Game, and an
+// existing Card keeps its rarity. An empty Illustrator likewise keeps the
+// existing Card's.
 type AdminCardUpsert struct {
 	ExpansionSetID uuid.UUID
 	LocalID        string

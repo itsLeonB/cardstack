@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { SELECT_CLASS, flattenSets } from "@/components/admin/form-shared"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -33,11 +34,6 @@ function fieldsOf(kind: Kind): Pick<UpsertCardInputBody, "category" | "tag"> {
   return { category: kind }
 }
 
-// Same look as `Input`; a native select keeps the keyboard and screen-reader
-// behaviour for free.
-const selectClass =
-  "h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-
 /** "009" -> "010", "99" -> "100": the next number, keeping the entered padding. */
 function nextCollectorNumber(localId: string): string {
   const match = /^(.*?)(\d+)$/.exec(localId)
@@ -61,10 +57,7 @@ export function CardForm() {
   const rarities = useQuery(getListCatalogRaritiesQueryOptions())
 
   const browse = series.data?.status === 200 ? series.data.data.data : null
-  const sets = [
-    ...(browse?.series ?? []).flatMap((s) => s.expansionSets ?? []),
-    ...(browse?.ungroupedExpansionSets ?? []),
-  ]
+  const sets = flattenSets(browse)
   const rarityOptions =
     rarities.data?.status === 200 ? (rarities.data.data.data ?? []) : []
 
@@ -179,7 +172,7 @@ export function CardForm() {
           <FieldLabel htmlFor="card-set">Expansion set</FieldLabel>
           <select
             id="card-set"
-            className={selectClass}
+            className={SELECT_CLASS}
             value={setId}
             onChange={(e) => setSetId(e.target.value)}
           >
@@ -214,7 +207,7 @@ export function CardForm() {
           <FieldLabel htmlFor="card-kind">Type</FieldLabel>
           <select
             id="card-kind"
-            className={selectClass}
+            className={SELECT_CLASS}
             value={kind}
             onChange={(e) =>
               setKind(KINDS.find((k) => k === e.target.value) ?? "Pokémon")
@@ -231,7 +224,7 @@ export function CardForm() {
           <FieldLabel htmlFor="card-rarity">Rarity</FieldLabel>
           <select
             id="card-rarity"
-            className={selectClass}
+            className={SELECT_CLASS}
             value={rarityId}
             onChange={(e) => setRarityId(e.target.value)}
           >

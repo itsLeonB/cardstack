@@ -28,8 +28,8 @@ type upsertCardInput struct {
 		Name           string    `json:"name" required:"true" minLength:"1" maxLength:"200"`
 		Category       string    `json:"category" required:"true" enum:"Pokémon,Trainer,Energi"`
 		Tag            string    `json:"tag,omitempty" enum:"Item,Supporter,Stadium" doc:"Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise)."`
-		RarityID       uuid.UUID `json:"rarityId,omitempty" doc:"A Rarity of the set's Game. Defaults to \"Tanpa Tanda\"."`
-		Illustrator    string    `json:"illustrator,omitempty" maxLength:"200"`
+		RarityID       uuid.UUID `json:"rarityId,omitempty" doc:"A Rarity of the set's Game. Defaults to \"Tanpa Tanda\" for a new Card; left out when updating a Card, it keeps the Card's rarity."`
+		Illustrator    string    `json:"illustrator,omitempty" maxLength:"200" doc:"Left out when updating a Card, it keeps the Card's illustrator."`
 	}
 }
 
