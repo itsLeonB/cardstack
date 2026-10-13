@@ -4,7 +4,7 @@
 
 **Blocked by:** 04.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] An admin delete operation removes the Card, its hosted image object from R2 and its embeddings
 - [ ] Deleting a Card that is in an outstanding embedding batch is handled the way the embedding commands already handle a missing Card

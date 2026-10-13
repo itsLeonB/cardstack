@@ -4,7 +4,7 @@
 
 **Blocked by:** 04.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Before requesting a signed address, the page rejects a file that is not a JPEG, PNG or WebP, that is over the size limit, or whose dimensions are wrong, and shows why
 - [ ] A Card cannot be saved without an image file selected

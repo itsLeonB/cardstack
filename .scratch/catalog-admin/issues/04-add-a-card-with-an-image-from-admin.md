@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 02.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] An admin operation upserts a Card by (Expansion Set, collector number) with name, Category, optional Tag and a rarity chosen from existing rarities, rejecting unknown references with a validation error; re-entering an existing set and number updates that Card
 - [ ] Choosing Item, Supporter or Stadium sets the Tag; Pokémon and Energy leave it empty; rarity defaults to "Tanpa Tanda"; Illustrator and other attributes stay empty unless filled
@@ -15,3 +15,7 @@
 - [ ] Route tests on real Postgres with the object-store mock cover upsert and idempotent re-entry, validation errors, a passing and a failing signature (object deleted, key unset), and the Curated flag
 - [ ] The deployment docs describe the bucket CORS rule and the write credential scope
 - [ ] Manual end-to-end acceptance: one real image uploaded to a development bucket, confirmed, and visible on the catalog card, since presigned PUT and CORS cannot be exercised by mocks
+
+## Comments
+
+Implemented on `feat/catalog-admin`. The last checklist item (manual end-to-end acceptance: a real image uploaded to a development bucket, confirmed, and visible on the catalog card, with the bucket CORS rule in place) is still open for the owner, since mocks cannot exercise a presigned PUT.

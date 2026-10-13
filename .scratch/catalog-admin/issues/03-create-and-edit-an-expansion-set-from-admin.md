@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 02.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] An admin operation upserts an Expansion Set by code, rejecting an unknown Series with a validation error, and marks the row Curated
 - [ ] The set form on `/admin` creates a new set and edits an existing one, including one that came from the Asia site
