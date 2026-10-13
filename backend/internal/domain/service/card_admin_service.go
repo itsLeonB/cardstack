@@ -98,11 +98,6 @@ func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpse
 		if err != nil {
 			return err
 		}
-		rarityID, err := s.resolveRarity(ctx, set, req.RarityID)
-		if err != nil {
-			return err
-		}
-
 		tags := datatypes.JSONSlice[string]{}
 		if req.Tag != "" {
 			tags = append(tags, req.Tag)
@@ -115,6 +110,10 @@ func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpse
 			return err
 		}
 		if card.IsZero() {
+			rarityID, err := s.resolveRarity(ctx, set, req.RarityID)
+			if err != nil {
+				return err
+			}
 			saved, err = s.cards.Insert(ctx, entity.Card{
 				ExpansionSetID: set.ID, LocalID: req.LocalID, Name: req.Name, Category: req.Category,
 				Illustrator: req.Illustrator, Tags: tags, RarityID: rarityID, Attributes: datatypes.JSONMap{}, Curated: true,
@@ -122,8 +121,17 @@ func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpse
 			return err
 		}
 
-		card.Name, card.Category, card.Illustrator, card.Tags, card.RarityID, card.Curated =
-			req.Name, req.Category, req.Illustrator, tags, rarityID, true
+		// An edit that leaves the rarity or the illustrator out keeps what the
+		// Card has, so fixing a name does not erase what an import filled in.
+		if req.RarityID != uuid.Nil {
+			if card.RarityID, err = s.resolveRarity(ctx, set, req.RarityID); err != nil {
+				return err
+			}
+		}
+		if req.Illustrator != "" {
+			card.Illustrator = req.Illustrator
+		}
+		card.Name, card.Category, card.Tags, card.Curated = req.Name, req.Category, tags, true
 		saved, err = s.cards.Update(ctx, card)
 		return err
 	})
@@ -167,11 +175,14 @@ func (s *cardAdminService) resolveRarity(ctx context.Context, set entity.Expansi
 	return rarity.ID, nil
 }
 
-func (s *cardAdminService) getCard(ctx context.Context, id uuid.UUID) (entity.Card, error) {
+func (s *cardAdminService) getCard(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.Card, error) {
 	if id == uuid.Nil {
 		return entity.Card{}, ungerr.NotFoundError(adminCardNotFoundMsg)
 	}
-	card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{Model: entity.Card{BaseEntity: crud.BaseEntity{ID: id}}})
+	card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+		Model:     entity.Card{BaseEntity: crud.BaseEntity{ID: id}},
+		ForUpdate: forUpdate,
+	})
 	if err != nil {
 		return entity.Card{}, err
 	}
@@ -186,7 +197,7 @@ func (s *cardAdminService) getCard(ctx context.Context, id uuid.UUID) (entity.Ca
 func cardImageKey(id uuid.UUID) string { return "cards/" + id.String() }
 
 func (s *cardAdminService) RequestImageUpload(ctx context.Context, req dto.CardImageUploadRequest) (dto.CardImageUpload, error) {
-	card, err := s.getCard(ctx, req.CardID)
+	card, err := s.getCard(ctx, req.CardID, false)
 	if err != nil {
 		return dto.CardImageUpload{}, err
 	}
@@ -198,12 +209,14 @@ func (s *cardAdminService) RequestImageUpload(ctx context.Context, req dto.CardI
 }
 
 func (s *cardAdminService) ConfirmImage(ctx context.Context, req dto.CardImageConfirm) (dto.AdminCard, error) {
-	card, err := s.getCard(ctx, req.CardID)
-	if err != nil {
+	// An unlocked look first, so an unknown Card is a 404 before any bucket call.
+	if _, err := s.getCard(ctx, req.CardID, false); err != nil {
 		return dto.AdminCard{}, err
 	}
-	key := cardImageKey(card.ID)
+	key := cardImageKey(req.CardID)
 
+	// Bucket calls stay outside the transaction, so a slow one never holds the
+	// Card's row lock.
 	head, err := s.store.ReadHead(ctx, key, signatureBytes)
 	if errors.Is(err, objectstore.ErrNotFound) {
 		return dto.AdminCard{}, ungerr.UnprocessableEntityError(noUploadMsg)
@@ -218,21 +231,37 @@ func (s *cardAdminService) ConfirmImage(ctx context.Context, req dto.CardImageCo
 		}
 		// A re-upload has already replaced the old image under the same key, so
 		// a Card that pointed at it would now point at nothing.
-		if card.ImageKey != "" {
-			card.ImageKey = ""
-			if _, err := s.cards.Update(ctx, card); err != nil {
-				return dto.AdminCard{}, err
-			}
+		if _, err := s.updateCard(ctx, req.CardID, func(card *entity.Card) { card.ImageKey = "" }); err != nil {
+			return dto.AdminCard{}, err
 		}
 		return dto.AdminCard{}, ungerr.UnprocessableEntityError(notAnImageMsg)
 	}
 
-	card.ImageKey, card.Curated = key, true
-	saved, err := s.cards.Update(ctx, card)
+	saved, err := s.updateCard(ctx, req.CardID, func(card *entity.Card) {
+		// Curated here too: an Admin may confirm an image for a Card that
+		// ingestion wrote and no UpsertCard has marked yet.
+		card.ImageKey, card.Curated = key, true
+	})
 	if err != nil {
 		return dto.AdminCard{}, err
 	}
 	return mapper.ToAdminCard(s.images, saved), nil
+}
+
+// updateCard re-reads the Card under a row lock, applies change and saves it,
+// so a concurrent UpsertCard's write is not overwritten with a stale row.
+func (s *cardAdminService) updateCard(ctx context.Context, id uuid.UUID, change func(*entity.Card)) (entity.Card, error) {
+	var saved entity.Card
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		card, err := s.getCard(ctx, id, true)
+		if err != nil {
+			return err
+		}
+		change(&card)
+		saved, err = s.cards.Update(ctx, card)
+		return err
+	})
+	return saved, err
 }
 
 func (s *cardAdminService) DeleteCard(ctx context.Context, req dto.CardDelete) error {

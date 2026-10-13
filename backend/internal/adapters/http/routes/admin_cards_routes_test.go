@@ -111,6 +111,39 @@ func TestAdminCards_UpsertCreatesCuratedCardAndReentryUpdatesIt(t *testing.T) {
 	assert.EqualValues(t, 1, count)
 }
 
+func TestAdminCards_EditingACardKeepsTheRarityAndIllustratorTheAdminLeftOut(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	ingested := entity.Card{
+		ExpansionSetID: c.set.ID, LocalID: "007", Name: "Typo", Category: "Pokémon",
+		RarityID: c.otherRarity.ID, Illustrator: "Mitsuhiro Arita",
+	}
+	require.NoError(t, api.db.Create(&ingested).Error)
+
+	code, _ := upsertCard(t, api, c, c.cardBody("007", "Fixed", "Pokémon"))
+
+	require.Equal(t, http.StatusOK, code)
+	row := api.cardRow(t, ingested.ID)
+	assert.Equal(t, "Fixed", row.Name)
+	assert.Equal(t, c.otherRarity.ID, row.RarityID, `an omitted rarity is not reset to "Tanpa Tanda"`)
+	assert.Equal(t, "Mitsuhiro Arita", row.Illustrator, "an omitted illustrator is not erased")
+
+	again := c.cardBody("007", "Fixed", "Pokémon")
+	again["rarityId"] = c.promoRarity.ID
+	again["illustrator"] = "Someone"
+	code, _ = upsertCard(t, api, c, again)
+	require.Equal(t, http.StatusOK, code)
+	row = api.cardRow(t, ingested.ID)
+	assert.Equal(t, c.promoRarity.ID, row.RarityID, "a given rarity still replaces the stored one")
+	assert.Equal(t, "Someone", row.Illustrator, "a given illustrator still replaces the stored one")
+
+	unknownRarity := c.cardBody("007", "Fixed", "Pokémon")
+	unknownRarity["rarityId"] = uuid.New()
+	code, _ = upsertCard(t, api, c, unknownRarity)
+	assert.Equal(t, http.StatusUnprocessableEntity, code, "a given rarity of another game is still refused on an edit")
+	assert.Equal(t, c.promoRarity.ID, api.cardRow(t, ingested.ID).RarityID)
+}
+
 func TestAdminCards_UpsertWritesAnyCardEvenOneIngestionOwns(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
