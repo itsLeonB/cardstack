@@ -294,9 +294,34 @@ func TestAdminCards_RoutesAnswerNotFoundToANonAdmin(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, api.Post("/admin/cards/"+uuid.NewString()+"/image-confirm", nonAdmin).Code)
 }
 
-// cardPath is the delete address of the Card at localID in the catalog's set.
+// cardPath is the lookup and delete address of the Card at localID in the catalog's set.
 func (c adminCatalog) cardPath(localID string) string {
 	return "/admin/cards?expansionSetId=" + c.set.ID.String() + "&localId=" + localID
+}
+
+func TestAdminCards_LookupFindsACardWithoutAnImageBySetAndNumber(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+
+	resp := api.Get(c.cardPath("001"), c.bearerHeader)
+
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var found adminCardBody
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &found))
+	assert.Equal(t, card.Data.ID, found.Data.ID)
+	assert.Equal(t, "Pikachu", found.Data.Name)
+	assert.Empty(t, found.Data.ImageURL, "a card with no confirmed image is found too")
+	assert.Equal(t, http.StatusNotFound, api.Get(c.cardPath("404"), c.bearerHeader).Code)
+}
+
+func TestAdminCards_LookupAnswersNotFoundToANonAdmin(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+
+	assert.Equal(t, http.StatusNotFound, api.Get(c.cardPath("001"), bearer(api.newUserToken(t))).Code, "signed-in non-Admin")
+	assert.Equal(t, http.StatusNotFound, api.Get(c.cardPath("001")).Code, "guest")
 }
 
 func TestAdminCards_DeleteRemovesRowObjectEmbeddingsAndBatchMembership(t *testing.T) {

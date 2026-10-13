@@ -52,6 +52,10 @@ type deleteCardInput struct {
 	LocalID        string    `query:"localId" required:"true" minLength:"1" maxLength:"32" doc:"The Card's collector number within the set."`
 }
 
+func (h *AdminCardsHandler) getCard(ctx context.Context, in deleteCardInput) (dto.AdminCard, error) {
+	return h.cards.GetCard(ctx, dto.CardLookup{ExpansionSetID: in.ExpansionSetID, LocalID: in.LocalID})
+}
+
 func (h *AdminCardsHandler) deleteCard(ctx context.Context, in deleteCardInput) error {
 	return h.cards.DeleteCard(ctx, dto.CardDelete{ExpansionSetID: in.ExpansionSetID, LocalID: in.LocalID})
 }
@@ -76,6 +80,16 @@ func (h *AdminCardsHandler) confirmImage(ctx context.Context, in cardImageConfir
 // endpoint.RegisterAll.
 func (h *AdminCardsHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
+		endpoint.New(endpoint.Endpoint[deleteCardInput, dto.AdminCard]{
+			OperationID: "get-admin-card",
+			Method:      http.MethodGet,
+			Path:        "/admin/cards",
+			Summary:     "Find the Card at an Expansion Set and collector number, including one with no image yet (404 if there is none)",
+			Tags:        []string{"admin"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.getCard,
+		}),
 		endpoint.New(endpoint.Endpoint[upsertCardInput, dto.AdminCard]{
 			OperationID: "upsert-admin-card",
 			Method:      http.MethodPut,

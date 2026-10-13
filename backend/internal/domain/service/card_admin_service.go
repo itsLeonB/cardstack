@@ -49,6 +49,10 @@ type CardAdminService interface {
 	// updates the one already there. A new Card has no image and stays out of
 	// the catalog until ConfirmImage sets one.
 	UpsertCard(ctx context.Context, req dto.AdminCardUpsert) (dto.AdminCard, error)
+	// GetCard returns the Card at (Expansion Set, collector number), or not
+	// found. It finds a Card that has no image yet, which no catalog list shows,
+	// so the Admin can upload that Card's image.
+	GetCard(ctx context.Context, req dto.CardLookup) (dto.AdminCard, error)
 	// RequestImageUpload signs a short-lived PUT address for the Card's image
 	// key, which the server derives from the Card's id.
 	RequestImageUpload(ctx context.Context, req dto.CardImageUploadRequest) (dto.CardImageUpload, error)
@@ -139,6 +143,23 @@ func (s *cardAdminService) UpsertCard(ctx context.Context, req dto.AdminCardUpse
 		return dto.AdminCard{}, err
 	}
 	return mapper.ToAdminCard(s.images, saved), nil
+}
+
+func (s *cardAdminService) GetCard(ctx context.Context, req dto.CardLookup) (dto.AdminCard, error) {
+	// A zero field would drop out of the Model below and widen the match.
+	if req.ExpansionSetID == uuid.Nil || req.LocalID == "" {
+		return dto.AdminCard{}, ungerr.NotFoundError(adminCardNotFoundMsg)
+	}
+	card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+		Model: entity.Card{ExpansionSetID: req.ExpansionSetID, LocalID: req.LocalID},
+	})
+	if err != nil {
+		return dto.AdminCard{}, err
+	}
+	if card.IsZero() {
+		return dto.AdminCard{}, ungerr.NotFoundError(adminCardNotFoundMsg)
+	}
+	return mapper.ToAdminCard(s.images, card), nil
 }
 
 func (s *cardAdminService) getSet(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.ExpansionSet, error) {

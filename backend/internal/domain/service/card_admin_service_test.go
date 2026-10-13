@@ -369,6 +369,15 @@ func TestCardAdminService_ConfirmImage_CardDeletedDuringTheCheckIsNotFound(t *te
 	requireStatus(t, err, http.StatusNotFound)
 }
 
+func TestCardAdminService_GetCard_BlankIdentityIsNotFoundWithoutAQuery(t *testing.T) {
+	f := newCardAdminFixture(t)
+
+	_, err := f.svc.GetCard(f.ctx, dto.CardLookup{LocalID: "001"})
+	requireStatus(t, err, http.StatusNotFound)
+	_, err = f.svc.GetCard(f.ctx, dto.CardLookup{ExpansionSetID: f.set.ID})
+	requireStatus(t, err, http.StatusNotFound)
+}
+
 func TestCardAdminService_DeleteCard(t *testing.T) {
 	deleteSpec := func(f cardAdminFixture) crud.Specification[entity.Card] {
 		return crud.Specification[entity.Card]{Model: entity.Card{ExpansionSetID: f.set.ID, LocalID: "001"}, ForUpdate: true}

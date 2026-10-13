@@ -48,6 +48,12 @@ type CardImageUpload struct {
 	ExpiresAt   time.Time `json:"expiresAt"`
 }
 
+// CardLookup names the Card an Admin looks up by its set and collector number.
+type CardLookup struct {
+	ExpansionSetID uuid.UUID
+	LocalID        string
+}
+
 // CardDelete names the Card an Admin deletes.
 type CardDelete struct {
 	ExpansionSetID uuid.UUID
