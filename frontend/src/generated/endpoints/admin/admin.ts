@@ -30,6 +30,7 @@ import type {
   EnvelopeCardImageUpload,
   EnvelopeExpansionSetSummary,
   ErrorModel,
+  GetAdminCardParams,
   UpsertCardInputBody,
   UpsertExpansionSetInputBody
 } from '../../models';
@@ -162,7 +163,133 @@ export const useDeleteAdminCard = <TError = ErrorModel,
       > => {
       return useMutation(getDeleteAdminCardMutationOptions(options), queryClient);
     }
-    export type upsertAdminCardResponse200 = {
+    export type getAdminCardResponse200 = {
+  data: EnvelopeAdminCard
+  status: 200
+}
+
+export type getAdminCardResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getAdminCardResponseSuccess = (getAdminCardResponse200) & {
+  headers: Headers;
+};
+export type getAdminCardResponseError = (getAdminCardResponseDefault) & {
+  headers: Headers;
+};
+
+export type getAdminCardResponse = (getAdminCardResponseSuccess | getAdminCardResponseError)
+
+export const getGetAdminCardUrl = (params: GetAdminCardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards`
+}
+
+/**
+ * @summary Find the Card at an Expansion Set and collector number, including one with no image yet (404 if there is none)
+ */
+export const getAdminCard = async (params: GetAdminCardParams, options?: Parameters<typeof customFetch>[1]): Promise<getAdminCardResponse> => {
+
+  return customFetch<getAdminCardResponse>(getGetAdminCardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminCardQueryKey = (params?: GetAdminCardParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminCardQueryOptions = <TData = Awaited<ReturnType<typeof getAdminCard>>, TError = ErrorModel>(params: GetAdminCardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminCard>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminCardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminCard>>> = ({ signal }) => getAdminCard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminCard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAdminCardQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminCard>>>
+export type GetAdminCardQueryError = ErrorModel
+
+
+export function useGetAdminCard<TData = Awaited<ReturnType<typeof getAdminCard>>, TError = ErrorModel>(
+ params: GetAdminCardParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminCard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminCard>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminCard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminCard<TData = Awaited<ReturnType<typeof getAdminCard>>, TError = ErrorModel>(
+ params: GetAdminCardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminCard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminCard>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminCard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminCard<TData = Awaited<ReturnType<typeof getAdminCard>>, TError = ErrorModel>(
+ params: GetAdminCardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminCard>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Find the Card at an Expansion Set and collector number, including one with no image yet (404 if there is none)
+ */
+
+export function useGetAdminCard<TData = Awaited<ReturnType<typeof getAdminCard>>, TError = ErrorModel>(
+ params: GetAdminCardParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminCard>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAdminCardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type upsertAdminCardResponse200 = {
   data: EnvelopeAdminCard
   status: 200
 }

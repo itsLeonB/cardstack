@@ -22,6 +22,32 @@ export const DeleteAdminCardQueryParams = zod.object({
 export const DeleteAdminCardResponse = zod.void()
 
 /**
+ * @summary Find the Card at an Expansion Set and collector number, including one with no image yet (404 if there is none)
+ */
+export const getAdminCardQueryLocalIdMax = 32;
+
+
+
+export const GetAdminCardQueryParams = zod.object({
+  "expansionSetId": zod.string().describe('The Expansion Set the Card belongs to.'),
+  "localId": zod.string().min(1).max(getAdminCardQueryLocalIdMax).describe('The Card\'s collector number within the set.')
+})
+
+export const GetAdminCardResponse = zod.object({
+  "data": zod.object({
+  "category": zod.string(),
+  "expansionSetId": zod.string(),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarityId": zod.string(),
+  "tag": zod.string()
+})
+})
+
+/**
  * @summary Create a Card, or update the one at the same Expansion Set and collector number; the Card becomes Curated
  */
 export const upsertAdminCardBodyIllustratorMax = 200;

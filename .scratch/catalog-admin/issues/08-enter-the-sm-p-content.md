@@ -1,6 +1,6 @@
 # 08: Enter the SM-P content
 
-**What to build:** The owner enters the `SM-P` set and its cards through the admin and makes them scannable. Only cards the owner can photograph exist, because a Card requires an image; the rest stay missing until they are photographed.
+**What to build:** The owner enters the `SM-P` set and its cards through the admin and makes them scannable. Only cards the owner can photograph exist, because a Card with no image stays hidden from the catalog; the rest stay missing until they are photographed.
 
 **Blocked by:** 03, 05, 07.
 

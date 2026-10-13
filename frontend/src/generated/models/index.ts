@@ -38,6 +38,7 @@ export * from './errorDetail.ts';
 export * from './errorModel.ts';
 export * from './expansionSetFacetOption.ts';
 export * from './expansionSetSummary.ts';
+export * from './getAdminCardParams.ts';
 export * from './healthStatus.ts';
 export * from './holdingCollection.ts';
 export * from './inventoryChangeResult.ts';
