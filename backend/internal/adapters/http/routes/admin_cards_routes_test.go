@@ -49,8 +49,9 @@ type adminCardBody struct {
 		LocalID   string    `json:"localId"`
 		Name      string    `json:"name"`
 		Category  string    `json:"category"`
-		Tag       string    `json:"tag"`
+		Tags      []string  `json:"tags"`
 		RarityID  uuid.UUID `json:"rarityId"`
+		Illustr   string    `json:"illustrator"`
 		ImageURL  string    `json:"imageUrl"`
 		SetID     uuid.UUID `json:"expansionSetId"`
 		URL       string    `json:"url"`
@@ -62,14 +63,29 @@ func (c adminCatalog) cardBody(localID, name, category string) map[string]any {
 	return map[string]any{"expansionSetId": c.set.ID, "localId": localID, "name": name, "category": category}
 }
 
-func upsertCard(t *testing.T, api testAPI, c adminCatalog, body map[string]any) (int, adminCardBody) {
+func createCard(t *testing.T, api testAPI, c adminCatalog, body map[string]any) (int, adminCardBody) {
 	t.Helper()
-	resp := api.Put("/admin/cards", c.bearerHeader, body)
+	resp := api.Post("/admin/cards", c.bearerHeader, body)
+	var out adminCardBody
+	if resp.Code == http.StatusCreated {
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out), resp.Body.String())
+	}
+	return resp.Code, out
+}
+
+func updateCard(t *testing.T, api testAPI, c adminCatalog, id uuid.UUID, body map[string]any) (int, adminCardBody) {
+	t.Helper()
+	resp := api.Put("/admin/cards/"+id.String(), c.bearerHeader, body)
 	var out adminCardBody
 	if resp.Code == http.StatusOK {
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out), resp.Body.String())
 	}
 	return resp.Code, out
+}
+
+// editBody is a PUT body: every editable field of the Card, with a rarity.
+func (c adminCatalog) editBody(name, category string) map[string]any {
+	return map[string]any{"name": name, "category": category, "rarityId": c.promoRarity.ID}
 }
 
 func (a testAPI) cardRow(t *testing.T, id uuid.UUID) entity.Card {
@@ -79,87 +95,40 @@ func (a testAPI) cardRow(t *testing.T, id uuid.UUID) entity.Card {
 	return card
 }
 
-func TestAdminCards_UpsertCreatesCuratedCardAndReentryUpdatesIt(t *testing.T) {
+func TestAdminCards_CreateMakesACuratedCardWithTheDefaultRarity(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
 
-	code, created := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
-	require.Equal(t, http.StatusOK, code)
+	code, created := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+
+	require.Equal(t, http.StatusCreated, code)
+	assert.Empty(t, created.Data.Tags, "tags come back as an array, empty here")
 	row := api.cardRow(t, created.Data.ID)
 	assert.True(t, row.Curated, "an admin write marks the card Curated")
-	assert.Equal(t, c.promoRarity.ID, row.RarityID, `rarity defaults to "Tanpa Tanda"`)
+	assert.Equal(t, c.promoRarity.ID, row.RarityID, `rarity defaults to "Tanpa Tanda" on create`)
 	assert.Empty(t, row.Tags, "a Pokémon card has no tag")
 	assert.Empty(t, row.Illustrator)
 	assert.Empty(t, row.ImageKey, "the image key is set only by a confirmed upload")
+}
 
-	again := c.cardBody("001", "Raichu", "Trainer")
-	again["tag"] = "Supporter"
-	again["rarityId"] = c.otherRarity.ID
-	again["illustrator"] = "Someone"
-	code, updated := upsertCard(t, api, c, again)
-	require.Equal(t, http.StatusOK, code)
-	assert.Equal(t, created.Data.ID, updated.Data.ID, "the same set and number is the same card")
-	row = api.cardRow(t, created.Data.ID)
-	assert.Equal(t, "Raichu", row.Name)
-	assert.Equal(t, []string{"Supporter"}, []string(row.Tags))
-	assert.Equal(t, c.otherRarity.ID, row.RarityID)
-	assert.Equal(t, "Someone", row.Illustrator)
-	assert.True(t, row.Curated)
+func TestAdminCards_CreateOfAnExistingNumberIsAConflictAndChangesNothing(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	ingested := entity.Card{ExpansionSetID: c.set.ID, LocalID: "007", Name: "Typo", Category: "Pokémon", RarityID: c.otherRarity.ID}
+	require.NoError(t, api.db.Create(&ingested).Error)
 
+	code, _ := createCard(t, api, c, c.cardBody("007", "Other", "Pokémon"))
+
+	assert.Equal(t, http.StatusConflict, code)
+	row := api.cardRow(t, ingested.ID)
+	assert.Equal(t, "Typo", row.Name, "a duplicate is not an update")
+	assert.False(t, row.Curated)
 	var count int64
 	require.NoError(t, api.db.Model(&entity.Card{}).Where("expansion_set_id = ?", c.set.ID).Count(&count).Error)
 	assert.EqualValues(t, 1, count)
 }
 
-func TestAdminCards_EditingACardKeepsTheRarityAndIllustratorTheAdminLeftOut(t *testing.T) {
-	api := newTestAPIWithAdmins(t, []string{adminEmail})
-	c := api.seedAdminCatalog(t)
-	ingested := entity.Card{
-		ExpansionSetID: c.set.ID, LocalID: "007", Name: "Typo", Category: "Pokémon",
-		RarityID: c.otherRarity.ID, Illustrator: "Mitsuhiro Arita",
-	}
-	require.NoError(t, api.db.Create(&ingested).Error)
-
-	code, _ := upsertCard(t, api, c, c.cardBody("007", "Fixed", "Pokémon"))
-
-	require.Equal(t, http.StatusOK, code)
-	row := api.cardRow(t, ingested.ID)
-	assert.Equal(t, "Fixed", row.Name)
-	assert.Equal(t, c.otherRarity.ID, row.RarityID, `an omitted rarity is not reset to "Tanpa Tanda"`)
-	assert.Equal(t, "Mitsuhiro Arita", row.Illustrator, "an omitted illustrator is not erased")
-
-	again := c.cardBody("007", "Fixed", "Pokémon")
-	again["rarityId"] = c.promoRarity.ID
-	again["illustrator"] = "Someone"
-	code, _ = upsertCard(t, api, c, again)
-	require.Equal(t, http.StatusOK, code)
-	row = api.cardRow(t, ingested.ID)
-	assert.Equal(t, c.promoRarity.ID, row.RarityID, "a given rarity still replaces the stored one")
-	assert.Equal(t, "Someone", row.Illustrator, "a given illustrator still replaces the stored one")
-
-	unknownRarity := c.cardBody("007", "Fixed", "Pokémon")
-	unknownRarity["rarityId"] = uuid.New()
-	code, _ = upsertCard(t, api, c, unknownRarity)
-	assert.Equal(t, http.StatusUnprocessableEntity, code, "a given rarity of another game is still refused on an edit")
-	assert.Equal(t, c.promoRarity.ID, api.cardRow(t, ingested.ID).RarityID)
-}
-
-func TestAdminCards_UpsertWritesAnyCardEvenOneIngestionOwns(t *testing.T) {
-	api := newTestAPIWithAdmins(t, []string{adminEmail})
-	c := api.seedAdminCatalog(t)
-	ingested := entity.Card{ExpansionSetID: c.set.ID, LocalID: "007", Name: "Typo", Category: "Pokémon", RarityID: c.otherRarity.ID, ImageKey: "cards/keep"}
-	require.NoError(t, api.db.Create(&ingested).Error)
-
-	code, _ := upsertCard(t, api, c, c.cardBody("007", "Fixed", "Pokémon"))
-
-	require.Equal(t, http.StatusOK, code)
-	row := api.cardRow(t, ingested.ID)
-	assert.Equal(t, "Fixed", row.Name)
-	assert.True(t, row.Curated)
-	assert.Equal(t, "cards/keep", row.ImageKey, "a correction keeps the hosted image")
-}
-
-func TestAdminCards_UpsertRejectsBadReferences(t *testing.T) {
+func TestAdminCards_CreateRejectsBadReferences(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
 
@@ -169,16 +138,18 @@ func TestAdminCards_UpsertRejectsBadReferences(t *testing.T) {
 	unknownRarity["rarityId"] = uuid.New()
 	badCategory := c.cardBody("001", "X", "Weapon")
 	tagOnPokemon := c.cardBody("001", "X", "Pokémon")
-	tagOnPokemon["tag"] = "Item"
+	tagOnPokemon["tags"] = []string{"Item"}
 	badTag := c.cardBody("001", "X", "Trainer")
-	badTag["tag"] = "Gadget"
+	badTag["tags"] = []string{"Gadget"}
+	repeatedTag := c.cardBody("001", "X", "Trainer")
+	repeatedTag["tags"] = []string{"Item", "Item"}
 	blankNumber := c.cardBody("", "X", "Pokémon")
 
 	for name, body := range map[string]map[string]any{
 		"unknown set": unknownSet, "unknown rarity": unknownRarity, "unknown category": badCategory,
-		"tag on a Pokémon": tagOnPokemon, "unknown tag": badTag, "empty number": blankNumber,
+		"tag on a Pokémon": tagOnPokemon, "unknown tag": badTag, "repeated tag": repeatedTag, "empty number": blankNumber,
 	} {
-		code, _ := upsertCard(t, api, c, body)
+		code, _ := createCard(t, api, c, body)
 		assert.Equal(t, http.StatusUnprocessableEntity, code, name)
 	}
 
@@ -187,10 +158,114 @@ func TestAdminCards_UpsertRejectsBadReferences(t *testing.T) {
 	assert.Zero(t, count, "a rejected write leaves nothing behind")
 }
 
+func TestAdminCards_UpdateReplacesEveryEditableFieldAndKeepsSetNumberAndImage(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	ingested := entity.Card{
+		ExpansionSetID: c.set.ID, LocalID: "007", Name: "Typo", Category: "Pokémon",
+		RarityID: c.otherRarity.ID, Illustrator: "Mitsuhiro Arita", ImageKey: "cards/keep",
+	}
+	require.NoError(t, api.db.Create(&ingested).Error)
+
+	body := c.editBody("Fixed", "Trainer")
+	body["tags"] = []string{"Item", "Supporter"}
+	body["illustrator"] = "Someone"
+	code, updated := updateCard(t, api, c, ingested.ID, body)
+
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, ingested.ID, updated.Data.ID)
+	assert.Equal(t, []string{"Item", "Supporter"}, updated.Data.Tags)
+	row := api.cardRow(t, ingested.ID)
+	assert.Equal(t, "Fixed", row.Name)
+	assert.Equal(t, "Trainer", row.Category)
+	assert.Equal(t, []string{"Item", "Supporter"}, []string(row.Tags))
+	assert.Equal(t, c.promoRarity.ID, row.RarityID)
+	assert.Equal(t, "Someone", row.Illustrator)
+	assert.True(t, row.Curated)
+	assert.Equal(t, "007", row.LocalID)
+	assert.Equal(t, c.set.ID, row.ExpansionSetID)
+	assert.Equal(t, "cards/keep", row.ImageKey, "a correction keeps the hosted image")
+
+	var count int64
+	require.NoError(t, api.db.Model(&entity.Card{}).Where("expansion_set_id = ?", c.set.ID).Count(&count).Error)
+	assert.EqualValues(t, 1, count)
+}
+
+func TestAdminCards_UpdateClearsWhatTheRequestLeavesOut(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	ingested := entity.Card{
+		ExpansionSetID: c.set.ID, LocalID: "007", Name: "Typo", Category: "Trainer",
+		Tags: []string{"Item"}, RarityID: c.otherRarity.ID, Illustrator: "Mitsuhiro Arita",
+	}
+	require.NoError(t, api.db.Create(&ingested).Error)
+
+	code, _ := updateCard(t, api, c, ingested.ID, c.editBody("Fixed", "Pokémon"))
+
+	require.Equal(t, http.StatusOK, code)
+	row := api.cardRow(t, ingested.ID)
+	assert.Empty(t, row.Illustrator, "a PUT replaces the card, so an omitted illustrator is cleared")
+	assert.Empty(t, row.Tags, "an omitted tags list is cleared")
+	assert.Equal(t, c.promoRarity.ID, row.RarityID)
+}
+
+func TestAdminCards_AGetResultCanBePutBackUnchanged(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	stored := entity.Card{
+		ExpansionSetID: c.set.ID, LocalID: "010", Name: "Boss's Orders", Category: "Trainer",
+		Tags: []string{"Item", "Supporter"}, RarityID: c.otherRarity.ID, Illustrator: "Someone",
+	}
+	require.NoError(t, api.db.Create(&stored).Error)
+	resp := api.Get(c.cardPath("010"), c.bearerHeader)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var got adminCardBody
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &got))
+	assert.Equal(t, []string{"Item", "Supporter"}, got.Data.Tags, "every tag is listed, not the first")
+
+	code, _ := updateCard(t, api, c, stored.ID, map[string]any{
+		"name": got.Data.Name, "category": got.Data.Category, "tags": got.Data.Tags,
+		"rarityId": got.Data.RarityID, "illustrator": got.Data.Illustr,
+	})
+
+	require.Equal(t, http.StatusOK, code)
+	row := api.cardRow(t, stored.ID)
+	assert.Equal(t, []string{"Item", "Supporter"}, []string(row.Tags))
+	assert.Equal(t, c.otherRarity.ID, row.RarityID)
+	assert.Equal(t, "Someone", row.Illustrator)
+}
+
+func TestAdminCards_UpdateRejectsWhatItCannotStore(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	c := api.seedAdminCatalog(t)
+	stored := entity.Card{ExpansionSetID: c.set.ID, LocalID: "007", Name: "Keep", Category: "Pokémon", RarityID: c.otherRarity.ID}
+	require.NoError(t, api.db.Create(&stored).Error)
+
+	noRarity := c.editBody("X", "Pokémon")
+	delete(noRarity, "rarityId")
+	unknownRarity := c.editBody("X", "Pokémon")
+	unknownRarity["rarityId"] = uuid.New()
+	tagOnPokemon := c.editBody("X", "Pokémon")
+	tagOnPokemon["tags"] = []string{"Item"}
+	badTag := c.editBody("X", "Trainer")
+	badTag["tags"] = []string{"Gadget"}
+
+	for name, body := range map[string]map[string]any{
+		"no rarity": noRarity, "unknown rarity": unknownRarity, "tag on a Pokémon": tagOnPokemon, "unknown tag": badTag,
+	} {
+		code, _ := updateCard(t, api, c, stored.ID, body)
+		assert.Equal(t, http.StatusUnprocessableEntity, code, name)
+	}
+	assert.Equal(t, "Keep", api.cardRow(t, stored.ID).Name, "a rejected write changes nothing")
+
+	code, _ := updateCard(t, api, c, uuid.New(), c.editBody("X", "Pokémon"))
+	assert.Equal(t, http.StatusNotFound, code, "no card to update")
+}
+
 func TestAdminCards_ImageUploadSignsAServerChosenKey(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+	_, card := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 	expires := time.Now().Add(5 * time.Minute)
 	api.store.EXPECT().
 		PresignPut(mock.Anything, "cards/"+card.Data.ID.String(), "image/webp", mock.MatchedBy(func(ttl time.Duration) bool { return ttl > 0 && ttl <= 15*time.Minute })).
@@ -219,7 +294,7 @@ func TestAdminCards_ConfirmAcceptsOnlyAnImageSignature(t *testing.T) {
 		t.Run("accepts "+name, func(t *testing.T) {
 			api := newTestAPIWithAdmins(t, []string{adminEmail})
 			c := api.seedAdminCatalog(t)
-			_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+			_, card := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 			key := "cards/" + card.Data.ID.String()
 			api.store.EXPECT().ReadHead(mock.Anything, key, mock.Anything).Return(head, nil).Once()
 
@@ -238,7 +313,7 @@ func TestAdminCards_ConfirmAcceptsOnlyAnImageSignature(t *testing.T) {
 	t.Run("a wrong signature deletes the object and leaves the key unset", func(t *testing.T) {
 		api := newTestAPIWithAdmins(t, []string{adminEmail})
 		c := api.seedAdminCatalog(t)
-		_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+		_, card := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 		key := "cards/" + card.Data.ID.String()
 		// A re-upload: the card already points at the key the bad file replaced.
 		require.NoError(t, api.db.Model(&entity.Card{}).Where("id = ?", card.Data.ID).Update("image_key", key).Error)
@@ -254,7 +329,7 @@ func TestAdminCards_ConfirmAcceptsOnlyAnImageSignature(t *testing.T) {
 	t.Run("nothing uploaded is refused without a delete", func(t *testing.T) {
 		api := newTestAPIWithAdmins(t, []string{adminEmail})
 		c := api.seedAdminCatalog(t)
-		_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+		_, card := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 		api.store.EXPECT().ReadHead(mock.Anything, mock.Anything, mock.Anything).Return(nil, objectstore.ErrNotFound).Once()
 
 		resp := api.Post("/admin/cards/"+card.Data.ID.String()+"/image-confirm", c.bearerHeader)
@@ -267,7 +342,7 @@ func TestAdminCards_ConfirmAcceptsOnlyAnImageSignature(t *testing.T) {
 func TestAdminCards_ACardWithoutAConfirmedImageIsNeverInTheCatalog(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+	_, card := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 	listed := func() bool {
 		resp := api.Get("/catalog/cards?expansionSetId="+c.set.ID.String(), bearer(api.newUserToken(t)))
 		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
@@ -289,12 +364,16 @@ func TestAdminCards_RoutesAnswerNotFoundToANonAdmin(t *testing.T) {
 	c := api.seedAdminCatalog(t)
 	nonAdmin := bearer(api.newUserToken(t))
 
-	assert.Equal(t, http.StatusNotFound, api.Put("/admin/cards", nonAdmin, c.cardBody("001", "X", "Pokémon")).Code)
+	assert.Equal(t, http.StatusNotFound, api.Post("/admin/cards", nonAdmin, c.cardBody("001", "X", "Pokémon")).Code)
+	assert.Equal(t, http.StatusNotFound, api.Put("/admin/cards/"+uuid.NewString(), nonAdmin, c.editBody("X", "Pokémon")).Code)
 	assert.Equal(t, http.StatusNotFound, api.Post("/admin/cards/"+uuid.NewString()+"/image-upload", nonAdmin, map[string]any{"contentType": "image/png"}).Code)
 	assert.Equal(t, http.StatusNotFound, api.Post("/admin/cards/"+uuid.NewString()+"/image-confirm", nonAdmin).Code)
 }
 
-// cardPath is the lookup and delete address of the Card at localID in the catalog's set.
+// cardAt is the delete address of the Card with id.
+func cardAt(id uuid.UUID) string { return "/admin/cards/" + id.String() }
+
+// cardPath is the lookup address of the Card at localID in the catalog's set.
 func (c adminCatalog) cardPath(localID string) string {
 	return "/admin/cards?expansionSetId=" + c.set.ID.String() + "&localId=" + localID
 }
@@ -302,7 +381,7 @@ func (c adminCatalog) cardPath(localID string) string {
 func TestAdminCards_LookupFindsACardWithoutAnImageBySetAndNumber(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	_, card := upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+	_, card := createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 
 	resp := api.Get(c.cardPath("001"), c.bearerHeader)
 
@@ -318,7 +397,7 @@ func TestAdminCards_LookupFindsACardWithoutAnImageBySetAndNumber(t *testing.T) {
 func TestAdminCards_LookupAnswersNotFoundToANonAdmin(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	upsertCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
+	createCard(t, api, c, c.cardBody("001", "Pikachu", "Pokémon"))
 
 	assert.Equal(t, http.StatusNotFound, api.Get(c.cardPath("001"), bearer(api.newUserToken(t))).Code, "signed-in non-Admin")
 	assert.Equal(t, http.StatusNotFound, api.Get(c.cardPath("001")).Code, "guest")
@@ -327,8 +406,8 @@ func TestAdminCards_LookupAnswersNotFoundToANonAdmin(t *testing.T) {
 func TestAdminCards_DeleteRemovesRowObjectEmbeddingsAndBatchMembership(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	_, card := upsertCard(t, api, c, c.cardBody("001", "Mistake", "Pokémon"))
-	_, kept := upsertCard(t, api, c, c.cardBody("002", "Keeper", "Pokémon"))
+	_, card := createCard(t, api, c, c.cardBody("001", "Mistake", "Pokémon"))
+	_, kept := createCard(t, api, c, c.cardBody("002", "Keeper", "Pokémon"))
 	api.storeEmbedding(t, card.Data.ID, api.model, axisVector(0))
 	api.storeEmbedding(t, kept.Data.ID, api.model, axisVector(0))
 	batch := entity.EmbeddingBatch{JobName: "job-" + uuid.NewString(), Model: api.model, Source: "catalog", State: entity.EmbeddingBatchSubmitted}
@@ -336,7 +415,7 @@ func TestAdminCards_DeleteRemovesRowObjectEmbeddingsAndBatchMembership(t *testin
 	require.NoError(t, api.db.Create(&[]entity.EmbeddingBatchCard{{BatchID: batch.ID, CardID: card.Data.ID}, {BatchID: batch.ID, CardID: kept.Data.ID}}).Error)
 	api.store.EXPECT().Delete(mock.Anything, "cards/"+card.Data.ID.String()).Return(nil).Once()
 
-	resp := api.Delete(c.cardPath("001"), c.bearerHeader)
+	resp := api.Delete(cardAt(card.Data.ID), c.bearerHeader)
 
 	require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
 	count := func(model any, where string, args ...any) int64 {
@@ -357,7 +436,7 @@ func TestAdminCards_DeleteRemovesRowObjectEmbeddingsAndBatchMembership(t *testin
 func TestAdminCards_DeleteIsRefusedWhileACollectionHoldsTheCard(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	_, card := upsertCard(t, api, c, c.cardBody("001", "Owned", "Pokémon"))
+	_, card := createCard(t, api, c, c.cardBody("001", "Owned", "Pokémon"))
 	owner := bearer(api.newUserToken(t))
 	created := api.Post("/collections", owner, map[string]any{"title": "Binder"})
 	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
@@ -366,7 +445,7 @@ func TestAdminCards_DeleteIsRefusedWhileACollectionHoldsTheCard(t *testing.T) {
 	entries := "/collections/" + col.Data.ID + "/entries"
 	require.Equal(t, http.StatusCreated, api.Post(entries, owner, map[string]any{"cardId": card.Data.ID, "quantity": 2}).Code)
 
-	resp := api.Delete(c.cardPath("001"), c.bearerHeader)
+	resp := api.Delete(cardAt(card.Data.ID), c.bearerHeader)
 
 	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
 	assert.Equal(t, card.Data.ID, api.cardRow(t, card.Data.ID).ID, "the card survives")
@@ -377,22 +456,22 @@ func TestAdminCards_DeleteIsRefusedWhileACollectionHoldsTheCard(t *testing.T) {
 	// Once the collector removes it, the Admin can delete.
 	require.Equal(t, http.StatusNoContent, api.Delete(entries+"/"+card.Data.ID.String(), owner).Code)
 	api.store.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
-	assert.Equal(t, http.StatusNoContent, api.Delete(c.cardPath("001"), c.bearerHeader).Code)
+	assert.Equal(t, http.StatusNoContent, api.Delete(cardAt(card.Data.ID), c.bearerHeader).Code)
 }
 
 func TestAdminCards_DeleteOfAnUnknownCardIsNotFound(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
 
-	assert.Equal(t, http.StatusNotFound, api.Delete(c.cardPath("404"), c.bearerHeader).Code)
+	assert.Equal(t, http.StatusNotFound, api.Delete(cardAt(uuid.New()), c.bearerHeader).Code)
 }
 
 func TestAdminCards_DeleteAnswersNotFoundToANonAdmin(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	c := api.seedAdminCatalog(t)
-	_, card := upsertCard(t, api, c, c.cardBody("001", "Safe", "Pokémon"))
+	_, card := createCard(t, api, c, c.cardBody("001", "Safe", "Pokémon"))
 
-	assert.Equal(t, http.StatusNotFound, api.Delete(c.cardPath("001"), bearer(api.newUserToken(t))).Code, "signed-in non-Admin")
-	assert.Equal(t, http.StatusNotFound, api.Delete(c.cardPath("001")).Code, "guest")
+	assert.Equal(t, http.StatusNotFound, api.Delete(cardAt(card.Data.ID), bearer(api.newUserToken(t))).Code, "signed-in non-Admin")
+	assert.Equal(t, http.StatusNotFound, api.Delete(cardAt(card.Data.ID)).Code, "guest")
 	assert.Equal(t, card.Data.ID, api.cardRow(t, card.Data.ID).ID)
 }

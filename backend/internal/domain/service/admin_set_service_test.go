@@ -38,19 +38,26 @@ func newAdminSetFixture(t *testing.T) adminSetFixture {
 	return f
 }
 
-func (f adminSetFixture) req(release time.Time) dto.ExpansionSetUpsert {
-	return dto.ExpansionSetUpsert{Code: "SM-P", Name: "Promo", ReleaseDate: release, SeriesID: f.series.ID}
+func (f adminSetFixture) createReq(release time.Time) dto.ExpansionSetCreate {
+	return dto.ExpansionSetCreate{Code: "SM-P", Name: "Promo", ReleaseDate: release, SeriesID: f.series.ID}
 }
 
-func (f adminSetFixture) expectSeries() {
+func (f adminSetFixture) expectSeries(forUpdate bool) {
 	f.seriesR.EXPECT().FindFirst(f.ctx, crud.Specification[entity.Series]{
-		Model: entity.Series{BaseEntity: baseEntity(f.series.ID)},
+		Model:     entity.Series{BaseEntity: baseEntity(f.series.ID)},
+		ForUpdate: forUpdate,
 	}).Return(f.series, nil).Once()
 }
 
-func (f adminSetFixture) expectLockedSet(found entity.ExpansionSet) {
+func (f adminSetFixture) expectSetWithCode(found entity.ExpansionSet) {
 	f.sets.EXPECT().FindFirst(f.ctx, crud.Specification[entity.ExpansionSet]{
-		Model:     entity.ExpansionSet{GameID: f.series.GameID, Code: "SM-P"},
+		Model: entity.ExpansionSet{GameID: f.series.GameID, Code: "SM-P"},
+	}).Return(found, nil).Once()
+}
+
+func (f adminSetFixture) expectLockedSetByID(id uuid.UUID, found entity.ExpansionSet) {
+	f.sets.EXPECT().FindFirst(f.ctx, crud.Specification[entity.ExpansionSet]{
+		Model:     entity.ExpansionSet{BaseEntity: baseEntity(id)},
 		ForUpdate: true,
 	}).Return(found, nil).Once()
 }
@@ -59,15 +66,15 @@ func (f adminSetFixture) expectLocale(found entity.Locale) {
 	f.locales.EXPECT().FindFirst(f.ctx, crud.Specification[entity.Locale]{Model: entity.Locale{Code: adminLocaleCode}}).Return(found, nil).Once()
 }
 
-func TestAdminSetService_UnknownSeriesIsRefused(t *testing.T) {
+func TestAdminSetService_CreateWithUnknownSeriesIsRefused(t *testing.T) {
 	f := newAdminSetFixture(t)
 	f.seriesR.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.Series{}, nil).Once()
 
-	_, err := f.svc.UpsertExpansionSet(f.ctx, f.req(time.Now()))
+	_, err := f.svc.CreateExpansionSet(f.ctx, f.createReq(time.Now()))
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 
 	// A nil id never reaches the repository, where it would match any Series.
-	_, err = f.svc.UpsertExpansionSet(f.ctx, dto.ExpansionSetUpsert{Code: "SM-P"})
+	_, err = f.svc.CreateExpansionSet(f.ctx, dto.ExpansionSetCreate{Code: "SM-P"})
 	requireStatus(t, err, http.StatusUnprocessableEntity)
 }
 
@@ -75,8 +82,8 @@ func TestAdminSetService_NewSetFiledUnderANewIndonesianLocale(t *testing.T) {
 	f := newAdminSetFixture(t)
 	release := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
 	locale := entity.Locale{BaseEntity: baseEntity(uuid.New()), Code: adminLocaleCode}
-	f.expectSeries()
-	f.expectLockedSet(entity.ExpansionSet{})
+	f.expectSeries(true)
+	f.expectSetWithCode(entity.ExpansionSet{})
 	f.expectLocale(entity.Locale{})
 	f.locales.EXPECT().Insert(f.ctx, entity.Locale{Code: adminLocaleCode}).Return(locale, nil).Once()
 	want := entity.ExpansionSet{
@@ -86,7 +93,7 @@ func TestAdminSetService_NewSetFiledUnderANewIndonesianLocale(t *testing.T) {
 	written.BaseEntity = baseEntity(uuid.New())
 	f.sets.EXPECT().Insert(f.ctx, want).Return(written, nil).Once()
 
-	got, err := f.svc.UpsertExpansionSet(f.ctx, f.req(release))
+	got, err := f.svc.CreateExpansionSet(f.ctx, f.createReq(release))
 
 	require.NoError(t, err)
 	assert.Equal(t, dto.ExpansionSetSummary{ID: written.ID, Code: "SM-P", Name: "Promo", ReleaseDate: &release}, got)
@@ -96,33 +103,75 @@ func TestAdminSetService_NewSetReusesTheExistingLocale(t *testing.T) {
 	f := newAdminSetFixture(t)
 	release := time.Now()
 	locale := entity.Locale{BaseEntity: baseEntity(uuid.New()), Code: adminLocaleCode}
-	f.expectSeries()
-	f.expectLockedSet(entity.ExpansionSet{})
+	f.expectSeries(true)
+	f.expectSetWithCode(entity.ExpansionSet{})
 	f.expectLocale(locale)
 	f.sets.EXPECT().Insert(f.ctx, mock.MatchedBy(func(s entity.ExpansionSet) bool { return s.LocaleID == locale.ID && s.Curated })).
 		Return(entity.ExpansionSet{BaseEntity: baseEntity(uuid.New())}, nil).Once()
 
-	_, err := f.svc.UpsertExpansionSet(f.ctx, f.req(release))
+	_, err := f.svc.CreateExpansionSet(f.ctx, f.createReq(release))
 
 	require.NoError(t, err)
 }
 
-func TestAdminSetService_ExistingSetIsUpdatedWhateverItsOriginAndMarkedCurated(t *testing.T) {
+func TestAdminSetService_CreateOfAnExistingCodeIsAConflictWhateverItsOrigin(t *testing.T) {
+	f := newAdminSetFixture(t)
+	f.expectSeries(true)
+	f.expectSetWithCode(entity.ExpansionSet{BaseEntity: baseEntity(uuid.New()), Code: "SM-P"})
+
+	_, err := f.svc.CreateExpansionSet(f.ctx, f.createReq(time.Now()))
+
+	requireStatus(t, err, http.StatusConflict)
+}
+
+func TestAdminSetService_UpdateReplacesNameDateAndSeriesKeepsCodeAndMarksCurated(t *testing.T) {
 	f := newAdminSetFixture(t)
 	release := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+	otherSeries := uuid.New()
 	ingested := entity.ExpansionSet{
-		BaseEntity: baseEntity(uuid.New()), GameID: f.series.GameID, Code: "SM-P", Name: "Typo", LocaleID: uuid.New(), CoverKey: "sets/cover",
+		BaseEntity: baseEntity(uuid.New()), GameID: f.series.GameID, Code: "SM-P", Name: "Typo", LocaleID: uuid.New(),
+		CoverKey: "sets/cover", SeriesID: &otherSeries,
 	}
-	f.expectSeries()
-	f.expectLockedSet(ingested)
+	f.expectLockedSetByID(ingested.ID, ingested)
+	f.expectSeries(false)
 	want := ingested
 	want.Name, want.SeriesID, want.ReleaseDate, want.Curated = "Promo", &f.series.ID, &release, true
 	f.sets.EXPECT().Update(f.ctx, want).Return(want, nil).Once()
 
-	got, err := f.svc.UpsertExpansionSet(f.ctx, f.req(release))
+	got, err := f.svc.UpdateExpansionSet(f.ctx, dto.ExpansionSetUpdate{ID: ingested.ID, Name: "Promo", ReleaseDate: release, SeriesID: f.series.ID})
 
 	require.NoError(t, err)
 	assert.Equal(t, ingested.ID, got.ID)
+	assert.Equal(t, "SM-P", got.Code)
 	assert.Equal(t, "Promo", got.Name)
 	assert.Equal(t, testImageBase+"/sets/cover", got.ImageURL)
+}
+
+func TestAdminSetService_UpdateOfAnUnknownSetIsNotFound(t *testing.T) {
+	f := newAdminSetFixture(t)
+	missing := uuid.New()
+	f.expectLockedSetByID(missing, entity.ExpansionSet{})
+
+	_, err := f.svc.UpdateExpansionSet(f.ctx, dto.ExpansionSetUpdate{ID: missing, SeriesID: f.series.ID})
+	requireStatus(t, err, http.StatusNotFound)
+
+	// A nil id never reaches the repository, where it would match any set.
+	_, err = f.svc.UpdateExpansionSet(f.ctx, dto.ExpansionSetUpdate{SeriesID: f.series.ID})
+	requireStatus(t, err, http.StatusNotFound)
+}
+
+func TestAdminSetService_UpdateWithAnUnknownSeriesOrOneOfAnotherGameIsRefused(t *testing.T) {
+	f := newAdminSetFixture(t)
+	set := entity.ExpansionSet{BaseEntity: baseEntity(uuid.New()), GameID: f.series.GameID, Code: "SM-P"}
+	f.expectLockedSetByID(set.ID, set)
+	f.seriesR.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.Series{}, nil).Once()
+	_, err := f.svc.UpdateExpansionSet(f.ctx, dto.ExpansionSetUpdate{ID: set.ID, SeriesID: f.series.ID})
+	requireStatus(t, err, http.StatusUnprocessableEntity)
+
+	foreign := set
+	foreign.GameID = uuid.New()
+	f.expectLockedSetByID(set.ID, foreign)
+	f.expectSeries(false)
+	_, err = f.svc.UpdateExpansionSet(f.ctx, dto.ExpansionSetUpdate{ID: set.ID, SeriesID: f.series.ID})
+	requireStatus(t, err, http.StatusUnprocessableEntity)
 }

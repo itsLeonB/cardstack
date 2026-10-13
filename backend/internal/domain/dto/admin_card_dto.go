@@ -6,18 +6,30 @@ import (
 	"github.com/google/uuid"
 )
 
-// AdminCardUpsert is what an Admin enters for a Card. RarityID is optional:
-// without it a new Card gets the promo rarity "Tanpa Tanda" of its Game, and an
-// existing Card keeps its rarity. An empty Illustrator likewise keeps the
-// existing Card's.
-type AdminCardUpsert struct {
+// AdminCardCreate is what an Admin enters for a new Card. RarityID is
+// optional: without it the Card gets the promo rarity "Tanpa Tanda" of its
+// Game.
+type AdminCardCreate struct {
 	ExpansionSetID uuid.UUID
 	LocalID        string
 	Name           string
 	Category       string
-	Tag            string
+	Tags           []string
 	RarityID       uuid.UUID
 	Illustrator    string
+}
+
+// AdminCardUpdate replaces every editable field of the Card with ID. The set
+// and collector number are the Card's identity and stay as they are. RarityID
+// is required and an empty Illustrator clears it: nothing is kept from the
+// stored Card.
+type AdminCardUpdate struct {
+	ID          uuid.UUID
+	Name        string
+	Category    string
+	Tags        []string
+	RarityID    uuid.UUID
+	Illustrator string
 }
 
 // AdminCard is a Card as the admin sees it. ImageURL is empty until an
@@ -28,7 +40,7 @@ type AdminCard struct {
 	LocalID        string    `json:"localId"`
 	Name           string    `json:"name"`
 	Category       string    `json:"category"`
-	Tag            string    `json:"tag"`
+	Tags           []string  `json:"tags"`
 	RarityID       uuid.UUID `json:"rarityId"`
 	Illustrator    string    `json:"illustrator"`
 	ImageURL       string    `json:"imageUrl"`
@@ -56,8 +68,7 @@ type CardLookup struct {
 
 // CardDelete names the Card an Admin deletes.
 type CardDelete struct {
-	ExpansionSetID uuid.UUID
-	LocalID        string
+	ID uuid.UUID
 }
 
 // CardImageConfirm names the Card whose uploaded image is to be checked.
