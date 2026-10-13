@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { SELECT_CLASS } from "@/components/admin/form-shared"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -17,9 +18,6 @@ import {
 
 // Mirrors the API's `code` path pattern, so a bad code is caught before sending.
 const CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
-
-const SELECT_CLASS =
-  "h-9 w-full min-w-0 rounded-3xl border border-transparent bg-input/50 px-3 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50 md:text-sm"
 
 interface SetOption {
   code: string

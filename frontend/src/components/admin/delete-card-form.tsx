@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { SELECT_CLASS, flattenSets } from "@/components/admin/form-shared"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -20,9 +21,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { useDeleteAdminCard } from "@/generated/endpoints/admin/admin"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
-
-const SELECT_CLASS =
-  "h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
 
 /**
  * Deletes a Card entered by mistake (docs/adr/0019), named by its set and
@@ -42,10 +40,7 @@ export function DeleteCardForm() {
 
   const browse =
     seriesQuery.data?.status === 200 ? seriesQuery.data.data.data : undefined
-  const sets = [
-    ...(browse?.series ?? []).flatMap((s) => s.expansionSets ?? []),
-    ...(browse?.ungroupedExpansionSets ?? []),
-  ]
+  const sets = flattenSets(browse)
   const setCode = sets.find((s) => s.id === setId)?.code ?? ""
   const number = localId.trim()
 

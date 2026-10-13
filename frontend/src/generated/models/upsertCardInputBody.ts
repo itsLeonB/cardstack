@@ -11,7 +11,10 @@ export interface UpsertCardInputBody {
   category: UpsertCardInputBodyCategory;
   /** The Expansion Set the Card belongs to (422 if unknown). */
   expansionSetId: string;
-  /** @maxLength 200 */
+  /**
+     * Left out when updating a Card, it keeps the Card's illustrator.
+     * @maxLength 200
+     */
   illustrator?: string;
   /**
      * The collector number within the set, e.g. "001". Entering an existing set and number updates that Card.
@@ -24,7 +27,7 @@ export interface UpsertCardInputBody {
      * @maxLength 200
      */
   name: string;
-  /** A Rarity of the set's Game. Defaults to "Tanpa Tanda". */
+  /** A Rarity of the set's Game. Defaults to "Tanpa Tanda" for a new Card; left out when updating a Card, it keeps the Card's rarity. */
   rarityId?: string;
   /** Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise). */
   tag?: UpsertCardInputBodyTag;

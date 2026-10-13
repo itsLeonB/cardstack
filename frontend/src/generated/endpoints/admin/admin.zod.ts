@@ -35,10 +35,10 @@ export const upsertAdminCardBodyNameMax = 200;
 export const UpsertAdminCardBody = zod.object({
   "category": zod.enum(['Pokémon', 'Trainer', 'Energi']),
   "expansionSetId": zod.string().describe('The Expansion Set the Card belongs to (422 if unknown).'),
-  "illustrator": zod.string().max(upsertAdminCardBodyIllustratorMax).optional(),
+  "illustrator": zod.string().max(upsertAdminCardBodyIllustratorMax).optional().describe('Left out when updating a Card, it keeps the Card\'s illustrator.'),
   "localId": zod.string().min(1).max(upsertAdminCardBodyLocalIdMax).describe('The collector number within the set, e.g. "001". Entering an existing set and number updates that Card.'),
   "name": zod.string().min(1).max(upsertAdminCardBodyNameMax),
-  "rarityId": zod.string().optional().describe('A Rarity of the set\'s Game. Defaults to "Tanpa Tanda".'),
+  "rarityId": zod.string().optional().describe('A Rarity of the set\'s Game. Defaults to "Tanpa Tanda" for a new Card; left out when updating a Card, it keeps the Card\'s rarity.'),
   "tag": zod.enum(['Item', 'Supporter', 'Stadium']).optional().describe('Only a Trainer card carries a tag; Pokémon and Energi cards leave it empty (422 otherwise).')
 })
 
