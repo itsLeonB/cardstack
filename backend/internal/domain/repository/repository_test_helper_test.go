@@ -53,6 +53,8 @@ func testDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("getting sql.DB: %v", err)
 	}
+	// Unclosed per-test pools exhaust Postgres's connection limit.
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	goose.SetBaseFS(migrations.Migrations)
 	if err := goose.SetDialect("postgres"); err != nil {

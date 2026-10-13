@@ -135,6 +135,9 @@ func openTestDB(t *testing.T) (*gorm.DB, *sql.DB) {
 	require.NoError(t, err, "connecting to test postgres")
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
+	// Each test opens its own pool; unclosed pools exhaust Postgres's
+	// connection limit once enough tests run in one `go test ./...`.
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	return db, sqlDB
 }
