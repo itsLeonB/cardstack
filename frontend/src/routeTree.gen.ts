@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRouteRoute = AuthRouteRouteImport.update({
@@ -134,6 +140,7 @@ const CatalogCardsExpansionSetIdLocalIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
+  '/admin': typeof AdminRoute
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/catalog/search': typeof CatalogSearchRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/catalog/search': typeof CatalogSearchRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/admin': typeof AdminRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/catalog/search': typeof CatalogSearchRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/admin'
     | '/account'
     | '/inventory'
     | '/catalog/search'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/account'
     | '/inventory'
     | '/catalog/search'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/_authenticated'
+    | '/admin'
     | '/_authenticated/account'
     | '/_authenticated/inventory'
     | '/catalog/search'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  AdminRoute: typeof AdminRoute
   CatalogSearchRoute: typeof CatalogSearchRoute
   CatalogIndexRoute: typeof CatalogIndexRoute
   CatalogSetsExpansionSetIdRoute: typeof CatalogSetsExpansionSetIdRoute
@@ -279,6 +292,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -454,6 +474,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRouteRoute: AuthRouteRouteWithChildren,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  AdminRoute: AdminRoute,
   CatalogSearchRoute: CatalogSearchRoute,
   CatalogIndexRoute: CatalogIndexRoute,
   CatalogSetsExpansionSetIdRoute: CatalogSetsExpansionSetIdRoute,

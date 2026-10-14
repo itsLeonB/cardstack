@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] An additive migration adds a non-null `curated` flag, default false, to Cards and to Expansion Sets; existing rows stay non-Curated and the running API keeps working while it is applied
 - [ ] The ingester skips a Curated Expansion Set's metadata (name, release date, Series) and a Curated Card's fields, and never clears the flag

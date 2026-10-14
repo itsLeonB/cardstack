@@ -56,6 +56,8 @@ type testAPI struct {
 	// is the embedding model that API searches.
 	embedder *mocks.MockImageEmbedder
 	model    string
+	// store fakes the image bucket behind the admin card image routes.
+	store *mocks.MockObjectStore
 }
 
 // newTestAPI deliberately truncates no tables: this database is shared with
@@ -70,6 +72,20 @@ func newTestAPI(t *testing.T) testAPI {
 }
 
 func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
+	t.Helper()
+	return newTestAPIWith(t, limits, nil)
+}
+
+// newTestAPIWithAdmins is the API as booted with ADMIN_EMAILS set to emails
+// (and the R2 settings present); nil emails leaves the admin routes off.
+func newTestAPIWithAdmins(t *testing.T, emails []string) testAPI {
+	t.Helper()
+
+	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
+	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), emails)
+}
+
+func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string) testAPI {
 	t.Helper()
 
 	db, sqlDB := openTestDB(t)
@@ -87,6 +103,7 @@ func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 	// A model name of its own keeps this API's search to the embeddings its
 	// test stores, whatever other tests leave in the shared table.
 	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03}
+	store := mocks.NewMockObjectStore(t)
 	services := provider.ProvideServices(
 		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, keys),
 		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
@@ -94,12 +111,14 @@ func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 		provider.ProvideCollectionService(ds),
 		provider.ProvideInventoryService(ds, images),
 		provider.ProvideMatchService(ds, images, embedder, settings),
+		provider.ProvideAdminSetService(ds, images),
+		provider.ProvideCardAdminService(ds, images, store),
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services, limits)
+	RegisterRoutes(api, services, limits, adminEmails)
 
-	return testAPI{TestAPI: api, db: db, key: key, embedder: embedder, model: settings.Model}
+	return testAPI{TestAPI: api, db: db, key: key, embedder: embedder, model: settings.Model, store: store}
 }
 
 func openTestDB(t *testing.T) (*gorm.DB, *sql.DB) {
@@ -116,6 +135,9 @@ func openTestDB(t *testing.T) (*gorm.DB, *sql.DB) {
 	require.NoError(t, err, "connecting to test postgres")
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
+	// Each test opens its own pool; unclosed pools exhaust Postgres's
+	// connection limit once enough tests run in one `go test ./...`.
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	return db, sqlDB
 }

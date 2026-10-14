@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A checklist file lists, for each row, the collector number (as `NNN/SM-P`), the English name and the Category, derived from the source's type code (blank means Pokémon; `I`, `Su`, `St` mean Trainer with Tag Item, Supporter, Stadium; `E` means Energi with an empty Tag)
 - [ ] The Promotion text and per-card prose from the source are not copied

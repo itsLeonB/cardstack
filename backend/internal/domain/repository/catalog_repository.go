@@ -294,7 +294,9 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 // cardsBase is the query over cards that filters apply to: all Cards, or only
 // the Collection's when filter.CollectionID is set.
 func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
-	q := db.Table("cards")
+	// A Curated Card with no image key is one an Admin has saved but whose
+	// upload is not confirmed yet; it stays out of every list (docs/adr/0019).
+	q := db.Table("cards").Where("NOT (cards.curated AND cards.image_key = '')")
 	if filter.CollectionID != uuid.Nil {
 		q = q.Joins("JOIN inventory_entries ON inventory_entries.card_id = cards.id AND inventory_entries.collection_id = ?", filter.CollectionID)
 	} else if filter.ProfileID != uuid.Nil {

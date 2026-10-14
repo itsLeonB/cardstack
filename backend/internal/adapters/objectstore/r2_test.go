@@ -5,9 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
+	corestore "github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,6 +77,65 @@ func TestR2Store_Get_ReturnsErrorOnMissingObject(t *testing.T) {
 	_, err := NewR2Store(r2TestConfig(server.URL)).Get(context.Background(), "expansion-sets/abc")
 
 	assert.Error(t, err)
+}
+
+func TestR2Store_PresignPut_SignsKeyContentTypeAndExpiry(t *testing.T) {
+	store := NewR2Store(r2TestConfig("https://acct.r2.test"))
+
+	rawURL, expiresAt, err := store.PresignPut(context.Background(), "cards/abc", "image/webp", 5*time.Minute)
+
+	require.NoError(t, err)
+	u, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	assert.Equal(t, "acct.r2.test", u.Host)
+	assert.Equal(t, "/images/cards/abc", u.Path)
+	assert.Equal(t, "300", u.Query().Get("X-Amz-Expires"))
+	assert.Contains(t, u.Query().Get("X-Amz-SignedHeaders"), "content-type", "the content type is part of the signature")
+	assert.NotEmpty(t, u.Query().Get("X-Amz-Signature"))
+	assert.WithinDuration(t, time.Now().Add(5*time.Minute), expiresAt, 5*time.Second)
+}
+
+func TestR2Store_ReadHead_RequestsOnlyTheFirstBytes(t *testing.T) {
+	var gotRange string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotRange = r.Header.Get("Range")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write([]byte("RIFFxxxxWEBP"))
+	}))
+	t.Cleanup(server.Close)
+
+	head, err := NewR2Store(r2TestConfig(server.URL)).ReadHead(context.Background(), "cards/abc", 12)
+
+	require.NoError(t, err)
+	assert.Equal(t, "bytes=0-11", gotRange)
+	assert.Equal(t, []byte("RIFFxxxxWEBP"), head)
+}
+
+func TestR2Store_ReadHead_ReportsAMissingObject(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`<?xml version="1.0"?><Error><Code>NoSuchKey</Code><Message>gone</Message></Error>`))
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := NewR2Store(r2TestConfig(server.URL)).ReadHead(context.Background(), "cards/abc", 12)
+
+	assert.ErrorIs(t, err, corestore.ErrNotFound)
+}
+
+func TestR2Store_Delete_RemovesTheObject(t *testing.T) {
+	var gotMethod, gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath = r.Method, r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	err := NewR2Store(r2TestConfig(server.URL)).Delete(context.Background(), "cards/abc")
+
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodDelete, gotMethod)
+	assert.Equal(t, "/images/cards/abc", gotPath)
 }
 
 func TestR2Store_Get_RejectsObjectOverSizeCap(t *testing.T) {

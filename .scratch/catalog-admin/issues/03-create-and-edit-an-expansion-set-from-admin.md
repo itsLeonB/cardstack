@@ -4,10 +4,10 @@
 
 **Blocked by:** 01, 02.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] An admin operation upserts an Expansion Set by code, rejecting an unknown Series with a validation error, and marks the row Curated
-- [ ] The set form on `/admin` creates a new set and edits an existing one, including one that came from the Asia site
+- [ ] `POST /admin/expansion-sets` creates an Expansion Set (a code its Game already has is a 409, never an update) and `PUT /admin/expansion-sets/{id}` replaces its name, release date and Series (the code is immutable; a Series of another Game is refused); both reject an unknown Series with a validation error and mark the row Curated
+- [ ] The set form on `/admin` creates a new set with POST and, for an existing one picked from its list (including one that came from the Asia site), loads all its values and PUTs them by id
 - [ ] Adding a set with an older release date does not unexpectedly reorder Series (Series order is derived from the earliest set date; `SM-P` stays within the already-oldest Series)
 - [ ] The new set appears in catalog browse under its Series, and a set with no cover renders text-only as other cover-less sets do
-- [ ] Route tests on real Postgres cover create, edit, unknown Series, and the Curated flag; a frontend test covers the form
+- [ ] Route tests on real Postgres cover create, a duplicate code (409), edit by id, unknown Series, and the Curated flag; a frontend test covers the form

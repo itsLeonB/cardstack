@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A comma-separated allowlist setting is parsed at boot; an empty entry or a value that is not an email stops the API with an error naming the entry, in the style of the client-origin setting
 - [ ] The R2 write settings (account, key, secret, bucket) are read by the API; the admin route group is registered only when both the allowlist and the R2 settings are present
