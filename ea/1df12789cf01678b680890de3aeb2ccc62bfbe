@@ -1,0 +1,19 @@
+.scratch/catalog-admin/issues/04-add-a-card-with-an-image-from-admin.md
+  s_c6e4bddd6943e1::t_dbdb8ef499ba3a 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ea1df12789cf01678b680890de3aeb2ccc62bfbe",
+  "prompts": {},
+  "sessions": {
+    "s_c6e4bddd6943e1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c6e4bddd6943e1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
