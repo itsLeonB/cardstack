@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 02.
 
-**Status:** resolved
+**Status:** ready-for-human
 
 - [ ] `POST /admin/cards` creates a Card at (Expansion Set, collector number) with name, Category, optional tags and a rarity chosen from existing rarities, rejecting unknown references with a validation error; a set and number that already has a Card is a 409, never an update
 - [ ] `PUT /admin/cards/{id}` replaces the Card's name, Category, tags, rarity and illustrator with the request's and keeps nothing the request leaves out (the rarity is required); the admin Card response lists all its `tags`, and the same array is accepted back on the PUT
