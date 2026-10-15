@@ -1,0 +1,33 @@
+backend/internal/adapters/http/handler/binder_handler.go
+  s_e5de8494bc30ba::t_f2d067ed27cd70 279-288
+backend/internal/adapters/http/handler/binder_move_handler.go
+  s_e5de8494bc30ba::t_d4172a95e5913e 1-58
+backend/internal/adapters/http/routes/binder_move_routes_test.go
+  s_e5de8494bc30ba::t_03c17a5c081e0f 1-210
+backend/internal/adapters/http/routes/binder_routes_test.go
+  s_e5de8494bc30ba::t_1774fcad4f3743 27-47
+backend/internal/domain/dto/binder_move_dto.go
+  s_e5de8494bc30ba::t_743ae2e3b5ed19 1-19
+backend/internal/domain/service/binder_move_slot.go
+  s_e5de8494bc30ba::t_93577658e76554 1-90
+backend/internal/domain/service/binder_service.go
+  s_e5de8494bc30ba::t_332679817f38b2 49-51
+backend/openapi.json
+  s_e5de8494bc30ba::t_398f4f45bdc425 291-355,750-761,3233-3290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b9a4426b6e6cd5b1607daeeadf24a19b0a4c5e05",
+  "prompts": {},
+  "sessions": {
+    "s_e5de8494bc30ba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e5de8494bc30ba",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
