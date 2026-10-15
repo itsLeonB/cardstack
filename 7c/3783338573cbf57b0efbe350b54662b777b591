@@ -1,0 +1,31 @@
+frontend/src/components/collections/binder-page-grid.tsx
+  s_80cb4906b488f8::t_aa6fd2986cc074 3-4,14-16,27,32,46,60,81,97
+frontend/src/components/collections/binder-slot-panel.tsx
+  s_80cb4906b488f8::t_ecf8fd1668b6ac 1,13,24,50,55-56,68-76,127-128,133,182-186,199
+frontend/src/components/collections/binder-slots.test.tsx
+  s_80cb4906b488f8::t_d0913f89ce617d 6-10,44-49,73-77,241-296,302-311,313,315,317-318,320-348
+frontend/src/components/collections/binder-view.tsx
+  s_80cb4906b488f8::t_6b632c6fa453f5 19-24,44-46,210-211,213-220,295-297,303,305,307,309,311
+frontend/src/lib/binder.ts
+  s_80cb4906b488f8::t_6101b78b44256a 67-78
+frontend/src/routes/_authenticated/collections/$collectionId/-collection-page.test.tsx
+  s_80cb4906b488f8::t_845ee47221038d 13,92-112
+frontend/src/test-binder-api.ts
+  s_80cb4906b488f8::t_9f9268b5e97966 2,65-66,79,235-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7c3783338573cbf57b0efbe350b54662b777b591",
+  "prompts": {},
+  "sessions": {
+    "s_80cb4906b488f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_80cb4906b488f8",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
