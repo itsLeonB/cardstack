@@ -286,5 +286,15 @@ func (h *BinderHandler) Routes() []endpoint.Registrable {
 			Secured:     true,
 			HandlerFunc: h.moveSlot,
 		}),
+		endpoint.New(endpoint.Endpoint[binderPageReplaceInput, dto.BinderPageReplaceResult]{
+			OperationID: "replace-binder-page",
+			Method:      http.MethodPut,
+			Path:        "/collections/{id}/binder/pages/{page}",
+			Summary:     "Replace every Slot of a Page; returns what each Slot holds, with the reason for any Card the server did not know",
+			Tags:        []string{"binder"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.replacePage,
+		}),
 	}
 }

@@ -49,6 +49,9 @@ type BinderService interface {
 	// MoveSlot moves a card to another Slot of the same binder, swapping when the
 	// target is filled. Quantities do not change.
 	MoveSlot(ctx context.Context, req dto.BinderSlotMove) error
+	// ReplacePage sets every Slot of one Page to the state requested for it. A
+	// Card the server does not know is stored Unidentified and reported as such.
+	ReplacePage(ctx context.Context, req dto.BinderPageReplace) (dto.BinderPageReplaceResult, error)
 }
 
 type binderService struct {
@@ -376,53 +379,7 @@ func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) 
 			cardID = &req.CardID
 		}
 
-		slot, err := s.slots.FindFirst(ctx, crud.Specification[entity.BinderSlot]{
-			Model: entity.BinderSlot{CollectionID: c.ID, LeafID: leaf.ID, Side: side, Row: target.Row, Column: target.Column},
-		})
-		if err != nil {
-			return err
-		}
-
-		// An empty Slot has no row, so a zero slot means the Slot was empty before this write.
-		var previous *uuid.UUID
-		if !slot.IsZero() {
-			previous = slot.CardID
-		}
-
-		switch {
-		case req.State == dto.BinderSlotEmpty:
-			if !slot.IsZero() {
-				err = s.slots.Delete(ctx, slot)
-			}
-		case slot.IsZero():
-			_, err = s.slots.Insert(ctx, entity.BinderSlot{
-				CollectionID: c.ID,
-				LeafID:       leaf.ID,
-				Side:         side,
-				Row:          target.Row,
-				Column:       target.Column,
-				CardID:       cardID,
-				Unidentified: req.State == dto.BinderSlotUnidentified,
-			})
-		default:
-			slot.CardID = cardID
-			slot.Unidentified = req.State == dto.BinderSlotUnidentified
-			_, err = s.slots.Update(ctx, slot)
-		}
-		if err != nil {
-			return err
-		}
-
-		for _, id := range []*uuid.UUID{previous, cardID} {
-			if id == nil {
-				continue
-			}
-			if err := s.reconcileEntry(ctx, c.ID, *id); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return s.writeSlotRow(ctx, c, leaf, side, target, req.State, cardID)
 	})
 }
 
