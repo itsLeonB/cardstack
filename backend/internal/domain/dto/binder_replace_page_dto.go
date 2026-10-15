@@ -6,6 +6,14 @@ import "github.com/google/uuid"
 // know is stored Unidentified instead.
 const BinderSlotReasonUnknownCard = "unknown_card"
 
+// BinderMaxGridSide is the most rows or columns a Page can have. The service
+// validates Layouts against it, and the Replace Page body caps its Slot list at
+// BinderMaxSlotsPerPage.
+const BinderMaxGridSide = 6
+
+// BinderMaxSlotsPerPage is the Slot count of the largest Page.
+const BinderMaxSlotsPerPage = BinderMaxGridSide * BinderMaxGridSide
+
 // BinderPageReplace sets every Slot of one Page at once. Slots are in grid order
 // (row by row, left to right) and must match the binder's Slot count per Page.
 type BinderPageReplace struct {

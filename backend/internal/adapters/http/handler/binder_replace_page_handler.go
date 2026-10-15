@@ -13,6 +13,9 @@ type binderPageReplaceInput struct {
 	Body binderPageReplaceBody
 }
 
+// The maxItems cap is the largest Layout, 6 × 6 Slots (dto.BinderMaxSlotsPerPage).
+// A struct tag cannot read a constant, so binder_replace_page_handler_test.go
+// fails if the two drift apart.
 type binderPageReplaceBody struct {
 	Slots []binderPageSlotBody `json:"slots" required:"true" maxItems:"36" doc:"One state per Slot in grid order: row by row, left to right. The count must match the binder's Layout."`
 }

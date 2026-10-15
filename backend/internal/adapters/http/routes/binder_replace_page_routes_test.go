@@ -170,3 +170,41 @@ func TestBinderReplacePageRefusalsChangeNothing(t *testing.T) {
 	assert.Equal(t, 1, masterQuantity(t, api, owner, card))
 	requireEntriesMatchSlots(t, api, id)
 }
+
+func TestBinderReplacePageSlotCapFollowsTheLayoutMaximum(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 6, 6, 1)
+
+	// 6 × 6 is the largest Layout, so 36 states is the most a Page can take.
+	decodeReplacePage(t, replacePageAt(api, owner, id, 1, emptySlots(36)...))
+
+	resp := replacePageAt(api, owner, id, 1, emptySlots(37)...)
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+}
+
+func TestBinderReplacePageCardWithoutIDIsStoredUnidentified(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+
+	// One card state omits cardId and one sends the zero UUID; neither is a Card the server knows.
+	result := decodeReplacePage(t, replacePageAt(api, owner, id, 1,
+		map[string]any{"state": "card"},
+		map[string]any{"state": "card", "cardId": uuid.Nil},
+		emptySlot(), emptySlot(),
+	))
+	require.Len(t, result.Slots, 4)
+	for _, slot := range result.Slots[:2] {
+		assert.Equal(t, dto.BinderSlotUnidentified, slot.State)
+		assert.Equal(t, dto.BinderSlotReasonUnknownCard, slot.Reason)
+		assert.Nil(t, slot.CardID)
+	}
+
+	page := getPage(t, api, owner, id, 1)
+	assert.Equal(t, 2, page.Data.UnidentifiedCount)
+	assert.Equal(t, 2, page.Data.CardTotal)
+	requireEntriesMatchSlots(t, api, id)
+}

@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
 )
 
@@ -37,6 +37,7 @@ func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageRepla
 		}
 
 		slots := make([]dto.BinderSlotResult, 0, len(req.Slots))
+		touched := make([]*uuid.UUID, 0, 2*len(req.Slots))
 		for i, want := range req.Slots {
 			target := dto.BinderSlotTarget{Page: req.Page, Row: i/layout.Columns + 1, Column: i%layout.Columns + 1}
 
@@ -45,9 +46,11 @@ func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageRepla
 				return err
 			}
 
-			if err := s.writeSlotRow(ctx, c, leaf, side, target, state, cardID); err != nil {
+			previous, err := s.writeSlotRow(ctx, c, leaf, side, target, state, cardID)
+			if err != nil {
 				return err
 			}
+			touched = append(touched, previous, cardID)
 
 			slots = append(slots, dto.BinderSlotResult{
 				Row:    target.Row,
@@ -56,6 +59,10 @@ func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageRepla
 				CardID: cardID,
 				Reason: reason,
 			})
+		}
+
+		if err := s.reconcileCards(ctx, c.ID, touched); err != nil {
+			return err
 		}
 
 		result = dto.BinderPageReplaceResult{Slots: slots}
@@ -75,19 +82,21 @@ func (s *binderService) storedSlotState(ctx context.Context, want dto.BinderSlot
 		return want.State, nil, "", nil
 	}
 
-	// A zero id would match every Card in the filter, so it is never looked up.
-	if want.CardID != uuid.Nil {
-		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-			Model: entity.Card{BaseEntity: crud.BaseEntity{ID: want.CardID}},
-		})
-		if err != nil {
-			return "", nil, "", err
-		}
-		if !card.IsZero() {
-			cardID := want.CardID
-			return dto.BinderSlotCard, &cardID, "", nil
-		}
+	_, err := s.resolveCard(ctx, want.CardID)
+	if err == nil {
+		cardID := want.CardID
+		return dto.BinderSlotCard, &cardID, "", nil
+	}
+	if !isNotFound(err) {
+		return "", nil, "", err
 	}
 
 	return dto.BinderSlotUnidentified, nil, dto.BinderSlotReasonUnknownCard, nil
+}
+
+// isNotFound reports whether err is a not-found AppError, which resolveCard
+// returns for a Card it does not know.
+func isNotFound(err error) bool {
+	var appErr ungerr.AppError
+	return errors.As(err, &appErr) && appErr.HttpStatus() == http.StatusNotFound
 }

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	maxGridSide = 6
+	maxGridSide = dto.BinderMaxGridSide
 	maxLeaves   = 100
 
 	gridRangeMsg          = "rows and columns must each be from 1 to 6"
@@ -362,8 +362,8 @@ func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) 
 			return err
 		}
 		target := req.Target
-		if target.Row < 1 || target.Row > layout.Rows || target.Column < 1 || target.Column > layout.Columns {
-			return ungerr.BadRequestError(slotOutOfGridMsg)
+		if err := checkSlotInGrid(layout, target); err != nil {
+			return err
 		}
 
 		leaf, side, err := s.pageLeaf(ctx, c.ID, target.Page)
@@ -379,7 +379,12 @@ func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) 
 			cardID = &req.CardID
 		}
 
-		return s.writeSlotRow(ctx, c, leaf, side, target, req.State, cardID)
+		previous, err := s.writeSlotRow(ctx, c, leaf, side, target, req.State, cardID)
+		if err != nil {
+			return err
+		}
+
+		return s.reconcileCards(ctx, c.ID, []*uuid.UUID{previous, cardID})
 	})
 }
 

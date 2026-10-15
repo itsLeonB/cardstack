@@ -208,3 +208,26 @@ func TestBinderMoveRefusals(t *testing.T) {
 	requireEntriesMatchSlots(t, api, id)
 	assert.Equal(t, 1, masterQuantity(t, api, owner, card))
 }
+
+func TestBinderMoveRefusesSourceOutsideTheBinder(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+	card := newTestCards(t, 1)[0]
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, card))
+
+	// A source row past the Layout's rows.
+	resp := moveSlotAt(api, owner, id, 1, 3, 1, 1, 1, 2)
+	assert.Equal(t, http.StatusBadRequest, resp.Code, resp.Body.String())
+
+	// A source on a Page past the last Leaf.
+	resp = moveSlotAt(api, owner, id, 3, 1, 1, 1, 1, 2)
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+
+	page := getPage(t, api, owner, id, 1)
+	state, cardID := slotState(page.Data, 1, 1)
+	assert.Equal(t, "card", state)
+	assert.Equal(t, card.String(), cardID)
+	requireEntriesMatchSlots(t, api, id)
+}

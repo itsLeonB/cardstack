@@ -5,7 +5,6 @@ import (
 
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
 )
 
@@ -67,8 +66,8 @@ func (s *binderService) MoveSlot(ctx context.Context, req dto.BinderSlotMove) er
 // and otherwise a new row carrying only its position, so the caller can place a
 // card there.
 func (s *binderService) slotAt(ctx context.Context, c entity.Collection, layout entity.CollectionLayout, target dto.BinderSlotTarget) (entity.BinderSlot, bool, error) {
-	if target.Row < 1 || target.Row > layout.Rows || target.Column < 1 || target.Column > layout.Columns {
-		return entity.BinderSlot{}, false, ungerr.BadRequestError(slotOutOfGridMsg)
+	if err := checkSlotInGrid(layout, target); err != nil {
+		return entity.BinderSlot{}, false, err
 	}
 
 	leaf, side, err := s.pageLeaf(ctx, c.ID, target.Page)
@@ -76,9 +75,7 @@ func (s *binderService) slotAt(ctx context.Context, c entity.Collection, layout 
 		return entity.BinderSlot{}, false, err
 	}
 
-	slot, err := s.slots.FindFirst(ctx, crud.Specification[entity.BinderSlot]{
-		Model: entity.BinderSlot{CollectionID: c.ID, LeafID: leaf.ID, Side: side, Row: target.Row, Column: target.Column},
-	})
+	slot, err := s.slots.FindFirst(ctx, slotSpec(c, leaf, side, target.Row, target.Column))
 	if err != nil {
 		return entity.BinderSlot{}, false, err
 	}
