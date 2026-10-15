@@ -1,0 +1,19 @@
+.scratch/binder-scanning/issues/02-binder-view.md
+  s_4d71bee4b5f10e::t_80edb7b9561045 9,11-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e0277c7d875a23dca8a263b108b6ee0d694b379d",
+  "prompts": {},
+  "sessions": {
+    "s_4d71bee4b5f10e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_4d71bee4b5f10e",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
