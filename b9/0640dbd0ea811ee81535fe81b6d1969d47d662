@@ -1,0 +1,71 @@
+backend/.mockery.yaml
+  s_fb4ef84ae21e50::t_16400b4085ffda 31-32
+backend/cmd/genspec/main.go
+  s_fb4ef84ae21e50::t_008435fa2bf8a8 33
+backend/internal/adapters/http/handler/binder_placement_handler.go
+  s_fb4ef84ae21e50::t_d3ee43febcb19b 1-62
+backend/internal/adapters/http/routes/binder_placement_routes_test.go
+  s_fb4ef84ae21e50::t_5b28b1f8c7ef5e 1-188
+backend/internal/adapters/http/routes/binder_positions_routes_test.go
+  s_fb4ef84ae21e50::t_c1e42c12a69573 1-125
+backend/internal/adapters/http/routes/register_routes.go
+  s_fb4ef84ae21e50::t_69c261923f88bf 25,49
+backend/internal/adapters/http/routes/testenv_test.go
+  s_fb4ef84ae21e50::t_405461a7d86435 107,114-115
+backend/internal/domain/dto/binder_dto.go
+  s_fb4ef84ae21e50::t_ab9b6275507624 86-87,89-91,103-117
+backend/internal/domain/dto/binder_placement_dto.go
+  s_fb4ef84ae21e50::t_ffaa9c27fd7048 1-30
+backend/internal/domain/dto/inventory_dto.go
+  s_fb4ef84ae21e50::t_967c3c4a20a57d 40-41
+backend/internal/domain/entity/binder.go
+  s_fb4ef84ae21e50::t_6ebf1d349035b9 41-44
+backend/internal/domain/mapper/binder_mapper.go
+  s_fb4ef84ae21e50::t_bc1b00206fe2d1 4-7,98-117
+backend/internal/domain/repository/binder_slot_repository.go
+  s_fb4ef84ae21e50::t_bafd8b82060edc 25-32,121-153
+backend/internal/domain/repository/binder_slot_repository_test.go
+  s_fb4ef84ae21e50::t_f50b1fd27b875a 102-184
+backend/internal/domain/service/binder_placement_service.go
+  s_fb4ef84ae21e50::t_1d7aea42919def 1-189
+backend/internal/domain/service/binder_placement_service_test.go
+  s_fb4ef84ae21e50::t_1f77cfe182b341 1-187
+backend/internal/domain/service/binder_replace_page.go
+  s_fb4ef84ae21e50::t_814f5166e8d5a6 15-16,34-37,47-49,51,62-66
+backend/internal/domain/service/binder_replace_page_test.go
+  s_fb4ef84ae21e50::t_bc7429d868bd5e 19-26,30-33,44,46-48,57,61,63,69,81,85,101,105-110,112,129,134-141
+backend/internal/domain/service/binder_service.go
+  s_fb4ef84ae21e50::t_7fc88ec26a202f 49-52,358-369,380-384,386-403,405-420,424-430,432-437,441-489,492,500,504-513,515,518
+backend/internal/domain/service/inventory_service.go
+  s_fb4ef84ae21e50::t_c0e7ebfaf24650 55,66,72,88-102
+backend/internal/domain/service/inventory_service_test.go
+  s_fb4ef84ae21e50::t_4aefd60879c8ea 27,43,50,122
+backend/internal/mocks/BinderPlacementService.go
+  s_fb4ef84ae21e50::t_50edf5638f4cae 1-96
+backend/internal/mocks/BinderService.go
+  s_fb4ef84ae21e50::t_b4f2d13470f192 1-567
+backend/internal/mocks/BinderSlotRepository.go
+  s_fb4ef84ae21e50::t_45c6f3bd0410b3 595-713
+backend/internal/provider/service_provider.go
+  s_fb4ef84ae21e50::t_921c5def9f16c3 22,25-35,81,103-116,170,172-182
+backend/internal/provider/wire_gen.go
+  s_fb4ef84ae21e50::t_d01f77b36632be 29,40
+backend/openapi.json
+  s_fb4ef84ae21e50::t_947cd21a714a76 304-337,460-485,1005-1022,1413-1422,1500-1541,3542-3599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b90640dbd0ea811ee81535fe81b6d1969d47d662",
+  "prompts": {},
+  "sessions": {
+    "s_fb4ef84ae21e50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fb4ef84ae21e50",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
