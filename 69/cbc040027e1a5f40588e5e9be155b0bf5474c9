@@ -1,0 +1,27 @@
+frontend/src/routes/_authenticated/collections/$collectionId/-collection-page.test.tsx
+  s_0e725bdb52a7df::t_4c6d7989326526 1-103
+frontend/src/components/collections/binder-view.test.tsx
+  s_0e725bdb52a7df::t_b00c88ced990f4 4,6-7,9-12,23-29,31-35,37-39,42-44,56,86,90-94,103,110-153,155,158-159,161-178,193-212,214,216,219-220,222-260,263,266,268-274,278,285-287,294,296,312-316,323,344
+frontend/src/components/collections/binder-view.tsx
+  s_0e725bdb52a7df::t_4bab03f8f8346f 3,18,33-36,41,54-57,72-73,77-85,96,105,117-118,132,155,166-167,171-172,174,219-220,230-231,235-240,385
+frontend/src/lib/binder.ts
+  s_0e725bdb52a7df::t_3f12a801a3099c 3,20-27,33,35-48
+frontend/src/test-binder-api.ts
+  s_0e725bdb52a7df::t_49bc5c667664d1 1-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "69cbc040027e1a5f40588e5e9be155b0bf5474c9",
+  "prompts": {},
+  "sessions": {
+    "s_0e725bdb52a7df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8a9b4f8-0b90-4c51-a83d-d126fdcc1da2",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
