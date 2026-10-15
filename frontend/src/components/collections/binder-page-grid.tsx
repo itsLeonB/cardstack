@@ -1,5 +1,7 @@
 import { cn } from "cn"
 import type { BinderPage, BinderSlot } from "@/generated/models"
+import { slotKey } from "@/lib/binder"
+import type { SlotRef } from "@/lib/binder"
 
 /** One Page's Slots in the Layout's rows and columns; tapping a Slot selects it. */
 export function BinderPageGrid({
@@ -9,8 +11,9 @@ export function BinderPageGrid({
 }: {
   page: BinderPage
   /** The Slot whose actions are open. */
-  selected?: { row: number; column: number }
-  onSelect: (slot: BinderSlot) => void
+  selected?: SlotRef
+  /** Passes the tapped tile too, so focus can return to it when the panel closes. */
+  onSelect: (slot: BinderSlot, tile: HTMLButtonElement) => void
 }) {
   return (
     <div
@@ -21,12 +24,12 @@ export function BinderPageGrid({
     >
       {page.slots?.map((slot) => (
         <SlotTile
-          key={`${slot.row},${slot.column}`}
+          key={slotKey({ page: page.page, row: slot.row, column: slot.column })}
           slot={slot}
           selected={
             selected?.row === slot.row && selected.column === slot.column
           }
-          onSelect={() => onSelect(slot)}
+          onSelect={(tile) => onSelect(slot, tile)}
         />
       ))}
     </div>
@@ -40,7 +43,7 @@ function SlotTile({
 }: {
   slot: BinderSlot
   selected: boolean
-  onSelect: () => void
+  onSelect: (tile: HTMLButtonElement) => void
 }) {
   const where = `Row ${slot.row}, column ${slot.column}`
   const tile = cn(
@@ -54,7 +57,7 @@ function SlotTile({
         type="button"
         aria-label={`${where}: ${slot.card.name}`}
         aria-pressed={selected}
-        onClick={onSelect}
+        onClick={(event) => onSelect(event.currentTarget)}
         className={cn(tile, "flex flex-col gap-1 bg-card p-1")}
       >
         <img
@@ -75,7 +78,7 @@ function SlotTile({
         type="button"
         aria-label={`${where}: Unidentified`}
         aria-pressed={selected}
-        onClick={onSelect}
+        onClick={(event) => onSelect(event.currentTarget)}
         className={cn(
           tile,
           "flex aspect-[5/7] items-center justify-center border-dashed bg-muted p-1 text-center text-xs font-medium"
@@ -91,7 +94,7 @@ function SlotTile({
       type="button"
       aria-label={`${where}: empty`}
       aria-pressed={selected}
-      onClick={onSelect}
+      onClick={(event) => onSelect(event.currentTarget)}
       className={cn(tile, "aspect-[5/7] border-dashed")}
     />
   )

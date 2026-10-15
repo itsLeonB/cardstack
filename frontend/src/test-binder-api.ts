@@ -1,5 +1,5 @@
 import { vi } from "vitest"
-import type { CardSummary } from "@/generated/models"
+import type { CardSummary, InventoryItem } from "@/generated/models"
 
 // An in-memory binder behind a faked `fetch`, for tests of the binder views.
 // The generated client, the query cache and the invalidation under test are
@@ -62,6 +62,8 @@ export interface FakeBinder {
   catalog: FakeCard[]
   /** When set, every Slot write is answered with this error and changes nothing. */
   writeError?: { status: number; detail: string }
+  /** What the Collection's entries list answers with. */
+  entries: InventoryItem[]
   requests: { method: string; path: string; body?: RequestBody }[]
 }
 
@@ -74,6 +76,7 @@ export function fakeBinder(overrides: Partial<FakeBinder> = {}): FakeBinder {
     cardCount: 0,
     filled: {},
     catalog: [],
+    entries: [],
     requests: [],
     ...overrides,
   }
@@ -229,8 +232,8 @@ function respond(
   }
   if (method === "GET" && path.endsWith("/collections/col-1/entries")) {
     return json(200, {
-      data: [],
-      meta: { total: 0, page: 1, limit: 100 },
+      data: b.entries,
+      meta: { total: b.entries.length, page: 1, limit: 100 },
     })
   }
   return json(500, { detail: `unexpected ${method} ${path}` })

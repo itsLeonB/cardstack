@@ -64,3 +64,15 @@ export function refreshAfterSlotWrite(
   invalidateCollectionEntries(queryClient, collectionId)
   invalidateMasterInventory(queryClient)
 }
+
+/** A Slot on a Page, addressed as the API addresses it (Page and row/column are 1-based). */
+export interface SlotRef {
+  page: number
+  row: number
+  column: number
+}
+
+/** The key that names one Slot in a React list or a selection. */
+export function slotKey({ page, row, column }: SlotRef) {
+  return `${page},${row},${column}`
+}

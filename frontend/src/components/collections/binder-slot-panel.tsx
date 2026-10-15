@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   useClearBinderSlot,
@@ -10,6 +10,7 @@ import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { refreshAfterSlotWrite } from "@/lib/binder"
+import type { SlotRef } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import {
   useInfiniteCardResultsProps,
@@ -20,7 +21,7 @@ type SlotAction = "place" | "replace" | "clear" | "markUnidentified"
 
 // Menu order. A Move action (ticket 04) joins this list for a Slot that holds
 // a Card or is Unidentified.
-export function slotActions(state: BinderSlot["state"]): SlotAction[] {
+function slotActions(state: BinderSlot["state"]): SlotAction[] {
   switch (state) {
     case "card":
       return ["replace", "clear", "markUnidentified"]
@@ -46,12 +47,13 @@ type Written = NonNullable<Parameters<typeof errorDetail>[0]>
  */
 export function SlotPanel({
   collectionId,
-  page,
+  at,
   slot,
   onClose,
 }: {
   collectionId: string
-  page: number
+  /** Where the Slot sits, which the write addresses. */
+  at: SlotRef
   slot: BinderSlot
   /** Closes the panel, after a write succeeds or from the Close button. */
   onClose: () => void
@@ -63,7 +65,15 @@ export function SlotPanel({
   const clearMutation = useClearBinderSlot()
   const markMutation = useMarkBinderSlotUnidentified()
 
-  const target = { id: collectionId, page, row: slot.row, column: slot.column }
+  const target = { id: collectionId, ...at }
+
+  // Focus moves into the panel when a Slot is tapped. On a small screen the
+  // panel sits below the Page, so it also scrolls into view.
+  const panelRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    panelRef.current?.focus({ preventScroll: true })
+    panelRef.current?.scrollIntoView({ block: "nearest" })
+  }, [])
   const busy =
     placeMutation.isPending || clearMutation.isPending || markMutation.isPending
 
@@ -114,11 +124,13 @@ export function SlotPanel({
 
   return (
     <section
+      ref={panelRef}
+      tabIndex={-1}
       aria-label="Slot actions"
       className="flex flex-col gap-3 rounded-md border p-3"
     >
       <h3 className="text-sm font-medium">
-        Page {page}, row {slot.row}, column {slot.column}: {stateLabel}
+        Page {at.page}, row {at.row}, column {at.column}: {stateLabel}
       </h3>
 
       {!searching && (
@@ -167,6 +179,11 @@ function CardPicker({
   onCancel: () => void
 }) {
   const [draft, setDraft] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Opening the search puts the cursor in its name field.
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
   // Results load only once a name is submitted, so an empty search never lists the catalog.
   const [name, setName] = useState<string | null>(null)
 
@@ -179,6 +196,7 @@ function CardPicker({
     <div className="flex flex-col gap-3">
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
         <Input
+          ref={inputRef}
           type="search"
           aria-label="Card name"
           placeholder="e.g. Pikachu"

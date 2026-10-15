@@ -16,7 +16,12 @@ import type { BinderLayoutValues } from "@/components/collections/binder-layout-
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { SlotPanel } from "@/components/collections/binder-slot-panel"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
-import { invalidateBinder, refreshAfterRemoveBinder } from "@/lib/binder"
+import {
+  invalidateBinder,
+  refreshAfterRemoveBinder,
+  slotKey,
+} from "@/lib/binder"
+import type { SlotRef } from "@/lib/binder"
 
 // A swipe shorter than this is a scroll or a tap, not a page turn.
 const SWIPE_MIN_PX = 50
@@ -36,11 +41,9 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const [detached, setDetached] = useState(false)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   // The Slot whose actions are open. Only the Page it was tapped on shows it.
-  const [selectedSlot, setSelectedSlot] = useState<{
-    page: number
-    row: number
-    column: number
-  } | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<SlotRef | null>(null)
+  // The tapped tile, so focus can go back to it when the panel closes.
+  const openerRef = useRef<HTMLButtonElement | null>(null)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
@@ -204,13 +207,17 @@ export function BinderView({ collectionId }: { collectionId: string }) {
 
   const { layout, cardTotal, unidentifiedCount, leaf, side } = binderPage
   const empty = cardTotal === 0
+  const openSlot =
+    selectedSlot?.page === binderPage.page ? selectedSlot : undefined
   const shownSlot =
-    selectedSlot?.page === binderPage.page
-      ? binderPage.slots?.find(
-          (slot) =>
-            slot.row === selectedSlot.row && slot.column === selectedSlot.column
-        )
-      : undefined
+    openSlot &&
+    binderPage.slots?.find(
+      (slot) => slot.row === openSlot.row && slot.column === openSlot.column
+    )
+  function closeSlot() {
+    setSelectedSlot(null)
+    openerRef.current?.focus()
+  }
   const leafBusy = addLeafMutation.isPending || removeLeafMutation.isPending
 
   return (
@@ -285,22 +292,23 @@ export function BinderView({ collectionId }: { collectionId: string }) {
         </p>
         <BinderPageGrid
           page={binderPage}
-          selected={shownSlot}
-          onSelect={(slot) =>
+          selected={openSlot}
+          onSelect={(slot, tile) => {
+            openerRef.current = tile
             setSelectedSlot({
               page: binderPage.page,
               row: slot.row,
               column: slot.column,
             })
-          }
+          }}
         />
-        {shownSlot && (
+        {openSlot && shownSlot && (
           <SlotPanel
-            key={`${binderPage.page},${shownSlot.row},${shownSlot.column}`}
+            key={slotKey(openSlot)}
             collectionId={collectionId}
-            page={binderPage.page}
+            at={openSlot}
             slot={shownSlot}
-            onClose={() => setSelectedSlot(null)}
+            onClose={closeSlot}
           />
         )}
       </section>

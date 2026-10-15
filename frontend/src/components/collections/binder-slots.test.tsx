@@ -3,6 +3,11 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type * as TanStackRouter from "@tanstack/react-router"
 import { BinderView } from "./binder-view"
+import { getGetCollectionQueryKey } from "@/generated/endpoints/collections/collections"
+import {
+  getListCollectionEntriesInfiniteQueryKey,
+  getListMasterInventoryInfiniteQueryKey,
+} from "@/generated/endpoints/inventory/inventory"
 import { NETWORK_ERROR } from "@/lib/collections"
 import { catalogCard, fakeBinder, stubBinderApi } from "@/test-binder-api"
 import { stubGridLayout } from "@/test-grid-layout"
@@ -36,9 +41,12 @@ function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  )
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    ),
+  }
 }
 
 const pikachu = catalogCard("pikachu", "Pikachu", "025")
@@ -62,7 +70,11 @@ async function searchAndPlace(action: string, cardName: string) {
 }
 
 describe("binder Slot actions", () => {
-  beforeEach(() => stubGridLayout())
+  beforeEach(() => {
+    stubGridLayout()
+    // jsdom has no layout to scroll, so the panel's scroll into view is stubbed.
+    Element.prototype.scrollIntoView = vi.fn()
+  })
 
   it("places a searched Card in an empty Slot and refreshes the Page", async () => {
     const binder = fakeBinder({ catalog: [pikachu, bulbasaur] })
@@ -226,32 +238,114 @@ describe("binder Slot actions", () => {
     expect(screen.getByText("Unidentified: 0")).toBeTruthy()
   })
 
-  it("shows a refused write inline and leaves the Slot as it was", async () => {
-    const binder = fakeBinder({
-      catalog: [pikachu],
-      writeError: { status: 404, detail: "no Card has that id" },
-    })
-    stubBinderApi(binder)
+  it.each([
+    [400, "this Slot is outside the Layout"],
+    [404, "no Card has that id"],
+  ])(
+    "shows a %i refused write inline and leaves the Slot as it was",
+    async (status, detail) => {
+      const binder = fakeBinder({
+        catalog: [pikachu],
+        writeError: { status, detail },
+      })
+      stubBinderApi(binder)
+      renderWithClient(<BinderView collectionId="col-1" />)
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+      )
+      fireEvent.click(screen.getByRole("button", { name: "Place a Card" }))
+      fireEvent.change(screen.getByRole("searchbox", { name: "Card name" }), {
+        target: { value: "Pik" },
+      })
+      fireEvent.click(screen.getByRole("button", { name: "Search cards" }))
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Place Pikachu" })
+      )
+
+      expect((await screen.findByRole("alert")).textContent).toBe(detail)
+      expect(
+        screen.getByRole("button", { name: "Row 1, column 1: empty" })
+      ).toBeTruthy()
+    }
+  )
+
+  it("refreshes the Page, the entries, Master Inventory and the Collection after a placement", async () => {
+    stubBinderApi(fakeBinder({ catalog: [pikachu] }))
+    const { queryClient } = renderWithClient(
+      <BinderView collectionId="col-1" />
+    )
+    const keys = [
+      getListCollectionEntriesInfiniteQueryKey("col-1", { limit: 100 }),
+      getListMasterInventoryInfiniteQueryKey({ limit: 100 }),
+      getGetCollectionQueryKey("col-1"),
+    ]
+    for (const key of keys) queryClient.setQueryData(key, {})
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    )
+    await searchAndPlace("Place a Card", "Pikachu")
+
+    await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    for (const key of keys)
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+  })
+
+  it("moves focus into the panel when a Slot is tapped, and scrolls it into view", async () => {
+    stubBinderApi(fakeBinder())
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    )
+
+    const panel = screen.getByRole("region", { name: "Slot actions" })
+    expect(document.activeElement).toBe(panel)
+    expect(panel.scrollIntoView).toHaveBeenCalledWith({ block: "nearest" })
+  })
+
+  it("puts focus in the name field when the catalog search opens", async () => {
+    stubBinderApi(fakeBinder({ catalog: [pikachu] }))
     renderWithClient(<BinderView collectionId="col-1" />)
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Row 1, column 1: empty" })
     )
     fireEvent.click(screen.getByRole("button", { name: "Place a Card" }))
-    fireEvent.change(screen.getByRole("searchbox", { name: "Card name" }), {
-      target: { value: "Pik" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Search cards" }))
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Place Pikachu" })
-    )
 
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "no Card has that id"
+    expect(document.activeElement).toBe(
+      screen.getByRole("searchbox", { name: "Card name" })
     )
-    expect(
-      screen.getByRole("button", { name: "Row 1, column 1: empty" })
-    ).toBeTruthy()
+  })
+
+  it("returns focus to the Slot it opened when the panel is closed", async () => {
+    stubBinderApi(fakeBinder())
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    const tile = await screen.findByRole("button", {
+      name: "Row 1, column 1: empty",
+    })
+    fireEvent.click(tile)
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+
+    expect(screen.queryByRole("region", { name: "Slot actions" })).toBeNull()
+    expect(document.activeElement).toBe(tile)
+  })
+
+  it("returns focus to the Slot after a write closes the panel", async () => {
+    stubBinderApi(fakeBinder({ catalog: [pikachu] }))
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    const tile = await screen.findByRole("button", {
+      name: "Row 1, column 1: empty",
+    })
+    fireEvent.click(tile)
+    await searchAndPlace("Place a Card", "Pikachu")
+
+    await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    expect(screen.queryByRole("region", { name: "Slot actions" })).toBeNull()
+    expect(document.activeElement).toBe(tile)
   })
 
   it("reports a network failure on a Slot write inline", async () => {

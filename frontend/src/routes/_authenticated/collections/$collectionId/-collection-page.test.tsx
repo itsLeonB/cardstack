@@ -10,7 +10,7 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import { NotFound } from "@/components/layout/not-found"
-import { fakeBinder, stubBinderApi } from "@/test-binder-api"
+import { catalogCard, fakeBinder, stubBinderApi } from "@/test-binder-api"
 import type { FakeBinder } from "@/test-binder-api"
 import { Route as CollectionRoute } from "./index"
 
@@ -87,6 +87,27 @@ describe("Collection page", () => {
     expect(
       screen.queryByRole("heading", { name: "Make this a binder" })
     ).toBeNull()
+  })
+
+  it("lists a binder's Cards without quantity controls", async () => {
+    const entries = [
+      { quantity: 2, card: catalogCard("pikachu", "Pikachu", "025") },
+    ]
+    await renderCollectionPage(fakeBinder({ entries }))
+
+    expect(await screen.findByText("Pikachu")).toBeTruthy()
+    expect(screen.queryByLabelText("Quantity of Pikachu")).toBeNull()
+  })
+
+  it("keeps quantity controls on a plain Collection's list", async () => {
+    const entries = [
+      { quantity: 2, card: catalogCard("pikachu", "Pikachu", "025") },
+    ]
+    await renderCollectionPage(
+      fakeBinder({ exists: false, cardCount: 2, entries })
+    )
+
+    expect(await screen.findByLabelText("Quantity of Pikachu")).toBeTruthy()
   })
 
   it("shows the binder view once a binder is created from the plain page", async () => {
