@@ -24,23 +24,27 @@ type binderLayoutEnvelope struct {
 }
 
 type binderPageEnvelope struct {
-	Data struct {
-		Page              int              `json:"page"`
-		Leaf              int              `json:"leaf"`
-		Side              string           `json:"side"`
-		Layout            binderLayoutJSON `json:"layout"`
-		CardTotal         int              `json:"cardTotal"`
-		UnidentifiedCount int              `json:"unidentifiedCount"`
-		Slots             []struct {
-			Row    int    `json:"row"`
-			Column int    `json:"column"`
-			State  string `json:"state"`
-			Card   *struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
-			} `json:"card"`
-		} `json:"slots"`
-	} `json:"data"`
+	Data binderPageBody `json:"data"`
+}
+
+// binderPageBody is one Page as a Page read returns it, and as a move returns
+// each of its two Pages.
+type binderPageBody struct {
+	Page              int              `json:"page"`
+	Leaf              int              `json:"leaf"`
+	Side              string           `json:"side"`
+	Layout            binderLayoutJSON `json:"layout"`
+	CardTotal         int              `json:"cardTotal"`
+	UnidentifiedCount int              `json:"unidentifiedCount"`
+	Slots             []struct {
+		Row    int    `json:"row"`
+		Column int    `json:"column"`
+		State  string `json:"state"`
+		Card   *struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"card"`
+	} `json:"slots"`
 }
 
 type errorCodeBody struct {

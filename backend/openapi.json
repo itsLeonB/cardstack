@@ -288,6 +288,71 @@
         ],
         "type": "object"
       },
+      "BinderSlotMoveBody": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/BinderSlotTargetBody",
+            "description": "The filled Slot to move the card from."
+          },
+          "to": {
+            "$ref": "#/components/schemas/BinderSlotTargetBody",
+            "description": "The Slot to move the card to. If it holds a card, the two cards swap."
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "BinderSlotMoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/BinderPage",
+            "description": "The Page the card left, read after the move."
+          },
+          "to": {
+            "$ref": "#/components/schemas/BinderPage",
+            "description": "The Page the card went to, read after the move."
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "BinderSlotTargetBody": {
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number in turning order, counted from 1.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "row": {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "row",
+          "column"
+        ],
+        "type": "object"
+      },
       "BulkUpdateEntriesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -675,6 +740,18 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/BinderPage"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeBinderSlotMoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BinderSlotMoveResult"
           }
         },
         "required": [
@@ -3148,6 +3225,64 @@
           }
         ],
         "summary": "Mark a Slot Unidentified, removing the Card it held; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/slots/move": {
+      "post": {
+        "operationId": "move-binder-slot",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderSlotMoveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderSlotMoveResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Move a card to another Slot of the binder, swapping when the target holds a card; returns the source and target Pages",
         "tags": [
           "binder"
         ]

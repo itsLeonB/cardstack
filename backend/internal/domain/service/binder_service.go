@@ -46,6 +46,9 @@ type BinderService interface {
 	// held or now holds in step, in one transaction. It joins a transaction
 	// already open on ctx, so a later operation can call it inside its own.
 	WriteSlot(ctx context.Context, req dto.BinderSlotWrite) error
+	// MoveSlot moves a card to another Slot of the same binder, swapping when the
+	// target is filled. Quantities do not change.
+	MoveSlot(ctx context.Context, req dto.BinderSlotMove) error
 }
 
 type binderService struct {
