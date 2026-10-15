@@ -45,7 +45,24 @@ A Card or Expansion Set whose contents were last written by an Admin rather than
 _Avoid_: calling a Card "custom" or "manual" — those say how it was typed, not that ingestion must leave it alone.
 
 **Collection**:
-A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit. May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement, no binder page/slot layout — that's a later feature). Strictly private to its owner in MVP; sharing is a post-MVP concern.
+A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit. May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Strictly private to its owner in MVP; sharing is a post-MVP concern.
+
+**Layout**:
+The physical shape of a binder-style Collection: how many rows and columns each Page has, and how many Leaves there are. Uniform across the whole Collection. A Collection without a Layout (a box, a deck) has no Leaves, Pages or Slots and tracks quantity only.
+
+**Leaf**:
+One physical binder sheet, with a front Page and a back Page. The unit a person adds to or removes from a binder, always as both faces together. Leaves are ordered in the binder, and inserting or removing one renumbers the Pages after it, the way page numbers shift in a real binder.
+
+**Page**:
+One face of a Leaf, holding a fixed grid of Slots. Pages are numbered in the order a person turns through the binder.
+
+**Slot**:
+One pocket on a Page, addressed by its Page, row and column. Holds at most one physical card and is in one of three states: empty, holding a Card, or Unidentified. In a Collection with a Layout, the quantity of a Card is the number of its Slots; two copies of a Card take two Slots.
+_Avoid_: calling a Slot a quantity or an Inventory Entry — an Inventory Entry says how many, a Slot says where.
+
+**Unidentified**:
+The state of a Slot that holds a physical card the app could not match to a Card, whether because matching failed, no candidate was good enough, or the user marked it by hand. It counts toward no Card's quantity and no Master Inventory, since it has no Card, but it is a physical card in the binder and is shown as a count. The user resolves it by placing a Card in the Slot.
+_Avoid_: "unknown card" — Phase 1 already uses that for a Card id the server does not know; here the card exists but has no identity yet.
 
 **Inventory Entry**:
 The atomic record of how many of one Card a user holds within one Collection. This is where quantity actually lives — Collections and Master Inventory are both just views over Inventory Entries.
