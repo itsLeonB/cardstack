@@ -30,7 +30,7 @@ func main() {
 	// and limiters are stored in the route closures but never actually called.
 	// The admin routes exist only when an Admin is configured, so a placeholder
 	// puts them in the spec; the address is never compared against anything.
-	routes.RegisterRoutes(api, provider.ProvideServices(nil, nil, nil, nil, nil, nil, nil, nil, nil), ratelimit.Limits{}, []string{"admin@example.invalid"})
+	routes.RegisterRoutes(api, provider.ProvideServices(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil), ratelimit.Limits{}, []string{"admin@example.invalid"})
 
 	spec, err := api.OpenAPI().MarshalJSON()
 	if err != nil {

@@ -104,13 +104,15 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string)
 	// test stores, whatever other tests leave in the shared table.
 	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03}
 	store := mocks.NewMockObjectStore(t)
+	binder := provider.ProvideBinderService(ds, images)
 	services := provider.ProvideServices(
 		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, keys),
 		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
 		provider.ProvideInventoryService(ds, images),
-		provider.ProvideBinderService(ds, images),
+		binder,
+		provider.ProvideBinderPlacementService(ds, binder),
 		provider.ProvideMatchService(ds, images, embedder, settings),
 		provider.ProvideAdminSetService(ds, images),
 		provider.ProvideCardAdminService(ds, images, store),

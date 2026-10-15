@@ -19,19 +19,20 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderPlacementService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
 
 type Services struct {
-	Health     service.HealthService
-	Verifier   auth.TokenVerifier
-	Users      service.UserService
-	Catalog    service.CatalogService
-	Collection service.CollectionService
-	Inventory  service.InventoryService
-	Binder     service.BinderService
-	Match      service.MatchService
-	AdminSets  service.AdminSetService
-	CardAdmin  service.CardAdminService
+	Health          service.HealthService
+	Verifier        auth.TokenVerifier
+	Users           service.UserService
+	Catalog         service.CatalogService
+	Collection      service.CollectionService
+	Inventory       service.InventoryService
+	Binder          service.BinderService
+	BinderPlacement service.BinderPlacementService
+	Match           service.MatchService
+	AdminSets       service.AdminSetService
+	CardAdmin       service.CardAdminService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -99,6 +100,20 @@ func ProvideBinderService(ds *DataSources, images mapper.ImageHost) service.Bind
 	)
 }
 
+// ProvideBinderPlacementService builds the placement service over ds's DB. It
+// takes the binder service so each copy is written through the same Slot path.
+func ProvideBinderPlacementService(ds *DataSources, binder service.BinderService) service.BinderPlacementService {
+	return service.NewBinderPlacementService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
+		crud.NewRepository[entity.Card](ds.Gorm),
+		binder,
+	)
+}
+
 // ProvideMatchService builds the scan match service over ds's DB.
 func ProvideMatchService(ds *DataSources, images mapper.ImageHost, embedder embedding.ImageEmbedder, settings service.MatchSettings) service.MatchService {
 	return service.NewMatchService(
@@ -152,17 +167,18 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderPlacement service.BinderPlacementService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
 	return &Services{
-		Health:     coreservice.NewHealthService(),
-		Verifier:   verifier,
-		Users:      users,
-		Catalog:    catalog,
-		Collection: collection,
-		Inventory:  inventory,
-		Binder:     binder,
-		Match:      match,
-		AdminSets:  adminSets,
-		CardAdmin:  cardAdmin,
+		Health:          coreservice.NewHealthService(),
+		Verifier:        verifier,
+		Users:           users,
+		Catalog:         catalog,
+		Collection:      collection,
+		Inventory:       inventory,
+		Binder:          binder,
+		BinderPlacement: binderPlacement,
+		Match:           match,
+		AdminSets:       adminSets,
+		CardAdmin:       cardAdmin,
 	}
 }

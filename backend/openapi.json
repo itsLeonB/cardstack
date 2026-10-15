@@ -240,6 +240,40 @@
         ],
         "type": "object"
       },
+      "BinderPlacementResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "string"
+          },
+          "declined": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Human-readable reason for declined copies.",
+            "type": "string"
+          },
+          "placed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why copies were declined.",
+            "enum": [
+              "not_enough_empty_slots",
+              "card_not_found"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardId",
+          "placed",
+          "declined"
+        ],
+        "type": "object"
+      },
       "BinderSlot": {
         "additionalProperties": false,
         "properties": {
@@ -780,6 +814,24 @@
         ],
         "type": "object"
       },
+      "EnvelopeListBinderPlacementResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BinderPlacementResult"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeListCardHolding": {
         "additionalProperties": false,
         "properties": {
@@ -1254,6 +1306,48 @@
           "total",
           "page",
           "limit"
+        ],
+        "type": "object"
+      },
+      "PlaceCardsInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Cards to place, in order, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/PlaceCardsItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PlaceCardsItem": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to place. Must be unique within the request (400 otherwise).",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Copies to place, one empty Slot each.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity"
         ],
         "type": "object"
       },
@@ -3184,6 +3278,64 @@
           }
         ],
         "summary": "Mark a Slot Unidentified, removing the Card it held; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/placements": {
+      "post": {
+        "operationId": "place-binder-cards",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceCardsInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListBinderPlacementResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Place Cards in a binder's first empty Slots in Page order, one Slot per copy; copies with no empty Slot are declined",
         "tags": [
           "binder"
         ]
