@@ -1,0 +1,37 @@
+backend/cmd/genspec/main.go
+  s_5dd5c65de7b955::t_da76182d0e2cc6 33
+backend/internal/adapters/http/handler/binder_placement_handler.go
+  s_5dd5c65de7b955::t_ccc233a435879d 1-62
+backend/internal/adapters/http/routes/binder_placement_routes_test.go
+  s_5dd5c65de7b955::t_02b8227fe5d4c2 1-130
+backend/internal/adapters/http/routes/register_routes.go
+  s_5dd5c65de7b955::t_db0f27696a2ebb 25,49
+backend/internal/adapters/http/routes/testenv_test.go
+  s_5dd5c65de7b955::t_46791804dbfc32 107,114-115
+backend/internal/domain/dto/binder_placement_dto.go
+  s_5dd5c65de7b955::t_fe00973ebc50d6 1-30
+backend/internal/domain/service/binder_placement_service.go
+  s_5dd5c65de7b955::t_1549973cd0e611 1-189
+backend/internal/provider/service_provider.go
+  s_5dd5c65de7b955::t_51c7870e6cce45 22,25-35,103-116,170,172-182
+backend/internal/provider/wire_gen.go
+  s_5dd5c65de7b955::t_95d14a7d877170 29,40
+backend/openapi.json
+  s_5dd5c65de7b955::t_8b0e7bbdc7eab9 243-276,817-834,1312-1353,3286-3343
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "484b44ec2ae92885158472a316b100c2de8d943c",
+  "prompts": {},
+  "sessions": {
+    "s_5dd5c65de7b955": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5dd5c65de7b955",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
