@@ -276,5 +276,25 @@ func (h *BinderHandler) Routes() []endpoint.Registrable {
 			Secured:     true,
 			HandlerFunc: h.markUnidentified,
 		}),
+		endpoint.New(endpoint.Endpoint[binderSlotMoveInput, dto.BinderSlotMoveResult]{
+			OperationID: "move-binder-slot",
+			Method:      http.MethodPost,
+			Path:        "/collections/{id}/binder/slots/move",
+			Summary:     "Move a card to another Slot of the binder, swapping when the target holds a card; returns the source and target Pages",
+			Tags:        []string{"binder"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.moveSlot,
+		}),
+		endpoint.New(endpoint.Endpoint[binderPageReplaceInput, dto.BinderPageReplaceResult]{
+			OperationID: "replace-binder-page",
+			Method:      http.MethodPut,
+			Path:        "/collections/{id}/binder/pages/{page}",
+			Summary:     "Replace every Slot of a Page; returns what each Slot holds, with the reason for any Card the server did not know",
+			Tags:        []string{"binder"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.replacePage,
+		}),
 	}
 }

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	maxGridSide = 6
+	maxGridSide = dto.BinderMaxGridSide
 	maxLeaves   = 100
 
 	gridRangeMsg          = "rows and columns must each be from 1 to 6"
@@ -50,6 +50,12 @@ type BinderService interface {
 	// transaction, and reconciles each affected Card's entry once. It is the
 	// batch form of WriteSlot and the place the Slot-write rules live.
 	WriteSlots(ctx context.Context, req dto.BinderSlotsWrite) error
+	// MoveSlot moves a card to another Slot of the same binder, swapping when the
+	// target is filled. Quantities do not change.
+	MoveSlot(ctx context.Context, req dto.BinderSlotMove) error
+	// ReplacePage sets every Slot of one Page to the state requested for it. A
+	// Card the server does not know is stored Unidentified and reported as such.
+	ReplacePage(ctx context.Context, req dto.BinderPageReplace) (dto.BinderPageReplaceResult, error)
 }
 
 type binderService struct {
@@ -382,8 +388,8 @@ func (s *binderService) WriteSlots(ctx context.Context, req dto.BinderSlotsWrite
 		changes := make([]resolvedChange, 0, len(req.Changes))
 		for _, change := range req.Changes {
 			target := change.Target
-			if target.Row < 1 || target.Row > layout.Rows || target.Column < 1 || target.Column > layout.Columns {
-				return ungerr.BadRequestError(slotOutOfGridMsg)
+			if err := checkSlotInGrid(layout, target); err != nil {
+				return err
 			}
 
 			leafNumber, side := mapper.LeafOf(target.Page)
