@@ -1,6 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { getGetCollectionQueryKey } from "@/generated/endpoints/collections/collections"
-import { invalidateCollectionCounts } from "@/lib/collections"
+import {
+  invalidateCollectionCounts,
+  invalidateCollectionEntries,
+} from "@/lib/collections"
+import { invalidateMasterInventory } from "@/lib/master-inventory"
 
 export const BINDER_PRESETS = [
   { id: "2x2", label: "2 × 2", rows: 2, columns: 2 },
@@ -46,4 +50,17 @@ export function refreshAfterRemoveBinder(
 ) {
   void queryClient.cancelQueries({ predicate: binderPagesMatch(collectionId) })
   invalidateCollectionCounts(queryClient, collectionId)
+}
+
+/**
+ * A Slot write changes quantities, so the Page, the Collection's entries and
+ * Master Inventory all refresh. A Slot write is the only binder write that does.
+ */
+export function refreshAfterSlotWrite(
+  queryClient: QueryClient,
+  collectionId: string
+) {
+  invalidateBinder(queryClient, collectionId)
+  invalidateCollectionEntries(queryClient, collectionId)
+  invalidateMasterInventory(queryClient)
 }

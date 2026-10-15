@@ -1,13 +1,34 @@
 import { vi } from "vitest"
+import type { CardSummary } from "@/generated/models"
 
 // An in-memory binder behind a faked `fetch`, for tests of the binder views.
 // The generated client, the query cache and the invalidation under test are
 // the app's own; only the network answers. Undo with `vi.unstubAllGlobals()`.
 
-export interface FakeCard {
-  name: string
+export type FakeCard = CardSummary
+
+/** A catalog Card for the fake: the search returns it and a Slot write may place it. */
+export function catalogCard(
+  id: string,
+  name: string,
   localId: string
-  imageUrl: string
+): CardSummary {
+  return {
+    id,
+    name,
+    localId,
+    category: "Pokémon",
+    expansionSet: {
+      id: "set-1",
+      code: "BS",
+      name: "Base Set",
+      imageUrl: "https://img.example/set.png",
+    },
+    illustrator: "",
+    imageUrl: `https://img.example/${id}.jpg`,
+    rarity: { id: "rare", code: "R", name: "Rare" },
+    tags: [],
+  }
 }
 
 export interface FakeSlot {
@@ -22,6 +43,7 @@ export interface RequestBody {
   leafCount?: number
   leaf?: number
   placement?: string
+  cardId?: string
 }
 
 /** What the fake answers with: an envelope, an error, or nothing (204). */
@@ -36,6 +58,10 @@ export interface FakeBinder {
   cardCount: number
   /** Filled Slots by Page number, keyed "row,column". */
   filled: Record<number, Record<string, FakeSlot>>
+  /** Cards the catalog search returns, and the only ones a Slot write accepts. */
+  catalog: FakeCard[]
+  /** When set, every Slot write is answered with this error and changes nothing. */
+  writeError?: { status: number; detail: string }
   requests: { method: string; path: string; body?: RequestBody }[]
 }
 
@@ -47,6 +73,7 @@ export function fakeBinder(overrides: Partial<FakeBinder> = {}): FakeBinder {
     leafCount: 10,
     cardCount: 0,
     filled: {},
+    catalog: [],
     requests: [],
     ...overrides,
   }
@@ -97,6 +124,37 @@ function json(status: number, body: ResponseBody) {
   })
 }
 
+function writeSlot(
+  b: FakeBinder,
+  method: string,
+  [, pageText, rowText, columnText, unidentified]: RegExpMatchArray,
+  body: RequestBody | undefined
+): Response {
+  if (b.writeError)
+    return json(b.writeError.status, { detail: b.writeError.detail })
+  const page = Number(pageText)
+  const row = Number(rowText)
+  const column = Number(columnText)
+  if (page < 1 || page > b.leafCount * 2) {
+    return json(404, { detail: "this binder has no Page with that number" })
+  }
+  if (row < 1 || row > b.rows || column < 1 || column > b.columns) {
+    return json(400, { detail: "this Slot is outside the Layout" })
+  }
+  const slots = (b.filled[page] ??= {})
+  const key = `${row},${column}`
+  if (method === "DELETE") {
+    delete slots[key]
+  } else if (unidentified) {
+    slots[key] = { state: "unidentified" }
+  } else {
+    const card = b.catalog.find((c) => c.id === body?.cardId)
+    if (!card) return json(404, { detail: "no Card has that id" })
+    slots[key] = { state: "card", card }
+  }
+  return json(200, { data: pageBody(b, page) })
+}
+
 function respond(
   b: FakeBinder,
   method: string,
@@ -110,6 +168,18 @@ function respond(
       return json(404, { detail: "this binder has no Page with that number" })
     }
     return json(200, { data: pageBody(b, n) })
+  }
+  const slot = path.match(
+    /\/binder\/pages\/(\d+)\/slots\/(\d+)\/(\d+)(\/unidentified)?$/
+  )
+  if (slot && (method === "PUT" || method === "DELETE")) {
+    return writeSlot(b, method, slot, body)
+  }
+  if (method === "GET" && path.endsWith("/catalog/cards")) {
+    return json(200, {
+      data: b.catalog,
+      meta: { total: b.catalog.length, page: 1, limit: 60 },
+    })
   }
   if (method === "POST" && path.endsWith("/binder/leaves")) {
     b.leafCount += 1

@@ -1,0 +1,280 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type * as TanStackRouter from "@tanstack/react-router"
+import { BinderView } from "./binder-view"
+import { NETWORK_ERROR } from "@/lib/collections"
+import { catalogCard, fakeBinder, stubBinderApi } from "@/test-binder-api"
+import { stubGridLayout } from "@/test-grid-layout"
+
+// CardTile links through TanStack Router's `Link`, which needs a router.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof TanStackRouter>()
+  return {
+    ...actual,
+    Link: ({
+      children,
+      params: _params,
+      to,
+      search: _search,
+      ...props
+    }: any) => (
+      <a href={to} {...props}>
+        {children}
+      </a>
+    ),
+  }
+})
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+function renderWithClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  )
+}
+
+const pikachu = catalogCard("pikachu", "Pikachu", "025")
+const bulbasaur = catalogCard("bulbasaur", "Bulbasaur", "001")
+
+// The write, not the GET that refetches the Page after it.
+function lastWrite(requests: { method: string }[]) {
+  return requests.filter((request) => request.method !== "GET").at(-1)
+}
+
+// Opens the Slot's panel, then the catalog search, and places the named Card.
+async function searchAndPlace(action: string, cardName: string) {
+  fireEvent.click(screen.getByRole("button", { name: action }))
+  fireEvent.change(screen.getByRole("searchbox", { name: "Card name" }), {
+    target: { value: cardName.slice(0, 3) },
+  })
+  fireEvent.click(screen.getByRole("button", { name: "Search cards" }))
+  fireEvent.click(
+    await screen.findByRole("button", { name: `Place ${cardName}` })
+  )
+}
+
+describe("binder Slot actions", () => {
+  beforeEach(() => stubGridLayout())
+
+  it("places a searched Card in an empty Slot and refreshes the Page", async () => {
+    const binder = fakeBinder({ catalog: [pikachu, bulbasaur] })
+    stubBinderApi(binder)
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    )
+    await searchAndPlace("Place a Card", "Pikachu")
+
+    expect(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    ).toBeTruthy()
+    expect(
+      screen.getByText("Cards and Unidentified: 1 of 80 slots")
+    ).toBeTruthy()
+    expect(lastWrite(binder.requests)).toMatchObject({
+      method: "PUT",
+      path: "/collections/col-1/binder/pages/1/slots/1/1",
+      body: { cardId: "pikachu" },
+    })
+  })
+
+  it("offers no Clear on an empty Slot", async () => {
+    stubBinderApi(fakeBinder())
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    )
+
+    expect(screen.getByRole("button", { name: "Place a Card" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Mark Unidentified" })
+    ).toBeNull()
+  })
+
+  it("offers Replace, Clear and Mark Unidentified on a filled Slot", async () => {
+    stubBinderApi(
+      fakeBinder({
+        catalog: [pikachu],
+        filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+      })
+    )
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+
+    expect(screen.getByRole("button", { name: "Replace card" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Mark Unidentified" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Place a Card" })).toBeNull()
+  })
+
+  it("clears a filled Slot back to empty", async () => {
+    const binder = fakeBinder({
+      catalog: [pikachu],
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    stubBinderApi(binder)
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    ).toBeTruthy()
+    expect(lastWrite(binder.requests)).toMatchObject({
+      method: "DELETE",
+      path: "/collections/col-1/binder/pages/1/slots/1/1",
+    })
+    expect(
+      screen.getByText("Cards and Unidentified: 0 of 80 slots")
+    ).toBeTruthy()
+  })
+
+  it("replaces the Card in a filled Slot through the same search", async () => {
+    const binder = fakeBinder({
+      catalog: [pikachu, bulbasaur],
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    stubBinderApi(binder)
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    await searchAndPlace("Replace card", "Bulbasaur")
+
+    expect(
+      await screen.findByRole("button", { name: "Row 1, column 1: Bulbasaur" })
+    ).toBeTruthy()
+    expect(lastWrite(binder.requests)).toMatchObject({
+      method: "PUT",
+      path: "/collections/col-1/binder/pages/1/slots/1/1",
+      body: { cardId: "bulbasaur" },
+    })
+    expect(
+      screen.getByText("Cards and Unidentified: 1 of 80 slots")
+    ).toBeTruthy()
+  })
+
+  it("marks a filled Slot Unidentified", async () => {
+    const binder = fakeBinder({
+      catalog: [pikachu],
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    stubBinderApi(binder)
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Mark Unidentified" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Unidentified",
+      })
+    ).toBeTruthy()
+    expect(lastWrite(binder.requests)).toMatchObject({
+      method: "PUT",
+      path: "/collections/col-1/binder/pages/1/slots/1/1/unidentified",
+    })
+    expect(screen.getByText("Unidentified: 1")).toBeTruthy()
+  })
+
+  it("gives a Card to an Unidentified Slot, and offers no Mark Unidentified there", async () => {
+    stubBinderApi(
+      fakeBinder({
+        catalog: [pikachu],
+        filled: { 1: { "1,1": { state: "unidentified" } } },
+      })
+    )
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Unidentified",
+      })
+    )
+    expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Mark Unidentified" })
+    ).toBeNull()
+
+    await searchAndPlace("Place a Card", "Pikachu")
+
+    expect(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    ).toBeTruthy()
+    expect(screen.getByText("Unidentified: 0")).toBeTruthy()
+  })
+
+  it("shows a refused write inline and leaves the Slot as it was", async () => {
+    const binder = fakeBinder({
+      catalog: [pikachu],
+      writeError: { status: 404, detail: "no Card has that id" },
+    })
+    stubBinderApi(binder)
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Place a Card" }))
+    fireEvent.change(screen.getByRole("searchbox", { name: "Card name" }), {
+      target: { value: "Pik" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Search cards" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Place Pikachu" })
+    )
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "no Card has that id"
+    )
+    expect(
+      screen.getByRole("button", { name: "Row 1, column 1: empty" })
+    ).toBeTruthy()
+  })
+
+  it("reports a network failure on a Slot write inline", async () => {
+    stubBinderApi(fakeBinder({ catalog: [pikachu] }))
+    renderWithClient(<BinderView collectionId="col-1" />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Place a Card" }))
+    fireEvent.change(screen.getByRole("searchbox", { name: "Card name" }), {
+      target: { value: "Pik" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Search cards" }))
+    const place = await screen.findByRole("button", { name: "Place Pikachu" })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch")
+      })
+    )
+    fireEvent.click(place)
+
+    expect(await screen.findByText(NETWORK_ERROR)).toBeTruthy()
+  })
+})

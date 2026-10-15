@@ -17,7 +17,7 @@ export const ListCollectionsResponse = zod.object({
   "columns": zod.int().describe('Columns of Slots on each Page.'),
   "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
   "rows": zod.int().describe('Rows of Slots on each Page.')
-}).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),zod.null()]),
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
@@ -48,7 +48,7 @@ export const CreateCollectionResponse = zod.object({
   "columns": zod.int().describe('Columns of Slots on each Page.'),
   "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
   "rows": zod.int().describe('Rows of Slots on each Page.')
-}).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),zod.null()]),
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
@@ -80,7 +80,7 @@ export const GetCollectionResponse = zod.object({
   "columns": zod.int().describe('Columns of Slots on each Page.'),
   "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
   "rows": zod.int().describe('Rows of Slots on each Page.')
-}).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),zod.null()]),
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
@@ -115,7 +115,7 @@ export const UpdateCollectionResponse = zod.object({
   "columns": zod.int().describe('Columns of Slots on each Page.'),
   "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
   "rows": zod.int().describe('Rows of Slots on each Page.')
-}).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),zod.null()]),
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),

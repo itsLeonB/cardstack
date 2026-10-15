@@ -1,7 +1,17 @@
+import { cn } from "cn"
 import type { BinderPage, BinderSlot } from "@/generated/models"
 
-/** One Page's Slots in the Layout's rows and columns. */
-export function BinderPageGrid({ page }: { page: BinderPage }) {
+/** One Page's Slots in the Layout's rows and columns; tapping a Slot selects it. */
+export function BinderPageGrid({
+  page,
+  selected,
+  onSelect,
+}: {
+  page: BinderPage
+  /** The Slot whose actions are open. */
+  selected?: { row: number; column: number }
+  onSelect: (slot: BinderSlot) => void
+}) {
   return (
     <div
       className="grid gap-2"
@@ -10,21 +20,42 @@ export function BinderPageGrid({ page }: { page: BinderPage }) {
       }}
     >
       {page.slots?.map((slot) => (
-        <SlotTile key={`${slot.row},${slot.column}`} slot={slot} />
+        <SlotTile
+          key={`${slot.row},${slot.column}`}
+          slot={slot}
+          selected={
+            selected?.row === slot.row && selected.column === slot.column
+          }
+          onSelect={() => onSelect(slot)}
+        />
       ))}
     </div>
   )
 }
 
-function SlotTile({ slot }: { slot: BinderSlot }) {
+function SlotTile({
+  slot,
+  selected,
+  onSelect,
+}: {
+  slot: BinderSlot
+  selected: boolean
+  onSelect: () => void
+}) {
   const where = `Row ${slot.row}, column ${slot.column}`
+  const tile = cn(
+    "rounded-md border text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+    selected && "ring-2 ring-ring"
+  )
 
   if (slot.state === "card" && slot.card) {
     return (
-      <div
-        role="group"
+      <button
+        type="button"
         aria-label={`${where}: ${slot.card.name}`}
-        className="flex flex-col gap-1 rounded-md border bg-card p-1"
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={cn(tile, "flex flex-col gap-1 bg-card p-1")}
       >
         <img
           src={slot.card.imageUrl}
@@ -32,29 +63,36 @@ function SlotTile({ slot }: { slot: BinderSlot }) {
           loading="lazy"
           className="aspect-[5/7] w-full rounded object-cover"
         />
-        <p className="truncate text-xs font-medium">{slot.card.name}</p>
-        <p className="text-xs">#{slot.card.localId}</p>
-      </div>
+        <span className="truncate text-xs font-medium">{slot.card.name}</span>
+        <span className="text-xs">#{slot.card.localId}</span>
+      </button>
     )
   }
 
   if (slot.state === "unidentified") {
     return (
-      <div
-        role="group"
+      <button
+        type="button"
         aria-label={`${where}: Unidentified`}
-        className="flex aspect-[5/7] items-center justify-center rounded-md border border-dashed bg-muted p-1 text-center text-xs font-medium"
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={cn(
+          tile,
+          "flex aspect-[5/7] items-center justify-center border-dashed bg-muted p-1 text-center text-xs font-medium"
+        )}
       >
         Unidentified
-      </div>
+      </button>
     )
   }
 
   return (
-    <div
-      role="group"
+    <button
+      type="button"
       aria-label={`${where}: empty`}
-      className="aspect-[5/7] rounded-md border border-dashed"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(tile, "aspect-[5/7] border-dashed")}
     />
   )
 }

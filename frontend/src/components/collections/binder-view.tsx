@@ -14,6 +14,7 @@ import {
 import { BinderLayoutForm } from "@/components/collections/binder-layout-form"
 import type { BinderLayoutValues } from "@/components/collections/binder-layout-form"
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
+import { SlotPanel } from "@/components/collections/binder-slot-panel"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import { invalidateBinder, refreshAfterRemoveBinder } from "@/lib/binder"
 
@@ -34,6 +35,12 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   // Collection refetch unmounts this view.
   const [detached, setDetached] = useState(false)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
+  // The Slot whose actions are open. Only the Page it was tapped on shows it.
+  const [selectedSlot, setSelectedSlot] = useState<{
+    page: number
+    row: number
+    column: number
+  } | null>(null)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
@@ -197,6 +204,13 @@ export function BinderView({ collectionId }: { collectionId: string }) {
 
   const { layout, cardTotal, unidentifiedCount, leaf, side } = binderPage
   const empty = cardTotal === 0
+  const shownSlot =
+    selectedSlot?.page === binderPage.page
+      ? binderPage.slots?.find(
+          (slot) =>
+            slot.row === selectedSlot.row && slot.column === selectedSlot.column
+        )
+      : undefined
   const leafBusy = addLeafMutation.isPending || removeLeafMutation.isPending
 
   return (
@@ -269,7 +283,26 @@ export function BinderView({ collectionId }: { collectionId: string }) {
         <p className="text-sm">
           Leaf {leaf}, {side}
         </p>
-        <BinderPageGrid page={binderPage} />
+        <BinderPageGrid
+          page={binderPage}
+          selected={shownSlot}
+          onSelect={(slot) =>
+            setSelectedSlot({
+              page: binderPage.page,
+              row: slot.row,
+              column: slot.column,
+            })
+          }
+        />
+        {shownSlot && (
+          <SlotPanel
+            key={`${binderPage.page},${shownSlot.row},${shownSlot.column}`}
+            collectionId={collectionId}
+            page={binderPage.page}
+            slot={shownSlot}
+            onClose={() => setSelectedSlot(null)}
+          />
+        )}
       </section>
 
       <div className="flex flex-col gap-2">
