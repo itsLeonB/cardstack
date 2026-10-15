@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import {
   useRemoveBinderLeaf,
   useUpdateBinderGrid,
 } from "@/generated/endpoints/binder/binder"
-import type { BinderSlot } from "@/generated/models"
+import type { BinderSlot, BinderSlotTarget } from "@/generated/models"
 import { BinderLayoutForm } from "@/components/collections/binder-layout-form"
 import type { BinderLayoutValues } from "@/components/collections/binder-layout-form"
 import { BinderMoveBanner } from "@/components/collections/binder-move-banner"
@@ -31,7 +31,14 @@ import type { SlotRef } from "@/lib/binder"
 const SWIPE_MIN_PX = 50
 
 /** Turns through one binder Page at a time, with its Leaf actions. */
-export function BinderView({ collectionId }: { collectionId: string }) {
+export function BinderView({
+  collectionId,
+  jumpTo,
+}: {
+  collectionId: string
+  /** A Slot to show: turns to its Page and highlights it. A new object per request. */
+  jumpTo?: BinderSlotTarget | null
+}) {
   const queryClient = useQueryClient()
   const [requestedPage, setRequestedPage] = useState(1)
   const [jumpText, setJumpText] = useState("")
@@ -55,6 +62,9 @@ export function BinderView({ collectionId }: { collectionId: string }) {
     label: string
   } | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  // A Slot a jump brought into view. It is only highlighted, not opened.
+  const [highlighted, setHighlighted] = useState<SlotRef | null>(null)
+  const pageRef = useRef<HTMLElement>(null)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
@@ -72,6 +82,14 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const updateGridMutation = useUpdateBinderGrid()
   const removeBinderMutation = useRemoveBinder()
   const moveMutation = useMoveBinderSlot()
+
+  // The entries list sits below the binder, so the grid scrolls back up to it.
+  useEffect(() => {
+    if (!jumpTo) return
+    setRequestedPage(jumpTo.page)
+    setHighlighted(jumpTo)
+    pageRef.current?.scrollIntoView({ block: "center" })
+  }, [jumpTo])
 
   // Steps from the requested Page, not the shown one, so two quick taps move
   // two Pages even before the first has loaded.
@@ -263,6 +281,8 @@ export function BinderView({ collectionId }: { collectionId: string }) {
     binderPage.slots?.find(
       (slot) => slot.row === openSlot.row && slot.column === openSlot.column
     )
+  const highlightedHere =
+    highlighted?.page === binderPage.page ? highlighted : undefined
   function closeSlot() {
     setSelectedSlot(null)
     openerRef.current?.focus()
@@ -340,6 +360,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
       )}
 
       <section
+        ref={pageRef}
         aria-label="Binder page"
         className="flex flex-col gap-3"
         onTouchStart={handleTouchStart}
@@ -350,7 +371,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
         </p>
         <BinderPageGrid
           page={binderPage}
-          selected={openSlot}
+          selected={openSlot ?? highlightedHere}
           onSelect={(slot, tile) => {
             if (moving) {
               moveTo({
@@ -360,6 +381,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
               })
               return
             }
+            setHighlighted(null)
             openerRef.current = tile
             setSelectedSlot({
               page: binderPage.page,

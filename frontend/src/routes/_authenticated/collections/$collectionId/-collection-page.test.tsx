@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   Outlet,
@@ -59,7 +65,87 @@ function pick(options: {
   return { loader, component, validateSearch }
 }
 
+const pikachu = catalogCard("pikachu", "Pikachu", "025")
+
 describe("Collection page", () => {
+  it("lists each binder Card's Slot positions, one per copy", async () => {
+    await renderCollectionPage(
+      fakeBinder({
+        rows: 2,
+        columns: 3,
+        entries: [
+          {
+            card: pikachu,
+            quantity: 2,
+            positions: [
+              { page: 4, row: 2, column: 3 },
+              { page: 1, row: 1, column: 1 },
+            ],
+          },
+        ],
+      })
+    )
+
+    expect(
+      await screen.findByRole("button", { name: "Page 4 · row 2 · col 3" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Page 1 · row 1 · col 1" })
+    ).toBeTruthy()
+  })
+
+  it("opens the binder on the tapped position's Page with that Slot highlighted", async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    await renderCollectionPage(
+      fakeBinder({
+        rows: 2,
+        columns: 3,
+        filled: { 4: { "2,3": { state: "card", card: pikachu } } },
+        entries: [
+          {
+            card: pikachu,
+            quantity: 1,
+            positions: [{ page: 4, row: 2, column: 3 }],
+          },
+        ],
+      })
+    )
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Page 4 · row 2 · col 3" })
+    )
+
+    expect(await screen.findByText("Page 4 of 20")).toBeTruthy()
+    const tile = screen.getByRole("button", {
+      name: "Row 2, column 3: Pikachu",
+    })
+    expect(tile.getAttribute("aria-pressed")).toBe("true")
+    expect(screen.queryByRole("region", { name: "Slot actions" })).toBeNull()
+  })
+
+  it("reloads the entries after a Leaf is added, so positions follow the renumbered Pages", async () => {
+    const binder = fakeBinder({
+      rows: 2,
+      columns: 2,
+      entries: [
+        {
+          card: pikachu,
+          quantity: 1,
+          positions: [{ page: 1, row: 1, column: 1 }],
+        },
+      ],
+    })
+    await renderCollectionPage(binder)
+    await screen.findByRole("button", { name: "Page 1 · row 1 · col 1" })
+    const entryLoads = () =>
+      binder.requests.filter((r) => r.path.endsWith("/entries")).length
+    const before = entryLoads()
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Leaf after" }))
+
+    await waitFor(() => expect(entryLoads()).toBeGreaterThan(before))
+  })
+
   it("offers the Layout form on a plain Collection with no Cards", async () => {
     await renderCollectionPage(fakeBinder({ exists: false, cardCount: 0 }))
 

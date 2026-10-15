@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
@@ -8,6 +9,7 @@ import {
   getGetCollectionQueryOptions,
   useGetCollection,
 } from "@/generated/endpoints/collections/collections"
+import type { BinderSlotTarget } from "@/generated/models"
 import { AddCardsLink } from "@/components/collections/add-cards-link"
 import { ScanLink } from "@/components/scan/scan-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
@@ -47,6 +49,9 @@ function CollectionPage() {
     await navigate({ search: next })
     window.scrollTo({ top: 0, behavior: "instant" })
   }
+  // A position tapped in the entries list. A new object per tap, so tapping
+  // the same position again still jumps.
+  const [jumpTo, setJumpTo] = useState<BinderSlotTarget | null>(null)
   const query = useGetCollection(collectionId)
   const collection =
     query.data?.status === 200 ? query.data.data.data : undefined
@@ -88,7 +93,9 @@ function CollectionPage() {
               </div>
             }
           />
-          {collection.binder && <BinderView collectionId={collectionId} />}
+          {collection.binder && (
+            <BinderView collectionId={collectionId} jumpTo={jumpTo} />
+          )}
           {!collection.binder && collection.cardCount === 0 && (
             <CreateBinderPanel collectionId={collectionId} />
           )}
@@ -97,6 +104,7 @@ function CollectionPage() {
             search={search}
             onSearchChange={(next) => void changeSearch(next)}
             quantityEditable={!collection.binder}
+            onFindPosition={setJumpTo}
           />
         </>
       )}
