@@ -88,7 +88,8 @@ func (s *inventoryService) List(ctx context.Context, req dto.InventoryListReques
 	items := ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) })
 	// Only a binder has Slots, so a plain Collection's list finds none and omits positions.
 	if len(items) > 0 {
-		slots, err := s.slots.ListOccupiedSlots(ctx, req.CollectionID)
+		cardIDs := ezutil.MapSlice(items, func(i dto.InventoryItem) uuid.UUID { return i.Card.ID })
+		slots, err := s.slots.ListOccupiedSlots(ctx, req.CollectionID, cardIDs)
 		if err != nil {
 			return nil, dto.PaginationMeta{}, err
 		}

@@ -19,7 +19,7 @@ const (
 
 // BinderPlacementService places Cards into a binder's empty Slots, the way the
 // Phase 1 "Scan cards" flow adds copies to a binder. It locks the Collection
-// for the whole batch and writes each copy through BinderService.WriteSlot, so
+// for the whole batch and hands every copy to BinderService.WriteSlots, so
 // every Inventory Entry is reconciled with its Slots in the same transaction.
 type BinderPlacementService interface {
 	// PlaceCards fills the first empty Slots in Page order, one Slot per copy. It
@@ -91,6 +91,7 @@ func (s *binderPlacementService) PlaceCards(ctx context.Context, req dto.BinderP
 			return err
 		}
 
+		var changes []dto.BinderSlotChange
 		for _, item := range req.Items {
 			card, err := s.findCard(ctx, item.CardID)
 			if err != nil {
@@ -108,16 +109,7 @@ func (s *binderPlacementService) PlaceCards(ctx context.Context, req dto.BinderP
 
 			placed := min(item.Quantity, len(empty))
 			for _, target := range empty[:placed] {
-				err := s.binder.WriteSlot(ctx, dto.BinderSlotWrite{
-					ProfileID:    req.ProfileID,
-					CollectionID: c.ID,
-					Target:       target,
-					State:        dto.BinderSlotCard,
-					CardID:       item.CardID,
-				})
-				if err != nil {
-					return err
-				}
+				changes = append(changes, dto.BinderSlotChange{Target: target, State: dto.BinderSlotCard, CardID: item.CardID})
 			}
 			empty = empty[placed:]
 
@@ -129,7 +121,15 @@ func (s *binderPlacementService) PlaceCards(ctx context.Context, req dto.BinderP
 			results = append(results, result)
 		}
 
-		return nil
+		if len(changes) == 0 {
+			return nil
+		}
+
+		return s.binder.WriteSlots(ctx, dto.BinderSlotsWrite{
+			ProfileID:    req.ProfileID,
+			CollectionID: c.ID,
+			Changes:      changes,
+		})
 	})
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (s *binderPlacementService) emptySlots(ctx context.Context, collectionID uu
 		return nil, err
 	}
 
-	occupied, err := s.slots.ListOccupiedSlots(ctx, collectionID)
+	occupied, err := s.slots.ListAllOccupiedSlots(ctx, collectionID)
 	if err != nil {
 		return nil, err
 	}

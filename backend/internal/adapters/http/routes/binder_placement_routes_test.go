@@ -50,13 +50,13 @@ func TestBinderPlacementFillsFirstEmptySlotsInPageOrder(t *testing.T) {
 	assert.Equal(t, 1, masterQuantity(t, api, owner, x))
 
 	_, positions := entryRow(t, listEntryRows(t, api, owner, id), a)
-	assert.Equal(t, []dto.BinderSlotPosition{{Page: 1, Row: 1, Column: 1}, {Page: 1, Row: 2, Column: 1}, {Page: 1, Row: 2, Column: 2}}, positions)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 1, Row: 1, Column: 1}, {Page: 1, Row: 2, Column: 1}, {Page: 1, Row: 2, Column: 2}}, positions)
 
 	results = decodePlacements(t, postPlacements(api, owner, id, placementItem(a, 1)))
 	assert.Equal(t, []dto.BinderPlacementResult{{CardID: a, Placed: 1}}, results)
 	requireEntriesMatchSlots(t, api, id)
 	_, positions = entryRow(t, listEntryRows(t, api, owner, id), a)
-	assert.Contains(t, positions, dto.BinderSlotPosition{Page: 2, Row: 1, Column: 1})
+	assert.Contains(t, positions, dto.BinderSlotTarget{Page: 2, Row: 1, Column: 1})
 }
 
 // TestBinderPlacementDeclinesWhatDoesNotFit: copies that find no empty Slot
@@ -126,5 +126,63 @@ func TestBinderPlacementRefusals(t *testing.T) {
 
 	resp = postPlacements(api, owner, id, placementItem(cards[0], 1), placementItem(cards[0], 2))
 	assert.Equal(t, http.StatusBadRequest, resp.Code, resp.Body.String())
+	requireEntriesMatchSlots(t, api, id)
+}
+
+// TestBinderPlacementSkipsUnidentifiedSlot: a Slot holding an Unidentified card
+// is taken, so the copy lands in the next empty Slot and the Unidentified one stays.
+func TestBinderPlacementSkipsUnidentifiedSlot(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 1, 2, 1)
+	cards := newTestCards(t, 1)
+	a := cards[0]
+
+	require.Equal(t, http.StatusOK, markUnidentifiedAt(api, owner, id, 1, 1, 1).Code)
+
+	results := decodePlacements(t, postPlacements(api, owner, id, placementItem(a, 1)))
+	assert.Equal(t, []dto.BinderPlacementResult{{CardID: a, Placed: 1}}, results)
+	requireEntriesMatchSlots(t, api, id)
+	_, positions := entryRow(t, listEntryRows(t, api, owner, id), a)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 1, Row: 1, Column: 2}}, positions)
+
+	page := getPage(t, api, owner, id, 1)
+	assert.Equal(t, 2, page.Data.CardTotal, "the Unidentified Slot still counts toward the binder total")
+	assert.Equal(t, "unidentified", page.Data.Slots[0].State)
+}
+
+// TestBinderPlacementRequestBounds: a quantity is 1 to 2147483647, as the bulk
+// update allows, and a request holds 1 to 100 items. The largest quantity is
+// accepted and places only what fits.
+func TestBinderPlacementRequestBounds(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 1, 2, 1)
+	cards := newTestCards(t, 1)
+	a := cards[0]
+	const maxQuantity = 2147483647
+
+	for _, quantity := range []int{0, -1, maxQuantity + 1} {
+		resp := postPlacements(api, owner, id, placementItem(a, quantity))
+		assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, "quantity %d: %s", quantity, resp.Body.String())
+	}
+
+	resp := api.Post(binderPath(id)+"/placements", bearer(owner), map[string]any{"items": []map[string]any{}})
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+
+	tooMany := make([]map[string]any, 0, 101)
+	for range 101 {
+		tooMany = append(tooMany, placementItem(uuid.New(), 1))
+	}
+	resp = postPlacements(api, owner, id, tooMany...)
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+
+	// The binder has 4 Slots, so the copies beyond them are declined.
+	results := decodePlacements(t, postPlacements(api, owner, id, placementItem(a, maxQuantity)))
+	assert.Equal(t, []dto.BinderPlacementResult{
+		{CardID: a, Placed: 4, Declined: maxQuantity - 4, Reason: dto.BinderPlacementReasonNotEnoughEmptySlots, Message: "not enough empty Slots"},
+	}, results)
 	requireEntriesMatchSlots(t, api, id)
 }

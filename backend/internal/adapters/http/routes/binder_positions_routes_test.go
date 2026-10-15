@@ -13,9 +13,9 @@ import (
 
 type entryListEnvelope struct {
 	Data []struct {
-		Card      struct{ ID string }      `json:"card"`
-		Quantity  int                      `json:"quantity"`
-		Positions []dto.BinderSlotPosition `json:"positions"`
+		Card      struct{ ID string }    `json:"card"`
+		Quantity  int                    `json:"quantity"`
+		Positions []dto.BinderSlotTarget `json:"positions"`
 	} `json:"data"`
 }
 
@@ -28,7 +28,7 @@ func listEntryRows(t *testing.T, api testAPI, token, id string) entryListEnvelop
 	return out
 }
 
-func entryRow(t *testing.T, rows entryListEnvelope, card uuid.UUID) (quantity int, positions []dto.BinderSlotPosition) {
+func entryRow(t *testing.T, rows entryListEnvelope, card uuid.UUID) (quantity int, positions []dto.BinderSlotTarget) {
 	t.Helper()
 	for _, row := range rows.Data {
 		if row.Card.ID == card.String() {
@@ -59,9 +59,9 @@ func TestBinderEntryListPositions(t *testing.T) {
 	rows := listEntryRows(t, api, owner, id)
 	quantity, positions := entryRow(t, rows, a)
 	assert.Equal(t, 2, quantity)
-	assert.Equal(t, []dto.BinderSlotPosition{{Page: 1, Row: 1, Column: 1}, {Page: 2, Row: 1, Column: 1}}, positions)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 1, Row: 1, Column: 1}, {Page: 2, Row: 1, Column: 1}}, positions)
 	_, positions = entryRow(t, rows, b)
-	assert.Equal(t, []dto.BinderSlotPosition{{Page: 2, Row: 1, Column: 2}}, positions)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 2, Row: 1, Column: 2}}, positions)
 	assert.Len(t, rows.Data, 2, "the Unidentified Slot adds no entry")
 
 	// A Leaf before the first one moves every existing Page two numbers on.
@@ -70,9 +70,38 @@ func TestBinderEntryListPositions(t *testing.T) {
 
 	rows = listEntryRows(t, api, owner, id)
 	_, positions = entryRow(t, rows, a)
-	assert.Equal(t, []dto.BinderSlotPosition{{Page: 3, Row: 1, Column: 1}, {Page: 4, Row: 1, Column: 1}}, positions)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 3, Row: 1, Column: 1}, {Page: 4, Row: 1, Column: 1}}, positions)
 	_, positions = entryRow(t, rows, b)
-	assert.Equal(t, []dto.BinderSlotPosition{{Page: 4, Row: 1, Column: 2}}, positions)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 4, Row: 1, Column: 2}}, positions)
+}
+
+// TestBinderEntryPositionsRenumberAfterRemoveLeaf: removing an empty Leaf moves
+// the Leaves after it up, so a Card's positions and the next placement follow
+// the new numbers.
+func TestBinderEntryPositionsRenumberAfterRemoveLeaf(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 1, 1, 2)
+	cards := newTestCards(t, 2)
+	a, b := cards[0], cards[1]
+
+	decodeBinderPage(t, placeCardAt(api, owner, id, 3, 1, 1, a))
+	_, positions := entryRow(t, listEntryRows(t, api, owner, id), a)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 3, Row: 1, Column: 1}}, positions)
+
+	resp := api.Delete(binderPath(id)+"/leaves/1", bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+
+	_, positions = entryRow(t, listEntryRows(t, api, owner, id), a)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 1, Row: 1, Column: 1}}, positions)
+	requireEntriesMatchSlots(t, api, id)
+
+	// The Leaf that was 2 is now 1, so page 2 is its empty back and the only free Slot.
+	results := decodePlacements(t, postPlacements(api, owner, id, placementItem(b, 1)))
+	assert.Equal(t, []dto.BinderPlacementResult{{CardID: b, Placed: 1}}, results)
+	_, positions = entryRow(t, listEntryRows(t, api, owner, id), b)
+	assert.Equal(t, []dto.BinderSlotTarget{{Page: 2, Row: 1, Column: 1}}, positions)
 }
 
 // TestPlainCollectionEntryListHasNoPositions: a Collection without a Layout

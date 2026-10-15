@@ -119,7 +119,7 @@ func TestInventoryService_List(t *testing.T) {
 	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{
 		CollectionID: f.collection.ID, Name: "a", ExpansionSetIDs: []uuid.UUID{setID}, Limit: 24, Offset: 24,
 	}).Return([]repository.CardResult{card}, int64(30), nil).Once()
-	f.slots.EXPECT().ListOccupiedSlots(f.ctx, f.collection.ID).Return(nil, nil).Once()
+	f.slots.EXPECT().ListOccupiedSlots(f.ctx, f.collection.ID, mock.Anything).Return(nil, nil).Once()
 
 	got, meta, err := f.svc.List(f.ctx, dto.InventoryListRequest{
 		ProfileID: f.profileID, CollectionID: f.collection.ID,

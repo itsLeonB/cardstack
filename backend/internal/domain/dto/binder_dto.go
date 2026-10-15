@@ -31,13 +31,6 @@ type BinderSlot struct {
 	Card   *CardSummary `json:"card" doc:"The Card in the pocket, set only when State is card."`
 }
 
-// BinderSlotPosition is where a Slot sits in a binder: its Page, row and column.
-type BinderSlotPosition struct {
-	Page   int `json:"page" doc:"Page number in turning order, from 1."`
-	Row    int `json:"row" doc:"Row of the pocket on its Page, from 1."`
-	Column int `json:"column" doc:"Column of the pocket on its Page, from 1."`
-}
-
 // BinderPage is one Page of a binder in turning order, with its Slots in grid
 // order (row by row, left to right). CardTotal counts Slots holding a Card plus
 // Unidentified Slots, across the whole binder.
@@ -90,11 +83,12 @@ type BinderPageLookup struct {
 	Page         int
 }
 
-// BinderSlotTarget addresses one Slot by its Page, row and column.
+// BinderSlotTarget addresses one Slot by its Page, row and column. It is also the
+// JSON shape of a Card's position in a binder's entry list.
 type BinderSlotTarget struct {
-	Page   int
-	Row    int
-	Column int
+	Page   int `json:"page" doc:"Page number in turning order, from 1."`
+	Row    int `json:"row" doc:"Row of the pocket on its Page, from 1."`
+	Column int `json:"column" doc:"Column of the pocket on its Page, from 1."`
 }
 
 // BinderSlotWrite sets one Slot to empty, to a Card (CardID) or to Unidentified.
@@ -105,4 +99,19 @@ type BinderSlotWrite struct {
 	Target       BinderSlotTarget
 	State        string
 	CardID       uuid.UUID
+}
+
+// BinderSlotChange is one Slot's new state inside a BinderSlotsWrite. State and
+// CardID mean what they do on BinderSlotWrite.
+type BinderSlotChange struct {
+	Target BinderSlotTarget
+	State  string
+	CardID uuid.UUID
+}
+
+// BinderSlotsWrite applies Changes, in order, to one binder in one transaction.
+type BinderSlotsWrite struct {
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+	Changes      []BinderSlotChange
 }

@@ -322,7 +322,7 @@
         ],
         "type": "object"
       },
-      "BinderSlotPosition": {
+      "BinderSlotTarget": {
         "additionalProperties": false,
         "properties": {
           "column": {
@@ -1225,7 +1225,7 @@
           "positions": {
             "description": "Where the Card sits in a binder: one position per Slot holding it, in Page order. Absent in a plain Collection.",
             "items": {
-              "$ref": "#/components/schemas/BinderSlotPosition"
+              "$ref": "#/components/schemas/BinderSlotTarget"
             },
             "type": [
               "array",

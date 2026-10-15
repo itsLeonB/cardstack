@@ -98,17 +98,17 @@ func LeafOf(page int) (int, string) {
 
 // ToCardPositions groups the Slots holding a Card by that Card, each Slot as its
 // position, in Page order. An Unidentified Slot holds no Card, so it is skipped.
-func ToCardPositions(slots []entity.BinderSlot) map[uuid.UUID][]dto.BinderSlotPosition {
-	positions := make(map[uuid.UUID][]dto.BinderSlotPosition)
+func ToCardPositions(slots []entity.BinderSlot) map[uuid.UUID][]dto.BinderSlotTarget {
+	positions := make(map[uuid.UUID][]dto.BinderSlotTarget)
 	for _, slot := range slots {
 		if slot.CardID == nil {
 			continue
 		}
 		page := PageOf(slot.Leaf.Position, slot.Side)
-		positions[*slot.CardID] = append(positions[*slot.CardID], dto.BinderSlotPosition{Page: page, Row: slot.Row, Column: slot.Column})
+		positions[*slot.CardID] = append(positions[*slot.CardID], dto.BinderSlotTarget{Page: page, Row: slot.Row, Column: slot.Column})
 	}
 	for _, list := range positions {
-		slices.SortFunc(list, func(a, b dto.BinderSlotPosition) int {
+		slices.SortFunc(list, func(a, b dto.BinderSlotTarget) int {
 			return cmp.Or(cmp.Compare(a.Page, b.Page), cmp.Compare(a.Row, b.Row), cmp.Compare(a.Column, b.Column))
 		})
 	}

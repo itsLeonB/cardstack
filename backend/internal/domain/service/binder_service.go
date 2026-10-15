@@ -46,6 +46,10 @@ type BinderService interface {
 	// held or now holds in step, in one transaction. It joins a transaction
 	// already open on ctx, so a later operation can call it inside its own.
 	WriteSlot(ctx context.Context, req dto.BinderSlotWrite) error
+	// WriteSlots applies several Slot changes under one Collection lock, in one
+	// transaction, and reconciles each affected Card's entry once. It is the
+	// batch form of WriteSlot and the place the Slot-write rules live.
+	WriteSlots(ctx context.Context, req dto.BinderSlotsWrite) error
 }
 
 type binderService struct {
@@ -345,6 +349,18 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 }
 
 func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) error {
+	return s.WriteSlots(ctx, dto.BinderSlotsWrite{
+		ProfileID:    req.ProfileID,
+		CollectionID: req.CollectionID,
+		Changes:      []dto.BinderSlotChange{{Target: req.Target, State: req.State, CardID: req.CardID}},
+	})
+}
+
+// WriteSlots is the one place Slot writes are checked and applied. It validates
+// every change before it reads the Slots, then reads the Slots once and applies
+// the changes in order, so a later change sees an earlier one on the same Slot.
+// Each Card whose Slots changed gets its entry reconciled once at the end.
+func (s *binderService) WriteSlots(ctx context.Context, req dto.BinderSlotsWrite) error {
 	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
@@ -355,66 +371,114 @@ func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) 
 		if err != nil {
 			return err
 		}
-		target := req.Target
-		if target.Row < 1 || target.Row > layout.Rows || target.Column < 1 || target.Column > layout.Columns {
-			return ungerr.BadRequestError(slotOutOfGridMsg)
+
+		type resolvedChange struct {
+			side   string
+			leaf   entity.BinderLeaf
+			cardID *uuid.UUID
+		}
+		leaves := make(map[int]entity.BinderLeaf)
+		knownCards := make(map[uuid.UUID]bool)
+		changes := make([]resolvedChange, 0, len(req.Changes))
+		for _, change := range req.Changes {
+			target := change.Target
+			if target.Row < 1 || target.Row > layout.Rows || target.Column < 1 || target.Column > layout.Columns {
+				return ungerr.BadRequestError(slotOutOfGridMsg)
+			}
+
+			leafNumber, side := mapper.LeafOf(target.Page)
+			leaf, ok := leaves[leafNumber]
+			if !ok {
+				leaf, err = s.leafAt(ctx, c.ID, leafNumber)
+				if err != nil {
+					return err
+				}
+				leaves[leafNumber] = leaf
+			}
+
+			var cardID *uuid.UUID
+			if change.State == dto.BinderSlotCard {
+				if !knownCards[change.CardID] {
+					if _, err := s.resolveCard(ctx, change.CardID); err != nil {
+						return err
+					}
+					knownCards[change.CardID] = true
+				}
+				id := change.CardID
+				cardID = &id
+			}
+
+			changes = append(changes, resolvedChange{side: side, leaf: leaf, cardID: cardID})
 		}
 
-		leaf, side, err := s.pageLeaf(ctx, c.ID, target.Page)
+		occupied, err := s.slots.ListAllOccupiedSlots(ctx, c.ID)
 		if err != nil {
 			return err
 		}
+		held := make(map[dto.BinderSlotTarget]entity.BinderSlot, len(occupied))
+		for _, slot := range occupied {
+			key := dto.BinderSlotTarget{Page: mapper.PageOf(slot.Leaf.Position, slot.Side), Row: slot.Row, Column: slot.Column}
+			// Only the Leaf's Position was needed. Clearing it keeps Update from writing the Leaf back.
+			slot.Leaf = entity.BinderLeaf{}
+			held[key] = slot
+		}
 
-		var cardID *uuid.UUID
-		if req.State == dto.BinderSlotCard {
-			if _, err := s.resolveCard(ctx, req.CardID); err != nil {
-				return err
+		var touched []uuid.UUID
+		seen := make(map[uuid.UUID]bool)
+		touch := func(id uuid.UUID) {
+			if !seen[id] {
+				seen[id] = true
+				touched = append(touched, id)
 			}
-			cardID = &req.CardID
 		}
 
-		slot, err := s.slots.FindFirst(ctx, crud.Specification[entity.BinderSlot]{
-			Model: entity.BinderSlot{CollectionID: c.ID, LeafID: leaf.ID, Side: side, Row: target.Row, Column: target.Column},
-		})
-		if err != nil {
-			return err
-		}
-
-		// An empty Slot has no row, so a zero slot means the Slot was empty before this write.
-		var previous *uuid.UUID
-		if !slot.IsZero() {
-			previous = slot.CardID
-		}
-
-		switch {
-		case req.State == dto.BinderSlotEmpty:
-			if !slot.IsZero() {
-				err = s.slots.Delete(ctx, slot)
+		for i, change := range req.Changes {
+			resolved := changes[i]
+			key := change.Target
+			prev, existed := held[key]
+			if existed && prev.CardID != nil {
+				touch(*prev.CardID)
 			}
-		case slot.IsZero():
-			_, err = s.slots.Insert(ctx, entity.BinderSlot{
-				CollectionID: c.ID,
-				LeafID:       leaf.ID,
-				Side:         side,
-				Row:          target.Row,
-				Column:       target.Column,
-				CardID:       cardID,
-				Unidentified: req.State == dto.BinderSlotUnidentified,
-			})
-		default:
-			slot.CardID = cardID
-			slot.Unidentified = req.State == dto.BinderSlotUnidentified
-			_, err = s.slots.Update(ctx, slot)
-		}
-		if err != nil {
-			return err
+
+			switch {
+			case change.State == dto.BinderSlotEmpty:
+				if existed {
+					if err := s.slots.Delete(ctx, prev); err != nil {
+						return err
+					}
+					delete(held, key)
+				}
+			case !existed:
+				slot, err := s.slots.Insert(ctx, entity.BinderSlot{
+					CollectionID: c.ID,
+					LeafID:       resolved.leaf.ID,
+					Side:         resolved.side,
+					Row:          key.Row,
+					Column:       key.Column,
+					CardID:       resolved.cardID,
+					Unidentified: change.State == dto.BinderSlotUnidentified,
+				})
+				if err != nil {
+					return err
+				}
+				held[key] = slot
+			default:
+				prev.CardID = resolved.cardID
+				prev.Unidentified = change.State == dto.BinderSlotUnidentified
+				slot, err := s.slots.Update(ctx, prev)
+				if err != nil {
+					return err
+				}
+				held[key] = slot
+			}
+
+			if resolved.cardID != nil {
+				touch(*resolved.cardID)
+			}
 		}
 
-		for _, id := range []*uuid.UUID{previous, cardID} {
-			if id == nil {
-				continue
-			}
-			if err := s.reconcileEntry(ctx, c.ID, *id); err != nil {
+		for _, id := range touched {
+			if err := s.reconcileEntry(ctx, c.ID, id); err != nil {
 				return err
 			}
 		}
@@ -427,15 +491,25 @@ func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) 
 // AppError when no Leaf has that position.
 func (s *binderService) pageLeaf(ctx context.Context, collectionID uuid.UUID, page int) (entity.BinderLeaf, string, error) {
 	leafNumber, side := mapper.LeafOf(page)
-	leaf, err := s.leaves.FindLeafAt(ctx, collectionID, leafNumber)
+	leaf, err := s.leafAt(ctx, collectionID, leafNumber)
 	if err != nil {
 		return entity.BinderLeaf{}, "", err
 	}
-	if leaf.IsZero() {
-		return entity.BinderLeaf{}, "", ungerr.NotFoundError(pageNotFoundMsg)
-	}
 
 	return leaf, side, nil
+}
+
+// leafAt returns the Leaf at a position, or the not-found AppError when there is none.
+func (s *binderService) leafAt(ctx context.Context, collectionID uuid.UUID, position int) (entity.BinderLeaf, error) {
+	leaf, err := s.leaves.FindLeafAt(ctx, collectionID, position)
+	if err != nil {
+		return entity.BinderLeaf{}, err
+	}
+	if leaf.IsZero() {
+		return entity.BinderLeaf{}, ungerr.NotFoundError(pageNotFoundMsg)
+	}
+
+	return leaf, nil
 }
 
 // reconcileEntry sets a Card's Inventory Entry to the number of Slots holding
