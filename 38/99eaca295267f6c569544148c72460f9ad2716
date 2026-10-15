@@ -1,0 +1,71 @@
+frontend/src/components/collections/binder-move-banner.tsx
+  s_062f4654eb0ef2::t_2672c3d780de74 1-42
+frontend/src/components/collections/binder-move.test.tsx
+  s_062f4654eb0ef2::t_944e151d749f8f 1-187
+frontend/src/components/collections/binder-slot-panel.tsx
+  s_062f4654eb0ef2::t_3453912ca39117 20,22-23,27,29,38,54,62-63,112-113
+frontend/src/components/collections/binder-view.tsx
+  s_062f4654eb0ef2::t_07ebc23cb8df61 10,15,18,25,51-57,74,201-237,333-341,355-362,378
+frontend/src/generated/endpoints/binder/binder.ts
+  s_062f4654eb0ef2::t_d980da6b8b4679 30,32,35-39,705-814,1123-1336
+frontend/src/generated/endpoints/binder/binder.zod.ts
+  s_062f4654eb0ef2::t_c74c457d95f304 175-208,384-524
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_062f4654eb0ef2::t_640eaff811b87e 71-75,285-289
+frontend/src/generated/models/binderPageReplaceBody.ts
+  s_062f4654eb0ef2::t_f6fb4fe39520e7 1-16
+frontend/src/generated/models/binderPageReplaceResult.ts
+  s_062f4654eb0ef2::t_a2f6121729aaf6 1-15
+frontend/src/generated/models/binderPageSlotBody.ts
+  s_062f4654eb0ef2::t_b31ca7af2db1d9 1-14
+frontend/src/generated/models/binderPageSlotBodyState.ts
+  s_062f4654eb0ef2::t_1426679914558f 1-18
+frontend/src/generated/models/binderPlacementResult.ts
+  s_062f4654eb0ef2::t_3a138081f49cab 1-17
+frontend/src/generated/models/binderPlacementResultReason.ts
+  s_062f4654eb0ef2::t_40655260f1f94b 1-17
+frontend/src/generated/models/binderSlotMoveBody.ts
+  s_062f4654eb0ef2::t_57f1d33b9b5b5b 1-14
+frontend/src/generated/models/binderSlotMoveResult.ts
+  s_062f4654eb0ef2::t_09da6cf6bf5419 1-14
+frontend/src/generated/models/binderSlotResult.ts
+  s_062f4654eb0ef2::t_04144dc56853eb 1-20
+frontend/src/generated/models/binderSlotResultState.ts
+  s_062f4654eb0ef2::t_ad7f3c74fab975 1-18
+frontend/src/generated/models/binderSlotTarget.ts
+  s_062f4654eb0ef2::t_60de23c041139e 1-15
+frontend/src/generated/models/binderSlotTargetBody.ts
+  s_062f4654eb0ef2::t_7a025dd1249b31 1-24
+frontend/src/generated/models/envelopeBinderPageReplaceResult.ts
+  s_062f4654eb0ef2::t_e78e2b549c248f 1-11
+frontend/src/generated/models/envelopeBinderSlotMoveResult.ts
+  s_062f4654eb0ef2::t_e8432904f4e6e1 1-11
+frontend/src/generated/models/envelopeListBinderPlacementResult.ts
+  s_062f4654eb0ef2::t_83e418d4a916ed 1-12
+frontend/src/generated/models/index.ts
+  s_062f4654eb0ef2::t_aad3136d5b0c24 16-17,19-22,25-28,30-31,49-50,57,87-88
+frontend/src/generated/models/inventoryItem.ts
+  s_062f4654eb0ef2::t_ef06cb8101e640 7,12-16
+frontend/src/generated/models/placeCardsInputBody.ts
+  s_062f4654eb0ef2::t_393813ebb32ed5 1-17
+frontend/src/generated/models/placeCardsItem.ts
+  s_062f4654eb0ef2::t_9b1e65beed8b05 1-17
+frontend/src/test-binder-api.ts
+  s_062f4654eb0ef2::t_4618694e5ee339 47-48,163-184,205-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "3899eaca295267f6c569544148c72460f9ad2716",
+  "prompts": {},
+  "sessions": {
+    "s_062f4654eb0ef2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_062f4654eb0ef2",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
