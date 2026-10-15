@@ -1,0 +1,51 @@
+backend/.mockery.yaml
+  s_5954607cf3be76::t_7f77a469ca2e54 31-32
+backend/internal/adapters/http/routes/binder_placement_routes_test.go
+  s_5954607cf3be76::t_a6f8ac1901e01c 53,59,131-188
+backend/internal/adapters/http/routes/binder_positions_routes_test.go
+  s_5954607cf3be76::t_80eba0a16bba94 16-18,31,62,64,73,75-104
+backend/internal/domain/dto/binder_dto.go
+  s_5954607cf3be76::t_7374b4c0970531 86-87,89-91,103-117
+backend/internal/domain/dto/inventory_dto.go
+  s_5954607cf3be76::t_c248eb04d3913b 41
+backend/internal/domain/mapper/binder_mapper.go
+  s_5954607cf3be76::t_ebbec9f330992e 101-102,108,111
+backend/internal/domain/repository/binder_slot_repository.go
+  s_5954607cf3be76::t_c9ce5bd7a10378 25-30,32,122-144
+backend/internal/domain/repository/binder_slot_repository_test.go
+  s_5954607cf3be76::t_355e6d650c87df 102-184
+backend/internal/domain/service/binder_placement_service.go
+  s_5954607cf3be76::t_d88216f099f773 22,94,112,124-132,155
+backend/internal/domain/service/binder_placement_service_test.go
+  s_5954607cf3be76::t_044b1182d4826d 1-187
+backend/internal/domain/service/binder_service.go
+  s_5954607cf3be76::t_093c8e83bd0b10 49-52,352-363,375-378,380-387,389-396,398-411,414,418-423,426-431,435-472,474-481,494,498-507,509,512
+backend/internal/domain/service/inventory_service.go
+  s_5954607cf3be76::t_740a749ecd630b 91-92
+backend/internal/domain/service/inventory_service_test.go
+  s_5954607cf3be76::t_2bae218193674b 122
+backend/internal/mocks/BinderPlacementService.go
+  s_5954607cf3be76::t_544f0b43dd2b83 1-96
+backend/internal/mocks/BinderService.go
+  s_5954607cf3be76::t_cf70a5b0b4f320 1-463
+backend/internal/mocks/BinderSlotRepository.go
+  s_5954607cf3be76::t_7ae28af757ad27 595-596,600,625-683,692-694,697,699,709
+backend/openapi.json
+  s_5954607cf3be76::t_c17dcea09ac3c7 325,1228
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "4afdf07b3de4c58b7fcdbc26f041249f1571e334",
+  "prompts": {},
+  "sessions": {
+    "s_5954607cf3be76": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_5954607cf3be76",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
