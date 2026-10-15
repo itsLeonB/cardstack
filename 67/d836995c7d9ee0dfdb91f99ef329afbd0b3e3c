@@ -1,0 +1,39 @@
+backend/internal/adapters/http/handler/binder_replace_page_handler.go
+  s_1658868fdb5d3b::t_a238c8098cf1de 16-18
+backend/internal/adapters/http/handler/binder_replace_page_handler_test.go
+  s_1658868fdb5d3b::t_8b6bc9511e2930 1-17
+backend/internal/adapters/http/routes/binder_move_routes_test.go
+  s_1658868fdb5d3b::t_df80eed8482b6e 211-233
+backend/internal/adapters/http/routes/binder_replace_page_routes_test.go
+  s_1658868fdb5d3b::t_c46f77c5d3dbeb 173-210
+backend/internal/domain/dto/binder_replace_page_dto.go
+  s_1658868fdb5d3b::t_ea21d5a4c9aa86 9-16
+backend/internal/domain/service/binder_move_slot.go
+  s_1658868fdb5d3b::t_3966b1812cf14a 69-70,78
+backend/internal/domain/service/binder_move_slot_test.go
+  s_1658868fdb5d3b::t_8d1cd57e58312e 1-181
+backend/internal/domain/service/binder_replace_page.go
+  s_1658868fdb5d3b::t_bfd5f7c2c7b5f4 5-6,40,49-50,53,64-67,85-91,96-102
+backend/internal/domain/service/binder_replace_page_test.go
+  s_1658868fdb5d3b::t_8040b51818432a 1-145
+backend/internal/domain/service/binder_service.go
+  s_1658868fdb5d3b::t_0036d85e83a6f4 18,365-366,382-387
+backend/internal/domain/service/binder_slot_write.go
+  s_1658868fdb5d3b::t_e0f9c17bbe4d17 10,13-18,20,50,53-62,65-66,73-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "67d836995c7d9ee0dfdb91f99ef329afbd0b3e3c",
+  "prompts": {},
+  "sessions": {
+    "s_1658868fdb5d3b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1658868fdb5d3b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
