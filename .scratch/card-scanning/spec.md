@@ -129,7 +129,7 @@ Prior art: the bulk update's service and route tests, the catalog and Collection
 
 ## Out of Scope
 
-- Phase 2: photographing a binder or album page, recognising its layout (pages, rows and columns), pointing it at an existing Collection and updating that Collection with the layout, and storing each card's position. Positional slots are the intended direction, so a Collection will eventually carry a page layout and slot records pointing to Cards. How a slot relates to quantity (one slot per physical copy) is deliberately undecided until Phase 1 ships. Phase 2 also needs server-side detection of many cards in one frame.
+- Phase 2: photographing a binder or album page, recognising its layout (pages, rows and columns), pointing it at an existing Collection and updating that Collection with the layout, and storing each card's position. Positional slots are the intended direction, so a Collection will eventually carry a page layout and slot records pointing to Cards. How a slot relates to quantity is now settled: one Slot per physical copy, with Slots as the truth (see `.scratch/binder-scanning/spec.md` and ADR-0020). Phase 2 also needs server-side detection of many cards in one frame.
 - Live scanning (the browser auto-detecting and capturing cards from video). Phase 1 is tap to capture.
 - A server-side Draft Addition table, multi-device draft sync, and drafts that expire.
 - Server-side card detection and cropping.
