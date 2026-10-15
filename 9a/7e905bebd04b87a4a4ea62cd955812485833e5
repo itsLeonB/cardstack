@@ -1,0 +1,27 @@
+backend/internal/adapters/http/handler/binder_handler.go
+  s_8408360ef9ec7b::t_4dd84bf2255557 153,157,161-165,171,173-177,182-183
+backend/internal/adapters/http/routes/binder_slot_routes_test.go
+  s_8408360ef9ec7b::t_8b2935e876fd97 4,6,13,15-17,159-255,293,295,301-306,317-318
+backend/internal/domain/repository/binder_slot_repository.go
+  s_8408360ef9ec7b::t_48cd32e47239fb 22-23
+backend/internal/domain/repository/binder_slot_repository_test.go
+  s_8408360ef9ec7b::t_e988b8da78190e 1-101
+backend/internal/domain/service/binder_service.go
+  s_8408360ef9ec7b::t_800841d947d8c8 370,472-491
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9a7e905bebd04b87a4a4ea62cd955812485833e5",
+  "prompts": {},
+  "sessions": {
+    "s_8408360ef9ec7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8408360ef9ec7b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
