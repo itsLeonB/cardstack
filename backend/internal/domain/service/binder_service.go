@@ -367,18 +367,8 @@ func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) 
 
 		var cardID *uuid.UUID
 		if req.State == dto.BinderSlotCard {
-			// A nil id would drop out of the query and match any Card.
-			if req.CardID == uuid.Nil {
-				return ungerr.NotFoundError(cardNotFoundMsg)
-			}
-			card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-				Model: entity.Card{BaseEntity: crud.BaseEntity{ID: req.CardID}},
-			})
-			if err != nil {
+			if _, err := s.resolveCard(ctx, req.CardID); err != nil {
 				return err
-			}
-			if card.IsZero() {
-				return ungerr.NotFoundError(cardNotFoundMsg)
 			}
 			cardID = &req.CardID
 		}
@@ -477,6 +467,26 @@ func (s *binderService) reconcileEntry(ctx context.Context, collectionID, cardID
 	}
 
 	return err
+}
+
+// resolveCard returns the Card with the id, or the not-found AppError. A nil id
+// is refused before the query, since an empty Model would match any Card.
+func (s *binderService) resolveCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+	if cardID == uuid.Nil {
+		return entity.Card{}, ungerr.NotFoundError(cardNotFoundMsg)
+	}
+
+	card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+		Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}},
+	})
+	if err != nil {
+		return entity.Card{}, err
+	}
+	if card.IsZero() {
+		return entity.Card{}, ungerr.NotFoundError(cardNotFoundMsg)
+	}
+
+	return card, nil
 }
 
 // requireNoSlots refuses a Layout change while any Slot is occupied, since the

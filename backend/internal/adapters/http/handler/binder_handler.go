@@ -150,55 +150,37 @@ func (h *BinderHandler) getPage(ctx context.Context, in binderPageInput) (dto.Bi
 }
 
 func (h *BinderHandler) placeCard(ctx context.Context, in binderSlotCardInput) (dto.BinderPage, error) {
-	profileID, err := requireProfileID(ctx)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-
-	return h.writeSlot(ctx, dto.BinderSlotWrite{
-		ProfileID:    profileID,
-		CollectionID: in.ID,
-		Target:       dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column},
-		State:        dto.BinderSlotCard,
-		CardID:       in.Body.CardID,
-	})
+	return h.writeSlot(ctx, in.ID, dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column}, dto.BinderSlotCard, in.Body.CardID)
 }
 
 func (h *BinderHandler) clearSlot(ctx context.Context, in binderSlotPathInput) (dto.BinderPage, error) {
-	profileID, err := requireProfileID(ctx)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-
-	return h.writeSlot(ctx, dto.BinderSlotWrite{
-		ProfileID:    profileID,
-		CollectionID: in.ID,
-		Target:       dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column},
-		State:        dto.BinderSlotEmpty,
-	})
+	return h.writeSlot(ctx, in.ID, dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column}, dto.BinderSlotEmpty, uuid.Nil)
 }
 
 func (h *BinderHandler) markUnidentified(ctx context.Context, in binderSlotPathInput) (dto.BinderPage, error) {
+	return h.writeSlot(ctx, in.ID, dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column}, dto.BinderSlotUnidentified, uuid.Nil)
+}
+
+// writeSlot returns the written Page, so the client does not need a second read.
+func (h *BinderHandler) writeSlot(ctx context.Context, collectionID uuid.UUID, target dto.BinderSlotTarget, state string, cardID uuid.UUID) (dto.BinderPage, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
 		return dto.BinderPage{}, err
 	}
 
-	return h.writeSlot(ctx, dto.BinderSlotWrite{
+	write := dto.BinderSlotWrite{
 		ProfileID:    profileID,
-		CollectionID: in.ID,
-		Target:       dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column},
-		State:        dto.BinderSlotUnidentified,
-	})
-}
-
-// writeSlot returns the written Page, so the client does not need a second read.
-func (h *BinderHandler) writeSlot(ctx context.Context, write dto.BinderSlotWrite) (dto.BinderPage, error) {
+		CollectionID: collectionID,
+		Target:       target,
+		State:        state,
+		CardID:       cardID,
+	}
 	if err := h.binderSvc.WriteSlot(ctx, write); err != nil {
 		return dto.BinderPage{}, err
 	}
 
-	return h.binderSvc.GetPage(ctx, dto.BinderPageLookup{ProfileID: write.ProfileID, CollectionID: write.CollectionID, Page: write.Target.Page})
+	// Returns the written Page, so the client does not need a second read.
+	return h.binderSvc.GetPage(ctx, dto.BinderPageLookup{ProfileID: profileID, CollectionID: collectionID, Page: target.Page})
 }
 
 // Routes marks each operation Secured, which only documents the requirement in

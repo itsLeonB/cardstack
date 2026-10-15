@@ -1,14 +1,20 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
+	"github.com/itsLeonB/cardstack/backend/internal/provider"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -150,6 +156,103 @@ func TestBinderSlotWritesKeepEntriesInStep(t *testing.T) {
 	assert.Zero(t, masterQuantity(t, api, owner, b))
 }
 
+func TestBinderSlotPlacingSameCardTwiceIsIdempotent(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+	card := newTestCards(t, 1)[0]
+
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, card))
+	requireEntriesMatchSlots(t, api, id)
+
+	page := decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, card))
+	assert.Equal(t, card.String(), page.Data.Slots[0].Card.ID)
+	assert.Equal(t, 1, page.Data.CardTotal, "placing into an occupied Slot must not add a Slot")
+	requireEntriesMatchSlots(t, api, id)
+	assert.Equal(t, 1, masterQuantity(t, api, owner, card))
+}
+
+func TestBinderSlotReplacingLastSlotMovesEntry(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+	cards := newTestCards(t, 2)
+	a, b := cards[0], cards[1]
+
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, a))
+	requireEntriesMatchSlots(t, api, id)
+	assert.Equal(t, 1, masterQuantity(t, api, owner, a))
+
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, b))
+	requireEntriesMatchSlots(t, api, id)
+	assert.Zero(t, masterQuantity(t, api, owner, a), "A's entry goes when its last Slot is replaced")
+	assert.Equal(t, 1, masterQuantity(t, api, owner, b), "B's entry is created by the replacement")
+}
+
+func TestBinderSlotUnidentifiedDropsOneOfTwoEntries(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+	card := newTestCards(t, 1)[0]
+
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, card))
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 2, card))
+	requireEntriesMatchSlots(t, api, id)
+	assert.Equal(t, 2, masterQuantity(t, api, owner, card))
+
+	page := decodeBinderPage(t, markUnidentifiedAt(api, owner, id, 1, 1, 1))
+	assert.Equal(t, 1, page.Data.UnidentifiedCount)
+	assert.Equal(t, 2, page.Data.CardTotal, "the Unidentified Slot still counts toward the binder total")
+	requireEntriesMatchSlots(t, api, id)
+	assert.Equal(t, 1, masterQuantity(t, api, owner, card), "the entry drops from 2 to 1")
+}
+
+// TestBinderWriteSlotJoinsOpenTransaction proves WriteSlot does not commit on
+// its own. A caller that opens a transaction, writes a Slot and then fails
+// leaves nothing behind, which is how the move and Replace Page tickets reuse it.
+func TestBinderWriteSlotJoinsOpenTransaction(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+	card := newTestCards(t, 1)[0]
+
+	var collection entity.Collection
+	require.NoError(t, api.db.First(&collection, "id = ?", uuid.MustParse(id)).Error)
+	binders := provider.ProvideBinderService(&provider.DataSources{Gorm: api.db}, mapper.NewImageHost(""))
+	write := dto.BinderSlotWrite{
+		ProfileID:    collection.ProfileID,
+		CollectionID: collection.ID,
+		Target:       dto.BinderSlotTarget{Page: 1, Row: 1, Column: 1},
+		State:        dto.BinderSlotCard,
+		CardID:       card,
+	}
+	transactor := crud.NewTransactor(api.db)
+
+	errCallerFailed := errors.New("the caller's own step failed")
+	err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+		if err := binders.WriteSlot(ctx, write); err != nil {
+			return err
+		}
+		return errCallerFailed
+	})
+	require.ErrorIs(t, err, errCallerFailed)
+	assert.Zero(t, getPage(t, api, owner, id, 1).Data.CardTotal, "a rolled-back caller must undo WriteSlot")
+	requireEntriesMatchSlots(t, api, id)
+	assert.Zero(t, masterQuantity(t, api, owner, card))
+
+	err = transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+		return binders.WriteSlot(ctx, write)
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, getPage(t, api, owner, id, 1).Data.CardTotal)
+	requireEntriesMatchSlots(t, api, id)
+	assert.Equal(t, 1, masterQuantity(t, api, owner, card))
+}
+
 func TestBinderSlotWriteRefusals(t *testing.T) {
 	api := newTestAPI(t)
 	owner := api.newUserToken(t)
@@ -187,14 +290,20 @@ func TestBinderSlotWriteOwnershipAndPlainCollection(t *testing.T) {
 	id := newBinderCollection(t, api, owner)
 	createBinder(t, api, owner, id, 2, 2, 1)
 	card := newTestCards(t, 1)[0]
+	decodeBinderPage(t, placeCardAt(api, owner, id, 1, 1, 1, card))
 
-	resp := placeCardAt(api, other, id, 1, 1, 1, card)
+	resp := placeCardAt(api, other, id, 1, 1, 2, card)
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 	resp = markUnidentifiedAt(api, other, id, 1, 1, 1)
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 	resp = clearSlotAt(api, other, id, 1, 1, 1)
 	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
-	assert.Zero(t, getPage(t, api, owner, id, 1).Data.CardTotal)
+	requireEntriesMatchSlots(t, api, id)
+	assert.Equal(t, 1, masterQuantity(t, api, owner, card), "a refused write leaves the owner's entry as it was")
+	assert.Zero(t, masterQuantity(t, api, other, card))
+	page := getPage(t, api, owner, id, 1)
+	assert.Equal(t, 1, page.Data.CardTotal)
+	assert.Equal(t, "card", page.Data.Slots[0].State)
 
 	resp = placeCardAt(api, "", id, 1, 1, 1, card)
 	assert.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
@@ -205,4 +314,6 @@ func TestBinderSlotWriteOwnershipAndPlainCollection(t *testing.T) {
 	require.NoError(t, json.Unmarshal(plain.Body.Bytes(), &box))
 	resp = placeCardAt(api, owner, box.Data.ID, 1, 1, 1, card)
 	assert.Equal(t, http.StatusNotFound, resp.Code, "a plain Collection has no Pages: %s", resp.Body.String())
+	requireEntriesMatchSlots(t, api, box.Data.ID)
+	assert.Equal(t, 1, masterQuantity(t, api, owner, card), "the refused plain-Collection write adds no entry")
 }

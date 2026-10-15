@@ -19,8 +19,8 @@ type BinderSlotRepository interface {
 	// CountSlots returns, across the whole binder, how many Slots hold a Card and
 	// how many are Unidentified. It is raw GORM because go-crud has no aggregate.
 	CountSlots(ctx context.Context, collectionID uuid.UUID) (cards, unidentified int, err error)
-	// CountCardSlots returns how many Slots of one Collection hold the Card. An
-	// Inventory Entry's quantity is set from this count.
+	// CountCardSlots returns how many Slots of one Collection hold the Card. It is
+	// raw GORM because go-crud has no aggregate.
 	CountCardSlots(ctx context.Context, collectionID, cardID uuid.UUID) (int, error)
 }
 
