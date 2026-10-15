@@ -8,11 +8,12 @@ import "github.com/google/uuid"
 // quantity of the collection's Inventory Entries (the same measure the limit
 // caps, not distinct cards); 0 when empty.
 type CollectionSummary struct {
-	ID           uuid.UUID `json:"id"`
-	Title        string    `json:"title"`
-	Description  string    `json:"description"`
-	MaxCardCount int       `json:"maxCardCount"`
-	CardCount    int       `json:"cardCount"`
+	ID           uuid.UUID     `json:"id"`
+	Title        string        `json:"title"`
+	Description  string        `json:"description"`
+	MaxCardCount int           `json:"maxCardCount"`
+	CardCount    int           `json:"cardCount"`
+	Binder       *BinderLayout `json:"binder" doc:"The binder's Layout, or null when the Collection is a plain box or deck."`
 }
 
 // CollectionRequest is the request to create or edit a Collection. ID is set

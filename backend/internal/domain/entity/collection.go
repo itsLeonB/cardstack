@@ -16,6 +16,10 @@ type Collection struct {
 	Title        string    `gorm:"not null"`
 	Description  string    `gorm:"not null;default:''"`
 	MaxCardCount int       `gorm:"not null;default:0"`
+
+	// Layout is set only when the Collection is a binder. Loaded only via
+	// crud.Specification.PreloadRelations.
+	Layout *CollectionLayout `gorm:"foreignKey:CollectionID"`
 }
 
 func (Collection) TableName() string { return "collections" }

@@ -4,13 +4,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/ezutil/v2"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 )
+
+const binderMaxCardCountMsg = "a binder's capacity is its Slot count, so max_card_count must stay 0"
 
 // CollectionService scopes every method to the request's ProfileID.
 type CollectionService interface {
@@ -22,11 +26,19 @@ type CollectionService interface {
 }
 
 type collectionService struct {
-	repo repository.CollectionRepository
+	transactor crud.Transactor
+	repo       repository.CollectionRepository
+	layouts    repository.BinderLayoutRepository
+	leaves     repository.BinderLeafRepository
 }
 
-func NewCollectionService(repo repository.CollectionRepository) CollectionService {
-	return &collectionService{repo: repo}
+func NewCollectionService(
+	transactor crud.Transactor,
+	repo repository.CollectionRepository,
+	layouts repository.BinderLayoutRepository,
+	leaves repository.BinderLeafRepository,
+) CollectionService {
+	return &collectionService{transactor: transactor, repo: repo, layouts: layouts, leaves: leaves}
 }
 
 func (s *collectionService) Create(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
@@ -40,7 +52,7 @@ func (s *collectionService) Create(ctx context.Context, req dto.CollectionReques
 		return dto.CollectionSummary{}, err
 	}
 
-	return mapper.ToCollectionSummary(c, 0), nil // a new Collection has no entries
+	return mapper.ToCollectionSummary(c, 0, nil), nil
 }
 
 // List returns most recently created first (crud.Repository's DefaultOrder).
@@ -51,7 +63,8 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 	}
 
 	collections, err := s.repo.FindAll(ctx, crud.Specification[entity.Collection]{
-		Model: entity.Collection{ProfileID: req.ProfileID},
+		Model:            entity.Collection{ProfileID: req.ProfileID},
+		PreloadRelations: []string{"Layout"},
 	})
 	if err != nil {
 		return nil, err
@@ -62,9 +75,17 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 	if err != nil {
 		return nil, err
 	}
+	leafCounts, err := s.leaves.LeafCounts(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 
 	return ezutil.MapSlice(collections, func(c entity.Collection) dto.CollectionSummary {
-		return mapper.ToCollectionSummary(c, counts[c.ID])
+		var layout entity.CollectionLayout
+		if c.Layout != nil {
+			layout = *c.Layout
+		}
+		return mapper.ToCollectionSummary(c, counts[c.ID], binderSummary(layout, leafCounts[c.ID]))
 	}), nil
 }
 
@@ -77,17 +98,33 @@ func (s *collectionService) Get(ctx context.Context, req dto.CollectionLookup) (
 	return s.summarize(ctx, c)
 }
 
+// Update row-locks the Collection, so an update cannot race CreateBinder and
+// leave a binder with a max_card_count.
 func (s *collectionService) Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
-	c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, false)
-	if err != nil {
-		return dto.CollectionSummary{}, err
-	}
+	var updated entity.Collection
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, true)
+		if err != nil {
+			return err
+		}
 
-	c.Title = req.Title
-	c.Description = req.Description
-	c.MaxCardCount = req.MaxCardCount
+		if req.MaxCardCount != 0 {
+			isBinder, err := s.layouts.IsBinder(ctx, c.ID)
+			if err != nil {
+				return err
+			}
+			if isBinder {
+				return apperr.WithCode(ungerr.ConflictError(binderMaxCardCountMsg), apperr.CodeBinderMaxCardCount)
+			}
+		}
 
-	updated, err := s.repo.Update(ctx, c)
+		c.Title = req.Title
+		c.Description = req.Description
+		c.MaxCardCount = req.MaxCardCount
+
+		updated, err = s.repo.Update(ctx, c)
+		return err
+	})
 	if err != nil {
 		return dto.CollectionSummary{}, err
 	}
@@ -110,5 +147,27 @@ func (s *collectionService) summarize(ctx context.Context, c entity.Collection) 
 		return dto.CollectionSummary{}, err
 	}
 
-	return mapper.ToCollectionSummary(c, counts[c.ID]), nil
+	layout, err := s.layouts.FindLayout(ctx, c.ID)
+	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	var leafCount int
+	if !layout.IsZero() {
+		if leafCount, err = s.leaves.CountLeaves(ctx, c.ID); err != nil {
+			return dto.CollectionSummary{}, err
+		}
+	}
+
+	return mapper.ToCollectionSummary(c, counts[c.ID], binderSummary(layout, leafCount)), nil
+}
+
+// binderSummary is nil for a Collection without a Layout.
+func binderSummary(layout entity.CollectionLayout, leafCount int) *dto.BinderLayout {
+	if layout.IsZero() {
+		return nil
+	}
+
+	binder := mapper.ToBinderLayout(layout, leafCount)
+	return &binder
 }

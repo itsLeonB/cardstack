@@ -21,6 +21,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
+	binderHandler := handler.NewBinderHandler(services.Binder)
 	matchHandler := handler.NewMatchHandler(services.Match)
 
 	// Secured:true only sets OpenAPI metadata. The guard is what decides: a
@@ -43,6 +44,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser)
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
+	endpoint.RegisterAll(api, binderHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
 
 	if len(adminEmails) > 0 {
