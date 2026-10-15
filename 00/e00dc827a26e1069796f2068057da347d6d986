@@ -1,0 +1,39 @@
+backend/internal/adapters/http/handler/binder_handler.go
+  s_60be8baf2c4af1::t_4de5d25b5f3c86 61-81,152-203,267-296
+backend/internal/adapters/http/routes/binder_routes_test.go
+  s_60be8baf2c4af1::t_cc472bab99597c 84-87
+backend/internal/adapters/http/routes/binder_slot_routes_test.go
+  s_60be8baf2c4af1::t_cd826122831658 1-208
+backend/internal/adapters/http/routes/register_routes.go
+  s_60be8baf2c4af1::t_eaea05483eb367 49,60-79
+backend/internal/domain/dto/binder_dto.go
+  s_60be8baf2c4af1::t_1321901598cc9f 85-101
+backend/internal/domain/repository/binder_slot_repository.go
+  s_60be8baf2c4af1::t_005cc66e00b84d 22-24,91-112
+backend/internal/domain/service/binder_service.go
+  s_60be8baf2c4af1::t_b91d3b50e674a0 32,45-48,57,68,78,329,347-481
+backend/internal/domain/service/binder_service_test.go
+  s_60be8baf2c4af1::t_aec19574fa8d10 28,43,48,219-265
+backend/internal/mocks/BinderSlotRepository.go
+  s_60be8baf2c4af1::t_5a858deefe4c71 31-88
+backend/internal/provider/service_provider.go
+  s_60be8baf2c4af1::t_449938ca08fe23 95
+backend/openapi.json
+  s_60be8baf2c4af1::t_63d49b27725a32 278-290,516-524,2896-3155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "00e00dc827a26e1069796f2068057da347d6d986",
+  "prompts": {},
+  "sessions": {
+    "s_60be8baf2c4af1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_60be8baf2c4af1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
