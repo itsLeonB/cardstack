@@ -5,6 +5,7 @@ export type { HTTPStatusCode4xx } from './admin/admin.ts';
 export type { HTTPStatusCode5xx } from './admin/admin.ts';
 export type { HTTPStatusCodes } from './admin/admin.ts';
 export * from './admin/admin.ts';
+export * from './binder/binder.ts';
 export * from './catalog/catalog.ts';
 export * from './collections/collections.ts';
 export * from './health/health.ts';

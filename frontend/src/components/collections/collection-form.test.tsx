@@ -163,6 +163,28 @@ describe("CollectionForm", () => {
     )
   })
 
+  it("hides the max card count on a binder and sends 0", () => {
+    const onSubmit = vi.fn()
+    render(
+      <CollectionForm
+        showMaxCardCount={false}
+        submitLabel="Save"
+        pendingLabel="Saving..."
+        isPending={false}
+        onSubmit={onSubmit}
+      />
+    )
+
+    expect(screen.queryByLabelText("Max card count")).toBeNull()
+    fillAndSubmit({ title: "Vintage binder" })
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      title: "Vintage binder",
+      description: undefined,
+      maxCardCount: 0,
+    })
+  })
+
   it("pre-fills fields from initialValues (edit mode)", () => {
     render(
       <CollectionForm

@@ -132,7 +132,10 @@ function serveEntries(items: InventoryItem[]) {
 
 let queryClient: QueryClient
 
-function renderEntries(search: CatalogFilters = {}) {
+function renderEntries(
+  search: CatalogFilters = {},
+  quantityEditable?: boolean
+) {
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -142,6 +145,7 @@ function renderEntries(search: CatalogFilters = {}) {
         collectionId="col-1"
         search={search}
         onSearchChange={onSearchChange}
+        quantityEditable={quantityEditable}
       />
     </QueryClientProvider>
   )
@@ -233,6 +237,14 @@ describe("CollectionEntries", () => {
     expect(quantityOf(1)).toBe("3")
     expect(screen.queryByRole("button", { name: /^Save/ })).toBeNull()
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull()
+  })
+
+  it("shows the Cards of a binder without quantity controls", async () => {
+    serveEntries([entry(1)])
+    renderEntries({}, false)
+    await settle()
+    screen.getByText("1 of 1 cards loaded")
+    expect(screen.queryByLabelText("Quantity of Card 1")).toBeNull()
   })
 
   it("requests 100 per page with the URL filters, keyed by the filters alone", async () => {

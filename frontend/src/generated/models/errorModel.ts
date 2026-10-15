@@ -7,7 +7,7 @@
 import type { ErrorDetail } from './errorDetail.ts';
 
 export interface ErrorModel {
-  /** A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. */
+  /** A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. */
   code?: string;
   /** A human-readable explanation specific to this occurrence of the problem. */
   detail?: string;
