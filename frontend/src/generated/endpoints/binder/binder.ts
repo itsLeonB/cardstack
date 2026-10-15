@@ -27,10 +27,16 @@ import type {
   BinderGridBody,
   BinderLayoutBody,
   BinderLeafBody,
+  BinderPageReplaceBody,
   BinderSlotCardBody,
+  BinderSlotMoveBody,
   EnvelopeBinderLayout,
   EnvelopeBinderPage,
-  ErrorModel
+  EnvelopeBinderPageReplaceResult,
+  EnvelopeBinderSlotMoveResult,
+  EnvelopeListBinderPlacementResult,
+  ErrorModel,
+  PlaceCardsInputBody
 } from '../../models';
 
 import { customFetch } from '../../../lib/http.ts';
@@ -696,7 +702,116 @@ export function useGetBinderPage<TData = Awaited<ReturnType<typeof getBinderPage
 
 
 
-export type clearBinderSlotResponse200 = {
+export type replaceBinderPageResponse200 = {
+  data: EnvelopeBinderPageReplaceResult
+  status: 200
+}
+
+export type replaceBinderPageResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type replaceBinderPageResponseSuccess = (replaceBinderPageResponse200) & {
+  headers: Headers;
+};
+export type replaceBinderPageResponseError = (replaceBinderPageResponseDefault) & {
+  headers: Headers;
+};
+
+export type replaceBinderPageResponse = (replaceBinderPageResponseSuccess | replaceBinderPageResponseError)
+
+export const getReplaceBinderPageUrl = (id: string,
+    page: number,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/binder/pages/${page}`
+}
+
+/**
+ * @summary Replace every Slot of a Page; returns what each Slot holds, with the reason for any Card the server did not know
+ */
+export const replaceBinderPage = async (id: string,
+    page: number,
+    binderPageReplaceBody: BinderPageReplaceBody, options?: Parameters<typeof customFetch>[1]): Promise<replaceBinderPageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<replaceBinderPageResponse>(getReplaceBinderPageUrl(id,page),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(binderPageReplaceBody)
+  }
+);}
+
+
+
+
+
+export const getReplaceBinderPageMutationKey = () => ['replaceBinderPage'] as const;
+
+export const getReplaceBinderPageMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceBinderPage>>, TError,ReplaceBinderPageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replaceBinderPage>>, TError,ReplaceBinderPageMutationVariables, TContext> => {
+
+const mutationKey = getReplaceBinderPageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replaceBinderPage>>, ReplaceBinderPageMutationVariables> = (props) => {
+          const {id,page,data} = props ?? {};
+
+          return  replaceBinderPage(id,page,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplaceBinderPageMutationResult = NonNullable<Awaited<ReturnType<typeof replaceBinderPage>>>
+    export type ReplaceBinderPageMutationBody = BinderPageReplaceBody
+    export type ReplaceBinderPageMutationError = ErrorModel
+    export type ReplaceBinderPageMutationVariables = {id: string;page: number;data: BinderPageReplaceBody}
+
+    /**
+ * @summary Replace every Slot of a Page; returns what each Slot holds, with the reason for any Card the server did not know
+ */
+export const useReplaceBinderPage = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceBinderPage>>, TError,ReplaceBinderPageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof replaceBinderPage>>,
+        TError,
+        ReplaceBinderPageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReplaceBinderPageMutationOptions(options), queryClient);
+    }
+    export type clearBinderSlotResponse200 = {
   data: EnvelopeBinderPage
   status: 200
 }
@@ -1004,4 +1119,218 @@ export const useMarkBinderSlotUnidentified = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getMarkBinderSlotUnidentifiedMutationOptions(options), queryClient);
+    }
+    export type placeBinderCardsResponse200 = {
+  data: EnvelopeListBinderPlacementResult
+  status: 200
+}
+
+export type placeBinderCardsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type placeBinderCardsResponseSuccess = (placeBinderCardsResponse200) & {
+  headers: Headers;
+};
+export type placeBinderCardsResponseError = (placeBinderCardsResponseDefault) & {
+  headers: Headers;
+};
+
+export type placeBinderCardsResponse = (placeBinderCardsResponseSuccess | placeBinderCardsResponseError)
+
+export const getPlaceBinderCardsUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/binder/placements`
+}
+
+/**
+ * @summary Place Cards in a binder's first empty Slots in Page order, one Slot per copy; copies with no empty Slot are declined
+ */
+export const placeBinderCards = async (id: string,
+    placeCardsInputBody: PlaceCardsInputBody, options?: Parameters<typeof customFetch>[1]): Promise<placeBinderCardsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<placeBinderCardsResponse>(getPlaceBinderCardsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(placeCardsInputBody)
+  }
+);}
+
+
+
+
+
+export const getPlaceBinderCardsMutationKey = () => ['placeBinderCards'] as const;
+
+export const getPlaceBinderCardsMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeBinderCards>>, TError,PlaceBinderCardsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof placeBinderCards>>, TError,PlaceBinderCardsMutationVariables, TContext> => {
+
+const mutationKey = getPlaceBinderCardsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof placeBinderCards>>, PlaceBinderCardsMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  placeBinderCards(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PlaceBinderCardsMutationResult = NonNullable<Awaited<ReturnType<typeof placeBinderCards>>>
+    export type PlaceBinderCardsMutationBody = PlaceCardsInputBody
+    export type PlaceBinderCardsMutationError = ErrorModel
+    export type PlaceBinderCardsMutationVariables = {id: string;data: PlaceCardsInputBody}
+
+    /**
+ * @summary Place Cards in a binder's first empty Slots in Page order, one Slot per copy; copies with no empty Slot are declined
+ */
+export const usePlaceBinderCards = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeBinderCards>>, TError,PlaceBinderCardsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof placeBinderCards>>,
+        TError,
+        PlaceBinderCardsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPlaceBinderCardsMutationOptions(options), queryClient);
+    }
+    export type moveBinderSlotResponse200 = {
+  data: EnvelopeBinderSlotMoveResult
+  status: 200
+}
+
+export type moveBinderSlotResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type moveBinderSlotResponseSuccess = (moveBinderSlotResponse200) & {
+  headers: Headers;
+};
+export type moveBinderSlotResponseError = (moveBinderSlotResponseDefault) & {
+  headers: Headers;
+};
+
+export type moveBinderSlotResponse = (moveBinderSlotResponseSuccess | moveBinderSlotResponseError)
+
+export const getMoveBinderSlotUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/binder/slots/move`
+}
+
+/**
+ * @summary Move a card to another Slot of the binder, swapping when the target holds a card; returns the source and target Pages
+ */
+export const moveBinderSlot = async (id: string,
+    binderSlotMoveBody: BinderSlotMoveBody, options?: Parameters<typeof customFetch>[1]): Promise<moveBinderSlotResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<moveBinderSlotResponse>(getMoveBinderSlotUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(binderSlotMoveBody)
+  }
+);}
+
+
+
+
+
+export const getMoveBinderSlotMutationKey = () => ['moveBinderSlot'] as const;
+
+export const getMoveBinderSlotMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveBinderSlot>>, TError,MoveBinderSlotMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveBinderSlot>>, TError,MoveBinderSlotMutationVariables, TContext> => {
+
+const mutationKey = getMoveBinderSlotMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveBinderSlot>>, MoveBinderSlotMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  moveBinderSlot(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveBinderSlotMutationResult = NonNullable<Awaited<ReturnType<typeof moveBinderSlot>>>
+    export type MoveBinderSlotMutationBody = BinderSlotMoveBody
+    export type MoveBinderSlotMutationError = ErrorModel
+    export type MoveBinderSlotMutationVariables = {id: string;data: BinderSlotMoveBody}
+
+    /**
+ * @summary Move a card to another Slot of the binder, swapping when the target holds a card; returns the source and target Pages
+ */
+export const useMoveBinderSlot = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveBinderSlot>>, TError,MoveBinderSlotMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveBinderSlot>>,
+        TError,
+        MoveBinderSlotMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveBinderSlotMutationOptions(options), queryClient);
     }

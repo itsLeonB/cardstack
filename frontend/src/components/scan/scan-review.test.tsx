@@ -34,6 +34,10 @@ let declines = new Map<string, "capacity_exceeded" | "card_not_found">()
 // What the next bulk request does: answer normally, a server error, or no answer at all.
 let bulkMode: "ok" | "error" | "lost" = "ok"
 let bulks: { cardId: string; quantity: number }[][] = []
+// A binder Collection's Slots: `cardTotal` of its `layout.capacity` are taken. Null for a plain Collection.
+let binder: { cardTotal: number } | null = null
+let placements: { cardId: string; quantity: number }[][] = []
+const layout = { rows: 1, columns: 5, leafCount: 1, capacity: 10 }
 
 interface JsonBody {
   data?: unknown
@@ -63,9 +67,48 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
           description: "",
           cardCount: 10,
           maxCardCount: 0,
+          binder: binder ? layout : null,
         },
       })
     )
+  }
+  if (url.pathname === "/collections/col-1/binder/pages/1") {
+    return Promise.resolve(
+      json({
+        data: {
+          page: 1,
+          leaf: 1,
+          side: "front",
+          layout,
+          cardTotal: binder?.cardTotal ?? 0,
+          unidentifiedCount: 0,
+          slots: [],
+        },
+      })
+    )
+  }
+  if (url.pathname === "/collections/col-1/binder/placements") {
+    // SAFETY: the only POST this fake receives is the placement's.
+    const { items } = JSON.parse(String(init?.body)) as {
+      items: { cardId: string; quantity: number }[]
+    }
+    placements.push(items)
+    const results = items.map(({ cardId, quantity }) => {
+      const placed = Math.min(quantity, layout.capacity - binder!.cardTotal)
+      const declined = quantity - placed
+      binder!.cardTotal += placed
+      held.set(cardId, (held.get(cardId) ?? 0) + placed)
+      return declined > 0
+        ? {
+            cardId,
+            placed,
+            declined,
+            reason: "not_enough_empty_slots",
+            message: "not enough empty Slots",
+          }
+        : { cardId, placed, declined }
+    })
+    return Promise.resolve(json({ data: results }))
   }
   if (url.pathname === "/collections/col-1/entries") {
     if (init?.method === "PATCH") {
@@ -156,6 +199,8 @@ beforeEach(() => {
   declines = new Map()
   bulkMode = "ok"
   bulks = []
+  binder = null
+  placements = []
   added.mockClear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   URL.createObjectURL = vi.fn(() => "blob:photo")
@@ -292,5 +337,58 @@ describe("adding to the Collection", () => {
     expect(bulks[0]).toEqual([{ cardId: "card-1", quantity: 2 }])
     expect(bulks[1]).toEqual([{ cardId: "card-1", quantity: 2 }])
     expect(held.get("card-1")).toBe(2)
+  })
+})
+
+describe("adding to a binder", () => {
+  beforeEach(() => {
+    binder = { cardTotal: 0 }
+  })
+
+  it("places each copy in an empty Slot, one line per Card, and returns to the Collection", async () => {
+    seed([scan(1), scan(1), scan(2, 3)])
+    await openReview()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(placements).toEqual([
+      [
+        { cardId: "card-1", quantity: 2 },
+        { cardId: "card-2", quantity: 3 },
+      ],
+    ])
+    expect(bulks).toEqual([])
+    expect(loadDraft("col-1")).toEqual([])
+  })
+
+  it("keeps the copies that found no empty Slot, with the reason, and removes the placed ones", async () => {
+    binder = { cardTotal: 8 }
+    seed([scan(1), scan(2, 2)])
+    await openReview()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    const declined = await reviewRow("Card 2")
+    expect(
+      await within(declined).findByText("Not added: not enough empty Slots")
+    ).toBeTruthy()
+    expect(within(declined).getByText("+1")).toBeTruthy()
+    expect(screen.queryByText("Card 1")).toBeNull()
+    expect(added).not.toHaveBeenCalled()
+    expect(loadDraft("col-1")).toEqual([scan(2, 1)])
+  })
+
+  it("shows the binder's empty Slots instead of the Collection's limit", async () => {
+    binder = { cardTotal: 8 }
+    seed([scan(1)])
+    await openReview()
+
+    expect(await screen.findByText("Empty Slots: 2 of 10")).toBeTruthy()
+    expect(screen.queryByText(/Collection total/)).toBeNull()
   })
 })

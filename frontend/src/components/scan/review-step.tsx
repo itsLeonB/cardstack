@@ -13,6 +13,10 @@ import {
   bulkUpdateCollectionEntries,
   getListCollectionEntriesQueryOptions,
 } from "@/generated/endpoints/inventory/inventory"
+import {
+  placeBinderCards,
+  useGetBinderPage,
+} from "@/generated/endpoints/binder/binder"
 import { InventoryChangeResultStatus } from "@/generated/models"
 import type { CardSummary } from "@/generated/models"
 import {
@@ -20,6 +24,7 @@ import {
   invalidateCollectionCounts,
   invalidateCollectionEntries,
 } from "@/lib/collections"
+import { invalidateBinder } from "@/lib/binder"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 
 class RequestError extends Error {}
@@ -30,19 +35,21 @@ export interface ReviewRowData {
   quantity: number
 }
 
-/** What one commit did: the Cards the Collection took, the reasons it declined the rest, and whether a request failed. */
+/** What one commit did: the copies the Collection took, by card id, the reasons it declined the rest, and whether a request failed. */
 export interface CommitResult {
-  applied: string[]
+  placed: Record<string, number>
   declined: Record<string, string>
   failed: boolean
 }
 
 /**
  * The review step of a Draft Addition: one row per Card, what each adds, what
- * the Collection already holds, and the commit. A commit sends absolute targets
- * (held plus added) through the bulk update. Targets are fixed per row once
- * computed and reused by a retry, so a write whose answer was lost is not added
- * twice. The capacity total only warns: the server decides.
+ * the Collection already holds, and the commit. On a plain Collection a commit
+ * sends absolute targets (held plus added) through the bulk update. Targets are
+ * fixed per row once computed and reused by a retry, so a write whose answer was
+ * lost is not added twice. The capacity total only warns: the server decides.
+ * On a binder a commit places each copy in an empty Slot instead, so there are
+ * no targets, and the step shows the binder's empty Slots.
  */
 export function ReviewStep({
   collectionId,
@@ -95,6 +102,15 @@ export function ReviewStep({
     collectionQuery.data?.status === 200
       ? collectionQuery.data.data.data
       : undefined
+  const binder = collection?.binder
+  // A binder's Page read counts its Slots across the whole binder.
+  const binderPage = useGetBinderPage(collectionId, 1, {
+    query: { enabled: !!binder },
+  })
+  const emptySlots =
+    binder && binderPage.data?.status === 200
+      ? binder.capacity - binderPage.data.data.data.cardTotal
+      : undefined
   const total = rows.reduce((sum, r) => sum + r.quantity, 0)
   const afterAdding = collection ? collection.cardCount + total : undefined
   const overLimit =
@@ -105,72 +121,99 @@ export function ReviewStep({
   async function commit() {
     setBusy(true)
     setError(null)
-    const applied: string[] = []
+    const placed: Record<string, number> = {}
     const declinedNow: Record<string, string> = {}
     let sent = false
     let failed = false
     try {
-      const missing = rows.filter(
-        (r) => targets.current.get(r.cardId)?.added !== r.quantity
-      )
-      // Fresh, not cached: the targets must come from what the Collection holds now.
-      for (const cardId of chunked(missing.map((r) => r.cardId))) {
-        const response = await queryClient.fetchQuery({
-          ...getListCollectionEntriesQueryOptions(collectionId, {
-            cardId,
-            limit: MAX_CARD_IDS_PER_REQUEST,
-          }),
-          staleTime: 0,
-        })
-        if (response.status !== 200)
-          throw new RequestError("Could not read the Collection's quantities.")
-        const current = new Map(
-          (response.data.data ?? []).map((i) => [i.card.id, i.quantity])
-        )
-        for (const r of missing.filter((m) => cardId.includes(m.cardId)))
-          targets.current.set(r.cardId, {
-            added: r.quantity,
-            target: (current.get(r.cardId) ?? 0) + r.quantity,
+      if (binder) {
+        // Rows are already one per Card, as the endpoint requires.
+        for (let i = 0; i < rows.length; i += MAX_CARD_IDS_PER_REQUEST) {
+          sent = true
+          const response = await placeBinderCards(collectionId, {
+            items: rows.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
           })
-      }
-      const items = rows.map((r) => ({
-        cardId: r.cardId,
-        quantity: targets.current.get(r.cardId)!.target,
-      }))
-      for (let i = 0; i < items.length; i += MAX_CARD_IDS_PER_REQUEST) {
-        sent = true
-        const response = await bulkUpdateCollectionEntries(collectionId, {
-          items: items.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
-        })
-        if (response.status !== 200)
-          throw new RequestError(
-            response.data.detail ?? "Could not add these cards."
+          if (response.status !== 200)
+            throw new RequestError(
+              response.data.detail ?? "Could not add these cards."
+            )
+          // Placed per chunk, so a later chunk's failure cannot undo what this one did.
+          for (const result of response.data.data ?? []) {
+            if (result.placed > 0) placed[result.cardId] = result.placed
+            if (result.declined > 0)
+              declinedNow[result.cardId] = result.message ?? "Declined."
+          }
+        }
+      } else {
+        const missing = rows.filter(
+          (r) => targets.current.get(r.cardId)?.added !== r.quantity
+        )
+        // Fresh, not cached: the targets must come from what the Collection holds now.
+        for (const cardId of chunked(missing.map((r) => r.cardId))) {
+          const response = await queryClient.fetchQuery({
+            ...getListCollectionEntriesQueryOptions(collectionId, {
+              cardId,
+              limit: MAX_CARD_IDS_PER_REQUEST,
+            }),
+            staleTime: 0,
+          })
+          if (response.status !== 200)
+            throw new RequestError(
+              "Could not read the Collection's quantities."
+            )
+          const current = new Map(
+            (response.data.data ?? []).map((i) => [i.card.id, i.quantity])
           )
-        // Applied per chunk, so a later chunk's failure cannot undo what this one did.
-        for (const result of response.data.data ?? []) {
-          targets.current.delete(result.cardId)
-          if (result.status === InventoryChangeResultStatus.declined)
-            declinedNow[result.cardId] =
-              result.message ?? result.reason ?? "Declined."
-          else applied.push(result.cardId)
+          for (const r of missing.filter((m) => cardId.includes(m.cardId)))
+            targets.current.set(r.cardId, {
+              added: r.quantity,
+              target: (current.get(r.cardId) ?? 0) + r.quantity,
+            })
+        }
+        const items = rows.map((r) => ({
+          cardId: r.cardId,
+          quantity: targets.current.get(r.cardId)!.target,
+        }))
+        for (let i = 0; i < items.length; i += MAX_CARD_IDS_PER_REQUEST) {
+          sent = true
+          const response = await bulkUpdateCollectionEntries(collectionId, {
+            items: items.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
+          })
+          if (response.status !== 200)
+            throw new RequestError(
+              response.data.detail ?? "Could not add these cards."
+            )
+          // Applied per chunk, so a later chunk's failure cannot undo what this one did.
+          for (const result of response.data.data ?? []) {
+            targets.current.delete(result.cardId)
+            if (result.status === InventoryChangeResultStatus.declined)
+              declinedNow[result.cardId] =
+                result.message ?? result.reason ?? "Declined."
+            else
+              placed[result.cardId] = rows.find(
+                (r) => r.cardId === result.cardId
+              )!.quantity
+          }
         }
       }
     } catch (e) {
       failed = true
       const reason = e instanceof RequestError ? e.message : NETWORK_ERROR
+      const count = Object.keys(placed).length
       setError(
-        applied.length > 0
-          ? `${reason} ${applied.length} of ${rows.length} cards were already added and left your draft; the rest are still here.`
+        count > 0
+          ? `${reason} ${count} of ${rows.length} cards were already added and left your draft; the rest are still here.`
           : `${reason} Your draft is unchanged.`
       )
     } finally {
       setBusy(false)
-      onCommitted({ applied, declined: declinedNow, failed })
+      onCommitted({ placed, declined: declinedNow, failed })
       // A lost answer may hide a committed write, so refresh after any send.
       if (sent) {
         invalidateMasterInventory(queryClient)
-        invalidateCollectionCounts(queryClient, collectionId)
         invalidateCollectionEntries(queryClient, collectionId)
+        if (binder) invalidateBinder(queryClient, collectionId)
+        else invalidateCollectionCounts(queryClient, collectionId)
       }
     }
   }
@@ -180,7 +223,12 @@ export function ReviewStep({
       <h2 id="review-heading" className="font-heading text-lg font-medium">
         Review and add
       </h2>
-      {afterAdding !== undefined && (
+      {emptySlots !== undefined && (
+        <p className="text-sm">
+          Empty Slots: {emptySlots} of {binder?.capacity}
+        </p>
+      )}
+      {!binder && afterAdding !== undefined && (
         <p className="text-sm">
           Collection total after adding: {afterAdding}
           {collection!.maxCardCount > 0
