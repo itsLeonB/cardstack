@@ -1,0 +1,45 @@
+frontend/src/components/collections/binder-page-grid.tsx
+  s_20b11b53958c09::t_4838099d504eff 1,4-14,23-30,36-44,46-49,53-54,56-58,66-68,74-75,77-82,85,90-91,93-95
+frontend/src/components/collections/binder-slot-panel.tsx
+  s_20b11b53958c09::t_c0b7b7f0589af6 1-228
+frontend/src/components/collections/binder-slots.test.tsx
+  s_20b11b53958c09::t_6d5d140269e8c0 1-280
+frontend/src/components/collections/binder-view.test.tsx
+  s_20b11b53958c09::t_6abc8c5171527d 7,48,65,68,71,262
+frontend/src/components/collections/binder-view.tsx
+  s_20b11b53958c09::t_bddfdd770c50e4 17,38-43,207-213,286-305
+frontend/src/generated/endpoints/binder/binder.ts
+  s_20b11b53958c09::t_acf5e158a09034 30,699-1007
+frontend/src/generated/endpoints/binder/binder.zod.ts
+  s_20b11b53958c09::t_57d3baa0410afd 141-315
+frontend/src/generated/endpoints/collections/collections.zod.ts
+  s_20b11b53958c09::t_6059acda49894e 20,51,83,118
+frontend/src/generated/models/binderSlotCardBody.ts
+  s_20b11b53958c09::t_3baa44b3c83e18 1-11
+frontend/src/generated/models/collectionSummary.ts
+  s_20b11b53958c09::t_4b84039b825b27 10
+frontend/src/generated/models/index.ts
+  s_20b11b53958c09::t_71851d24502da3 18
+frontend/src/lib/binder.test.ts
+  s_20b11b53958c09::t_edf653fcd84ebd 1-32
+frontend/src/lib/binder.ts
+  s_20b11b53958c09::t_f073722c914c0f 3-7,54-66
+frontend/src/test-binder-api.ts
+  s_20b11b53958c09::t_ba65fbbedf6925 2,8-13,15-31,46,61-64,76,127-157,172-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "117c896b63bff9375b684ff80ca1e99e8fd1f268",
+  "prompts": {},
+  "sessions": {
+    "s_20b11b53958c09": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_20b11b53958c09",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
