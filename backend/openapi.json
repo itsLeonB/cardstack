@@ -288,6 +288,32 @@
         ],
         "type": "object"
       },
+      "BinderSlotPosition": {
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "description": "Column of the pocket on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number in turning order, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "row": {
+            "description": "Row of the pocket on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "row",
+          "column"
+        ],
+        "type": "object"
+      },
       "BulkUpdateEntriesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1143,6 +1169,16 @@
         "properties": {
           "card": {
             "$ref": "#/components/schemas/CardSummary"
+          },
+          "positions": {
+            "description": "Where the Card sits in a binder: one position per Slot holding it, in Page order. Absent in a plain Collection.",
+            "items": {
+              "$ref": "#/components/schemas/BinderSlotPosition"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "quantity": {
             "format": "int64",

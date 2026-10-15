@@ -38,8 +38,10 @@ type BinderSlot struct {
 	CardID       *uuid.UUID `gorm:"type:uuid"`
 	Unidentified bool       `gorm:"not null;default:false"`
 
-	// Card is loaded only via crud.Specification.PreloadRelations.
-	Card Card `gorm:"foreignKey:CardID"`
+	// Card and Leaf are loaded only via crud.Specification.PreloadRelations.
+	// Leaf gives the Slot's Page, since a Page's number follows its Leaf's Position.
+	Card Card       `gorm:"foreignKey:CardID"`
+	Leaf BinderLeaf `gorm:"foreignKey:LeafID"`
 }
 
 func (BinderSlot) TableName() string { return "binder_slots" }

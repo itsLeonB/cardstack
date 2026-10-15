@@ -22,6 +22,9 @@ type BinderSlotRepository interface {
 	// CountCardSlots returns how many Slots of one Collection hold the Card. It is
 	// raw GORM because go-crud has no aggregate.
 	CountCardSlots(ctx context.Context, collectionID, cardID uuid.UUID) (int, error)
+	// ListOccupiedSlots returns every occupied Slot of one Collection, Unidentified
+	// ones included, with their Leaves loaded so each Slot's Page can be computed.
+	ListOccupiedSlots(ctx context.Context, collectionID uuid.UUID) ([]entity.BinderSlot, error)
 }
 
 type binderSlotRepository struct {
@@ -109,4 +112,15 @@ func (r *binderSlotRepository) CountCardSlots(ctx context.Context, collectionID,
 	}
 
 	return int(count), nil
+}
+
+func (r *binderSlotRepository) ListOccupiedSlots(ctx context.Context, collectionID uuid.UUID) ([]entity.BinderSlot, error) {
+	if collectionID == uuid.Nil {
+		return nil, nil
+	}
+
+	return r.FindAll(ctx, crud.Specification[entity.BinderSlot]{
+		Model:            entity.BinderSlot{CollectionID: collectionID},
+		PreloadRelations: []string{"Leaf"},
+	})
 }

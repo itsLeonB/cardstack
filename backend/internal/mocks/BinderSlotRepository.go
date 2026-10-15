@@ -592,6 +592,65 @@ func (_c *MockBinderSlotRepository_InsertMany_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// ListOccupiedSlots provides a mock function with given fields: ctx, collectionID
+func (_m *MockBinderSlotRepository) ListOccupiedSlots(ctx context.Context, collectionID uuid.UUID) ([]entity.BinderSlot, error) {
+	ret := _m.Called(ctx, collectionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListOccupiedSlots")
+	}
+
+	var r0 []entity.BinderSlot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]entity.BinderSlot, error)); ok {
+		return rf(ctx, collectionID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []entity.BinderSlot); ok {
+		r0 = rf(ctx, collectionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.BinderSlot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, collectionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockBinderSlotRepository_ListOccupiedSlots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListOccupiedSlots'
+type MockBinderSlotRepository_ListOccupiedSlots_Call struct {
+	*mock.Call
+}
+
+// ListOccupiedSlots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionID uuid.UUID
+func (_e *MockBinderSlotRepository_Expecter) ListOccupiedSlots(ctx interface{}, collectionID interface{}) *MockBinderSlotRepository_ListOccupiedSlots_Call {
+	return &MockBinderSlotRepository_ListOccupiedSlots_Call{Call: _e.mock.On("ListOccupiedSlots", ctx, collectionID)}
+}
+
+func (_c *MockBinderSlotRepository_ListOccupiedSlots_Call) Run(run func(ctx context.Context, collectionID uuid.UUID)) *MockBinderSlotRepository_ListOccupiedSlots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockBinderSlotRepository_ListOccupiedSlots_Call) Return(_a0 []entity.BinderSlot, _a1 error) *MockBinderSlotRepository_ListOccupiedSlots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockBinderSlotRepository_ListOccupiedSlots_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]entity.BinderSlot, error)) *MockBinderSlotRepository_ListOccupiedSlots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListSlotsOnPage provides a mock function with given fields: ctx, leafID, side
 func (_m *MockBinderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string) ([]entity.BinderSlot, error) {
 	ret := _m.Called(ctx, leafID, side)

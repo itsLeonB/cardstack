@@ -31,6 +31,13 @@ type BinderSlot struct {
 	Card   *CardSummary `json:"card" doc:"The Card in the pocket, set only when State is card."`
 }
 
+// BinderSlotPosition is where a Slot sits in a binder: its Page, row and column.
+type BinderSlotPosition struct {
+	Page   int `json:"page" doc:"Page number in turning order, from 1."`
+	Row    int `json:"row" doc:"Row of the pocket on its Page, from 1."`
+	Column int `json:"column" doc:"Column of the pocket on its Page, from 1."`
+}
+
 // BinderPage is one Page of a binder in turning order, with its Slots in grid
 // order (row by row, left to right). CardTotal counts Slots holding a Card plus
 // Unidentified Slots, across the whole binder.

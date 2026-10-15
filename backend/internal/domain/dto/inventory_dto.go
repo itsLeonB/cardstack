@@ -37,6 +37,8 @@ type InventoryEntry struct {
 type InventoryItem struct {
 	Card     CardSummary `json:"card"`
 	Quantity int         `json:"quantity"`
+	// Positions is set only in a binder's entry list: one per Slot holding the Card.
+	Positions []BinderSlotPosition `json:"positions,omitempty" doc:"Where the Card sits in a binder: one position per Slot holding it, in Page order. Absent in a plain Collection."`
 }
 
 // InventoryQuantityChange is one item of a bulk update: the absolute target

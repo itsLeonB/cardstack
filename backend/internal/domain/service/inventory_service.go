@@ -52,6 +52,7 @@ type inventoryService struct {
 	transactor  crud.Transactor
 	collections repository.CollectionRepository
 	layouts     repository.BinderLayoutRepository
+	slots       repository.BinderSlotRepository
 	entries     repository.InventoryRepository
 	catalog     repository.CatalogRepository
 	cards       crud.Repository[entity.Card]
@@ -62,12 +63,13 @@ func NewInventoryService(
 	transactor crud.Transactor,
 	collections repository.CollectionRepository,
 	layouts repository.BinderLayoutRepository,
+	slots repository.BinderSlotRepository,
 	entries repository.InventoryRepository,
 	catalog repository.CatalogRepository,
 	cards crud.Repository[entity.Card],
 	images mapper.ImageHost,
 ) InventoryService {
-	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, entries: entries, catalog: catalog, cards: cards, images: images}
+	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, slots: slots, entries: entries, catalog: catalog, cards: cards, images: images}
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -83,7 +85,20 @@ func (s *inventoryService) List(ctx context.Context, req dto.InventoryListReques
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) }), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+	items := ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) })
+	// Only a binder has Slots, so a plain Collection's list finds none and omits positions.
+	if len(items) > 0 {
+		slots, err := s.slots.ListOccupiedSlots(ctx, req.CollectionID)
+		if err != nil {
+			return nil, dto.PaginationMeta{}, err
+		}
+		positions := mapper.ToCardPositions(slots)
+		for i := range items {
+			items[i].Positions = positions[items[i].Card.ID]
+		}
+	}
+
+	return items, dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
