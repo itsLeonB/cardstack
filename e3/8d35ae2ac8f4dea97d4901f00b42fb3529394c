@@ -1,0 +1,31 @@
+frontend/src/components/collections/binder-view.tsx
+  s_2cee6f97f79862::t_dd8aab9ea32e70 1,15,34-41,65-67,86-93,284-285,363,374,384
+frontend/src/components/collections/card-positions.tsx
+  s_2cee6f97f79862::t_2be8de8693bee1 1-32
+frontend/src/components/collections/collection-entries.tsx
+  s_2cee6f97f79862::t_ddd527e8885817 5,7,29-30,38,67,128-136
+frontend/src/lib/binder.ts
+  s_2cee6f97f79862::t_23a84748d52a90 31-35,44
+frontend/src/lib/infinite-inventory.ts
+  s_2cee6f97f79862::t_789e1272c996fd 8,23-24,37-42
+frontend/src/routes/_authenticated/collections/$collectionId/-collection-page.test.tsx
+  s_2cee6f97f79862::t_81bfdeeeb0e4f5 2-8,68-69,71-148
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_2cee6f97f79862::t_56b384bb270b13 1,12,52-54,96-98,107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e38d35ae2ac8f4dea97d4901f00b42fb3529394c",
+  "prompts": {},
+  "sessions": {
+    "s_2cee6f97f79862": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_2cee6f97f79862",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
