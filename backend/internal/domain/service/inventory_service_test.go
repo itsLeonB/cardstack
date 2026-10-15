@@ -49,6 +49,7 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 
 func (f inventoryFixture) lockedCollection() {
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, true).Return(f.collection, nil).Once()
+	f.collections.EXPECT().IsBinder(f.ctx, f.collection.ID).Return(false, nil).Maybe()
 }
 
 func (f inventoryFixture) entryReq(cardID uuid.UUID, quantity int) dto.InventoryEntryRequest {

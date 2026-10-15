@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -28,6 +28,7 @@ type Services struct {
 	Catalog    service.CatalogService
 	Collection service.CollectionService
 	Inventory  service.InventoryService
+	Binder     service.BinderService
 	Match      service.MatchService
 	AdminSets  service.AdminSetService
 	CardAdmin  service.CardAdminService
@@ -73,6 +74,17 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
 		crud.NewRepository[entity.Card](ds.Gorm),
+		images,
+	)
+}
+
+// ProvideBinderService builds the binder service over ds's DB.
+func ProvideBinderService(ds *DataSources, images mapper.ImageHost) service.BinderService {
+	return service.NewBinderService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
 		images,
 	)
 }
@@ -130,7 +142,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Verifier:   verifier,
@@ -138,6 +150,7 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		Catalog:    catalog,
 		Collection: collection,
 		Inventory:  inventory,
+		Binder:     binder,
 		Match:      match,
 		AdminSets:  adminSets,
 		CardAdmin:  cardAdmin,

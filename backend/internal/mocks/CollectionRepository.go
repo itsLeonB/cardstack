@@ -471,6 +471,63 @@ func (_c *MockCollectionRepository_InsertMany_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// IsBinder provides a mock function with given fields: ctx, collectionID
+func (_m *MockCollectionRepository) IsBinder(ctx context.Context, collectionID uuid.UUID) (bool, error) {
+	ret := _m.Called(ctx, collectionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsBinder")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return rf(ctx, collectionID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = rf(ctx, collectionID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, collectionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCollectionRepository_IsBinder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsBinder'
+type MockCollectionRepository_IsBinder_Call struct {
+	*mock.Call
+}
+
+// IsBinder is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionID uuid.UUID
+func (_e *MockCollectionRepository_Expecter) IsBinder(ctx interface{}, collectionID interface{}) *MockCollectionRepository_IsBinder_Call {
+	return &MockCollectionRepository_IsBinder_Call{Call: _e.mock.On("IsBinder", ctx, collectionID)}
+}
+
+func (_c *MockCollectionRepository_IsBinder_Call) Run(run func(ctx context.Context, collectionID uuid.UUID)) *MockCollectionRepository_IsBinder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockCollectionRepository_IsBinder_Call) Return(_a0 bool, _a1 error) *MockCollectionRepository_IsBinder_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCollectionRepository_IsBinder_Call) RunAndReturn(run func(context.Context, uuid.UUID) (bool, error)) *MockCollectionRepository_IsBinder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveMany provides a mock function with given fields: ctx, models
 func (_m *MockCollectionRepository) SaveMany(ctx context.Context, models []entity.Collection) ([]entity.Collection, error) {
 	ret := _m.Called(ctx, models)

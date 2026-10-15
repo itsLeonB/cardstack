@@ -110,6 +110,7 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string)
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
 		provider.ProvideInventoryService(ds, images),
+		provider.ProvideBinderService(ds, images),
 		provider.ProvideMatchService(ds, images, embedder, settings),
 		provider.ProvideAdminSetService(ds, images),
 		provider.ProvideCardAdminService(ds, images, store),
