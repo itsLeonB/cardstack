@@ -22,6 +22,14 @@ type BinderSlotRepository interface {
 	// CountCardSlots returns how many Slots of one Collection hold the Card. It is
 	// raw GORM because go-crud has no aggregate.
 	CountCardSlots(ctx context.Context, collectionID, cardID uuid.UUID) (int, error)
+	// ListOccupiedSlots returns the Slots of one Collection that hold one of the
+	// Cards, with their Leaves loaded so each Slot's Page can be computed. Other
+	// Slots, Unidentified ones included, are left out, so an entries page does not
+	// load the whole binder.
+	ListOccupiedSlots(ctx context.Context, collectionID uuid.UUID, cardIDs []uuid.UUID) ([]entity.BinderSlot, error)
+	// ListAllOccupiedSlots returns every occupied Slot of one Collection, Unidentified
+	// ones included, with their Leaves loaded so each Slot's Page can be computed.
+	ListAllOccupiedSlots(ctx context.Context, collectionID uuid.UUID) ([]entity.BinderSlot, error)
 }
 
 type binderSlotRepository struct {
@@ -109,4 +117,37 @@ func (r *binderSlotRepository) CountCardSlots(ctx context.Context, collectionID,
 	}
 
 	return int(count), nil
+}
+
+func (r *binderSlotRepository) ListOccupiedSlots(ctx context.Context, collectionID uuid.UUID, cardIDs []uuid.UUID) ([]entity.BinderSlot, error) {
+	if collectionID == uuid.Nil || len(cardIDs) == 0 {
+		return nil, nil
+	}
+
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var slots []entity.BinderSlot
+	err = db.Preload("Leaf").
+		Where("collection_id = ? AND card_id IN ?", collectionID, cardIDs).
+		Find(&slots).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "listing Slots holding Cards")
+	}
+
+	return slots, nil
+}
+
+func (r *binderSlotRepository) ListAllOccupiedSlots(ctx context.Context, collectionID uuid.UUID) ([]entity.BinderSlot, error) {
+	if collectionID == uuid.Nil {
+		return nil, nil
+	}
+
+	return r.FindAll(ctx, crud.Specification[entity.BinderSlot]{
+		Model:            entity.BinderSlot{CollectionID: collectionID},
+		PreloadRelations: []string{"Leaf"},
+	})
 }

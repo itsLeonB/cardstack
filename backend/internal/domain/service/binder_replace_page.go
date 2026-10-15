@@ -12,8 +12,8 @@ import (
 
 const binderPageSlotCountMsg = "the request needs one state per Slot of the Page, in grid order"
 
-// ReplacePage writes each Slot of the Page through the same path as a single
-// Slot write, so every Inventory Entry stays equal to its Slot count. A refusal
+// ReplacePage turns the request into one WriteSlots batch, so the Slot-write
+// rules and the once-per-Card entry reconcile stay in WriteSlots. A refusal
 // returns before any Slot is written, so the Page is left as it was.
 func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageReplace) (dto.BinderPageReplaceResult, error) {
 	var result dto.BinderPageReplaceResult
@@ -31,13 +31,11 @@ func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageRepla
 			return ungerr.BadRequestError(binderPageSlotCountMsg)
 		}
 
-		leaf, side, err := s.pageLeaf(ctx, c.ID, req.Page)
-		if err != nil {
-			return err
-		}
-
+		// The Page's Slots are written as one batch, so WriteSlots applies the
+		// Slot-write rules and reconciles each affected Card once. A missing Page
+		// is refused there, inside this transaction, with nothing written.
+		changes := make([]dto.BinderSlotChange, 0, len(req.Slots))
 		slots := make([]dto.BinderSlotResult, 0, len(req.Slots))
-		touched := make([]*uuid.UUID, 0, 2*len(req.Slots))
 		for i, want := range req.Slots {
 			target := dto.BinderSlotTarget{Page: req.Page, Row: i/layout.Columns + 1, Column: i%layout.Columns + 1}
 
@@ -46,11 +44,11 @@ func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageRepla
 				return err
 			}
 
-			previous, err := s.writeSlotRow(ctx, c, leaf, side, target, state, cardID)
-			if err != nil {
-				return err
+			change := dto.BinderSlotChange{Target: target, State: state}
+			if cardID != nil {
+				change.CardID = *cardID
 			}
-			touched = append(touched, previous, cardID)
+			changes = append(changes, change)
 
 			slots = append(slots, dto.BinderSlotResult{
 				Row:    target.Row,
@@ -61,7 +59,11 @@ func (s *binderService) ReplacePage(ctx context.Context, req dto.BinderPageRepla
 			})
 		}
 
-		if err := s.reconcileCards(ctx, c.ID, touched); err != nil {
+		if err := s.WriteSlots(ctx, dto.BinderSlotsWrite{
+			ProfileID:    req.ProfileID,
+			CollectionID: req.CollectionID,
+			Changes:      changes,
+		}); err != nil {
 			return err
 		}
 
