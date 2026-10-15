@@ -46,6 +46,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
+	markBinderNullable(api)
 
 	if len(adminEmails) > 0 {
 		// Guests pass Guard so AdminOnly can answer them with the same 404 as a
@@ -54,5 +55,25 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 		endpoint.RegisterAll(api, handler.NewAdminHandler().Routes(), guestsAllowed, perUser, adminOnly)
 		endpoint.RegisterAll(api, handler.NewAdminSetHandler(services.AdminSets).Routes(), guestsAllowed, perUser, adminOnly)
 		endpoint.RegisterAll(api, handler.NewAdminCardsHandler(services.CardAdmin).Routes(), guestsAllowed, perUser, adminOnly)
+	}
+}
+
+// markBinderNullable makes CollectionSummary.binder nullable in the spec. Huma
+// rejects `nullable` on a field whose schema is a $ref to an object, so the
+// property is patched after registration: oneOf of the BinderLayout ref and
+// null, the OpenAPI 3.1 way to say nullable, which generators read as
+// BinderLayout | null.
+func markBinderNullable(api huma.API) {
+	summary, ok := api.OpenAPI().Components.Schemas.Map()["CollectionSummary"]
+	if !ok {
+		return
+	}
+	binder, ok := summary.Properties["binder"]
+	if !ok {
+		return
+	}
+	summary.Properties["binder"] = &huma.Schema{
+		OneOf:       []*huma.Schema{{Ref: binder.Ref}, {Type: "null"}},
+		Description: binder.Description,
 	}
 }

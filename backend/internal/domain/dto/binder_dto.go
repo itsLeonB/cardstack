@@ -82,3 +82,20 @@ type BinderPageLookup struct {
 	CollectionID uuid.UUID
 	Page         int
 }
+
+// BinderSlotTarget addresses one Slot by its Page, row and column.
+type BinderSlotTarget struct {
+	Page   int
+	Row    int
+	Column int
+}
+
+// BinderSlotWrite sets one Slot to empty, to a Card (CardID) or to Unidentified.
+// State is one of BinderSlotEmpty, BinderSlotCard or BinderSlotUnidentified.
+type BinderSlotWrite struct {
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+	Target       BinderSlotTarget
+	State        string
+	CardID       uuid.UUID
+}

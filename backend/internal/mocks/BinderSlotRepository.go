@@ -28,6 +28,64 @@ func (_m *MockBinderSlotRepository) EXPECT() *MockBinderSlotRepository_Expecter 
 	return &MockBinderSlotRepository_Expecter{mock: &_m.Mock}
 }
 
+// CountCardSlots provides a mock function with given fields: ctx, collectionID, cardID
+func (_m *MockBinderSlotRepository) CountCardSlots(ctx context.Context, collectionID uuid.UUID, cardID uuid.UUID) (int, error) {
+	ret := _m.Called(ctx, collectionID, cardID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountCardSlots")
+	}
+
+	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (int, error)); ok {
+		return rf(ctx, collectionID, cardID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) int); ok {
+		r0 = rf(ctx, collectionID, cardID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = rf(ctx, collectionID, cardID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockBinderSlotRepository_CountCardSlots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountCardSlots'
+type MockBinderSlotRepository_CountCardSlots_Call struct {
+	*mock.Call
+}
+
+// CountCardSlots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionID uuid.UUID
+//   - cardID uuid.UUID
+func (_e *MockBinderSlotRepository_Expecter) CountCardSlots(ctx interface{}, collectionID interface{}, cardID interface{}) *MockBinderSlotRepository_CountCardSlots_Call {
+	return &MockBinderSlotRepository_CountCardSlots_Call{Call: _e.mock.On("CountCardSlots", ctx, collectionID, cardID)}
+}
+
+func (_c *MockBinderSlotRepository_CountCardSlots_Call) Run(run func(ctx context.Context, collectionID uuid.UUID, cardID uuid.UUID)) *MockBinderSlotRepository_CountCardSlots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockBinderSlotRepository_CountCardSlots_Call) Return(_a0 int, _a1 error) *MockBinderSlotRepository_CountCardSlots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockBinderSlotRepository_CountCardSlots_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) (int, error)) *MockBinderSlotRepository_CountCardSlots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CountSlots provides a mock function with given fields: ctx, collectionID
 func (_m *MockBinderSlotRepository) CountSlots(ctx context.Context, collectionID uuid.UUID) (int, int, error) {
 	ret := _m.Called(ctx, collectionID)
