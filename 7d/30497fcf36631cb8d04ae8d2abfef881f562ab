@@ -1,0 +1,73 @@
+frontend/src/generated/endpoints/binder/binder.ts
+  s_d008f8f98c1e3d::t_d8ae2a101f4dbc 30,32,35-39,705-814,1123-1336
+frontend/src/generated/models/binderPlacementResultReason.ts
+  s_d008f8f98c1e3d::t_93661911437355 1-17
+frontend/src/generated/models/envelopeBinderSlotMoveResult.ts
+  s_d008f8f98c1e3d::t_2a4aee378a22ed 1-11
+frontend/src/generated/models/binderPlacementResult.ts
+  s_d008f8f98c1e3d::t_f07d061eb83c39 1-17
+frontend/src/generated/models/binderSlotMoveResult.ts
+  s_d008f8f98c1e3d::t_c631665d099683 1-14
+frontend/src/generated/models/binderSlotTargetBody.ts
+  s_d008f8f98c1e3d::t_86379e44979bdc 1-24
+frontend/src/generated/models/envelopeListBinderPlacementResult.ts
+  s_d008f8f98c1e3d::t_dba4fb06a9aa28 1-12
+frontend/src/generated/models/placeCardsInputBody.ts
+  s_d008f8f98c1e3d::t_832fd8ba44789d 1-17
+frontend/src/generated/models/inventoryItem.ts
+  s_d008f8f98c1e3d::t_80aecbe7c4a3b1 7,12-16
+frontend/src/generated/models/binderPageSlotBodyState.ts
+  s_d008f8f98c1e3d::t_0071439fa66242 1-18
+frontend/src/generated/models/binderPageReplaceResult.ts
+  s_d008f8f98c1e3d::t_0e84977328fb36 1-15
+frontend/src/components/scan/scan-review.test.tsx
+  s_d008f8f98c1e3d::t_bb18aa72404cdd 37-40,70,75-112,202-203,342-394
+frontend/src/generated/models/index.ts
+  s_d008f8f98c1e3d::t_1bc4691fa946d9 16-17,19-22,25-28,30-31,49-50,57,87-88
+frontend/src/generated/models/binderSlotTarget.ts
+  s_d008f8f98c1e3d::t_efc9bc960d23cf 1-15
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_d008f8f98c1e3d::t_87a9c169687ee7 71-75,285-289
+frontend/src/routes/_authenticated/collections/$collectionId/-collection-page.test.tsx
+  s_d008f8f98c1e3d::t_c9f4436167adfa 81,85
+frontend/src/generated/models/binderPageSlotBody.ts
+  s_d008f8f98c1e3d::t_40310ad3a386ee 1-14
+frontend/src/components/scan/review-step.tsx
+  s_d008f8f98c1e3d::t_4197653b6c0225 16-19,27,38,40,47-52,105-113,124,129-149,151-158,160-165,167-196,202,204-205,210,215-216,226-231
+frontend/src/generated/models/envelopeBinderPageReplaceResult.ts
+  s_d008f8f98c1e3d::t_bfa5a9a128254a 1-11
+frontend/src/generated/endpoints/binder/binder.zod.ts
+  s_d008f8f98c1e3d::t_170fc1e568fe7c 175-208,384-524
+frontend/src/generated/models/binderPageReplaceBody.ts
+  s_d008f8f98c1e3d::t_d2324a81964692 1-16
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_d008f8f98c1e3d::t_8c86854aa4d462 82,84
+frontend/src/generated/models/binderSlotMoveBody.ts
+  s_d008f8f98c1e3d::t_78bdaa7a293df8 1-14
+frontend/src/generated/models/binderSlotResultState.ts
+  s_d008f8f98c1e3d::t_3f8b82ecc3c0b0 1-18
+frontend/src/components/scan/scan-screen.tsx
+  s_d008f8f98c1e3d::t_ceb52337ef0d53 63-64,66-69
+frontend/src/generated/models/placeCardsItem.ts
+  s_d008f8f98c1e3d::t_bedb8b54d91271 1-17
+frontend/src/lib/use-draft-addition.ts
+  s_d008f8f98c1e3d::t_422b4394ce3e29 178-190
+frontend/src/generated/models/binderSlotResult.ts
+  s_d008f8f98c1e3d::t_5315e5ec5906a8 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7d30497fcf36631cb8d04ae8d2abfef881f562ab",
+  "prompts": {},
+  "sessions": {
+    "s_d008f8f98c1e3d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d008f8f98c1e3d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
