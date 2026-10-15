@@ -7,18 +7,22 @@ import {
   useAddBinderLeaf,
   useCreateBinder,
   useGetBinderPage,
+  useMoveBinderSlot,
   useRemoveBinder,
   useRemoveBinderLeaf,
   useUpdateBinderGrid,
 } from "@/generated/endpoints/binder/binder"
+import type { BinderSlot } from "@/generated/models"
 import { BinderLayoutForm } from "@/components/collections/binder-layout-form"
 import type { BinderLayoutValues } from "@/components/collections/binder-layout-form"
+import { BinderMoveBanner } from "@/components/collections/binder-move-banner"
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { SlotPanel } from "@/components/collections/binder-slot-panel"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import {
   invalidateBinder,
   refreshAfterRemoveBinder,
+  refreshAfterSlotWrite,
   slotKey,
 } from "@/lib/binder"
 import type { SlotRef } from "@/lib/binder"
@@ -44,6 +48,13 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const [selectedSlot, setSelectedSlot] = useState<SlotRef | null>(null)
   // The tapped tile, so focus can go back to it when the panel closes.
   const openerRef = useRef<HTMLButtonElement | null>(null)
+  // The Slot picked as a move's source, with what it holds for the banner. It
+  // stays picked while the user turns to another Page.
+  const [moving, setMoving] = useState<{
+    source: SlotRef
+    label: string
+  } | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
@@ -60,6 +71,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const removeLeafMutation = useRemoveBinderLeaf()
   const updateGridMutation = useUpdateBinderGrid()
   const removeBinderMutation = useRemoveBinder()
+  const moveMutation = useMoveBinderSlot()
 
   // Steps from the requested Page, not the shown one, so two quick taps move
   // two Pages even before the first has loaded.
@@ -186,6 +198,43 @@ export function BinderView({ collectionId }: { collectionId: string }) {
     )
   }
 
+  function startMove(slot: BinderSlot, source: SlotRef) {
+    setMoveError(null)
+    setSelectedSlot(null)
+    setMoving({
+      source,
+      label:
+        slot.state === "card" && slot.card ? slot.card.name : "Unidentified",
+    })
+  }
+
+  // Tapping the source again cancels; any other Slot takes the card, or swaps
+  // with the card it holds.
+  function moveTo(target: SlotRef) {
+    if (!moving) return
+    if (slotKey(target) === slotKey(moving.source)) {
+      setMoving(null)
+      return
+    }
+    setMoveError(null)
+    moveMutation.mutate(
+      { id: collectionId, data: { from: moving.source, to: target } },
+      {
+        onSuccess: (response) => {
+          if (response.status !== 200) {
+            setMoveError(
+              errorDetail(response, "Could not move this card.") ?? null
+            )
+            return
+          }
+          refreshAfterSlotWrite(queryClient, collectionId)
+          setMoving(null)
+        },
+        onError: () => setMoveError(NETWORK_ERROR),
+      }
+    )
+  }
+
   if (!binderPage) {
     return (
       <div className="flex flex-col gap-3">
@@ -281,6 +330,15 @@ export function BinderView({ collectionId }: { collectionId: string }) {
         )}
       </div>
 
+      {moving && (
+        <BinderMoveBanner
+          source={moving.source}
+          label={moving.label}
+          error={moveError}
+          onCancel={() => setMoving(null)}
+        />
+      )}
+
       <section
         aria-label="Binder page"
         className="flex flex-col gap-3"
@@ -294,6 +352,14 @@ export function BinderView({ collectionId }: { collectionId: string }) {
           page={binderPage}
           selected={openSlot}
           onSelect={(slot, tile) => {
+            if (moving) {
+              moveTo({
+                page: binderPage.page,
+                row: slot.row,
+                column: slot.column,
+              })
+              return
+            }
             openerRef.current = tile
             setSelectedSlot({
               page: binderPage.page,
@@ -309,6 +375,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
             at={openSlot}
             slot={shownSlot}
             onClose={closeSlot}
+            onMove={() => startMove(shownSlot, openSlot)}
           />
         )}
       </section>

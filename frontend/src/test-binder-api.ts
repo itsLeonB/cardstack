@@ -44,6 +44,8 @@ export interface RequestBody {
   leaf?: number
   placement?: string
   cardId?: string
+  from?: { page: number; row: number; column: number }
+  to?: { page: number; row: number; column: number }
 }
 
 /** What the fake answers with: an envelope, an error, or nothing (204). */
@@ -158,6 +160,28 @@ function writeSlot(
   return json(200, { data: pageBody(b, page) })
 }
 
+function moveSlot(b: FakeBinder, body: RequestBody | undefined): Response {
+  if (b.writeError)
+    return json(b.writeError.status, { detail: b.writeError.detail })
+  const from = body?.from
+  const to = body?.to
+  const source = from && b.filled[from.page]?.[`${from.row},${from.column}`]
+  if (!from || !to || !source)
+    return json(400, { detail: "this Slot holds no card to move" })
+  const fromKey = `${from.row},${from.column}`
+  const toKey = `${to.row},${to.column}`
+  const fromSlots = (b.filled[from.page] ??= {})
+  const toSlots = (b.filled[to.page] ??= {})
+  // An occupied target swaps: its card takes the source Slot.
+  const target = toSlots[toKey]
+  if (target) fromSlots[fromKey] = target
+  else delete fromSlots[fromKey]
+  toSlots[toKey] = source
+  return json(200, {
+    data: { from: pageBody(b, from.page), to: pageBody(b, to.page) },
+  })
+}
+
 function respond(
   b: FakeBinder,
   method: string,
@@ -177,6 +201,9 @@ function respond(
   )
   if (slot && (method === "PUT" || method === "DELETE")) {
     return writeSlot(b, method, slot, body)
+  }
+  if (method === "POST" && path.endsWith("/binder/slots/move")) {
+    return moveSlot(b, body)
   }
   if (method === "GET" && path.endsWith("/catalog/cards")) {
     return json(200, {
