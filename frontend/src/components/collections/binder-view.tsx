@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -14,7 +15,7 @@ import { BinderLayoutForm } from "@/components/collections/binder-layout-form"
 import type { BinderLayoutValues } from "@/components/collections/binder-layout-form"
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
-import { invalidateBinder } from "@/lib/binder"
+import { invalidateBinder, refreshAfterRemoveBinder } from "@/lib/binder"
 
 // A swipe shorter than this is a scroll or a tap, not a page turn.
 const SWIPE_MIN_PX = 50
@@ -29,13 +30,15 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const [editingLayout, setEditingLayout] = useState(false)
   const [layoutError, setLayoutError] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
-  const [removeError, setRemoveError] = useState<string | null>(null)
-  const touchStartX = useRef<number | null>(null)
+  // Set once the Layout is gone, so the Page queries stop before the
+  // Collection refetch unmounts this view.
+  const [detached, setDetached] = useState(false)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
   const query = useGetBinderPage(collectionId, requestedPage, {
-    query: { placeholderData: keepPreviousData },
+    query: { placeholderData: keepPreviousData, enabled: !detached },
   })
   const binderPage =
     query.data?.status === 200 ? query.data.data.data : undefined
@@ -48,8 +51,10 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const updateGridMutation = useUpdateBinderGrid()
   const removeBinderMutation = useRemoveBinder()
 
-  function turnTo(page: number) {
-    setRequestedPage(Math.min(Math.max(page, 1), Math.max(totalPages, 1)))
+  // Steps from the requested Page, not the shown one, so two quick taps move
+  // two Pages even before the first has loaded.
+  function stepPage(delta: number) {
+    setRequestedPage((page) => Math.min(Math.max(page + delta, 1), totalPages))
   }
 
   function handleJump(event: React.FormEvent<HTMLFormElement>) {
@@ -64,17 +69,20 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   }
 
   function handleTouchStart(event: React.TouchEvent) {
-    touchStartX.current = event.touches[0]?.clientX ?? null
+    const touch = event.touches[0]
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null
   }
 
   function handleTouchEnd(event: React.TouchEvent) {
-    const start = touchStartX.current
-    touchStartX.current = null
-    const end = event.changedTouches[0]?.clientX
-    if (start === null || end === undefined) return
-    const dx = end - start
-    if (Math.abs(dx) < SWIPE_MIN_PX) return
-    turnTo(dx < 0 ? currentPage + 1 : currentPage - 1)
+    const start = touchStart.current
+    touchStart.current = null
+    const end = event.changedTouches[0]
+    if (!start || !end) return
+    const dx = end.clientX - start.x
+    const dy = end.clientY - start.y
+    // A mostly vertical drag is a scroll, not a page turn.
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return
+    stepPage(dx < 0 ? 1 : -1)
   }
 
   function addLeaf(placement: "before" | "after") {
@@ -85,7 +93,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
       {
         onSuccess: (response) => {
           if (response.status !== 201) {
-            setLeafError(errorDetail(response, "Could not add a Leaf.") ?? null)
+            toast.error(errorDetail(response, "Could not add a Leaf.") ?? "")
             return
           }
           invalidateBinder(queryClient, collectionId)
@@ -94,6 +102,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
             placement === "after" ? binderPage.leaf + 1 : binderPage.leaf
           setRequestedPage(2 * leaf - 1)
         },
+        onError: () => toast.error(NETWORK_ERROR),
       }
     )
   }
@@ -105,6 +114,8 @@ export function BinderView({ collectionId }: { collectionId: string }) {
       { id: collectionId, leaf: binderPage.leaf },
       {
         onSuccess: (response) => {
+          // A refusal names the Page holding the card, so it stays beside the
+          // controls rather than in a toast.
           if (response.status !== 200) {
             setLeafError(
               errorDetail(response, "Could not remove this Leaf.") ?? null
@@ -118,6 +129,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
             Math.min(2 * binderPage.leaf - 1, 2 * response.data.data.leafCount)
           )
         },
+        onError: () => toast.error(NETWORK_ERROR),
       }
     )
   }
@@ -140,24 +152,26 @@ export function BinderView({ collectionId }: { collectionId: string }) {
           invalidateBinder(queryClient, collectionId)
           setEditingLayout(false)
         },
+        onError: () => setLayoutError(NETWORK_ERROR),
       }
     )
   }
 
   function removeBinder() {
-    setRemoveError(null)
     removeBinderMutation.mutate(
       { id: collectionId },
       {
         onSuccess: (response) => {
           if (response.status !== 204) {
-            setRemoveError(
-              errorDetail(response, "Could not remove this binder.") ?? null
+            toast.error(
+              errorDetail(response, "Could not remove this binder.") ?? ""
             )
             return
           }
-          invalidateBinder(queryClient, collectionId)
+          setDetached(true)
+          refreshAfterRemoveBinder(queryClient, collectionId)
         },
+        onError: () => toast.error(NETWORK_ERROR),
       }
     )
   }
@@ -202,8 +216,8 @@ export function BinderView({ collectionId }: { collectionId: string }) {
         <Button
           variant="outline"
           aria-label="Previous page"
-          disabled={currentPage <= 1}
-          onClick={() => turnTo(currentPage - 1)}
+          disabled={requestedPage <= 1}
+          onClick={() => stepPage(-1)}
         >
           Previous
         </Button>
@@ -213,12 +227,17 @@ export function BinderView({ collectionId }: { collectionId: string }) {
         <Button
           variant="outline"
           aria-label="Next page"
-          disabled={currentPage >= totalPages}
-          onClick={() => turnTo(currentPage + 1)}
+          disabled={requestedPage >= totalPages}
+          onClick={() => stepPage(1)}
         >
           Next
         </Button>
-        <form onSubmit={handleJump} className="flex items-center gap-2">
+        {/* The browser's own range check would replace the message below. */}
+        <form
+          noValidate
+          onSubmit={handleJump}
+          className="flex items-center gap-2"
+        >
           <Input
             aria-label="Page number"
             type="number"
@@ -331,11 +350,6 @@ export function BinderView({ collectionId }: { collectionId: string }) {
             onSubmit={saveLayout}
           />
         )}
-        {removeError && (
-          <p role="alert" className="text-sm text-destructive">
-            {removeError}
-          </p>
-        )}
       </div>
     </div>
   )
@@ -368,6 +382,7 @@ export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
           }
           invalidateBinder(queryClient, collectionId)
         },
+        onError: () => setErrorMessage(NETWORK_ERROR),
       }
     )
   }

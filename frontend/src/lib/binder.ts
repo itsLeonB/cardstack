@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { getGetCollectionQueryKey } from "@/generated/endpoints/collections/collections"
+import { invalidateCollectionCounts } from "@/lib/collections"
 
 export const BINDER_PRESETS = [
   { id: "2x2", label: "2 × 2", rows: 2, columns: 2 },
@@ -16,20 +17,33 @@ export function presetIdFor(rows: number, columns: number): string {
   )
 }
 
-/**
- * Refreshes a binder after a write: its Pages (keys under the Collection's
- * `/binder/` path) and the Collection itself, which carries the Layout.
- */
+// Page queries live under the Collection's URL, plus `/binder/`.
+function binderPagesMatch(collectionId: string) {
+  const [collectionUrl] = getGetCollectionQueryKey(collectionId)
+  return ({ queryKey }: { queryKey: readonly unknown[] }) =>
+    String(queryKey[0]).startsWith(`${collectionUrl}/binder/`)
+}
+
+/** Refreshes a binder after a write that changes its Pages or Layout. */
 export function invalidateBinder(
   queryClient: QueryClient,
   collectionId: string
 ) {
-  const [collectionUrl] = getGetCollectionQueryKey(collectionId)
   void queryClient.invalidateQueries({
-    predicate: ({ queryKey }) =>
-      String(queryKey[0]).startsWith(`${collectionUrl}/binder/`),
+    predicate: binderPagesMatch(collectionId),
   })
-  void queryClient.invalidateQueries({
-    queryKey: getGetCollectionQueryKey(collectionId),
-  })
+  invalidateCollectionCounts(queryClient, collectionId)
+}
+
+/**
+ * After the Layout is removed, the Pages no longer exist: cancel them so they
+ * do not refetch and 404 while the view is still mounted, then refresh the
+ * Collection, which turns its page plain.
+ */
+export function refreshAfterRemoveBinder(
+  queryClient: QueryClient,
+  collectionId: string
+) {
+  void queryClient.cancelQueries({ predicate: binderPagesMatch(collectionId) })
+  invalidateCollectionCounts(queryClient, collectionId)
 }
