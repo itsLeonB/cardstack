@@ -499,6 +499,10 @@
       "CollectionSummary": {
         "additionalProperties": false,
         "properties": {
+          "binder": {
+            "$ref": "#/components/schemas/BinderLayout",
+            "description": "The binder's Layout, or null when the Collection is a plain box or deck."
+          },
           "cardCount": {
             "format": "int64",
             "type": "integer"
@@ -522,7 +526,8 @@
           "title",
           "description",
           "maxCardCount",
-          "cardCount"
+          "cardCount",
+          "binder"
         ],
         "type": "object"
       },
@@ -908,7 +913,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages.",
+            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0.",
             "examples": [
               "login_required"
             ],

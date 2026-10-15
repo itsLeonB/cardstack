@@ -89,10 +89,14 @@ func placeSlot(t *testing.T, api testAPI, collectionID string, page, row, column
 	cid := uuid.MustParse(collectionID)
 	var leaf entity.BinderLeaf
 	require.NoError(t, api.db.Where("collection_id = ? AND position = ?", cid, (page-1)/2+1).First(&leaf).Error)
+	side := "front"
+	if page%2 == 0 {
+		side = "back"
+	}
 	slot := entity.BinderSlot{
 		CollectionID: cid,
 		LeafID:       leaf.ID,
-		Side:         (page - 1) % 2,
+		Side:         side,
 		Row:          row,
 		Column:       column,
 		CardID:       cardID,
@@ -389,4 +393,59 @@ func TestBinderOwnership(t *testing.T) {
 
 	resp = api.Get(binderPath(id) + "/pages/1")
 	assert.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
+}
+
+func TestBinderSummaryOnCollections(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	plain := newBinderCollection(t, api, owner)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 3)
+
+	type summaryEnvelope struct {
+		Data struct {
+			ID     string            `json:"id"`
+			Binder *binderLayoutJSON `json:"binder"`
+		} `json:"data"`
+	}
+
+	resp := api.Get("/collections/"+binder, bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var got summaryEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &got))
+	assert.Equal(t, &binderLayoutJSON{Rows: 2, Columns: 2, LeafCount: 3, Capacity: 24}, got.Data.Binder)
+
+	resp = api.Get("/collections/"+plain, bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &got))
+	assert.Nil(t, got.Data.Binder)
+
+	resp = api.Get("/collections", bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var list struct {
+		Data []summaryEnvelope `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &list))
+	for _, c := range list.Data {
+		switch c.Data.ID {
+		case binder:
+			assert.Equal(t, &binderLayoutJSON{Rows: 2, Columns: 2, LeafCount: 3, Capacity: 24}, c.Data.Binder)
+		case plain:
+			assert.Nil(t, c.Data.Binder)
+		}
+	}
+}
+
+func TestBinderRefusesMaxCardCount(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	id := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, id, 2, 2, 1)
+
+	resp := api.Put("/collections/"+id, bearer(owner), map[string]any{"title": "Binder", "maxCardCount": 50})
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "binder_max_card_count", decodeError(t, resp.Body.Bytes()).Code)
+
+	resp = api.Put("/collections/"+id, bearer(owner), map[string]any{"title": "Binder", "maxCardCount": 0})
+	assert.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 }

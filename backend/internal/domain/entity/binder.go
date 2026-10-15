@@ -27,13 +27,12 @@ type BinderLeaf struct {
 func (BinderLeaf) TableName() string { return "binder_leaves" }
 
 // BinderSlot is one occupied pocket on a Page. Empty Slots have no row.
-// Exactly one of CardID and Unidentified is set. Side is 0 for the front Page
-// and 1 for the back.
+// Exactly one of CardID and Unidentified is set. Side is "front" or "back".
 type BinderSlot struct {
 	crud.BaseEntity
 	CollectionID uuid.UUID  `gorm:"type:uuid;not null"`
 	LeafID       uuid.UUID  `gorm:"type:uuid;not null"`
-	Side         int        `gorm:"not null"`
+	Side         string     `gorm:"not null"`
 	Row          int        `gorm:"column:slot_row;not null"`
 	Column       int        `gorm:"column:slot_column;not null"`
 	CardID       *uuid.UUID `gorm:"type:uuid"`

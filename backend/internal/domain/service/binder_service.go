@@ -32,8 +32,8 @@ const (
 )
 
 // BinderService turns a Collection into a binder and maintains its Layout,
-// Leaves and Pages. Every write runs in a transaction that row-locks the
-// Collection first, so concurrent edits to one binder serialize.
+// Leaves and Pages. Each write row-locks the Collection inside a transaction, so
+// concurrent edits to one binder serialize.
 type BinderService interface {
 	CreateBinder(ctx context.Context, req dto.BinderLayoutRequest) (dto.BinderLayout, error)
 	ChangeGrid(ctx context.Context, req dto.BinderGridRequest) (dto.BinderLayout, error)
@@ -46,7 +46,9 @@ type BinderService interface {
 type binderService struct {
 	transactor  crud.Transactor
 	collections repository.CollectionRepository
-	binders     repository.BinderRepository
+	layouts     repository.BinderLayoutRepository
+	leaves      repository.BinderLeafRepository
+	slots       repository.BinderSlotRepository
 	entries     crud.Repository[entity.InventoryEntry]
 	images      mapper.ImageHost
 }
@@ -54,11 +56,21 @@ type binderService struct {
 func NewBinderService(
 	transactor crud.Transactor,
 	collections repository.CollectionRepository,
-	binders repository.BinderRepository,
+	layouts repository.BinderLayoutRepository,
+	leaves repository.BinderLeafRepository,
+	slots repository.BinderSlotRepository,
 	entries crud.Repository[entity.InventoryEntry],
 	images mapper.ImageHost,
 ) BinderService {
-	return &binderService{transactor: transactor, collections: collections, binders: binders, entries: entries, images: images}
+	return &binderService{
+		transactor:  transactor,
+		collections: collections,
+		layouts:     layouts,
+		leaves:      leaves,
+		slots:       slots,
+		entries:     entries,
+		images:      images,
+	}
 }
 
 func (s *binderService) CreateBinder(ctx context.Context, req dto.BinderLayoutRequest) (dto.BinderLayout, error) {
@@ -76,7 +88,7 @@ func (s *binderService) CreateBinder(ctx context.Context, req dto.BinderLayoutRe
 			return err
 		}
 
-		isBinder, err := s.collections.IsBinder(ctx, c.ID)
+		isBinder, err := s.layouts.IsBinder(ctx, c.ID)
 		if err != nil {
 			return err
 		}
@@ -94,7 +106,7 @@ func (s *binderService) CreateBinder(ctx context.Context, req dto.BinderLayoutRe
 			return apperr.WithCode(ungerr.ConflictError(collectionNotEmptyMsg), apperr.CodeCollectionNotEmpty)
 		}
 
-		layout, err = s.binders.Insert(ctx, entity.CollectionLayout{CollectionID: c.ID, Rows: req.Rows, Columns: req.Columns})
+		layout, err = s.layouts.Insert(ctx, entity.CollectionLayout{CollectionID: c.ID, Rows: req.Rows, Columns: req.Columns})
 		if err != nil {
 			return err
 		}
@@ -103,7 +115,7 @@ func (s *binderService) CreateBinder(ctx context.Context, req dto.BinderLayoutRe
 		for i := range leaves {
 			leaves[i] = entity.BinderLeaf{CollectionID: c.ID, Position: i + 1}
 		}
-		if err := s.binders.InsertLeaves(ctx, leaves); err != nil {
+		if _, err := s.leaves.InsertMany(ctx, leaves); err != nil {
 			return err
 		}
 
@@ -132,7 +144,7 @@ func (s *binderService) ChangeGrid(ctx context.Context, req dto.BinderGridReques
 			return err
 		}
 
-		layout, err = s.binders.GetLayout(ctx, c.ID)
+		layout, err = s.layouts.GetLayout(ctx, c.ID)
 		if err != nil {
 			return err
 		}
@@ -142,12 +154,12 @@ func (s *binderService) ChangeGrid(ctx context.Context, req dto.BinderGridReques
 
 		layout.Rows = req.Rows
 		layout.Columns = req.Columns
-		layout, err = s.binders.Update(ctx, layout)
+		layout, err = s.layouts.Update(ctx, layout)
 		if err != nil {
 			return err
 		}
 
-		leafCount, err = s.binders.CountLeaves(ctx, c.ID)
+		leafCount, err = s.leaves.CountLeaves(ctx, c.ID)
 		return err
 	})
 	if err != nil {
@@ -164,7 +176,7 @@ func (s *binderService) RemoveBinder(ctx context.Context, req dto.CollectionLook
 			return err
 		}
 
-		layout, err := s.binders.GetLayout(ctx, c.ID)
+		layout, err := s.layouts.GetLayout(ctx, c.ID)
 		if err != nil {
 			return err
 		}
@@ -172,10 +184,10 @@ func (s *binderService) RemoveBinder(ctx context.Context, req dto.CollectionLook
 			return err
 		}
 
-		if err := s.binders.DeleteLeaves(ctx, c.ID); err != nil {
+		if err := s.leaves.DeleteLeaves(ctx, c.ID); err != nil {
 			return err
 		}
-		return s.binders.Delete(ctx, layout)
+		return s.layouts.Delete(ctx, layout)
 	})
 }
 
@@ -192,30 +204,30 @@ func (s *binderService) AddLeaf(ctx context.Context, req dto.BinderLeafRequest) 
 			return err
 		}
 
-		layout, err = s.binders.GetLayout(ctx, c.ID)
+		layout, err = s.layouts.GetLayout(ctx, c.ID)
 		if err != nil {
 			return err
 		}
 
-		leafCount, err = s.binders.CountLeaves(ctx, c.ID)
+		leafCount, err = s.leaves.CountLeaves(ctx, c.ID)
 		if err != nil {
 			return err
 		}
-		if leafCount >= maxLeaves {
-			return ungerr.BadRequestError(leafLimitMsg)
-		}
 		if req.Leaf < 1 || req.Leaf > leafCount {
 			return ungerr.NotFoundError(leafNotFoundMsg)
+		}
+		if leafCount >= maxLeaves {
+			return ungerr.BadRequestError(leafLimitMsg)
 		}
 
 		position := req.Leaf
 		if req.Placement == dto.BinderPlacementAfter {
 			position++
 		}
-		if err := s.binders.ShiftLeaves(ctx, c.ID, position, 1); err != nil {
+		if err := s.leaves.ShiftLeaves(ctx, c.ID, position, 1); err != nil {
 			return err
 		}
-		if err := s.binders.InsertLeaves(ctx, []entity.BinderLeaf{{CollectionID: c.ID, Position: position}}); err != nil {
+		if _, err := s.leaves.InsertMany(ctx, []entity.BinderLeaf{{CollectionID: c.ID, Position: position}}); err != nil {
 			return err
 		}
 
@@ -238,20 +250,12 @@ func (s *binderService) RemoveLeaf(ctx context.Context, req dto.BinderLeafLookup
 			return err
 		}
 
-		layout, err = s.binders.GetLayout(ctx, c.ID)
+		layout, err = s.layouts.GetLayout(ctx, c.ID)
 		if err != nil {
 			return err
 		}
 
-		leafCount, err = s.binders.CountLeaves(ctx, c.ID)
-		if err != nil {
-			return err
-		}
-		if leafCount <= 1 {
-			return ungerr.BadRequestError(lastLeafMsg)
-		}
-
-		leaf, err := s.binders.FindLeafAt(ctx, c.ID, req.Leaf)
+		leaf, err := s.leaves.FindLeafAt(ctx, c.ID, req.Leaf)
 		if err != nil {
 			return err
 		}
@@ -259,22 +263,29 @@ func (s *binderService) RemoveLeaf(ctx context.Context, req dto.BinderLeafLookup
 			return ungerr.NotFoundError(leafNotFoundMsg)
 		}
 
-		// Front is Page 2n-1 and back is Page 2n, for Leaf n.
-		for side := range 2 {
-			occupied, err := s.binders.CountSlotsOnPage(ctx, leaf.ID, side)
+		leafCount, err = s.leaves.CountLeaves(ctx, c.ID)
+		if err != nil {
+			return err
+		}
+		if leafCount <= 1 {
+			return ungerr.BadRequestError(lastLeafMsg)
+		}
+
+		for _, side := range []string{dto.BinderSideFront, dto.BinderSideBack} {
+			occupied, err := s.slots.HasSlotsOnPage(ctx, leaf.ID, side)
 			if err != nil {
 				return err
 			}
-			if occupied > 0 {
-				page := 2*req.Leaf - 1 + side
-				return apperr.WithCode(ungerr.ConflictError(fmt.Sprintf(leafInUseMsgFormat, page)), apperr.CodeBinderLeafInUse)
+			if occupied {
+				msg := fmt.Sprintf(leafInUseMsgFormat, mapper.PageOf(req.Leaf, side))
+				return apperr.WithCode(ungerr.ConflictError(msg), apperr.CodeBinderLeafInUse)
 			}
 		}
 
-		if err := s.binders.DeleteLeaf(ctx, leaf); err != nil {
+		if err := s.leaves.Delete(ctx, leaf); err != nil {
 			return err
 		}
-		if err := s.binders.ShiftLeaves(ctx, c.ID, req.Leaf+1, -1); err != nil {
+		if err := s.leaves.ShiftLeaves(ctx, c.ID, req.Leaf+1, -1); err != nil {
 			return err
 		}
 
@@ -294,12 +305,12 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 		return dto.BinderPage{}, err
 	}
 
-	layout, err := s.binders.GetLayout(ctx, c.ID)
+	layout, err := s.layouts.GetLayout(ctx, c.ID)
 	if err != nil {
 		return dto.BinderPage{}, err
 	}
 
-	leafCount, err := s.binders.CountLeaves(ctx, c.ID)
+	leafCount, err := s.leaves.CountLeaves(ctx, c.ID)
 	if err != nil {
 		return dto.BinderPage{}, err
 	}
@@ -307,13 +318,8 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 		return dto.BinderPage{}, ungerr.NotFoundError(pageNotFoundMsg)
 	}
 
-	leafNumber := (req.Page + 1) / 2
-	side, sideName := 0, dto.BinderSideFront
-	if req.Page%2 == 0 {
-		side, sideName = 1, dto.BinderSideBack
-	}
-
-	leaf, err := s.binders.FindLeafAt(ctx, c.ID, leafNumber)
+	leafNumber, side := mapper.LeafOf(req.Page)
+	leaf, err := s.leaves.FindLeafAt(ctx, c.ID, leafNumber)
 	if err != nil {
 		return dto.BinderPage{}, err
 	}
@@ -321,31 +327,23 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 		return dto.BinderPage{}, ungerr.NotFoundError(pageNotFoundMsg)
 	}
 
-	slots, err := s.binders.ListSlotsOnPage(ctx, leaf.ID, side)
+	slots, err := s.slots.ListSlotsOnPage(ctx, leaf.ID, side)
 	if err != nil {
 		return dto.BinderPage{}, err
 	}
 
-	cards, unidentified, err := s.binders.CountSlots(ctx, c.ID)
+	cards, unidentified, err := s.slots.CountSlots(ctx, c.ID)
 	if err != nil {
 		return dto.BinderPage{}, err
 	}
 
-	return dto.BinderPage{
-		Page:              req.Page,
-		Leaf:              leafNumber,
-		Side:              sideName,
-		Layout:            mapper.ToBinderLayout(layout, leafCount),
-		CardTotal:         cards + unidentified,
-		UnidentifiedCount: unidentified,
-		Slots:             mapper.ToBinderSlots(s.images, layout, slots),
-	}, nil
+	return mapper.ToBinderPage(s.images, req.Page, layout, leafCount, slots, cards+unidentified, unidentified), nil
 }
 
-// requireNoSlots refuses a change to the Layout while any Slot is occupied,
-// since the cards placed on the binder would no longer sit on a matching grid.
+// requireNoSlots refuses a Layout change while any Slot is occupied, since the
+// cards placed on the binder would no longer sit on a matching grid.
 func (s *binderService) requireNoSlots(ctx context.Context, collectionID uuid.UUID) error {
-	cards, unidentified, err := s.binders.CountSlots(ctx, collectionID)
+	cards, unidentified, err := s.slots.CountSlots(ctx, collectionID)
 	if err != nil {
 		return err
 	}

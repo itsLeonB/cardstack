@@ -28,6 +28,10 @@ const CodeBinderLayoutLocked = "binder_layout_locked"
 // CodeBinderLeafInUse refuses removing a Leaf with a card on one of its Pages.
 const CodeBinderLeafInUse = "binder_leaf_in_use"
 
+// CodeBinderMaxCardCount refuses a Collection's max_card_count on a binder,
+// whose capacity is its Slot count.
+const CodeBinderMaxCardCount = "binder_max_card_count"
+
 // coded deliberately embeds the AppError interface rather than the concrete
 // ungerr error, so it is not a huma.StatusError: Huma then routes it through
 // the classifier in the httpapi package instead of marshalling it directly,

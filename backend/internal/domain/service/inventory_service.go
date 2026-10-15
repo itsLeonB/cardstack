@@ -51,6 +51,7 @@ type InventoryService interface {
 type inventoryService struct {
 	transactor  crud.Transactor
 	collections repository.CollectionRepository
+	layouts     repository.BinderLayoutRepository
 	entries     repository.InventoryRepository
 	catalog     repository.CatalogRepository
 	cards       crud.Repository[entity.Card]
@@ -60,12 +61,13 @@ type inventoryService struct {
 func NewInventoryService(
 	transactor crud.Transactor,
 	collections repository.CollectionRepository,
+	layouts repository.BinderLayoutRepository,
 	entries repository.InventoryRepository,
 	catalog repository.CatalogRepository,
 	cards crud.Repository[entity.Card],
 	images mapper.ImageHost,
 ) InventoryService {
-	return &inventoryService{transactor: transactor, collections: collections, entries: entries, catalog: catalog, cards: cards, images: images}
+	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, entries: entries, catalog: catalog, cards: cards, images: images}
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -146,7 +148,7 @@ func (s *inventoryService) ListCardHoldings(ctx context.Context, req dto.CardHol
 // refuseBinder refuses a quantity write on a binder, whose quantities change
 // only by placing or clearing Slots (docs/adr/0020).
 func (s *inventoryService) refuseBinder(ctx context.Context, collectionID uuid.UUID) error {
-	isBinder, err := s.collections.IsBinder(ctx, collectionID)
+	isBinder, err := s.layouts.IsBinder(ctx, collectionID)
 	if err != nil {
 		return err
 	}

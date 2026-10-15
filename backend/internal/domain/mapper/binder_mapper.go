@@ -59,3 +59,35 @@ func ToBinderCardSummary(host ImageHost, card entity.Card) dto.CardSummary {
 		ImageURL:     host.URL(card.ImageKey),
 	}
 }
+
+// ToBinderPage builds one Page of a binder from its occupied Slots. page is
+// counted in turning order, and cardTotal and unidentified count the whole binder.
+func ToBinderPage(host ImageHost, page int, layout entity.CollectionLayout, leafCount int, slots []entity.BinderSlot, cardTotal, unidentified int) dto.BinderPage {
+	leaf, side := LeafOf(page)
+	return dto.BinderPage{
+		Page:              page,
+		Leaf:              leaf,
+		Side:              side,
+		Layout:            ToBinderLayout(layout, leafCount),
+		CardTotal:         cardTotal,
+		UnidentifiedCount: unidentified,
+		Slots:             ToBinderSlots(host, layout, slots),
+	}
+}
+
+// PageOf is the number of the Page on one face of a Leaf. Pages are numbered in
+// turning order, so Leaf n holds Pages 2n-1 (front) and 2n (back).
+func PageOf(leaf int, side string) int {
+	if side == dto.BinderSideBack {
+		return 2 * leaf
+	}
+	return 2*leaf - 1
+}
+
+// LeafOf is the Leaf and face a Page belongs to, the inverse of PageOf.
+func LeafOf(page int) (int, string) {
+	if page%2 == 0 {
+		return page / 2, dto.BinderSideBack
+	}
+	return (page + 1) / 2, dto.BinderSideFront
+}

@@ -29,9 +29,6 @@ type CollectionRepository interface {
 	// It must count quantity the same way InventoryRepository.SumQuantity
 	// does, or the displayed count disagrees with the capacity check.
 	SumQuantities(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error)
-	// IsBinder reports whether the Collection has a Layout. A binder's quantities
-	// change only through its Slots, so the quantity writes refuse it (docs/adr/0020).
-	IsBinder(ctx context.Context, collectionID uuid.UUID) (bool, error)
 }
 
 type collectionRepository struct {
@@ -94,23 +91,4 @@ func (r *collectionRepository) SumQuantities(ctx context.Context, collectionIDs 
 	}
 
 	return sums, nil
-}
-
-func (r *collectionRepository) IsBinder(ctx context.Context, collectionID uuid.UUID) (bool, error) {
-	if collectionID == uuid.Nil {
-		return false, nil
-	}
-
-	db, err := r.GetGormInstance(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	var n int64
-	err = db.Model(&entity.CollectionLayout{}).Where("collection_id = ?", collectionID).Count(&n).Error
-	if err != nil {
-		return false, ungerr.Wrap(err, "checking for a binder layout")
-	}
-
-	return n > 0, nil
 }

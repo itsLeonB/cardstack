@@ -16,6 +16,9 @@ packages:
       ObjectStore:
   github.com/itsLeonB/cardstack/backend/internal/domain/repository:
     interfaces:
+      BinderLayoutRepository:
+      BinderLeafRepository:
+      BinderSlotRepository:
       CatalogRepository:
       CollectionRepository:
       EmbeddingRepository:

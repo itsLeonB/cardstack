@@ -18,15 +18,14 @@ func NewBinderHandler(binderSvc service.BinderService) *BinderHandler {
 	return &BinderHandler{binderSvc: binderSvc}
 }
 
-type binderLayoutBody struct {
-	Rows      int `json:"rows" required:"true" minimum:"1" maximum:"6" doc:"Rows of Slots on each Page, from 1 to 6."`
-	Columns   int `json:"columns" required:"true" minimum:"1" maximum:"6" doc:"Columns of Slots on each Page, from 1 to 6."`
-	LeafCount int `json:"leafCount,omitempty" default:"10" minimum:"1" maximum:"100" doc:"Number of Leaves the binder starts with, from 1 to 100."`
-}
-
-type binderGridBody struct {
+type BinderGridBody struct {
 	Rows    int `json:"rows" required:"true" minimum:"1" maximum:"6" doc:"Rows of Slots on each Page, from 1 to 6."`
 	Columns int `json:"columns" required:"true" minimum:"1" maximum:"6" doc:"Columns of Slots on each Page, from 1 to 6."`
+}
+
+type binderLayoutBody struct {
+	BinderGridBody
+	LeafCount int `json:"leafCount,omitempty" default:"10" minimum:"1" maximum:"100" doc:"Number of Leaves the binder starts with, from 1 to 100."`
 }
 
 type binderLeafBody struct {
@@ -41,7 +40,7 @@ type binderCreateInput struct {
 
 type binderGridInput struct {
 	ID   uuid.UUID `path:"id" doc:"Collection ID"`
-	Body binderGridBody
+	Body BinderGridBody
 }
 
 type binderLeafInput struct {
@@ -129,8 +128,8 @@ func (h *BinderHandler) getPage(ctx context.Context, in binderPageInput) (dto.Bi
 	return h.binderSvc.GetPage(ctx, dto.BinderPageLookup{ProfileID: profileID, CollectionID: in.ID, Page: in.Page})
 }
 
-// Routes sets Secured:true only sets OpenAPI security metadata; the router must
-// pass SessionGuard to RegisterAll.
+// Routes marks each operation Secured, which only documents the requirement in
+// OpenAPI; RegisterRoutes applies the guard that enforces it.
 func (h *BinderHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
 		endpoint.New(endpoint.Endpoint[binderCreateInput, dto.BinderLayout]{

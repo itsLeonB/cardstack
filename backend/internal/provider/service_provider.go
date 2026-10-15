@@ -63,7 +63,12 @@ func ProvideCatalogService(ds *DataSources, images mapper.ImageHost) service.Cat
 // ProvideCollectionService builds the collection service over ds's DB, for
 // the same reason ProvideCatalogService is its own provider.
 func ProvideCollectionService(ds *DataSources) service.CollectionService {
-	return service.NewCollectionService(catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)))
+	return service.NewCollectionService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+	)
 }
 
 // ProvideInventoryService builds the inventory service over ds's DB.
@@ -71,6 +76,7 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 	return service.NewInventoryService(
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
 		crud.NewRepository[entity.Card](ds.Gorm),
@@ -83,7 +89,9 @@ func ProvideBinderService(ds *DataSources, images mapper.ImageHost) service.Bind
 	return service.NewBinderService(
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
-		catalogrepository.NewBinderRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
 		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
 		images,
 	)

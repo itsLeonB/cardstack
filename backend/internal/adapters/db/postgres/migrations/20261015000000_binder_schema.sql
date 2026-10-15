@@ -25,13 +25,12 @@ CREATE TABLE binder_leaves (
 );
 
 -- Only occupied Slots have a row: an empty Slot is the absence of one. A row
--- holds either a Card or Unidentified, never both and never neither. side is
--- 0 for the front Page and 1 for the back.
+-- holds either a Card or Unidentified, never both and never neither.
 CREATE TABLE binder_slots (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     collection_id UUID NOT NULL REFERENCES collections (id) ON DELETE CASCADE,
     leaf_id UUID NOT NULL REFERENCES binder_leaves (id) ON DELETE CASCADE,
-    side INTEGER NOT NULL CHECK (side IN (0, 1)),
+    side TEXT NOT NULL CHECK (side IN ('front', 'back')),
     slot_row INTEGER NOT NULL CHECK (slot_row >= 1),
     slot_column INTEGER NOT NULL CHECK (slot_column >= 1),
     card_id UUID REFERENCES cards (id),
