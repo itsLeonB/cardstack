@@ -81,9 +81,10 @@ func getPage(t *testing.T, api testAPI, token, id string, page int) binderPageEn
 	return env
 }
 
-// placeSlot writes one occupied Slot straight into the database: no route
-// places a card until the Slot editing ticket, so the read and refusal tests
-// need the state set up directly. page is the Page number, counted in turning order.
+// placeSlot writes one occupied Slot straight into the database, skipping the
+// Inventory Entries the Slot routes keep in step. The read and refusal tests
+// use it to set up state only, and they do not check the quantity invariant.
+// page is the Page number, counted in turning order.
 func placeSlot(t *testing.T, api testAPI, collectionID string, page, row, column int, cardID *uuid.UUID, unidentified bool) {
 	t.Helper()
 	cid := uuid.MustParse(collectionID)

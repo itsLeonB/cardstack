@@ -19,6 +19,9 @@ type BinderSlotRepository interface {
 	// CountSlots returns, across the whole binder, how many Slots hold a Card and
 	// how many are Unidentified. It is raw GORM because go-crud has no aggregate.
 	CountSlots(ctx context.Context, collectionID uuid.UUID) (cards, unidentified int, err error)
+	// CountCardSlots returns how many Slots of one Collection hold the Card. It is
+	// raw GORM because go-crud has no aggregate.
+	CountCardSlots(ctx context.Context, collectionID, cardID uuid.UUID) (int, error)
 }
 
 type binderSlotRepository struct {
@@ -84,4 +87,26 @@ func (r *binderSlotRepository) CountSlots(ctx context.Context, collectionID uuid
 	}
 
 	return int(counts.Cards), int(counts.Unidentified), nil
+}
+
+func (r *binderSlotRepository) CountCardSlots(ctx context.Context, collectionID, cardID uuid.UUID) (int, error) {
+	if collectionID == uuid.Nil || cardID == uuid.Nil {
+		return 0, nil
+	}
+
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int64
+	err = db.Model(&entity.BinderSlot{}).
+		Where("collection_id = ? AND card_id = ?", collectionID, cardID).
+		Count(&count).
+		Error
+	if err != nil {
+		return 0, ungerr.Wrap(err, "counting Slots holding a Card")
+	}
+
+	return int(count), nil
 }

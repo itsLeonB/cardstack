@@ -58,6 +58,27 @@ type binderPageInput struct {
 	Page int       `path:"page" minimum:"1" doc:"Page number in turning order, counted from 1."`
 }
 
+// binderSlotPathInput addresses one Slot of a binder by its Page, row and column.
+type binderSlotPathInput struct {
+	ID     uuid.UUID `path:"id" doc:"Collection ID"`
+	Page   int       `path:"page" minimum:"1" doc:"Page number in turning order, counted from 1."`
+	Row    int       `path:"row" minimum:"1" doc:"Row of the Slot on its Page, counted from 1."`
+	Column int       `path:"column" minimum:"1" doc:"Column of the Slot on its Page, counted from 1."`
+}
+
+// binderSlotCardInput is binderSlotPathInput with a body naming the Card.
+type binderSlotCardInput struct {
+	ID     uuid.UUID `path:"id" doc:"Collection ID"`
+	Page   int       `path:"page" minimum:"1" doc:"Page number in turning order, counted from 1."`
+	Row    int       `path:"row" minimum:"1" doc:"Row of the Slot on its Page, counted from 1."`
+	Column int       `path:"column" minimum:"1" doc:"Column of the Slot on its Page, counted from 1."`
+	Body   binderSlotCardBody
+}
+
+type binderSlotCardBody struct {
+	CardID uuid.UUID `json:"cardId" required:"true" doc:"The Card to place in the Slot. A Slot that held a Card gives it up; an Unidentified Slot stops being Unidentified."`
+}
+
 func (h *BinderHandler) create(ctx context.Context, in binderCreateInput) (dto.BinderLayout, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -128,6 +149,40 @@ func (h *BinderHandler) getPage(ctx context.Context, in binderPageInput) (dto.Bi
 	return h.binderSvc.GetPage(ctx, dto.BinderPageLookup{ProfileID: profileID, CollectionID: in.ID, Page: in.Page})
 }
 
+func (h *BinderHandler) placeCard(ctx context.Context, in binderSlotCardInput) (dto.BinderPage, error) {
+	return h.writeSlot(ctx, in.ID, dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column}, dto.BinderSlotCard, in.Body.CardID)
+}
+
+func (h *BinderHandler) clearSlot(ctx context.Context, in binderSlotPathInput) (dto.BinderPage, error) {
+	return h.writeSlot(ctx, in.ID, dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column}, dto.BinderSlotEmpty, uuid.Nil)
+}
+
+func (h *BinderHandler) markUnidentified(ctx context.Context, in binderSlotPathInput) (dto.BinderPage, error) {
+	return h.writeSlot(ctx, in.ID, dto.BinderSlotTarget{Page: in.Page, Row: in.Row, Column: in.Column}, dto.BinderSlotUnidentified, uuid.Nil)
+}
+
+// writeSlot returns the written Page, so the client does not need a second read.
+func (h *BinderHandler) writeSlot(ctx context.Context, collectionID uuid.UUID, target dto.BinderSlotTarget, state string, cardID uuid.UUID) (dto.BinderPage, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.BinderPage{}, err
+	}
+
+	write := dto.BinderSlotWrite{
+		ProfileID:    profileID,
+		CollectionID: collectionID,
+		Target:       target,
+		State:        state,
+		CardID:       cardID,
+	}
+	if err := h.binderSvc.WriteSlot(ctx, write); err != nil {
+		return dto.BinderPage{}, err
+	}
+
+	// Returns the written Page, so the client does not need a second read.
+	return h.binderSvc.GetPage(ctx, dto.BinderPageLookup{ProfileID: profileID, CollectionID: collectionID, Page: target.Page})
+}
+
 // Routes marks each operation Secured, which only documents the requirement in
 // OpenAPI; RegisterRoutes applies the guard that enforces it.
 func (h *BinderHandler) Routes() []endpoint.Registrable {
@@ -190,6 +245,36 @@ func (h *BinderHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.getPage,
+		}),
+		endpoint.New(endpoint.Endpoint[binderSlotCardInput, dto.BinderPage]{
+			OperationID: "place-binder-card",
+			Method:      http.MethodPut,
+			Path:        "/collections/{id}/binder/pages/{page}/slots/{row}/{column}",
+			Summary:     "Place a Card in a Slot, replacing the Card it held or taking it from Unidentified; returns the Page",
+			Tags:        []string{"binder"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.placeCard,
+		}),
+		endpoint.New(endpoint.Endpoint[binderSlotPathInput, dto.BinderPage]{
+			OperationID: "clear-binder-slot",
+			Method:      http.MethodDelete,
+			Path:        "/collections/{id}/binder/pages/{page}/slots/{row}/{column}",
+			Summary:     "Empty a Slot, removing its Card or Unidentified mark; returns the Page",
+			Tags:        []string{"binder"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.clearSlot,
+		}),
+		endpoint.New(endpoint.Endpoint[binderSlotPathInput, dto.BinderPage]{
+			OperationID: "mark-binder-slot-unidentified",
+			Method:      http.MethodPut,
+			Path:        "/collections/{id}/binder/pages/{page}/slots/{row}/{column}/unidentified",
+			Summary:     "Mark a Slot Unidentified, removing the Card it held; returns the Page",
+			Tags:        []string{"binder"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.markUnidentified,
 		}),
 	}
 }

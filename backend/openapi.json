@@ -275,6 +275,19 @@
         ],
         "type": "object"
       },
+      "BinderSlotCardBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to place in the Slot. A Slot that held a Card gives it up; an Unidentified Slot stops being Unidentified.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardId"
+        ],
+        "type": "object"
+      },
       "BulkUpdateEntriesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -500,8 +513,15 @@
         "additionalProperties": false,
         "properties": {
           "binder": {
-            "$ref": "#/components/schemas/BinderLayout",
-            "description": "The binder's Layout, or null when the Collection is a plain box or deck."
+            "description": "The binder's Layout, or null when the Collection is a plain box or deck.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BinderLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "cardCount": {
             "format": "int64",
@@ -2868,6 +2888,266 @@
           }
         ],
         "summary": "Read one Page of a binder with its Slots in grid order",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/pages/{page}/slots/{row}/{column}": {
+      "delete": {
+        "operationId": "clear-binder-slot",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "description": "Row of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "description": "Column of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Empty a Slot, removing its Card or Unidentified mark; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      },
+      "put": {
+        "operationId": "place-binder-card",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "description": "Row of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "description": "Column of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderSlotCardBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Place a Card in a Slot, replacing the Card it held or taking it from Unidentified; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/pages/{page}/slots/{row}/{column}/unidentified": {
+      "put": {
+        "operationId": "mark-binder-slot-unidentified",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "description": "Row of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "description": "Column of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Mark a Slot Unidentified, removing the Card it held; returns the Page",
         "tags": [
           "binder"
         ]

@@ -92,6 +92,7 @@ func ProvideBinderService(ds *DataSources, images mapper.ImageHost) service.Bind
 		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
 		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
 		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
+		crud.NewRepository[entity.Card](ds.Gorm),
 		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
 		images,
 	)

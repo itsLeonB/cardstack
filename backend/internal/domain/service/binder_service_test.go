@@ -25,6 +25,7 @@ type binderFixture struct {
 	layouts     *mocks.MockBinderLayoutRepository
 	leaves      *mocks.MockBinderLeafRepository
 	slots       *mocks.MockBinderSlotRepository
+	cards       *mocks.MockRepository[entity.Card]
 	entries     *mocks.MockRepository[entity.InventoryEntry]
 	svc         BinderService
 }
@@ -39,11 +40,12 @@ func newBinderFixture(t *testing.T) binderFixture {
 	f.layouts = mocks.NewMockBinderLayoutRepository(t)
 	f.leaves = mocks.NewMockBinderLeafRepository(t)
 	f.slots = mocks.NewMockBinderSlotRepository(t)
+	f.cards = mocks.NewMockRepository[entity.Card](t)
 	f.entries = mocks.NewMockRepository[entity.InventoryEntry](t)
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewBinderService(transactor, f.collections, f.layouts, f.leaves, f.slots, f.entries, mapper.NewImageHost(""))
+	f.svc = NewBinderService(transactor, f.collections, f.layouts, f.leaves, f.slots, f.cards, f.entries, mapper.NewImageHost(""))
 	return f
 }
 
@@ -212,5 +214,52 @@ func TestBinderService_GetPage_RejectsPageBeyondLastLeaf(t *testing.T) {
 	f.leaves.EXPECT().CountLeaves(f.ctx, f.collection.ID).Return(1, nil).Once()
 
 	_, err := f.svc.GetPage(f.ctx, dto.BinderPageLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, Page: 3})
+	requireStatus(t, err, http.StatusNotFound)
+}
+
+func TestBinderService_WriteSlot_RejectsSlotOutsideLayout(t *testing.T) {
+	f := newBinderFixture(t)
+	f.lockedCollection()
+	f.layouts.EXPECT().GetLayout(f.ctx, f.collection.ID).Return(f.layout(2, 2), nil).Once()
+
+	err := f.svc.WriteSlot(f.ctx, dto.BinderSlotWrite{
+		ProfileID:    f.profileID,
+		CollectionID: f.collection.ID,
+		Target:       dto.BinderSlotTarget{Page: 1, Row: 3, Column: 1},
+		State:        dto.BinderSlotEmpty,
+	})
+	requireStatus(t, err, http.StatusBadRequest)
+}
+
+func TestBinderService_WriteSlot_RefusesUnknownCardBeforeWriting(t *testing.T) {
+	f := newBinderFixture(t)
+	f.lockedCollection()
+	f.layouts.EXPECT().GetLayout(f.ctx, f.collection.ID).Return(f.layout(2, 2), nil).Once()
+	f.leaves.EXPECT().FindLeafAt(f.ctx, f.collection.ID, 1).Return(entity.BinderLeaf{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, Position: 1}, nil).Once()
+	cardID := uuid.New()
+	f.cards.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.Card{}, nil).Once()
+
+	err := f.svc.WriteSlot(f.ctx, dto.BinderSlotWrite{
+		ProfileID:    f.profileID,
+		CollectionID: f.collection.ID,
+		Target:       dto.BinderSlotTarget{Page: 1, Row: 1, Column: 1},
+		State:        dto.BinderSlotCard,
+		CardID:       cardID,
+	})
+	requireStatus(t, err, http.StatusNotFound)
+}
+
+func TestBinderService_WriteSlot_NilCardIDIsNotFoundWithoutQuery(t *testing.T) {
+	f := newBinderFixture(t)
+	f.lockedCollection()
+	f.layouts.EXPECT().GetLayout(f.ctx, f.collection.ID).Return(f.layout(2, 2), nil).Once()
+	f.leaves.EXPECT().FindLeafAt(f.ctx, f.collection.ID, 1).Return(entity.BinderLeaf{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, Position: 1}, nil).Once()
+
+	err := f.svc.WriteSlot(f.ctx, dto.BinderSlotWrite{
+		ProfileID:    f.profileID,
+		CollectionID: f.collection.ID,
+		Target:       dto.BinderSlotTarget{Page: 1, Row: 1, Column: 1},
+		State:        dto.BinderSlotCard,
+	})
 	requireStatus(t, err, http.StatusNotFound)
 }

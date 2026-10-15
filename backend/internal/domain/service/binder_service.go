@@ -29,6 +29,7 @@ const (
 	pageNotFoundMsg       = "this binder has no Page with that number"
 	placementMsg          = "placement must be before or after"
 	leafInUseMsgFormat    = "page %d holds a card; clear it before removing its Leaf"
+	slotOutOfGridMsg      = "row and column must lie within the Layout's rows and columns"
 )
 
 // BinderService turns a Collection into a binder and maintains its Layout,
@@ -41,6 +42,10 @@ type BinderService interface {
 	AddLeaf(ctx context.Context, req dto.BinderLeafRequest) (dto.BinderLayout, error)
 	RemoveLeaf(ctx context.Context, req dto.BinderLeafLookup) (dto.BinderLayout, error)
 	GetPage(ctx context.Context, req dto.BinderPageLookup) (dto.BinderPage, error)
+	// WriteSlot sets one Slot and keeps the Inventory Entries of the Cards it
+	// held or now holds in step, in one transaction. It joins a transaction
+	// already open on ctx, so a later operation can call it inside its own.
+	WriteSlot(ctx context.Context, req dto.BinderSlotWrite) error
 }
 
 type binderService struct {
@@ -49,6 +54,7 @@ type binderService struct {
 	layouts     repository.BinderLayoutRepository
 	leaves      repository.BinderLeafRepository
 	slots       repository.BinderSlotRepository
+	cards       crud.Repository[entity.Card]
 	entries     crud.Repository[entity.InventoryEntry]
 	images      mapper.ImageHost
 }
@@ -59,6 +65,7 @@ func NewBinderService(
 	layouts repository.BinderLayoutRepository,
 	leaves repository.BinderLeafRepository,
 	slots repository.BinderSlotRepository,
+	cards crud.Repository[entity.Card],
 	entries crud.Repository[entity.InventoryEntry],
 	images mapper.ImageHost,
 ) BinderService {
@@ -68,6 +75,7 @@ func NewBinderService(
 		layouts:     layouts,
 		leaves:      leaves,
 		slots:       slots,
+		cards:       cards,
 		entries:     entries,
 		images:      images,
 	}
@@ -318,13 +326,9 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 		return dto.BinderPage{}, ungerr.NotFoundError(pageNotFoundMsg)
 	}
 
-	leafNumber, side := mapper.LeafOf(req.Page)
-	leaf, err := s.leaves.FindLeafAt(ctx, c.ID, leafNumber)
+	leaf, side, err := s.pageLeaf(ctx, c.ID, req.Page)
 	if err != nil {
 		return dto.BinderPage{}, err
-	}
-	if leaf.IsZero() {
-		return dto.BinderPage{}, ungerr.NotFoundError(pageNotFoundMsg)
 	}
 
 	slots, err := s.slots.ListSlotsOnPage(ctx, leaf.ID, side)
@@ -338,6 +342,151 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 	}
 
 	return mapper.ToBinderPage(s.images, req.Page, layout, leafCount, slots, cards+unidentified, unidentified), nil
+}
+
+func (s *binderService) WriteSlot(ctx context.Context, req dto.BinderSlotWrite) error {
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
+		if err != nil {
+			return err
+		}
+
+		layout, err := s.layouts.GetLayout(ctx, c.ID)
+		if err != nil {
+			return err
+		}
+		target := req.Target
+		if target.Row < 1 || target.Row > layout.Rows || target.Column < 1 || target.Column > layout.Columns {
+			return ungerr.BadRequestError(slotOutOfGridMsg)
+		}
+
+		leaf, side, err := s.pageLeaf(ctx, c.ID, target.Page)
+		if err != nil {
+			return err
+		}
+
+		var cardID *uuid.UUID
+		if req.State == dto.BinderSlotCard {
+			if _, err := s.resolveCard(ctx, req.CardID); err != nil {
+				return err
+			}
+			cardID = &req.CardID
+		}
+
+		slot, err := s.slots.FindFirst(ctx, crud.Specification[entity.BinderSlot]{
+			Model: entity.BinderSlot{CollectionID: c.ID, LeafID: leaf.ID, Side: side, Row: target.Row, Column: target.Column},
+		})
+		if err != nil {
+			return err
+		}
+
+		// An empty Slot has no row, so a zero slot means the Slot was empty before this write.
+		var previous *uuid.UUID
+		if !slot.IsZero() {
+			previous = slot.CardID
+		}
+
+		switch {
+		case req.State == dto.BinderSlotEmpty:
+			if !slot.IsZero() {
+				err = s.slots.Delete(ctx, slot)
+			}
+		case slot.IsZero():
+			_, err = s.slots.Insert(ctx, entity.BinderSlot{
+				CollectionID: c.ID,
+				LeafID:       leaf.ID,
+				Side:         side,
+				Row:          target.Row,
+				Column:       target.Column,
+				CardID:       cardID,
+				Unidentified: req.State == dto.BinderSlotUnidentified,
+			})
+		default:
+			slot.CardID = cardID
+			slot.Unidentified = req.State == dto.BinderSlotUnidentified
+			_, err = s.slots.Update(ctx, slot)
+		}
+		if err != nil {
+			return err
+		}
+
+		for _, id := range []*uuid.UUID{previous, cardID} {
+			if id == nil {
+				continue
+			}
+			if err := s.reconcileEntry(ctx, c.ID, *id); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// pageLeaf returns the Leaf and face behind a Page number, or the not-found
+// AppError when no Leaf has that position.
+func (s *binderService) pageLeaf(ctx context.Context, collectionID uuid.UUID, page int) (entity.BinderLeaf, string, error) {
+	leafNumber, side := mapper.LeafOf(page)
+	leaf, err := s.leaves.FindLeafAt(ctx, collectionID, leafNumber)
+	if err != nil {
+		return entity.BinderLeaf{}, "", err
+	}
+	if leaf.IsZero() {
+		return entity.BinderLeaf{}, "", ungerr.NotFoundError(pageNotFoundMsg)
+	}
+
+	return leaf, side, nil
+}
+
+// reconcileEntry sets a Card's Inventory Entry to the number of Slots holding
+// it, so the entry is created, changed or removed to match the Slots.
+func (s *binderService) reconcileEntry(ctx context.Context, collectionID, cardID uuid.UUID) error {
+	count, err := s.slots.CountCardSlots(ctx, collectionID, cardID)
+	if err != nil {
+		return err
+	}
+
+	entry, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{
+		Model:     entity.InventoryEntry{CollectionID: collectionID, CardID: cardID},
+		ForUpdate: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case count == 0 && entry.IsZero():
+		return nil
+	case count == 0:
+		return s.entries.Delete(ctx, entry)
+	case entry.IsZero():
+		_, err = s.entries.Insert(ctx, entity.InventoryEntry{CollectionID: collectionID, CardID: cardID, Quantity: count})
+	case entry.Quantity != count:
+		entry.Quantity = count
+		_, err = s.entries.Update(ctx, entry)
+	}
+
+	return err
+}
+
+// resolveCard returns the Card with the id, or the not-found AppError. A nil id
+// is refused before the query, since an empty Model would match any Card.
+func (s *binderService) resolveCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+	if cardID == uuid.Nil {
+		return entity.Card{}, ungerr.NotFoundError(cardNotFoundMsg)
+	}
+
+	card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+		Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}},
+	})
+	if err != nil {
+		return entity.Card{}, err
+	}
+	if card.IsZero() {
+		return entity.Card{}, ungerr.NotFoundError(cardNotFoundMsg)
+	}
+
+	return card, nil
 }
 
 // requireNoSlots refuses a Layout change while any Slot is occupied, since the
