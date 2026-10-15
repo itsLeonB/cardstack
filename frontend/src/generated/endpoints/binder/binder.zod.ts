@@ -172,3 +172,178 @@ export const GetBinderPageResponse = zod.object({
 })
 })
 
+/**
+ * @summary Empty a Slot, removing its Card or Unidentified mark; returns the Page
+ */
+
+
+
+
+
+export const ClearBinderSlotParams = zod.object({
+  "id": zod.string().describe('Collection ID'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.'),
+  "row": zod.int().min(1).describe('Row of the Slot on its Page, counted from 1.'),
+  "column": zod.int().min(1).describe('Column of the Slot on its Page, counted from 1.')
+})
+
+export const ClearBinderSlotResponse = zod.object({
+  "data": zod.object({
+  "cardTotal": zod.int().describe('Slots holding a Card plus Unidentified Slots, across the whole binder.'),
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "leaf": zod.int().describe('Number of the Leaf this Page belongs to, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "side": zod.enum(['front', 'back']).describe('Which face of the Leaf this Page is.'),
+  "slots": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}).describe('The Card in the pocket, set only when State is card.'),
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
+})).nullable(),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+})
+})
+
+/**
+ * @summary Place a Card in a Slot, replacing the Card it held or taking it from Unidentified; returns the Page
+ */
+
+
+
+
+
+export const PlaceBinderCardParams = zod.object({
+  "id": zod.string().describe('Collection ID'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.'),
+  "row": zod.int().min(1).describe('Row of the Slot on its Page, counted from 1.'),
+  "column": zod.int().min(1).describe('Column of the Slot on its Page, counted from 1.')
+})
+
+export const PlaceBinderCardBody = zod.object({
+  "cardId": zod.string().describe('The Card to place in the Slot. A Slot that held a Card gives it up; an Unidentified Slot stops being Unidentified.')
+})
+
+export const PlaceBinderCardResponse = zod.object({
+  "data": zod.object({
+  "cardTotal": zod.int().describe('Slots holding a Card plus Unidentified Slots, across the whole binder.'),
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "leaf": zod.int().describe('Number of the Leaf this Page belongs to, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "side": zod.enum(['front', 'back']).describe('Which face of the Leaf this Page is.'),
+  "slots": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}).describe('The Card in the pocket, set only when State is card.'),
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
+})).nullable(),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+})
+})
+
+/**
+ * @summary Mark a Slot Unidentified, removing the Card it held; returns the Page
+ */
+
+
+
+
+
+export const MarkBinderSlotUnidentifiedParams = zod.object({
+  "id": zod.string().describe('Collection ID'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.'),
+  "row": zod.int().min(1).describe('Row of the Slot on its Page, counted from 1.'),
+  "column": zod.int().min(1).describe('Column of the Slot on its Page, counted from 1.')
+})
+
+export const MarkBinderSlotUnidentifiedResponse = zod.object({
+  "data": zod.object({
+  "cardTotal": zod.int().describe('Slots holding a Card plus Unidentified Slots, across the whole binder.'),
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "leaf": zod.int().describe('Number of the Leaf this Page belongs to, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "side": zod.enum(['front', 'back']).describe('Which face of the Leaf this Page is.'),
+  "slots": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}).describe('The Card in the pocket, set only when State is card.'),
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
+})).nullable(),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+})
+})
+

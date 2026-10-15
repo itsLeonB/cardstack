@@ -27,6 +27,7 @@ import type {
   BinderGridBody,
   BinderLayoutBody,
   BinderLeafBody,
+  BinderSlotCardBody,
   EnvelopeBinderLayout,
   EnvelopeBinderPage,
   ErrorModel
@@ -695,3 +696,312 @@ export function useGetBinderPage<TData = Awaited<ReturnType<typeof getBinderPage
 
 
 
+export type clearBinderSlotResponse200 = {
+  data: EnvelopeBinderPage
+  status: 200
+}
+
+export type clearBinderSlotResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type clearBinderSlotResponseSuccess = (clearBinderSlotResponse200) & {
+  headers: Headers;
+};
+export type clearBinderSlotResponseError = (clearBinderSlotResponseDefault) & {
+  headers: Headers;
+};
+
+export type clearBinderSlotResponse = (clearBinderSlotResponseSuccess | clearBinderSlotResponseError)
+
+export const getClearBinderSlotUrl = (id: string,
+    page: number,
+    row: number,
+    column: number,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/binder/pages/${page}/slots/${row}/${column}`
+}
+
+/**
+ * @summary Empty a Slot, removing its Card or Unidentified mark; returns the Page
+ */
+export const clearBinderSlot = async (id: string,
+    page: number,
+    row: number,
+    column: number, options?: Parameters<typeof customFetch>[1]): Promise<clearBinderSlotResponse> => {
+
+  return customFetch<clearBinderSlotResponse>(getClearBinderSlotUrl(id,page,row,column),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearBinderSlotMutationKey = () => ['clearBinderSlot'] as const;
+
+export const getClearBinderSlotMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearBinderSlot>>, TError,ClearBinderSlotMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearBinderSlot>>, TError,ClearBinderSlotMutationVariables, TContext> => {
+
+const mutationKey = getClearBinderSlotMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearBinderSlot>>, ClearBinderSlotMutationVariables> = (props) => {
+          const {id,page,row,column} = props ?? {};
+
+          return  clearBinderSlot(id,page,row,column,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearBinderSlotMutationResult = NonNullable<Awaited<ReturnType<typeof clearBinderSlot>>>
+
+    export type ClearBinderSlotMutationError = ErrorModel
+    export type ClearBinderSlotMutationVariables = {id: string;page: number;row: number;column: number}
+
+    /**
+ * @summary Empty a Slot, removing its Card or Unidentified mark; returns the Page
+ */
+export const useClearBinderSlot = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearBinderSlot>>, TError,ClearBinderSlotMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clearBinderSlot>>,
+        TError,
+        ClearBinderSlotMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClearBinderSlotMutationOptions(options), queryClient);
+    }
+    export type placeBinderCardResponse200 = {
+  data: EnvelopeBinderPage
+  status: 200
+}
+
+export type placeBinderCardResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type placeBinderCardResponseSuccess = (placeBinderCardResponse200) & {
+  headers: Headers;
+};
+export type placeBinderCardResponseError = (placeBinderCardResponseDefault) & {
+  headers: Headers;
+};
+
+export type placeBinderCardResponse = (placeBinderCardResponseSuccess | placeBinderCardResponseError)
+
+export const getPlaceBinderCardUrl = (id: string,
+    page: number,
+    row: number,
+    column: number,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/binder/pages/${page}/slots/${row}/${column}`
+}
+
+/**
+ * @summary Place a Card in a Slot, replacing the Card it held or taking it from Unidentified; returns the Page
+ */
+export const placeBinderCard = async (id: string,
+    page: number,
+    row: number,
+    column: number,
+    binderSlotCardBody: BinderSlotCardBody, options?: Parameters<typeof customFetch>[1]): Promise<placeBinderCardResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<placeBinderCardResponse>(getPlaceBinderCardUrl(id,page,row,column),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(binderSlotCardBody)
+  }
+);}
+
+
+
+
+
+export const getPlaceBinderCardMutationKey = () => ['placeBinderCard'] as const;
+
+export const getPlaceBinderCardMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeBinderCard>>, TError,PlaceBinderCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof placeBinderCard>>, TError,PlaceBinderCardMutationVariables, TContext> => {
+
+const mutationKey = getPlaceBinderCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof placeBinderCard>>, PlaceBinderCardMutationVariables> = (props) => {
+          const {id,page,row,column,data} = props ?? {};
+
+          return  placeBinderCard(id,page,row,column,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PlaceBinderCardMutationResult = NonNullable<Awaited<ReturnType<typeof placeBinderCard>>>
+    export type PlaceBinderCardMutationBody = BinderSlotCardBody
+    export type PlaceBinderCardMutationError = ErrorModel
+    export type PlaceBinderCardMutationVariables = {id: string;page: number;row: number;column: number;data: BinderSlotCardBody}
+
+    /**
+ * @summary Place a Card in a Slot, replacing the Card it held or taking it from Unidentified; returns the Page
+ */
+export const usePlaceBinderCard = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeBinderCard>>, TError,PlaceBinderCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof placeBinderCard>>,
+        TError,
+        PlaceBinderCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPlaceBinderCardMutationOptions(options), queryClient);
+    }
+    export type markBinderSlotUnidentifiedResponse200 = {
+  data: EnvelopeBinderPage
+  status: 200
+}
+
+export type markBinderSlotUnidentifiedResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type markBinderSlotUnidentifiedResponseSuccess = (markBinderSlotUnidentifiedResponse200) & {
+  headers: Headers;
+};
+export type markBinderSlotUnidentifiedResponseError = (markBinderSlotUnidentifiedResponseDefault) & {
+  headers: Headers;
+};
+
+export type markBinderSlotUnidentifiedResponse = (markBinderSlotUnidentifiedResponseSuccess | markBinderSlotUnidentifiedResponseError)
+
+export const getMarkBinderSlotUnidentifiedUrl = (id: string,
+    page: number,
+    row: number,
+    column: number,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/binder/pages/${page}/slots/${row}/${column}/unidentified`
+}
+
+/**
+ * @summary Mark a Slot Unidentified, removing the Card it held; returns the Page
+ */
+export const markBinderSlotUnidentified = async (id: string,
+    page: number,
+    row: number,
+    column: number, options?: Parameters<typeof customFetch>[1]): Promise<markBinderSlotUnidentifiedResponse> => {
+
+  return customFetch<markBinderSlotUnidentifiedResponse>(getMarkBinderSlotUnidentifiedUrl(id,page,row,column),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkBinderSlotUnidentifiedMutationKey = () => ['markBinderSlotUnidentified'] as const;
+
+export const getMarkBinderSlotUnidentifiedMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markBinderSlotUnidentified>>, TError,MarkBinderSlotUnidentifiedMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markBinderSlotUnidentified>>, TError,MarkBinderSlotUnidentifiedMutationVariables, TContext> => {
+
+const mutationKey = getMarkBinderSlotUnidentifiedMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markBinderSlotUnidentified>>, MarkBinderSlotUnidentifiedMutationVariables> = (props) => {
+          const {id,page,row,column} = props ?? {};
+
+          return  markBinderSlotUnidentified(id,page,row,column,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkBinderSlotUnidentifiedMutationResult = NonNullable<Awaited<ReturnType<typeof markBinderSlotUnidentified>>>
+
+    export type MarkBinderSlotUnidentifiedMutationError = ErrorModel
+    export type MarkBinderSlotUnidentifiedMutationVariables = {id: string;page: number;row: number;column: number}
+
+    /**
+ * @summary Mark a Slot Unidentified, removing the Card it held; returns the Page
+ */
+export const useMarkBinderSlotUnidentified = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markBinderSlotUnidentified>>, TError,MarkBinderSlotUnidentifiedMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markBinderSlotUnidentified>>,
+        TError,
+        MarkBinderSlotUnidentifiedMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkBinderSlotUnidentifiedMutationOptions(options), queryClient);
+    }

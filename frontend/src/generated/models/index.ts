@@ -15,6 +15,7 @@ export * from './binderLeafBodyPlacement.ts';
 export * from './binderPage.ts';
 export * from './binderPageSide.ts';
 export * from './binderSlot.ts';
+export * from './binderSlotCardBody.ts';
 export * from './binderSlotState.ts';
 export * from './bulkUpdateEntriesInputBody.ts';
 export * from './bulkUpdateItem.ts';

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { BinderView, CreateBinderPanel } from "./binder-view"
 import { NETWORK_ERROR } from "@/lib/collections"
-import { fakeBinder, stubBinderApi } from "@/test-binder-api"
+import { catalogCard, fakeBinder, stubBinderApi } from "@/test-binder-api"
 
 afterEach(() => {
   cleanup()
@@ -45,11 +45,7 @@ function swipe(
   fireEvent(target, end)
 }
 
-const pikachu = {
-  name: "Pikachu",
-  localId: "025",
-  imageUrl: "https://img.example/pikachu.jpg",
-}
+const pikachu = catalogCard("pikachu", "Pikachu", "025")
 
 describe("BinderView", () => {
   it("shows the Page's Slots by state and the card total against capacity", async () => {
@@ -66,13 +62,13 @@ describe("BinderView", () => {
     renderWithClient(<BinderView collectionId="col-1" />)
 
     expect(
-      await screen.findByRole("group", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("group", { name: "Row 1, column 2: Unidentified" })
+      screen.getByRole("button", { name: "Row 1, column 2: Unidentified" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("group", { name: "Row 2, column 1: empty" })
+      screen.getByRole("button", { name: "Row 2, column 1: empty" })
     ).toBeTruthy()
     expect(screen.getByText("Page 1 of 20")).toBeTruthy()
     expect(
@@ -263,7 +259,7 @@ describe("BinderView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save layout" }))
 
     expect(
-      await screen.findByRole("group", { name: "Row 3, column 1: empty" })
+      await screen.findByRole("button", { name: "Row 3, column 1: empty" })
     ).toBeTruthy()
     expect(binder.requests).toContainEqual(
       expect.objectContaining({
