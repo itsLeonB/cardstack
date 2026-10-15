@@ -99,3 +99,86 @@ func TestBinderSlotRepository_CountCardSlots(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestBinderSlotRepository_ListOccupiedSlots(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](db))
+	fixture := newCatalogFixture(t, db)
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	card := fixture.newCard(t, db, set.ID, nil)
+	other := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "002" })
+	unlisted := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "003" })
+
+	binder, leaf := newBinderWithLeaf(t, db, "List Occupied Test")
+	placeSlotRow(t, db, binder, leaf, 1, 1, &card.ID, false)
+	placeSlotRow(t, db, binder, leaf, 1, 2, &other.ID, false)
+	placeSlotRow(t, db, binder, leaf, 2, 1, nil, true)
+	placeSlotRow(t, db, binder, leaf, 2, 2, &unlisted.ID, false)
+
+	slots, err := repo.ListOccupiedSlots(ctx, binder.ID, []uuid.UUID{card.ID})
+	require.NoError(t, err)
+	require.Len(t, slots, 1, "only the Slots of the listed Card come back")
+	assert.Equal(t, card.ID, *slots[0].CardID)
+	assert.Equal(t, 1, slots[0].Row)
+	assert.Equal(t, 1, slots[0].Column)
+	assert.Equal(t, 1, slots[0].Leaf.Position, "the Leaf is preloaded so the Page can be computed")
+
+	slots, err = repo.ListOccupiedSlots(ctx, binder.ID, []uuid.UUID{card.ID, other.ID, unlisted.ID})
+	require.NoError(t, err)
+	assert.Len(t, slots, 3, "the Unidentified Slot holds no Card, so it never matches")
+
+	slots, err = repo.ListOccupiedSlots(ctx, binder.ID, nil)
+	require.NoError(t, err)
+	assert.Empty(t, slots, "an entries page with no Cards loads nothing")
+
+	elsewhere, elsewhereLeaf := newBinderWithLeaf(t, db, "List Occupied Other")
+	placeSlotRow(t, db, elsewhere, elsewhereLeaf, 1, 1, &card.ID, false)
+	slots, err = repo.ListOccupiedSlots(ctx, binder.ID, []uuid.UUID{card.ID})
+	require.NoError(t, err)
+	assert.Len(t, slots, 1, "Slots of another Collection are not listed")
+}
+
+func TestBinderSlotRepository_ListAllOccupiedSlots(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](db))
+	fixture := newCatalogFixture(t, db)
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	card := fixture.newCard(t, db, set.ID, nil)
+
+	binder, leaf := newBinderWithLeaf(t, db, "List All Test")
+	placeSlotRow(t, db, binder, leaf, 1, 1, &card.ID, false)
+	placeSlotRow(t, db, binder, leaf, 1, 2, nil, true)
+
+	slots, err := repo.ListAllOccupiedSlots(ctx, binder.ID)
+	require.NoError(t, err)
+	assert.Len(t, slots, 2, "Unidentified Slots are occupied too")
+	for _, slot := range slots {
+		assert.Equal(t, 1, slot.Leaf.Position)
+	}
+}
+
+// TestBinderSlotRepository_NilIDsMatchNothing: a nil Collection or a nil Card id
+// is refused before the query, so it cannot match the Unidentified Slots, whose
+// card_id is NULL.
+func TestBinderSlotRepository_NilIDsMatchNothing(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](db))
+
+	binder, leaf := newBinderWithLeaf(t, db, "Nil Guard Test")
+	placeSlotRow(t, db, binder, leaf, 1, 1, nil, true)
+
+	slots, err := repo.ListOccupiedSlots(ctx, uuid.Nil, []uuid.UUID{uuid.Nil})
+	require.NoError(t, err)
+	assert.Empty(t, slots)
+
+	slots, err = repo.ListOccupiedSlots(ctx, binder.ID, []uuid.UUID{uuid.Nil})
+	require.NoError(t, err)
+	assert.Empty(t, slots, "a nil Card id must not match the Unidentified Slot")
+
+	slots, err = repo.ListAllOccupiedSlots(ctx, uuid.Nil)
+	require.NoError(t, err)
+	assert.Empty(t, slots, "a nil Collection id must not list every binder's Slots")
+}
