@@ -11,6 +11,10 @@ import {
 import { AddCardsLink } from "@/components/collections/add-cards-link"
 import { ScanLink } from "@/components/scan/scan-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
+import {
+  BinderView,
+  CreateBinderPanel,
+} from "@/components/collections/binder-view"
 import { catalogFilterSchema } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
@@ -75,15 +79,24 @@ function CollectionPage() {
             }
             actions={
               <div className="flex flex-wrap gap-2">
-                <ScanLink collectionId={collectionId} />
-                <AddCardsLink collectionId={collectionId} />
+                {!collection.binder && (
+                  <>
+                    <ScanLink collectionId={collectionId} />
+                    <AddCardsLink collectionId={collectionId} />
+                  </>
+                )}
               </div>
             }
           />
+          {collection.binder && <BinderView collectionId={collectionId} />}
+          {!collection.binder && collection.cardCount === 0 && (
+            <CreateBinderPanel collectionId={collectionId} />
+          )}
           <CollectionEntries
             collectionId={collectionId}
             search={search}
             onSearchChange={(next) => void changeSearch(next)}
+            quantityEditable={!collection.binder}
           />
         </>
       )}

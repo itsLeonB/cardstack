@@ -66,7 +66,11 @@ function EditCollectionPage() {
       />
       <PageHeader
         title={collection ? `Edit “${collectionTitle}”` : "Edit Collection"}
-        description="Update the title, description, or card-count limit."
+        description={
+          collection?.binder
+            ? "Update the title or description."
+            : "Update the title, description, or card-count limit."
+        }
       />
 
       <Card className="max-w-lg">
@@ -100,6 +104,7 @@ function EditCollectionPage() {
                     ? collection.maxCardCount.toString()
                     : "",
               }}
+              showMaxCardCount={!collection.binder}
               submitLabel="Save changes"
               pendingLabel="Saving..."
               isPending={updateMutation.isPending}

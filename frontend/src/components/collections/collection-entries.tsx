@@ -22,12 +22,15 @@ interface CollectionEntriesProps {
   search: CatalogFilters
   /** Receives the next filters; the route writes them to the URL. */
   onSearchChange: (next: CatalogFilters) => void
+  /** False on a binder, where quantities change only by placing Slots. */
+  quantityEditable?: boolean
 }
 
 export function CollectionEntries({
   collectionId,
   search,
   onSearchChange,
+  quantityEditable = true,
 }: CollectionEntriesProps) {
   const queryClient = useQueryClient()
   // A save writes the confirmed quantities into the cached pages instead of
@@ -116,6 +119,8 @@ export function CollectionEntries({
             : "This Collection has no Cards yet. Add some from the catalog."
         }
         renderControl={(card) => {
+          // A binder's quantities change only by placing Slots (ADR-0020).
+          if (!quantityEditable) return null
           const server = serverQuantities?.[card.id] ?? 0
           return (
             <QuantityControl

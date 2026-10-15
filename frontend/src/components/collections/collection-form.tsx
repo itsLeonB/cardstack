@@ -31,6 +31,8 @@ interface CollectionFormProps {
   pendingLabel: string
   isPending: boolean
   errorMessage?: string | null
+  /** A binder's capacity is its Slot count, so it has no card-count limit. */
+  showMaxCardCount?: boolean
   onSubmit: (body: CollectionBody) => void
 }
 
@@ -40,6 +42,7 @@ export function CollectionForm({
   pendingLabel,
   isPending,
   errorMessage,
+  showMaxCardCount = true,
   onSubmit,
 }: CollectionFormProps) {
   const [values, setValues] = useState<CollectionFormValues>(
@@ -59,7 +62,7 @@ export function CollectionForm({
 
     // 0 means no limit; sending it on update clears an existing limit.
     let maxCardCount = 0
-    const rawMaxCardCount = values.maxCardCount.trim()
+    const rawMaxCardCount = showMaxCardCount ? values.maxCardCount.trim() : ""
     if (rawMaxCardCount) {
       const parsed = Number(rawMaxCardCount)
       if (!Number.isInteger(parsed) || parsed < 0) {
@@ -111,26 +114,28 @@ export function CollectionForm({
             }
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor="maxCardCount">Max card count</FieldLabel>
-          <Input
-            id="maxCardCount"
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            value={values.maxCardCount}
-            onChange={(event) =>
-              setValues((prev) => ({
-                ...prev,
-                maxCardCount: event.target.value,
-              }))
-            }
-          />
-          <FieldDescription>
-            Optional hard cap on this Collection&apos;s summed card quantity.
-          </FieldDescription>
-        </Field>
+        {showMaxCardCount && (
+          <Field>
+            <FieldLabel htmlFor="maxCardCount">Max card count</FieldLabel>
+            <Input
+              id="maxCardCount"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              value={values.maxCardCount}
+              onChange={(event) =>
+                setValues((prev) => ({
+                  ...prev,
+                  maxCardCount: event.target.value,
+                }))
+              }
+            />
+            <FieldDescription>
+              Optional hard cap on this Collection&apos;s summed card quantity.
+            </FieldDescription>
+          </Field>
+        )}
         {(validationError ?? errorMessage) && (
           <FieldError>{validationError ?? errorMessage}</FieldError>
         )}

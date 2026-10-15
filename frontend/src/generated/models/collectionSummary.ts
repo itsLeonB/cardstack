@@ -4,8 +4,10 @@
  * Cardstack API
  * OpenAPI spec version: 1.0
  */
+import type { BinderLayout } from './binderLayout.ts';
 
 export interface CollectionSummary {
+  binder: BinderLayout | null;
   cardCount: number;
   description: string;
   id: string;

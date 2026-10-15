@@ -50,6 +50,23 @@ const input = {
           `orval transformer rewrote no array type for: ${missing.join(", ")}`
         )
       }
+      // Huma emits the binder field as a bare $ref, so orval types it non-null,
+      // but a plain Collection carries null. Declare it nullable here.
+      // SAFETY: orval hands the transformer an OpenAPI 3.1 document, and only the
+      // binder property of CollectionSummary is read or rewritten below.
+      const schemas = (
+        spec as {
+          components?: {
+            schemas?: Record<string, { properties?: { binder?: unknown } }>
+          }
+        }
+      ).components?.schemas
+      const summary = schemas?.CollectionSummary
+      if (summary?.properties?.binder) {
+        summary.properties.binder = {
+          anyOf: [summary.properties.binder, { type: "null" }],
+        }
+      }
       return spec
     },
   },
