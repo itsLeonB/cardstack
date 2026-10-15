@@ -1,0 +1,21 @@
+.scratch/binder-scanning/issues/03-place-clear-replace-and-mark-unidentified.md
+  s_d5ea551a9e2935::t_b365cfa0796772 9,11-22
+.scratch/binder-scanning/issues/05-replace-page-operation.md
+  s_d5ea551a9e2935::t_26bb2da45200ba 9,11-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "0e772fb33778813c0801b7d059fd1cb0e5fe25a8",
+  "prompts": {},
+  "sessions": {
+    "s_d5ea551a9e2935": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d5ea551a9e2935",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
