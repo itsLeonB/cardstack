@@ -5,7 +5,7 @@ import {
   useListCollectionEntriesInfinite,
   useListMasterInventoryInfinite,
 } from "@/generated/endpoints/inventory/inventory"
-import type { InventoryItem } from "@/generated/models"
+import type { BinderSlotTarget, InventoryItem } from "@/generated/models"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { infinitePages, mergePages } from "@/lib/infinite-pages"
 import type { CardList, ListPage } from "@/lib/infinite-pages"
@@ -20,6 +20,8 @@ export const INVENTORY_PAGE_SIZE = 100
  */
 export interface InventoryList extends CardList {
   quantities: Record<string, number>
+  /** Where each binder Card sits, keyed by card id. */
+  positions: Record<string, BinderSlotTarget[]>
 }
 
 export function mergeInventoryPages(
@@ -31,6 +33,12 @@ export function mergeInventoryPages(
     total,
     quantities: Object.fromEntries(
       rows.map((item) => [item.card.id, item.quantity])
+    ),
+    // Only a binder's entries carry positions, so a plain list leaves this empty.
+    positions: Object.fromEntries(
+      rows.flatMap((item) =>
+        item.positions?.length ? [[item.card.id, item.positions]] : []
+      )
     ),
   }
 }

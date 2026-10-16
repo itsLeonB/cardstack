@@ -7,11 +7,13 @@ import type { SlotRef } from "@/lib/binder"
 export function BinderPageGrid({
   page,
   selected,
+  picked,
   onSelect,
 }: {
   page: BinderPage
-  /** The Slot whose actions are open. */
   selected?: SlotRef
+  /** The source Slot of a pending move, marked until the move lands or is cancelled. */
+  picked?: SlotRef
   /** Passes the tapped tile too, so focus can return to it when the panel closes. */
   onSelect: (slot: BinderSlot, tile: HTMLButtonElement) => void
 }) {
@@ -29,6 +31,7 @@ export function BinderPageGrid({
           selected={
             selected?.row === slot.row && selected.column === slot.column
           }
+          picked={picked?.row === slot.row && picked.column === slot.column}
           onSelect={(tile) => onSelect(slot, tile)}
         />
       ))}
@@ -39,16 +42,19 @@ export function BinderPageGrid({
 function SlotTile({
   slot,
   selected,
+  picked,
   onSelect,
 }: {
   slot: BinderSlot
   selected: boolean
+  picked: boolean
   onSelect: (tile: HTMLButtonElement) => void
 }) {
   const where = `Row ${slot.row}, column ${slot.column}`
   const tile = cn(
     "rounded-md border text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-    selected && "ring-2 ring-ring"
+    selected && "ring-2 ring-ring",
+    picked && "outline-2 outline-offset-2 outline-primary outline-dashed"
   )
 
   if (slot.state === "card" && slot.card) {

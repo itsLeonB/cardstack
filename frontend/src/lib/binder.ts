@@ -28,7 +28,11 @@ function binderPagesMatch(collectionId: string) {
     String(queryKey[0]).startsWith(`${collectionUrl}/binder/`)
 }
 
-/** Refreshes a binder after a write that changes its Pages or Layout. */
+/**
+ * Refreshes a binder after a write that changes its Pages or Layout. The
+ * entries follow too: a Leaf change renumbers the Pages, and the entries carry
+ * each Card's positions.
+ */
 export function invalidateBinder(
   queryClient: QueryClient,
   collectionId: string
@@ -37,6 +41,7 @@ export function invalidateBinder(
     predicate: binderPagesMatch(collectionId),
   })
   invalidateCollectionCounts(queryClient, collectionId)
+  invalidateCollectionEntries(queryClient, collectionId)
 }
 
 /**
@@ -62,7 +67,6 @@ export function refreshAfterSlotWrite(
   collectionId: string
 ) {
   invalidateBinder(queryClient, collectionId)
-  invalidateCollectionEntries(queryClient, collectionId)
   invalidateMasterInventory(queryClient)
 }
 
