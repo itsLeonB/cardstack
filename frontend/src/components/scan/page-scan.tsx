@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useBlocker } from "@tanstack/react-router"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,9 +11,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { PageCorners } from "@/components/scan/page-corners"
 import { PageReview } from "@/components/scan/page-review"
+import {
+  cameraMessage,
+  ChoosePhotoButton,
+} from "@/components/scan/photo-source-controls"
 import { useReplaceBinderPage } from "@/generated/endpoints/binder/binder"
 import type {
   BinderPage,
@@ -23,7 +28,12 @@ import { refreshAfterSlotWrite } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import { useCameraFrameSource } from "@/lib/frame-source"
 import type { FrameSource } from "@/lib/frame-source"
-import { cutPage } from "@/lib/page-cut"
+import {
+  cellPosition,
+  cornersProblem,
+  cutPage,
+  frameLongSide,
+} from "@/lib/page-cut"
 import type { Corners, Grid } from "@/lib/page-cut"
 import type { PageCell } from "@/lib/use-page-scan"
 import {
@@ -67,13 +77,14 @@ export function ScanPageFlow({
   onClose,
 }: ScanPageProps & { source: FrameSource; cut?: typeof cutPage }) {
   const grid: Grid = { rows: page.layout.rows, columns: page.layout.columns }
+  const longSide = frameLongSide(grid)
   const [frame, setFrame] = useState<Blob>()
   const [corners, setCorners] = useState<Corners>(CENTRED)
   const [reviewing, setReviewing] = useState(false)
   const [cutting, setCutting] = useState(false)
   // Set by a mark or a candidate pick, and cleared when the photo is cut again or saved.
   const [edited, setEdited] = useState(false)
-  // The leave the user asked for while the review holds edits, until they confirm it.
+  // The in-page leave the user asked for while the review holds edits, until they confirm it.
   const [leaving, setLeaving] = useState<(() => void) | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Slots stored as Unidentified because the server did not know the Card.
@@ -82,13 +93,17 @@ export function ScanPageFlow({
   const frameUrl = useObjectUrl(frame)
   const queryClient = useQueryClient()
   const replace = useReplaceBinderPage()
+  // A route change (browser Back, an in-app link) waits for the user while the review holds edits.
+  const blocker = useBlocker({
+    shouldBlockFn: () => edited,
+    enableBeforeUnload: () => edited,
+    withResolver: true,
+  })
 
   const targets = matches.cells.map(slotTarget)
-  const loading = targets.includes(null)
 
   function slotAt(index: number) {
-    const row = Math.floor(index / grid.columns) + 1
-    const column = (index % grid.columns) + 1
+    const { row, column } = cellPosition(index, grid.columns)
     return page.slots?.find(
       (slot) => slot.row === row && slot.column === column
     )
@@ -96,6 +111,7 @@ export function ScanPageFlow({
   const changed = targets.map(
     (target, index) => target !== null && changesSlot(target, slotAt(index))
   )
+  const cornersError = cornersProblem(corners)
 
   async function takeFrame(take: () => Promise<Blob>) {
     setError(null)
@@ -107,7 +123,7 @@ export function ScanPageFlow({
   }
 
   async function cutAndMatch() {
-    if (!frame) return
+    if (!frame || cornersProblem(corners)) return
     setError(null)
     setCutting(true)
     try {
@@ -138,11 +154,11 @@ export function ScanPageFlow({
   }
 
   function confirm() {
+    // A cell still queued or loading holds the Confirm, marked or not.
+    if (matches.pending) return
     const slots = targets.filter(
       (target): target is BinderPageSlotBody => target !== null
     )
-    // The button is disabled while a cell is loading; this guards the same rule.
-    if (slots.length !== targets.length) return
     setError(null)
     replace.mutate(
       { id: collectionId, page: page.page, data: { slots } },
@@ -163,6 +179,18 @@ export function ScanPageFlow({
         onError: () => setError(NETWORK_ERROR),
       }
     )
+  }
+
+  // Closing the dialog keeps the review; leaving takes the action or the route that asked.
+  const dialogOpen = leaving !== null || blocker.status === "blocked"
+  function dismissLeave() {
+    setLeaving(null)
+    if (blocker.status === "blocked") blocker.reset()
+  }
+  function confirmLeave() {
+    leaving?.()
+    setLeaving(null)
+    if (blocker.status === "blocked") blocker.proceed()
   }
 
   const hasCamera = source.camera === "starting" || source.camera === "ready"
@@ -211,7 +239,10 @@ export function ScanPageFlow({
               onMark={markCell}
             />
             <div className="flex flex-wrap gap-2">
-              <Button disabled={loading || replace.isPending} onClick={confirm}>
+              <Button
+                disabled={matches.pending || replace.isPending}
+                onClick={confirm}
+              >
                 {replace.isPending ? "Saving…" : "Confirm"}
               </Button>
               <Button
@@ -238,8 +269,16 @@ export function ScanPageFlow({
               corners={corners}
               onChange={setCorners}
             />
+            {cornersError && (
+              <p role="alert" className="text-sm text-destructive">
+                {cornersError}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
-              <Button disabled={cutting} onClick={() => void cutAndMatch()}>
+              <Button
+                disabled={cutting || cornersError !== null}
+                onClick={() => void cutAndMatch()}
+              >
                 {cutting ? "Cutting…" : "Cut and match"}
               </Button>
               <Button
@@ -264,45 +303,33 @@ export function ScanPageFlow({
                 />
               </div>
             ) : (
-              <p className="text-sm">
-                {source.camera === "denied"
-                  ? "Camera access was denied. Allow it in your browser's site settings, or choose a photo instead."
-                  : "No camera is available here. Choose a photo instead."}
-              </p>
+              <p className="text-sm">{cameraMessage(source.camera)}</p>
             )}
             <div className="flex flex-wrap gap-2">
               {hasCamera && (
                 <Button
                   size="lg"
                   disabled={source.camera !== "ready"}
-                  onClick={() => void takeFrame(source.captureFrame)}
+                  onClick={() =>
+                    void takeFrame(() => source.captureFrame(longSide))
+                  }
                 >
                   Capture
                 </Button>
               )}
-              <label
-                className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
-              >
-                Choose a photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0]
-                    event.currentTarget.value = ""
-                    if (file) void takeFrame(() => source.frameFromFile(file))
-                  }}
-                />
-              </label>
+              <ChoosePhotoButton
+                onFile={(file) =>
+                  void takeFrame(() => source.frameFromFile(file, longSide))
+                }
+              />
             </div>
           </div>
         )}
 
         <AlertDialog
-          open={leaving !== null}
+          open={dialogOpen}
           onOpenChange={(open) => {
-            if (!open) setLeaving(null)
+            if (!open) dismissLeave()
           }}
         >
           <AlertDialogContent>
@@ -315,12 +342,7 @@ export function ScanPageFlow({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Keep editing</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  leaving?.()
-                  setLeaving(null)
-                }}
-              >
+              <AlertDialogAction onClick={confirmLeave}>
                 Leave
               </AlertDialogAction>
             </AlertDialogFooter>

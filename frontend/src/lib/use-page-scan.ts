@@ -131,12 +131,13 @@ export function changesSlot(
 
 /** An object URL for a blob, revoked when the blob changes or the component unmounts. */
 export function useObjectUrl(blob: Blob | undefined) {
-  const [url, setUrl] = useState<string>()
+  const [made, setMade] = useState<{ blob: Blob; url: string }>()
   useEffect(() => {
     if (!blob) return
-    const next = URL.createObjectURL(blob)
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
+    const url = URL.createObjectURL(blob)
+    setMade({ blob, url })
+    return () => URL.revokeObjectURL(url)
   }, [blob])
-  return blob ? url : undefined
+  // Only the URL made for this blob: the one for an older blob is revoked by now.
+  return made && made.blob === blob ? made.url : undefined
 }

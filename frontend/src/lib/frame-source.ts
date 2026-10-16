@@ -4,9 +4,6 @@ import type { Rect } from "./frame-crop"
 
 export type CameraState = "starting" | "ready" | "denied" | "unavailable"
 
-/** The longest side of a whole photo kept for a Page scan to cut; cells are downsized after. */
-const FRAME_LONG_SIDE = 2048
-
 /**
  * Where scan frames come from. The scan screen only sees this boundary, so a
  * test hands it a fake that yields a JPEG without a camera or a canvas. Both
@@ -18,9 +15,9 @@ export interface FrameSource {
   videoRef: (el: HTMLVideoElement | null) => void
   captureCamera: () => Promise<Blob>
   fromFile: (file: File) => Promise<Blob>
-  /** The whole frame, uncropped, for a Page scan to cut into cells. */
-  captureFrame: () => Promise<Blob>
-  frameFromFile: (file: File) => Promise<Blob>
+  /** The whole frame, uncropped, its long side at most `longSide`, for a Page scan to cut into cells. */
+  captureFrame: (longSide: number) => Promise<Blob>
+  frameFromFile: (file: File, longSide: number) => Promise<Blob>
 }
 
 /** Crops a frame to `crop` and downsizes it so its long side is at most `limit`, as a JPEG. */
@@ -127,15 +124,11 @@ export function useCameraFrameSource(): FrameSource {
         UPLOAD_LONG_SIDE
       )
     },
-    captureFrame: async () => {
+    captureFrame: async (longSide) => {
       const el = videoFrame(video.current)
-      return toJpeg(
-        el,
-        wholeFrame(el.videoWidth, el.videoHeight),
-        FRAME_LONG_SIDE
-      )
+      return toJpeg(el, wholeFrame(el.videoWidth, el.videoHeight), longSide)
     },
     fromFile: (file) => decodeFile(file, guideCrop, UPLOAD_LONG_SIDE),
-    frameFromFile: (file) => decodeFile(file, wholeFrame, FRAME_LONG_SIDE),
+    frameFromFile: (file, longSide) => decodeFile(file, wholeFrame, longSide),
   }
 }

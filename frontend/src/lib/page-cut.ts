@@ -30,6 +30,14 @@ export interface CellRegion {
   y1: number
 }
 
+/** The 1-based row and column of a cell, from its index in grid order. */
+export function cellPosition(index: number, columns: number) {
+  return {
+    row: Math.floor(index / columns) + 1,
+    column: (index % columns) + 1,
+  }
+}
+
 export function cellRegions(grid: Grid, margin = CELL_MARGIN): CellRegion[] {
   const cells: CellRegion[] = []
   for (let row = 0; row < grid.rows; row++) {
@@ -84,6 +92,39 @@ export function cellSize(
   )
   const out = fitLongSide(Math.round(w), Math.round(h), limit)
   return { w: Math.max(1, out.w), h: Math.max(1, out.h) }
+}
+
+/**
+ * The longest side the whole photo needs, so that the largest cell of the
+ * Layout can still reach the upload size after the margin is cropped.
+ */
+export function frameLongSide(grid: Grid) {
+  return Math.ceil(
+    (Math.max(grid.rows, grid.columns) * UPLOAD_LONG_SIDE) /
+      (1 - 2 * CELL_MARGIN)
+  )
+}
+
+// Below this, a corner's turn is too close to flat for the mapping to be usable.
+const MIN_TURN = 1e-4
+
+/**
+ * Why the corners cannot be cut, or null when they form a convex quadrilateral
+ * on the photo. Walking the corners in order, every turn must go the same way:
+ * a crossed or folded shape flips sign, and a flat one has no turn at all.
+ */
+export function cornersProblem(corners: Corners): string | null {
+  if (corners.some(({ x, y }) => x < 0 || x > 1 || y < 0 || y > 1))
+    return "The corners must stay on the photo."
+  const turns = corners.map((p, i) => {
+    const a = corners[(i + 1) % 4]
+    const b = corners[(i + 2) % 4]
+    return (a.x - p.x) * (b.y - a.y) - (a.y - p.y) * (b.x - a.x)
+  })
+  const sign = Math.sign(turns[0])
+  if (turns.some((t) => Math.abs(t) < MIN_TURN || Math.sign(t) !== sign))
+    return "Move the corners so they make a four-sided shape with no crossed or flat sides."
+  return null
 }
 
 /** Flattens the photo's quadrilateral and cuts it into one JPEG per cell, row by row. The photo is drawn to a canvas here, so this needs a browser. */

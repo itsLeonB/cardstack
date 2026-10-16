@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button"
+import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
 import { useObjectUrl } from "@/lib/use-page-scan"
 import type { PageCell } from "@/lib/use-page-scan"
 
-/** The cut cells in the Page's rows and columns, each showing how its match went. */
 // The states a cell can be set to by hand; pressing a set one again goes back to the scan's result.
 const MARKS = [
   { mark: "empty", text: "Empty" },
   { mark: "unidentified", text: "Unidentified" },
 ] as const
 
+/** The cut cells in the Page's rows and columns, each showing how its match went. */
 export function PageReview({
   cells,
   grid,
@@ -32,8 +33,7 @@ export function PageReview({
       style={{ gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` }}
     >
       {cells.map((cell, index) => {
-        const row = Math.floor(index / grid.columns) + 1
-        const column = (index % grid.columns) + 1
+        const { row, column } = cellPosition(index, grid.columns)
         return (
           <CellReview
             key={index}

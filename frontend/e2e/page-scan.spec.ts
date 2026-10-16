@@ -9,9 +9,11 @@ import {
 } from "./support/clerk-auth"
 
 // Creating a binder and scanning one Page on the file-picker path. The photo
-// is cut for real in Chromium; the stubbed match answers every cell with the
-// same card, and Confirm saves the Page. Signed in through Clerk's real
-// development instance; the stubs are what the real session token reads.
+// has a colour per quadrant, so the real cut in Chromium can be checked for
+// geometry and order: each uploaded cell must show its own quadrant. The match
+// answers are held until the test releases them, which exercises the queue and
+// the Confirm wait. Signed in through Clerk's real development instance; the
+// stubs are what the real session token reads.
 const card = {
   id: "card-7",
   name: "Card 7",
@@ -24,8 +26,16 @@ const card = {
   rarity: { id: "rarity-1", code: "C", name: "Common" },
 }
 
-// A solid grey PNG, so the cut has a whole photo to flatten.
-function png(width: number, height: number) {
+// Top left, top right, bottom left, bottom right: the cells of the 2 by 2 Page
+// read in this order, so each colour marks one cell.
+const QUADRANTS = [
+  [255, 0, 0],
+  [0, 255, 0],
+  [0, 0, 255],
+  [255, 255, 0],
+]
+
+function encodePng(width: number, height: number, raw: Buffer) {
   const chunk = (type: string, data: Buffer) => {
     const body = Buffer.concat([Buffer.from(type), data])
     const length = Buffer.alloc(4)
@@ -39,13 +49,26 @@ function png(width: number, height: number) {
   header.writeUInt32BE(height, 4)
   header[8] = 8 // bit depth
   header[9] = 2 // RGB
-  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, 128)])
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", header),
-    chunk("IDAT", deflateSync(Buffer.concat(Array(height).fill(row)))),
+    chunk("IDAT", deflateSync(raw)),
     chunk("IEND", Buffer.alloc(0)),
   ])
+}
+
+// A photo whose top left quarter is red, top right green, bottom left blue and
+// bottom right yellow. Each row starts with PNG's filter byte.
+function quadrantPng(width: number, height: number) {
+  const rows = Array.from({ length: height }, (_, y) => {
+    const row = Buffer.alloc(width * 3 + 1)
+    for (let x = 0; x < width; x++) {
+      const quadrant = (y < height / 2 ? 0 : 2) + (x < width / 2 ? 0 : 1)
+      row.set(QUADRANTS[quadrant], 1 + x * 3)
+    }
+    return row
+  })
+  return encodePng(width, height, Buffer.concat(rows))
 }
 
 // Cross-origin calls need the caller's exact origin echoed back.
@@ -86,6 +109,11 @@ async function stubApi(page: Page) {
   let binder: { rows: number; columns: number; leafCount: number } | null = null
   let slots: { row: number; column: number; state: SlotState }[] = []
   const saves: { slots: SavedSlot[] }[] = []
+  // Each match request, in the order it arrived, and the answers still held.
+  const matchBodies: Buffer[] = []
+  const matchContentTypes: string[] = []
+  const held: Route[] = []
+  let peak = 0
 
   const layout = () =>
     binder && {
@@ -172,11 +200,63 @@ async function stubApi(page: Page) {
   await page.route("**/scan/match", (route) => {
     if (route.request().method() === "OPTIONS")
       return route.fulfill({ status: 204, headers: cors(route) })
-    return json(route, {
-      data: { confident: true, candidates: [{ card, score: 0.99 }] },
-    })
+    const request = route.request()
+    matchBodies.push(request.postDataBuffer() ?? Buffer.alloc(0))
+    matchContentTypes.push(request.headers()["content-type"] ?? "")
+    held.push(route)
+    peak = Math.max(peak, held.length)
   })
-  return { saves }
+
+  // Answers the oldest held matches with the one Card, so every cell matches it.
+  function release(count: number) {
+    for (const route of held.splice(0, count)) {
+      void json(route, {
+        data: { confident: true, candidates: [{ card, score: 0.99 }] },
+      })
+    }
+  }
+
+  return {
+    saves,
+    matchBodies,
+    matchContentTypes,
+    held,
+    release,
+    peak: () => peak,
+  }
+}
+
+// The colour at the middle of each uploaded cell, decoded in the page.
+async function cellColours(page: Page, jpegs: Buffer[]) {
+  return page.evaluate(
+    async (encoded: string[]) => {
+      const colours: number[][] = []
+      for (const base64 of encoded) {
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+        const bitmap = await createImageBitmap(
+          new Blob([bytes], { type: "image/jpeg" })
+        )
+        const canvas = document.createElement("canvas")
+        canvas.width = bitmap.width
+        canvas.height = bitmap.height
+        const context = canvas.getContext("2d")
+        if (!context) throw new Error("No 2D canvas in this browser")
+        context.drawImage(bitmap, 0, 0)
+        const x = Math.floor(bitmap.width / 2) - 5
+        const y = Math.floor(bitmap.height / 2) - 5
+        const { data } = context.getImageData(x, y, 10, 10)
+        const sum = [0, 0, 0]
+        for (let i = 0; i < data.length; i += 4) {
+          sum[0] += data[i]
+          sum[1] += data[i + 1]
+          sum[2] += data[i + 2]
+        }
+        colours.push(sum.map((channel) => channel / (data.length / 4)))
+      }
+      return colours
+    },
+    jpegs.map((jpeg) => jpeg.toString("base64"))
+  )
 }
 
 test.describe("Page scan", { tag: SIGNED_IN_TAG }, () => {
@@ -210,16 +290,35 @@ test.describe("Page scan", { tag: SIGNED_IN_TAG }, () => {
     await page.locator('input[type="file"]').setInputFiles({
       name: "page.png",
       mimeType: "image/png",
-      buffer: png(300, 420),
+      buffer: quadrantPng(800, 1000),
     })
     await page.getByRole("button", { name: "Cut and match" }).click()
 
-    // Confirm stays disabled until all four stubbed matches have answered.
+    // Three matches run at once; the fourth cell waits for one of them.
+    await expect.poll(() => api.held.length).toBe(3)
     const confirm = page.getByRole("button", { name: "Confirm" })
+    await expect(confirm).toBeDisabled()
+
+    api.release(1)
+    await expect.poll(() => api.matchBodies.length).toBe(4)
+    expect(api.peak()).toBe(3)
+    await expect(confirm).toBeDisabled()
+
+    api.release(3)
     await expect(confirm).toBeEnabled()
     await expect(
       page.getByRole("group", { name: "Row 2, column 2" }).getByText("Card 7")
     ).toBeVisible()
+
+    // The real cut sent four JPEGs, each showing its own quadrant, in grid order.
+    expect(api.matchContentTypes).toEqual(Array(4).fill("image/jpeg"))
+    const colours = await cellColours(page, api.matchBodies)
+    colours.forEach((colour, index) =>
+      QUADRANTS[index].forEach((channel, i) =>
+        expect(Math.abs(colour[i] - channel)).toBeLessThan(60)
+      )
+    )
+
     await confirm.click()
 
     // The Page reloads on the binder view with the four Slots filled.
