@@ -258,11 +258,11 @@ describe("Collection page", () => {
     expect(screen.getByRole("link", { name: "Add Cards" })).toBeTruthy()
   })
 
-  it("shows the binder view and hides the Scan and Add links on a binder", async () => {
+  it("shows the binder view and the Scan link, but hides the Add link, on a binder", async () => {
     await renderCollectionPage(fakeBinder())
 
     expect(await screen.findByText("Page 1 of 20")).toBeTruthy()
-    expect(screen.queryByRole("link", { name: "Scan cards" })).toBeNull()
+    expect(screen.getByRole("link", { name: "Scan cards" })).toBeTruthy()
     expect(screen.queryByRole("link", { name: "Add Cards" })).toBeNull()
     expect(
       screen.queryByRole("heading", { name: "Make this a binder" })

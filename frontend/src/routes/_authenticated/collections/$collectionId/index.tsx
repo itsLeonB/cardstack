@@ -85,11 +85,9 @@ function CollectionPage() {
             }
             actions={
               <div className="flex flex-wrap gap-2">
+                <ScanLink collectionId={collectionId} />
                 {!collection.binder && (
-                  <>
-                    <ScanLink collectionId={collectionId} />
-                    <AddCardsLink collectionId={collectionId} />
-                  </>
+                  <AddCardsLink collectionId={collectionId} />
                 )}
               </div>
             }
