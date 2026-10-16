@@ -1,0 +1,49 @@
+frontend/src/components/catalog/collection-card-results.test.tsx
+  s_f33bb4cf9c6a39::t_b86c3687d734b3 90-91,97,198-209
+frontend/src/components/catalog/collection-card-results.tsx
+  s_f33bb4cf9c6a39::t_547fd30dafbe91 3,38,40-44,68-69,110-122
+frontend/src/components/collections/binder-layout-form.tsx
+  s_f33bb4cf9c6a39::t_0281de3c8f78f0 11
+frontend/src/components/collections/binder-view.test.tsx
+  s_f33bb4cf9c6a39::t_f13e54871873c0 5-6
+frontend/src/components/collections/binder-view.tsx
+  s_f33bb4cf9c6a39::t_902f7f2128102a 19,24,67-68,77-79,146,167,194-197,247,249,369,409
+frontend/src/components/collections/create-binder-panel.tsx
+  s_f33bb4cf9c6a39::t_89840e3397c648 1-60
+frontend/src/components/collections/use-binder-move.ts
+  s_f33bb4cf9c6a39::t_07becefbfcb733 1-71
+frontend/src/components/scan/review-step.tsx
+  s_f33bb4cf9c6a39::t_a4bbb373a6a781 3,21-24,42-47,51,58,85,157-160,207-210,327-345
+frontend/src/components/scan/scan-review.test.tsx
+  s_f33bb4cf9c6a39::t_755c575bb290b3 17-29,415
+frontend/src/components/scan/scan-screen.tsx
+  s_f33bb4cf9c6a39::t_ccc1a01cd9a7c0 6,43
+frontend/src/lib/binder.test.ts
+  s_f33bb4cf9c6a39::t_f6b5f59171ddc1 3,33-51
+frontend/src/lib/binder.ts
+  s_f33bb4cf9c6a39::t_96030f1e48ee3f 3,17-21,46-51,55-66,96-101
+frontend/src/lib/use-quantity-batch.test.ts
+  s_f33bb4cf9c6a39::t_d5ff7e6f094763 64-83
+frontend/src/lib/use-quantity-batch.ts
+  s_f33bb4cf9c6a39::t_2710b2fac50e98 11-13,86-88
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_f33bb4cf9c6a39::t_5b70d9b302b834 16-17
+frontend/src/routes/catalog/search.tsx
+  s_f33bb4cf9c6a39::t_4ca22932144fce 75-77,152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f2ed8e34de5a250d24575a0cbd3d4eb39a060929",
+  "prompts": {},
+  "sessions": {
+    "s_f33bb4cf9c6a39": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f33bb4cf9c6a39",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
