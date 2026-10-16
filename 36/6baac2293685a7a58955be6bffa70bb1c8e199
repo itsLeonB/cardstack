@@ -1,0 +1,83 @@
+frontend/src/components/scan/page-scan.tsx
+  s_a9b82c3fbcb4d9::t_1b6cbd83ed5797 1-181
+frontend/src/components/collections/binder-view.tsx
+  s_a9b82c3fbcb4d9::t_d79b784d359f72 18,40,210-215,290-292
+frontend/src/components/scan/page-corners.tsx
+  s_a9b82c3fbcb4d9::t_92925101db0de2 1-96
+frontend/src/components/scan/page-review.tsx
+  s_a9b82c3fbcb4d9::t_b70f9dbe809c57 1-97
+frontend/src/components/scan/page-scan.test.tsx
+  s_a9b82c3fbcb4d9::t_9171567df1e1b4 1-250
+frontend/src/components/scan/scan-review.test.tsx
+  s_a9b82c3fbcb4d9::t_687b68afb94f22 117-118
+frontend/src/components/scan/scan-screen.test.tsx
+  s_a9b82c3fbcb4d9::t_a3393dbc742825 111-112
+frontend/src/generated/endpoints/binder/binder.ts
+  s_a9b82c3fbcb4d9::t_7689e678ccfb90 30,32,35-39,705-814,1123-1336
+frontend/src/generated/endpoints/binder/binder.zod.ts
+  s_a9b82c3fbcb4d9::t_939c9b097a95dd 175-208,384-524
+frontend/src/generated/endpoints/inventory/inventory.zod.ts
+  s_a9b82c3fbcb4d9::t_f49bd0a37926b6 71-75,285-289
+frontend/src/generated/models/binderPageReplaceBody.ts
+  s_a9b82c3fbcb4d9::t_852ca869d5a045 1-16
+frontend/src/generated/models/binderPageReplaceResult.ts
+  s_a9b82c3fbcb4d9::t_1bf39450dbfa4f 1-15
+frontend/src/generated/models/binderPageSlotBody.ts
+  s_a9b82c3fbcb4d9::t_09c1f571fd0c72 1-14
+frontend/src/generated/models/binderPageSlotBodyState.ts
+  s_a9b82c3fbcb4d9::t_f9fa544f2b0237 1-18
+frontend/src/generated/models/binderPlacementResult.ts
+  s_a9b82c3fbcb4d9::t_ac2f74a47e0501 1-17
+frontend/src/generated/models/binderPlacementResultReason.ts
+  s_a9b82c3fbcb4d9::t_aabf7ae3893240 1-17
+frontend/src/generated/models/binderSlotMoveBody.ts
+  s_a9b82c3fbcb4d9::t_62dc5ada408f3b 1-14
+frontend/src/generated/models/binderSlotMoveResult.ts
+  s_a9b82c3fbcb4d9::t_b7200f9d37d7bf 1-14
+frontend/src/generated/models/binderSlotResult.ts
+  s_a9b82c3fbcb4d9::t_b8a7a59ea1c10d 1-20
+frontend/src/generated/models/binderSlotResultState.ts
+  s_a9b82c3fbcb4d9::t_7022d5eb50e63d 1-18
+frontend/src/generated/models/binderSlotTarget.ts
+  s_a9b82c3fbcb4d9::t_8b42f032c4abe2 1-15
+frontend/src/generated/models/binderSlotTargetBody.ts
+  s_a9b82c3fbcb4d9::t_8765dca4f90497 1-24
+frontend/src/generated/models/envelopeBinderPageReplaceResult.ts
+  s_a9b82c3fbcb4d9::t_b165fb5f9fa7f8 1-11
+frontend/src/generated/models/envelopeBinderSlotMoveResult.ts
+  s_a9b82c3fbcb4d9::t_4483899f47aab6 1-11
+frontend/src/generated/models/envelopeListBinderPlacementResult.ts
+  s_a9b82c3fbcb4d9::t_2dfbbe1cc7c497 1-12
+frontend/src/generated/models/index.ts
+  s_a9b82c3fbcb4d9::t_c4f848ab4db6ba 16-17,19-22,25-28,30-31,49-50,57,87-88
+frontend/src/generated/models/inventoryItem.ts
+  s_a9b82c3fbcb4d9::t_88fe0e550abb24 7,12-16
+frontend/src/generated/models/placeCardsInputBody.ts
+  s_a9b82c3fbcb4d9::t_8fc1e517078eb8 1-17
+frontend/src/generated/models/placeCardsItem.ts
+  s_a9b82c3fbcb4d9::t_0ee5ca1eefe616 1-17
+frontend/src/lib/frame-source.ts
+  s_a9b82c3fbcb4d9::t_1b880041bdee6e 3,7-9,21-23,26-27,29-30,32,48-67,108-112,123-128,130-136,138-139
+frontend/src/lib/page-cut.test.ts
+  s_a9b82c3fbcb4d9::t_52713358ac050d 1-72
+frontend/src/lib/page-cut.ts
+  s_a9b82c3fbcb4d9::t_93f3f2b0395707 1-212
+frontend/src/lib/use-page-scan.ts
+  s_a9b82c3fbcb4d9::t_83edcf223eda7a 1-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "366baac2293685a7a58955be6bffa70bb1c8e199",
+  "prompts": {},
+  "sessions": {
+    "s_a9b82c3fbcb4d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4081d81d-f6cd-4304-a097-3a4ec7fc8391",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
