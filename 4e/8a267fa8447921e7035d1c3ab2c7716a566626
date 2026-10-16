@@ -1,0 +1,27 @@
+.scratch/binder-scanning/issues/09-binder-cell-accuracy-check.md
+  s_acf628eb3fa0cd::t_8b39e003fe9fe1 11,21-24
+.scratch/binder-scanning/spec.md
+  s_acf628eb3fa0cd::t_c481f2d9cc59cc 3
+.scratch/card-scanning/spec.md
+  s_acf628eb3fa0cd::t_6e6642f91efa4f 13
+GLOSSARY.md
+  s_acf628eb3fa0cd::t_0f4d3f1a817641 48,72
+docs/adr/0020-in-a-binder-slots-are-the-truth-for-quantity.md
+  s_acf628eb3fa0cd::t_63d35600f7cc24 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "4e8a267fa8447921e7035d1c3ab2c7716a566626",
+  "prompts": {},
+  "sessions": {
+    "s_acf628eb3fa0cd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_acf628eb3fa0cd",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
