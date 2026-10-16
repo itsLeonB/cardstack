@@ -45,7 +45,7 @@ A Card or Expansion Set whose contents were last written by an Admin rather than
 _Avoid_: calling a Card "custom" or "manual" — those say how it was typed, not that ingestion must leave it alone.
 
 **Collection**:
-A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit. May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Strictly private to its owner in MVP; sharing is a post-MVP concern.
+A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit (a Collection with a Layout has none: its capacity is its Slot count). May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Strictly private to its owner in MVP; sharing is a post-MVP concern.
 
 **Layout**:
 The physical shape of a binder-style Collection: how many rows and columns each Page has, and how many Leaves there are. Uniform across the whole Collection. A Collection without a Layout (a box, a deck) has no Leaves, Pages or Slots and tracks quantity only.
@@ -69,7 +69,7 @@ The atomic record of how many of one Card a user holds within one Collection. Th
 _Avoid_: "Inventory" alone — ambiguous between this (atomic, per-Collection) and Master Inventory (aggregate, per-user). Always say which one.
 
 **Draft Addition**:
-An unsaved, transient list of Scans that a user builds by photographing cards, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals, and the Scans that chose the same Card add together.
+An unsaved, transient list of Scans that a user builds by photographing cards, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries (or, in a Collection with a Layout, copies placed in empty Slots, which keep the Inventory Entries in step) only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals, and the Scans that chose the same Card add together.
 _Avoid_: "inventory" or "collection" for the draft — it is neither; it is a pending change to one Collection's Inventory Entries.
 
 **Scan**:

@@ -8,7 +8,7 @@ Spec: `.scratch/binder-scanning/spec.md` (Testing Decisions, Further Notes). Sou
 
 **Blocked by:** 06 (scan a Page)
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] The script runs end to end over about 10 real binder Page photos (covering 3×3 and at least one other grid, with sleeves, glare and angle), each with a label of the Card in every pocket and which pockets are empty
 - [ ] It prints cell top-1 and top-5 over the labelled occupied cells and states how empty pockets scored
@@ -18,3 +18,7 @@ Spec: `.scratch/binder-scanning/spec.md` (Testing Decisions, Further Notes). Sou
 - [ ] No secret and no personal photo is committed, and output goes under `.scratch/binder-scanning/research/`
 
 **Out of scope:** any product code change, switching the model, and server-side detection.
+
+## Comments
+
+Held for a human: the ticket needs about 10 real binder Page photos with per-pocket labels, a Gemini key, and the full embedded catalog (Phase 1 ticket 07 shares them). The pure helpers it should reuse are `cellRegions`, `gridToPhoto` and `cellSize` in `frontend/src/lib/page-cut.ts`; `cutPage` needs `createImageBitmap` and a canvas, so the script has to run where those exist (Chromium, or a Node canvas).

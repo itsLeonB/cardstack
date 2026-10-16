@@ -10,7 +10,7 @@ A collector who owns a stack of physical cards has to find each one in the catal
 
 The user opens one of their Collections and presses "Scan cards". A camera viewfinder with a card-shaped guide appears. Each capture is sent to the backend, which matches the photo against the catalog. Every capture becomes a Scan in a Draft Addition (a transient, unsaved list of Scans, each with a Card and a quantity to add) at once, showing the matcher's top candidate while a Scan that is still being matched shows as loading. A match that is not confident keeps its other candidates, and the user can pick a different one from a dropdown on that Scan. The Draft Addition is held in the browser and survives a refresh. When the user is done they review the list, adjust quantities, and press "Add to Collection", which writes the quantities into that Collection's Inventory Entries through the existing bulk update. Cards the Collection cannot take (capacity) stay in the draft with the reason shown.
 
-This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole binder page, recognising the layout, and storing card positions) is outlined under Out of Scope and gets its own spec after Phase 1 ships.
+This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole binder page, recognising the layout, and storing card positions) has its own spec: `.scratch/binder-scanning/spec.md`.
 
 ## User Stories
 

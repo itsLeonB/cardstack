@@ -12,4 +12,4 @@ Keeping the entries as real rows means Master Inventory (ADR-0002), the entry se
 
 ## Consequences
 
-Every Slot write path (place, clear, replace, mark Unidentified, move and swap, Replace Page, the Phase 1 placement) must update the entries inside its transaction, and the HTTP-boundary tests assert the invariant after each one. A bug in one path shows up as an entry that disagrees with its Slots. Master Inventory counts binder cards like any other entry, and Unidentified Slots appear in no total.
+Every Slot write path that changes which Card a Slot holds (place, clear, replace, mark Unidentified, Replace Page, the Phase 1 placement) must update the entries inside its transaction through the one shared Slot-write path; move and swap change no Card counts, so they exchange Slot rows and leave the entries alone, and the HTTP-boundary tests assert the invariant after each one. A bug in one path shows up as an entry that disagrees with its Slots. Master Inventory counts binder cards like any other entry, and Unidentified Slots appear in no total.

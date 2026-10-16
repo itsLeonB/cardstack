@@ -1,6 +1,6 @@
 # Binder scanning
 
-Status: ready-for-agent
+Status: implemented except ticket 09 (the binder-cell accuracy check, which needs real binder photos and the full embedded catalog)
 
 ## Problem Statement
 
