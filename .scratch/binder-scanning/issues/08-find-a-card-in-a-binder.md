@@ -6,11 +6,15 @@ Spec: `.scratch/binder-scanning/spec.md` (Slot reads and writes: entry list posi
 
 **Blocked by:** 03 (place, clear, replace and mark Unidentified)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The Collection entries response for a binder includes each Card's Slot positions (Page, row, column), and a Card with two copies lists two positions
-- [ ] Unidentified Slots appear in no entry's positions
-- [ ] The entry list shows the positions, and tapping one opens the binder on that Page with the Slot highlighted
-- [ ] Positions follow Page renumbering after a Leaf is added or removed
-- [ ] The entry list of a plain Collection is unchanged
-- [ ] Covered by HTTP-boundary tests against real Postgres and frontend feature tests with the API client mocked
+- [x] The Collection entries response for a binder includes each Card's Slot positions (Page, row, column), and a Card with two copies lists two positions
+- [x] Unidentified Slots appear in no entry's positions
+- [x] The entry list shows the positions, and tapping one opens the binder on that Page with the Slot highlighted
+- [x] Positions follow Page renumbering after a Leaf is added or removed
+- [x] The entry list of a plain Collection is unchanged
+- [x] Covered by HTTP-boundary tests against real Postgres and frontend feature tests with the API client mocked
+
+## Answer
+
+Implemented on `feat/binder-scanning` (backend and frontend). The Collection entries response carries `positions` (Page, row, column) per binder entry, one per copy, excluding Unidentified Slots and computed on read so they follow Leaf renumbering. The entry list shows "Page N · row R · col C"; tapping one opens the binder on that Page with the Slot highlighted (the highlight clears on a Leaf add or remove).
