@@ -28,7 +28,11 @@ function binderPagesMatch(collectionId: string) {
     String(queryKey[0]).startsWith(`${collectionUrl}/binder/`)
 }
 
-/** Refreshes a binder after a write that changes its Pages or Layout. */
+/**
+ * Refreshes a binder after a write that changes its Pages or Layout. The
+ * entries follow too: a Leaf change renumbers the Pages, and the entries carry
+ * each Card's positions.
+ */
 export function invalidateBinder(
   queryClient: QueryClient,
   collectionId: string
@@ -37,6 +41,7 @@ export function invalidateBinder(
     predicate: binderPagesMatch(collectionId),
   })
   invalidateCollectionCounts(queryClient, collectionId)
+  invalidateCollectionEntries(queryClient, collectionId)
 }
 
 /**
@@ -53,15 +58,15 @@ export function refreshAfterRemoveBinder(
 }
 
 /**
- * A Slot write changes quantities, so the Page, the Collection's entries and
- * Master Inventory all refresh. A Slot write is the only binder write that does.
+ * A write that changes which Cards the Slots hold changes quantities, so the
+ * Page, the Collection's entries and Master Inventory all refresh. Slot edits
+ * and the Phase 1 placement call this.
  */
 export function refreshAfterSlotWrite(
   queryClient: QueryClient,
   collectionId: string
 ) {
   invalidateBinder(queryClient, collectionId)
-  invalidateCollectionEntries(queryClient, collectionId)
   invalidateMasterInventory(queryClient)
 }
 

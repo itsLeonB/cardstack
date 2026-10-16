@@ -132,10 +132,7 @@ function serveEntries(items: InventoryItem[]) {
 
 let queryClient: QueryClient
 
-function renderEntries(
-  search: CatalogFilters = {},
-  quantityEditable?: boolean
-) {
+function renderEntries(search: CatalogFilters = {}) {
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -145,7 +142,7 @@ function renderEntries(
         collectionId="col-1"
         search={search}
         onSearchChange={onSearchChange}
-        quantityEditable={quantityEditable}
+        onFindPosition={vi.fn()}
       />
     </QueryClientProvider>
   )
@@ -239,11 +236,12 @@ describe("CollectionEntries", () => {
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull()
   })
 
-  it("shows the Cards of a binder without quantity controls", async () => {
-    serveEntries([entry(1)])
-    renderEntries({}, false)
+  it("shows the Cards of a binder by position, without quantity controls", async () => {
+    serveEntries([{ ...entry(1), positions: [{ page: 1, row: 1, column: 1 }] }])
+    renderEntries()
     await settle()
     screen.getByText("1 of 1 cards loaded")
+    screen.getByRole("button", { name: "Page 1 · row 1 · col 1" })
     expect(screen.queryByLabelText("Quantity of Card 1")).toBeNull()
   })
 

@@ -60,13 +60,10 @@ export function ScanScreen({
     }
   }
 
-  function finishCommit({ applied, declined: next, failed }: CommitResult) {
-    draft.removeCards(applied)
+  function finishCommit({ placed, declined: next, failed }: CommitResult) {
+    const left = draft.removeCopies(placed)
     setDeclined(next)
-    const left = draft.scans.some(
-      (s) => !(s.status === "resolved" && applied.includes(s.cardId!))
-    )
-    if (!left) onAdded()
+    if (left === 0) onAdded()
     else if (!failed && Object.keys(next).length === 0) setReviewing(false)
   }
 

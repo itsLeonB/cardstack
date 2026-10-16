@@ -175,13 +175,19 @@ export function useScanDraft(
       queue.cancelAll()
       setScans([])
     },
-    /** Drops the resolved Scans of these Cards, once the Collection has them. */
-    removeCards(cardIds: string[]) {
-      setScans((list) =>
-        list.filter(
-          (s) => !(s.status === "resolved" && cardIds.includes(s.cardId!))
-        )
-      )
+    /** Takes the copies the Collection has placed out of the draft; returns how many Scans are still in it. */
+    removeCopies(placed: Record<string, number>) {
+      const owed = { ...placed }
+      const remaining = scans.flatMap((s) => {
+        if (s.status !== "resolved" || !owed[s.cardId!]) return [s]
+        const taken = Math.min(owed[s.cardId!], s.quantity)
+        owed[s.cardId!] -= taken
+        return s.quantity > taken
+          ? [{ ...s, quantity: s.quantity - taken }]
+          : []
+      })
+      setScans(remaining)
+      return remaining.length
     },
   }
 }
