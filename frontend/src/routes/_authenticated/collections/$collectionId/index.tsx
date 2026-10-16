@@ -13,10 +13,8 @@ import type { BinderSlotTarget } from "@/generated/models"
 import { AddCardsLink } from "@/components/collections/add-cards-link"
 import { ScanLink } from "@/components/scan/scan-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
-import {
-  BinderView,
-  CreateBinderPanel,
-} from "@/components/collections/binder-view"
+import { BinderView } from "@/components/collections/binder-view"
+import { CreateBinderPanel } from "@/components/collections/create-binder-panel"
 import { catalogFilterSchema } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"

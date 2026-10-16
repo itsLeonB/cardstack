@@ -14,6 +14,19 @@ import type { FrameSource } from "@/lib/frame-source"
 import type { CardSummary } from "@/generated/models"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
 import type { ResolvedScan } from "@/lib/draft-addition"
+import type * as TanStackRouter from "@tanstack/react-router"
+
+// The hint's link only needs its text here; the router is not under test.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof TanStackRouter>()
+  return {
+    ...actual,
+    Link: ({ children, params: _params, to: _to, ...props }: any) => (
+      <a {...props}>{children}</a>
+    ),
+  }
+})
 
 // Only the network is faked (`fetch`). The Collection holds `held`; the bulk
 // update applies every item unless `declines` lists it. The draft is seeded
@@ -399,6 +412,7 @@ describe("adding to a binder", () => {
       await within(declined).findByText("Not added: not enough empty Slots")
     ).toBeTruthy()
     expect(within(declined).getByText("+1")).toBeTruthy()
+    expect(within(declined).getByText("binder view")).toBeTruthy()
     expect(screen.queryByText("Card 1")).toBeNull()
     expect(added).not.toHaveBeenCalled()
     expect(loadDraft("col-1")).toEqual([scan(2, 1)])

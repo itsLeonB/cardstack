@@ -72,6 +72,9 @@ function CatalogSearchPage() {
   )
   const href = useLocation({ select: (location) => location.href })
   const collection = useCatalogCollection(collectionId, selectCollection)
+  const binder = Boolean(
+    collection.collections.find((c) => c.id === collection.selected)?.binder
+  )
 
   const isGuest = useIsGuest()
   const seriesQuery = useListCatalogSeries()
@@ -146,6 +149,7 @@ function CatalogSearchPage() {
         <CollectionCardResults
           key={collection.selected}
           collectionId={collection.selected}
+          binder={binder}
           {...resultsProps}
         />
       ) : (

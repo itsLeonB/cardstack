@@ -61,6 +61,26 @@ describe("useQuantityBatch", () => {
     })
   })
 
+  it("explains a binder's locked quantity instead of the server's text, and reverts", async () => {
+    // SAFETY: partial error response; the hook reads only status and data.
+    bulk.mockResolvedValue({
+      status: 409,
+      data: {
+        code: "binder_quantity_locked",
+        detail: "binder quantity locked",
+      },
+    } as any)
+    const { result } = renderHook(() => useQuantityBatch("col-1"))
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+
+    expect(result.current.errors).toEqual({
+      a: "This binder's quantities follow its Slots. Place or clear cards in the binder view.",
+    })
+    expect(result.current.quantities.a).toBe(1)
+  })
+
   it("reverts only the declined card, with its error, and keeps the others", async () => {
     respond([
       { cardId: "a", quantity: 1, status: "applied" },

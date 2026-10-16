@@ -8,10 +8,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { BINDER_PRESETS, presetIdFor } from "@/lib/binder"
-
-const MAX_GRID = 6
-const MAX_LEAVES = 100
+import { BINDER_PRESETS, MAX_GRID, MAX_LEAVES, presetIdFor } from "@/lib/binder"
 
 export interface BinderLayoutValues {
   rows: number

@@ -87,12 +87,14 @@ async function settle() {
 
 function renderResults(
   cards: CardSummary[] = [card],
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  binder = false
 ) {
   render(
     <QueryClientProvider client={client}>
       <CollectionCardResults
         collectionId="col-1"
+        binder={binder}
         cards={cards}
         total={cards.length}
         isPending={false}
@@ -191,6 +193,18 @@ describe("CollectionCardResults", () => {
       "Could not load this Collection"
     )
     expect(screen.queryByLabelText("Quantity of Pikachu V")).toBeNull()
+  })
+
+  it("on a binder shows no quantity control and no lookup, and says where cards are placed", async () => {
+    setEntries([])
+    renderResults([card], undefined, true)
+    await settle()
+    expect(screen.queryByLabelText("Quantity of Pikachu V")).toBeNull()
+    expect(entries).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(/placed in Slots from the binder view/)
+    ).toBeTruthy()
+    expect(screen.getByText("Open the Collection")).toBeTruthy()
   })
 
   it("adds a card by increasing from 0 through one bulk call", async () => {
