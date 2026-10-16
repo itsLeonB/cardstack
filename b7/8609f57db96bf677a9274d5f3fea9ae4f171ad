@@ -1,0 +1,81 @@
+backend/.mockery.yaml
+  s_1c44dc088076a1::t_4411ffd19a992d 32-33
+backend/cmd/genspec/main.go
+  s_1c44dc088076a1::t_83df2f539cce0a 33-36
+backend/internal/adapters/http/handler/binder_handler.go
+  s_1c44dc088076a1::t_7b5679a8332f8f 15,18-19,179
+backend/internal/adapters/http/handler/binder_move_handler.go
+  s_1c44dc088076a1::t_2a5f5ef91574a9 38
+backend/internal/adapters/http/handler/binder_placement_handler.go
+  s_1c44dc088076a1::t_20df45b84e9232 15,18-19,43
+backend/internal/adapters/http/handler/binder_replace_page_handler.go
+  s_1c44dc088076a1::t_91c6184b9bfda2 16,41
+backend/internal/adapters/http/handler/binder_replace_page_handler_test.go
+  s_1c44dc088076a1::t_39470e3a6f1921 8,16
+backend/internal/adapters/http/routes/binder_placement_routes_test.go
+  s_1c44dc088076a1::t_0cc23af8446782 120
+backend/internal/adapters/http/routes/binder_slot_routes_test.go
+  s_1c44dc088076a1::t_e0f876ab388a74 224,236,247
+backend/internal/adapters/http/routes/register_routes.go
+  s_1c44dc088076a1::t_41a61cedb24fff 4-5,21,26-27,53-55,65-66,74,77,81,87-88
+backend/internal/adapters/http/routes/register_routes_test.go
+  s_1c44dc088076a1::t_acc06f4ba1288e 13,27
+backend/internal/adapters/http/routes/testenv_test.go
+  s_1c44dc088076a1::t_423cd461bc42a4 115,122
+backend/internal/adapters/http/server.go
+  s_1c44dc088076a1::t_32f752ea2c2c5f 59-62
+backend/internal/domain/dto/binder_dto.go
+  s_1c44dc088076a1::t_30545808428b4e 104-105
+backend/internal/domain/entity/binder.go
+  s_1c44dc088076a1::t_a161952863c340 19-29
+backend/internal/domain/mapper/binder_mapper.go
+  s_1c44dc088076a1::t_f682b61c350a5c 19,31,99-103
+backend/internal/domain/repository/binder_leaf_repository.go
+  s_1c44dc088076a1::t_142bc32da38df7 13-14,21-23,54-65
+backend/internal/domain/repository/binder_slot_repository.go
+  s_1c44dc088076a1::t_60fe50a0209f3d 33-43,165-192
+backend/internal/domain/repository/binder_slot_repository_test.go
+  s_1c44dc088076a1::t_0c029290dee6a7 142-168
+backend/internal/domain/service/binder_service.go
+  s_1c44dc088076a1::t_6bcd4f7577308a 18,32-35,316-317,361,367-372
+backend/internal/domain/service/binder_service_test.go
+  s_1c44dc088076a1::t_a864c1f630e2fd 31,49-50,199,217
+backend/internal/domain/service/binder_slot_service.go
+  s_1c44dc088076a1::t_f55c44fa3e8677 16-18,22-36,43,49-50,53,59-62,68,73-190,205,210,214,218,222,254,263-266,268,271,273-313,316,318-415,417-468,475,486,489-492,495-501
+backend/internal/domain/service/binder_slot_service_test.go
+  s_1c44dc088076a1::t_3c04e760b5d77d 11-12,45,49-71,76-115,117,119,126,128,133,140,142,146,153,155,163,170,172,178,187,194,196,210,217,219,233,239-503
+backend/internal/domain/service/card_lookup_service.go
+  s_1c44dc088076a1::t_3fa0887509e16c 4-6,12-33,36-38,41-44,46-50
+backend/internal/domain/service/inventory_service.go
+  s_1c44dc088076a1::t_8bd7b4dc89aad8 57,68,246,395
+backend/internal/domain/service/inventory_service_test.go
+  s_1c44dc088076a1::t_bee49b877ba15b 50
+backend/internal/mocks/BinderLeafRepository.go
+  s_1c44dc088076a1::t_eef31c5c4f50db 461-518
+backend/internal/mocks/BinderSlotRepository.go
+  s_1c44dc088076a1::t_51e2305cdbb410 15-16,716-775
+backend/internal/mocks/BinderSlotService.go
+  s_1c44dc088076a1::t_cd49742f6bb614 12-13,17,21-69,73,102-103,110-111,114,121,126-230,235,237,240-241
+backend/internal/mocks/CardLookup.go
+  s_1c44dc088076a1::t_37016ada0c69a2 1-3,6-9,11,14-32,35-76,79-89,92-95,97-100,103-109,112-152
+backend/internal/provider/service_provider.go
+  s_1c44dc088076a1::t_57c933626b8783 22,25-35,84,102-105,111-112,169,171-181
+backend/internal/provider/wire_gen.go
+  s_1c44dc088076a1::t_c8fc5dfbabbedf 29,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b78609f57db96bf677a9274d5f3fea9ae4f171ad",
+  "prompts": {},
+  "sessions": {
+    "s_1c44dc088076a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1c44dc088076a1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
