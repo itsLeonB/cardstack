@@ -7,12 +7,15 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ScanPageFlow } from "./page-scan"
 import type { FrameSource } from "@/lib/frame-source"
 import type { Corners, Grid } from "@/lib/page-cut"
 import type {
   BinderPage,
+  BinderPageReplaceBody,
   BinderSlot,
+  EnvelopeBinderPageReplaceResult,
   CardSummary,
   MatchCandidate,
   MatchResult,
@@ -41,16 +44,44 @@ type Reply = { confident: boolean; candidates: MatchCandidate[] } | "fail"
 // Every match waits until the test answers it, oldest first.
 let held: ((response: Response) => void)[] = []
 let matchCalls = 0
+// Each Replace Page the flow sends, and the grid indexes the server reports as unknown Cards.
+let saves: BinderPageReplaceBody[] = []
+let unknownIndexes: number[] = []
 
-type Body = { data: MatchResult } | { title: string }
+type Body =
+  { data: MatchResult } | EnvelopeBinderPageReplaceResult | { title: string }
 const json = (body: Body, status = 200) =>
   new Response(JSON.stringify(body), { status })
 
-function fakeApi(input: RequestInfo | URL) {
+// The 2 by 2 test Page: grid index 1 is row 1, column 2.
+function savedPage(
+  body: BinderPageReplaceBody
+): EnvelopeBinderPageReplaceResult {
+  const slots = (body.slots ?? []).map((slot, index) => {
+    const unknown = unknownIndexes.includes(index)
+    return {
+      row: Math.floor(index / 2) + 1,
+      column: (index % 2) + 1,
+      state: unknown ? "unidentified" : slot.state,
+      ...(unknown && { reason: "unknown_card" }),
+    }
+  })
+  return { data: { slots } }
+}
+
+function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(String(input))
   if (url.pathname === "/scan/match") {
     matchCalls++
     return new Promise<Response>((resolve) => held.push(resolve))
+  }
+  if (
+    url.pathname === "/collections/col-1/binder/pages/1" &&
+    init?.method === "PUT"
+  ) {
+    const body: BinderPageReplaceBody = JSON.parse(String(init.body))
+    saves.push(body)
+    return Promise.resolve(json(savedPage(body)))
   }
   return Promise.resolve(json({ title: "unexpected" }, 500))
 }
@@ -102,15 +133,22 @@ const cut = vi.fn<CutPhoto>(async (_frame, _corners, grid) =>
 function renderFlow(
   frames = source(),
   cutPhoto: CutPhoto = cut,
-  onClose = vi.fn()
+  onClose = vi.fn(),
+  current = page
 ) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return render(
-    <ScanPageFlow
-      page={page}
-      source={frames}
-      cut={cutPhoto}
-      onClose={onClose}
-    />
+    <QueryClientProvider client={queryClient}>
+      <ScanPageFlow
+        collectionId="col-1"
+        page={current}
+        source={frames}
+        cut={cutPhoto}
+        onClose={onClose}
+      />
+    </QueryClientProvider>
   )
 }
 
@@ -133,9 +171,19 @@ async function answerAll(replies: Reply[]) {
 const cell = (row: number, column: number) =>
   screen.getByRole("group", { name: `Row ${row}, column ${column}` })
 
+const confirmButton = () => screen.getByRole("button", { name: "Confirm" })
+
+// Four cells, each a confident match for its own card.
+const fourConfident: Reply[] = [1, 2, 3, 4].map((n) => ({
+  confident: true,
+  candidates: [candidate(n)],
+}))
+
 beforeEach(() => {
   held = []
   matchCalls = 0
+  saves = []
+  unknownIndexes = []
   cut.mockClear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   URL.createObjectURL = vi.fn(() => "blob:photo")
@@ -246,5 +294,114 @@ describe("ScanPageFlow", () => {
         .getByRole("button", { name: "Cut and match" })
         .hasAttribute("disabled")
     ).toBe(false)
+  })
+
+  it("keeps Confirm disabled while a cell is still matching", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+
+    expect(confirmButton().hasAttribute("disabled")).toBe(true)
+    await answerAll(fourConfident)
+    await waitFor(() =>
+      expect(confirmButton().hasAttribute("disabled")).toBe(false)
+    )
+  })
+
+  it("saves each cell as the scan found it, with hand marks overriding it", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    renderFlow(source(), cut, onClose)
+    await scanPhoto(user)
+    await answerAll([
+      { confident: true, candidates: [candidate(1)] },
+      "fail",
+      { confident: false, candidates: [] },
+      { confident: true, candidates: [candidate(2)] },
+    ])
+
+    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
+    const unidentified = within(cell(2, 2)).getByRole("button", {
+      name: "Unidentified",
+    })
+    await user.click(unidentified)
+    await user.click(unidentified)
+    await user.click(confirmButton())
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(saves).toEqual([
+      {
+        slots: [
+          { state: "empty" },
+          { state: "unidentified" },
+          { state: "unidentified" },
+          { state: "card", cardId: "card-2" },
+        ],
+      },
+    ])
+  })
+
+  it("highlights a cell whose state would change the Slot the Page holds", async () => {
+    const user = userEvent.setup()
+    const holding: BinderPage = {
+      ...page,
+      cardTotal: 1,
+      slots: [
+        { row: 1, column: 1, state: "card", card: cardOf(1) },
+        emptySlot(1, 2),
+        emptySlot(2, 1),
+        emptySlot(2, 2),
+      ],
+    }
+    renderFlow(source(), cut, vi.fn(), holding)
+    await scanPhoto(user)
+    await answerAll([
+      { confident: true, candidates: [candidate(1)] },
+      "fail",
+      { confident: true, candidates: [candidate(3)] },
+      { confident: true, candidates: [candidate(4)] },
+    ])
+
+    expect(
+      await within(cell(1, 2)).findByText("Changes this Slot")
+    ).toBeTruthy()
+    expect(within(cell(1, 1)).queryByText("Changes this Slot")).toBeNull()
+  })
+
+  it("names a Slot the server stored as Unidentified for an unknown Card, then returns", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    unknownIndexes = [1]
+    renderFlow(source(), cut, onClose)
+    await scanPhoto(user)
+    await answerAll(fourConfident)
+
+    await user.click(confirmButton())
+
+    expect(await screen.findByText("Row 1, column 2")).toBeTruthy()
+    expect(onClose).not.toHaveBeenCalled()
+    await user.click(screen.getByRole("button", { name: "Done" }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("asks before leaving a review that has edits", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    renderFlow(source(), cut, onClose)
+    await scanPhoto(user)
+    await answerAll(fourConfident)
+    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
+
+    await user.click(screen.getByRole("button", { name: "Back to binder" }))
+    expect(await screen.findByText("Leave this review?")).toBeTruthy()
+    expect(onClose).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole("button", { name: "Keep editing" }))
+    await waitFor(() =>
+      expect(screen.queryByText("Leave this review?")).toBeNull()
+    )
+    await user.click(screen.getByRole("button", { name: "Back to binder" }))
+    await user.click(await screen.findByRole("button", { name: "Leave" }))
+    expect(onClose).toHaveBeenCalled()
   })
 })

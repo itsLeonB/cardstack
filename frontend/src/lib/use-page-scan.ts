@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 import { matchScannedCard } from "@/generated/endpoints/scan/scan"
-import type { CardSummary } from "@/generated/models"
+import type {
+  BinderPageSlotBody,
+  BinderSlot,
+  CardSummary,
+} from "@/generated/models"
 import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
 import { MAX_CANDIDATES } from "./use-draft-addition"
 
@@ -25,6 +29,8 @@ export interface PageCell {
   match: CellMatch
   /** The Card the user chose from the candidates; the top one until they choose. */
   cardId?: string
+  /** A state the user set by hand, which overrides what the scan found. */
+  mark?: "empty" | "unidentified"
 }
 
 /**
@@ -96,7 +102,31 @@ export function usePageMatches() {
     choose(index: number, cardId: string) {
       patch(index, { cardId })
     },
+    mark(index: number, mark: PageCell["mark"]) {
+      patch(index, { mark })
+    },
   }
+}
+
+/** The state a cell is saved as, or null while its match is still running. */
+export function slotTarget(cell: PageCell): BinderPageSlotBody | null {
+  if (cell.mark) return { state: cell.mark }
+  const { match } = cell
+  if (match.status === "queued" || match.status === "loading") return null
+  // A failed match and a cell with no candidates both end as Unidentified.
+  if (match.status === "failed" || match.candidates.length === 0)
+    return { state: "unidentified" }
+  return { state: "card", cardId: cell.cardId }
+}
+
+/** Whether a cell's target is different from the Slot the Page holds there. */
+export function changesSlot(
+  target: BinderPageSlotBody,
+  slot: BinderSlot | undefined
+): boolean {
+  const state = slot?.state ?? "empty"
+  if (target.state !== state) return true
+  return target.state === "card" && target.cardId !== slot?.card.id
 }
 
 /** An object URL for a blob, revoked when the blob changes or the component unmounts. */

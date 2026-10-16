@@ -209,7 +209,11 @@ export function BinderView({ collectionId }: { collectionId: string }) {
 
   if (scanning) {
     return (
-      <PageScanScreen page={binderPage} onClose={() => setScanning(false)} />
+      <PageScanScreen
+        collectionId={collectionId}
+        page={binderPage}
+        onClose={() => setScanning(false)}
+      />
     )
   }
 
