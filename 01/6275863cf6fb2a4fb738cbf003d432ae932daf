@@ -1,0 +1,19 @@
+.scratch/binder-scanning/issues/06-scan-a-page.md
+  s_06276e767840c7::t_488200ba9c7021 9,11-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "016275863cf6fb2a4fb738cbf003d432ae932daf",
+  "prompts": {},
+  "sessions": {
+    "s_06276e767840c7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_06276e767840c7",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
