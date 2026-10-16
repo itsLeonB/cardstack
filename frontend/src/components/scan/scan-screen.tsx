@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import type { ReactNode } from "react"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
+import { cameraMessage, ChoosePhotoButton } from "./photo-source-controls"
 import { ReviewStep } from "./review-step"
 import type { CommitResult } from "./review-step"
 import { ScanSheet } from "./scan-sheet"
@@ -128,9 +129,7 @@ export function ScanScreen({
             </div>
           ) : (
             <p role="alert" className="px-4 pt-20 text-center text-sm">
-              {source.camera === "denied"
-                ? "Camera access was denied. Allow it in your browser's site settings, or choose a photo instead."
-                : "No camera is available here. Choose a photo instead."}
+              {cameraMessage(source.camera)}
             </p>
           )}
           {backLink && <div className="absolute top-3 left-3">{backLink}</div>}
@@ -152,21 +151,9 @@ export function ScanScreen({
                 Capture
               </Button>
             )}
-            <label
-              className={`${buttonVariants({ variant: "outline", size: "lg" })} bg-background text-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30`}
-            >
-              Choose a photo
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0]
-                  event.currentTarget.value = ""
-                  if (file) void capture(() => source.fromFile(file))
-                }}
-              />
-            </label>
+            <ChoosePhotoButton
+              onFile={(file) => void capture(() => source.fromFile(file))}
+            />
           </div>
         </div>
         <ScanSheet

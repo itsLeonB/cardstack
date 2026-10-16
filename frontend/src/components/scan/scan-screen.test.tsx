@@ -108,6 +108,8 @@ function source(overrides: Partial<FrameSource> = {}): FrameSource {
     videoRef: () => {},
     captureCamera: async () => jpeg(),
     fromFile: async () => jpeg(),
+    captureFrame: async () => jpeg(),
+    frameFromFile: async () => jpeg(),
     ...overrides,
   }
 }
