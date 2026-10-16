@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { CardThumb } from "./card-thumb"
 import {
@@ -17,7 +18,10 @@ import {
   placeBinderCards,
   useGetBinderPage,
 } from "@/generated/endpoints/binder/binder"
-import { InventoryChangeResultStatus } from "@/generated/models"
+import {
+  BinderPlacementResultReason,
+  InventoryChangeResultStatus,
+} from "@/generated/models"
 import type { CardSummary } from "@/generated/models"
 import {
   NETWORK_ERROR,
@@ -35,17 +39,23 @@ export interface ReviewRowData {
   quantity: number
 }
 
+/** Why the Collection declined a Card's copies: the message to show, and the reason code, which a binder gives. */
+export interface Decline {
+  message: string
+  reason?: string
+}
+
 /** What one commit did: the copies the Collection took, by card id, the reasons it declined the rest, and whether a request failed. */
 export interface CommitResult {
   placed: Record<string, number>
-  declined: Record<string, string>
+  declined: Record<string, Decline>
   failed: boolean
 }
 
 /** What a commit has done so far, filled as each request answers. */
 interface CommitProgress {
   placed: Record<string, number>
-  declined: Record<string, string>
+  declined: Record<string, Decline>
   /** Whether a request left, so the data must refresh even if its answer was lost. */
   sent: boolean
 }
@@ -72,7 +82,7 @@ export function ReviewStep({
   rows: ReviewRowData[]
   seen: Map<string, CardSummary>
   /** Reasons from the last commit, by card id, shown on the rows they belong to. */
-  declined: Record<string, string>
+  declined: Record<string, Decline>
   onCommitted: (result: CommitResult) => void
   onBack: () => void
 }) {
@@ -144,8 +154,10 @@ export function ReviewStep({
       for (const result of response.data.data ?? []) {
         if (result.placed > 0) progress.placed[result.cardId] = result.placed
         if (result.declined > 0)
-          progress.declined[result.cardId] =
-            result.message ?? result.reason ?? "Declined."
+          progress.declined[result.cardId] = {
+            message: result.message ?? result.reason ?? "Declined.",
+            reason: result.reason,
+          }
       }
     }
   }
@@ -192,8 +204,10 @@ export function ReviewStep({
         const { added } = targets.current.get(result.cardId)!
         targets.current.delete(result.cardId)
         if (result.status === InventoryChangeResultStatus.declined)
-          progress.declined[result.cardId] =
-            result.message ?? result.reason ?? "Declined."
+          progress.declined[result.cardId] = {
+            message: result.message ?? result.reason ?? "Declined.",
+            reason: result.reason,
+          }
         else progress.placed[result.cardId] = added
       }
     }
@@ -310,9 +324,25 @@ export function ReviewStep({
                   <span className="tabular-nums">+{row.quantity}</span>
                 </div>
                 {declined[row.cardId] && (
-                  <p className="text-sm text-destructive">
-                    Not added: {declined[row.cardId]}
-                  </p>
+                  <>
+                    <p className="text-sm text-destructive">
+                      Not added: {declined[row.cardId].message}
+                    </p>
+                    {declined[row.cardId].reason ===
+                      BinderPlacementResultReason.not_enough_empty_slots && (
+                      <p className="text-sm">
+                        Add a Leaf in the{" "}
+                        <Link
+                          to="/collections/$collectionId"
+                          params={{ collectionId }}
+                          className="text-foreground underline"
+                        >
+                          binder view
+                        </Link>{" "}
+                        to make room.
+                      </p>
+                    )}
+                  </>
                 )}
               </li>
             )

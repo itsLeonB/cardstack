@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { cameraMessage, ChoosePhotoButton } from "./photo-source-controls"
 import { ReviewStep } from "./review-step"
-import type { CommitResult } from "./review-step"
+import type { CommitResult, Decline } from "./review-step"
 import { ScanSheet } from "./scan-sheet"
 import { CARD_ASPECT, GUIDE_HEIGHT, VIEW_ASPECT } from "@/lib/frame-crop"
 import type { FrameSource } from "@/lib/frame-source"
@@ -40,7 +40,7 @@ export function ScanScreen({
   const [reviewing, setReviewing] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   // Why the Collection declined a Card in the last commit, by card id.
-  const [declined, setDeclined] = useState<Record<string, string>>({})
+  const [declined, setDeclined] = useState<Record<string, Decline>>({})
 
   // A reason describes its Card's Scans as they were, so an edit to them makes it stale.
   function forget(...cardIds: (string | undefined)[]) {

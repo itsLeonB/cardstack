@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import {
   getListCollectionEntriesQueryOptions,
   getListCollectionFacetsQueryKey,
@@ -34,8 +35,13 @@ function sliceCardIds(cards: CardSummary[]) {
  */
 export function CollectionCardResults({
   collectionId,
+  binder = false,
   ...results
-}: Omit<InfiniteCardResultsProps, "renderControl"> & { collectionId: string }) {
+}: Omit<InfiniteCardResultsProps, "renderControl"> & {
+  collectionId: string
+  /** A binder's quantities follow its Slots, so its cards get no quantity control. */
+  binder?: boolean
+}) {
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, (saved) => {
     // Refreshes the lookups that hold the saved cards (plain keys) and the
@@ -59,7 +65,8 @@ export function CollectionCardResults({
   // instead of changing the key (and dropping the data) of the earlier ones.
   // The endpoint caps `limit` at 100, and an empty cardId list means "no
   // restriction" to the API, so there is never a slice of 0 ids.
-  const slices = sliceCardIds(results.cards)
+  // A binder's quantities follow its Slots, so there is nothing to look up.
+  const slices = binder ? [] : sliceCardIds(results.cards)
   const lookups = useQueries({
     queries: slices.map((cardIds) =>
       getListCollectionEntriesQueryOptions(
@@ -100,7 +107,19 @@ export function CollectionCardResults({
 
   return (
     <>
-      {lookups.failed && (
+      {binder && (
+        <p className="text-sm">
+          Cards in this binder are placed in Slots from the binder view.{" "}
+          <Link
+            to="/collections/$collectionId"
+            params={{ collectionId }}
+            className="text-foreground underline"
+          >
+            Open the Collection
+          </Link>
+        </p>
+      )}
+      {!binder && lookups.failed && (
         <p role="alert" className="text-sm text-destructive">
           Could not load this Collection&apos;s quantities.
         </p>

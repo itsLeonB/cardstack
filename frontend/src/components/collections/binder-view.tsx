@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   useAddBinderLeaf,
-  useCreateBinder,
   useGetBinderPage,
-  useMoveBinderSlot,
   useRemoveBinder,
   useRemoveBinderLeaf,
   useUpdateBinderGrid,
@@ -18,12 +16,13 @@ import type { BinderLayoutValues } from "@/components/collections/binder-layout-
 import { BinderMoveBanner } from "@/components/collections/binder-move-banner"
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { SlotPanel } from "@/components/collections/binder-slot-panel"
+import { useBinderMove } from "@/components/collections/use-binder-move"
 import { PageScanScreen } from "@/components/scan/page-scan"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import {
   invalidateBinder,
+  pageOf,
   refreshAfterRemoveBinder,
-  refreshAfterSlotWrite,
   slotKey,
 } from "@/lib/binder"
 import type { SlotRef } from "@/lib/binder"
@@ -60,21 +59,13 @@ export function BinderView({
   const [selectedSlot, setSelectedSlot] = useState<SlotRef | null>(null)
   // The tapped tile, so focus can go back to it when the panel closes.
   const openerRef = useRef<HTMLButtonElement | null>(null)
-  // The Slot picked as a move's source, with what it holds for the banner. It
-  // stays picked while the user turns to another Page.
-  const [moving, setMoving] = useState<{
-    source: SlotRef
-    label: string
-  } | null>(null)
-  const [moveError, setMoveError] = useState<string | null>(null)
   // A Slot a jump brought into view. It is only highlighted, not opened.
   const [highlighted, setHighlighted] = useState<SlotRef | null>(null)
   const pageRef = useRef<HTMLElement>(null)
   // Set by a jump, so the Slot takes focus once its Page is on screen.
   const jumpFocus = useRef(false)
-  // A ref, not moveMutation.isPending: the pending state reaches render a tick
-  // after the tap, too late for a second tap in the same frame.
-  const moveInFlight = useRef(false)
+  const { moving, moveError, startMove, cancelMove, moveTo } =
+    useBinderMove(collectionId)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
@@ -83,7 +74,9 @@ export function BinderView({
   })
   const binderPage =
     query.data?.status === 200 ? query.data.data.data : undefined
-  const totalPages = binderPage ? binderPage.layout.leafCount * 2 : 0
+  const totalPages = binderPage
+    ? pageOf(binderPage.layout.leafCount, "back")
+    : 0
   const loadError = errorDetail(query.data, NETWORK_ERROR)
   const currentPage = binderPage?.page ?? requestedPage
 
@@ -91,7 +84,6 @@ export function BinderView({
   const removeLeafMutation = useRemoveBinderLeaf()
   const updateGridMutation = useUpdateBinderGrid()
   const removeBinderMutation = useRemoveBinder()
-  const moveMutation = useMoveBinderSlot()
 
   // The entries list sits below the binder, so the grid scrolls back up to it.
   useEffect(() => {
@@ -151,7 +143,7 @@ export function BinderView({
   // Pages renumber after a Leaf change, so a Slot picked or highlighted before
   // it no longer names the same Slot.
   function clearSlotMarks() {
-    setMoving(null)
+    cancelMove()
     setHighlighted(null)
     setSelectedSlot(null)
   }
@@ -172,7 +164,7 @@ export function BinderView({
           // Turn to the new Leaf's front Page, so the blank Leaf is on screen.
           const leaf =
             placement === "after" ? binderPage.leaf + 1 : binderPage.leaf
-          setRequestedPage(2 * leaf - 1)
+          setRequestedPage(pageOf(leaf, "front"))
         },
         onError: () => toast.error(NETWORK_ERROR),
       }
@@ -199,7 +191,10 @@ export function BinderView({
           // The Leaf after the removed one takes its place, or the last Leaf
           // when the removed one was the last.
           setRequestedPage(
-            Math.min(2 * binderPage.leaf - 1, 2 * response.data.data.leafCount)
+            Math.min(
+              pageOf(binderPage.leaf, "front"),
+              pageOf(response.data.data.leafCount, "back")
+            )
           )
         },
         onError: () => toast.error(NETWORK_ERROR),
@@ -249,45 +244,9 @@ export function BinderView({
     )
   }
 
-  function startMove(slot: BinderSlot, source: SlotRef) {
-    setMoveError(null)
+  function startSlotMove(slot: BinderSlot, source: SlotRef) {
     setSelectedSlot(null)
-    setMoving({
-      source,
-      label:
-        slot.state === "card" && slot.card ? slot.card.name : "Unidentified",
-    })
-  }
-
-  // Tapping the source again cancels; any other Slot takes the card, or swaps
-  // with the card it holds. Taps wait while a move is in flight.
-  function moveTo(target: SlotRef) {
-    if (!moving || moveInFlight.current) return
-    if (slotKey(target) === slotKey(moving.source)) {
-      setMoving(null)
-      return
-    }
-    moveInFlight.current = true
-    setMoveError(null)
-    moveMutation.mutate(
-      { id: collectionId, data: { from: moving.source, to: target } },
-      {
-        onSuccess: (response) => {
-          if (response.status !== 200) {
-            setMoveError(
-              errorDetail(response, "Could not move this card.") ?? null
-            )
-            return
-          }
-          refreshAfterSlotWrite(queryClient, collectionId)
-          setMoving(null)
-        },
-        onError: () => setMoveError(NETWORK_ERROR),
-        onSettled: () => {
-          moveInFlight.current = false
-        },
-      }
-    )
+    startMove(slot, source)
   }
 
   if (!binderPage) {
@@ -407,7 +366,7 @@ export function BinderView({
           source={moving.source}
           label={moving.label}
           error={moveError}
-          onCancel={() => setMoving(null)}
+          onCancel={cancelMove}
         />
       )}
 
@@ -447,7 +406,7 @@ export function BinderView({
             at={openSlot}
             slot={shownSlot}
             onClose={closeSlot}
-            onMove={() => startMove(shownSlot, openSlot)}
+            onMove={() => startSlotMove(shownSlot, openSlot)}
           />
         )}
       </section>
@@ -532,58 +491,5 @@ export function BinderView({
         )}
       </div>
     </div>
-  )
-}
-
-/** Turns a plain, empty Collection into a binder. */
-export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
-  const queryClient = useQueryClient()
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const createMutation = useCreateBinder()
-
-  function createBinder(values: BinderLayoutValues) {
-    setErrorMessage(null)
-    createMutation.mutate(
-      {
-        id: collectionId,
-        data: {
-          rows: values.rows,
-          columns: values.columns,
-          leafCount: values.leafCount,
-        },
-      },
-      {
-        onSuccess: (response) => {
-          if (response.status !== 201) {
-            setErrorMessage(
-              errorDetail(response, "Could not create this binder.") ?? null
-            )
-            return
-          }
-          invalidateBinder(queryClient, collectionId)
-        },
-        onError: () => setErrorMessage(NETWORK_ERROR),
-      }
-    )
-  }
-
-  return (
-    <section aria-label="Make a binder" className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium">Make this a binder</h2>
-      <p className="text-sm">
-        Choose the Layout of each Page and how many Leaves the binder starts
-        with. Its Slots then hold the cards.
-      </p>
-      <div className="max-w-lg">
-        <BinderLayoutForm
-          withLeafCount
-          submitLabel="Create binder"
-          pendingLabel="Creating..."
-          isPending={createMutation.isPending}
-          errorMessage={errorMessage}
-          onSubmit={createBinder}
-        />
-      </div>
-    </section>
   )
 }

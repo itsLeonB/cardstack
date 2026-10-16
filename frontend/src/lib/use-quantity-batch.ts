@@ -8,6 +8,9 @@ import { NETWORK_ERROR } from "@/lib/collections"
 /** Quiet period after the last quantity change before the batch is sent. */
 export const QUANTITY_DEBOUNCE_MS = 500
 
+const BINDER_LOCKED_MESSAGE =
+  "This binder's quantities follow its Slots. Place or clear cards in the binder view."
+
 type Quantities = Record<string, number>
 type Errors = Record<string, string>
 
@@ -80,7 +83,9 @@ export function useQuantityBatch(
       })
       if (response.status !== 200) {
         const message =
-          response.data.detail ?? "Could not update these quantities."
+          response.data.code === "binder_quantity_locked"
+            ? BINDER_LOCKED_MESSAGE
+            : (response.data.detail ?? "Could not update these quantities.")
         for (const [cardId, , revision] of items)
           revert(cardId, revision, confirmed.current[cardId], message)
         return
