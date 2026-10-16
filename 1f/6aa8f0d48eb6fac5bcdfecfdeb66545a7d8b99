@@ -1,0 +1,23 @@
+.scratch/binder-scanning/issues/04-move-and-swap-slots.md
+  s_ff5e9cf1821f17::t_9f1909c43374da 9,11-21
+.scratch/binder-scanning/issues/07-phase-1-scan-cards-on-a-binder.md
+  s_ff5e9cf1821f17::t_cd1e3aee5e53e5 9,11-21
+.scratch/binder-scanning/issues/08-find-a-card-in-a-binder.md
+  s_ff5e9cf1821f17::t_fa9d606fd6f42f 9,11-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1f6aa8f0d48eb6fac5bcdfecfdeb66545a7d8b99",
+  "prompts": {},
+  "sessions": {
+    "s_ff5e9cf1821f17": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ff5e9cf1821f17",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
