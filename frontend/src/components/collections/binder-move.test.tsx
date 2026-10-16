@@ -61,7 +61,7 @@ describe("BinderView move and swap", () => {
       await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
-    expect(screen.getByRole("region", { name: "Move a card" })).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Move a card" })).toBeTruthy()
 
     await goToPage(2)
     fireEvent.click(
@@ -69,7 +69,7 @@ describe("BinderView move and swap", () => {
     )
 
     await waitFor(() =>
-      expect(screen.queryByRole("region", { name: "Move a card" })).toBeNull()
+      expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
     )
     expect(moveRequests(binder)[0]?.body).toEqual({
       from: { page: 1, row: 1, column: 1 },
@@ -158,8 +158,110 @@ describe("BinderView move and swap", () => {
       screen.getByRole("button", { name: "Row 1, column 1: Pikachu" })
     )
 
-    expect(screen.queryByRole("region", { name: "Move a card" })).toBeNull()
+    expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
     expect(moveRequests(binder)).toHaveLength(0)
+  })
+
+  it("cancels the move from its Cancel button, without a request", async () => {
+    const binder = fakeBinder({
+      rows: 2,
+      columns: 2,
+      cardCount: 1,
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    renderBinder(binder)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move" }))
+    fireEvent.click(screen.getByRole("button", { name: "Cancel move" }))
+
+    expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
+    expect(moveRequests(binder)).toHaveLength(0)
+  })
+
+  it("cancels the move on Escape, without a request", async () => {
+    const binder = fakeBinder({
+      rows: 2,
+      columns: 2,
+      cardCount: 1,
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    renderBinder(binder)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move" }))
+    fireEvent.keyDown(document, { key: "Escape" })
+
+    expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
+    expect(moveRequests(binder)).toHaveLength(0)
+  })
+
+  it("moves focus to the move banner once a Slot is picked", async () => {
+    const binder = fakeBinder({
+      rows: 2,
+      columns: 2,
+      cardCount: 1,
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    renderBinder(binder)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move" }))
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("status", { name: "Move a card" })
+    )
+  })
+
+  it("sends one request when the target is tapped twice while the move is in flight", async () => {
+    const binder = fakeBinder({
+      rows: 2,
+      columns: 2,
+      cardCount: 1,
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    renderBinder(binder)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move" }))
+    const target = screen.getByRole("button", {
+      name: "Row 1, column 2: empty",
+    })
+    fireEvent.click(target)
+    fireEvent.click(target)
+
+    await waitFor(() =>
+      expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
+    )
+    expect(moveRequests(binder)).toHaveLength(1)
+  })
+
+  it("shows the refusal when the source Slot no longer holds a card", async () => {
+    const binder = fakeBinder({
+      rows: 2,
+      columns: 2,
+      cardCount: 1,
+      filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+    })
+    renderBinder(binder)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move" }))
+    // Another writer clears the source after it was picked.
+    delete binder.filled[1]
+    fireEvent.click(
+      screen.getByRole("button", { name: "Row 1, column 2: empty" })
+    )
+
+    expect(
+      await screen.findByText("this Slot holds no card to move")
+    ).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Move a card" })).toBeTruthy()
   })
 
   it("keeps the move open and shows the refusal when the write fails", async () => {
@@ -182,6 +284,6 @@ describe("BinderView move and swap", () => {
     expect(
       await screen.findByText("That Slot cannot take a card.")
     ).toBeTruthy()
-    expect(screen.getByRole("region", { name: "Move a card" })).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Move a card" })).toBeTruthy()
   })
 })

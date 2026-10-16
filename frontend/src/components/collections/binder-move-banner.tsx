@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import type { SlotRef } from "@/lib/binder"
 
@@ -17,15 +18,31 @@ export function BinderMoveBanner({
   error: string | null
   onCancel: () => void
 }) {
+  const ref = useRef<HTMLDivElement>(null)
+  // Focus moves here when a move is picked, so the next step is read out.
+  useEffect(() => {
+    ref.current?.focus()
+  }, [])
+  useEffect(() => {
+    function cancelOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel()
+    }
+    document.addEventListener("keydown", cancelOnEscape)
+    return () => document.removeEventListener("keydown", cancelOnEscape)
+  }, [onCancel])
+
   return (
-    <section
+    <div
+      ref={ref}
+      role="status"
+      tabIndex={-1}
       aria-label="Move a card"
-      className="flex flex-col gap-2 rounded-md border p-3"
+      className="flex flex-col gap-2 rounded-md border p-3 focus:outline-none"
     >
       <p className="text-sm">
         Moving {label} from Page {source.page}, row {source.row}, column{" "}
         {source.column}. Turn to the target Page and tap its Slot. Tapping the
-        source Slot again cancels.
+        source Slot again or pressing Escape cancels.
       </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -37,6 +54,6 @@ export function BinderMoveBanner({
           Cancel move
         </Button>
       </div>
-    </section>
+    </div>
   )
 }

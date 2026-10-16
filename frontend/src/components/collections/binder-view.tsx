@@ -34,10 +34,13 @@ const SWIPE_MIN_PX = 50
 export function BinderView({
   collectionId,
   jumpTo,
+  onJumpApplied,
 }: {
   collectionId: string
-  /** A Slot to show: turns to its Page and highlights it. A new object per request. */
+  /** A Slot to show: turns to its Page and highlights it. A new object per tap. */
   jumpTo?: BinderSlotTarget | null
+  /** Clears `jumpTo` once applied, so a remount does not jump again. */
+  onJumpApplied?: () => void
 }) {
   const queryClient = useQueryClient()
   const [requestedPage, setRequestedPage] = useState(1)
@@ -65,6 +68,11 @@ export function BinderView({
   // A Slot a jump brought into view. It is only highlighted, not opened.
   const [highlighted, setHighlighted] = useState<SlotRef | null>(null)
   const pageRef = useRef<HTMLElement>(null)
+  // Set by a jump, so the Slot takes focus once its Page is on screen.
+  const jumpFocus = useRef(false)
+  // A ref, not moveMutation.isPending: the pending state reaches render a tick
+  // after the tap, too late for a second tap in the same frame.
+  const moveInFlight = useRef(false)
 
   // Keep the previous Page on screen while the next one loads, so a turn does
   // not flash the grid away.
@@ -86,10 +94,23 @@ export function BinderView({
   // The entries list sits below the binder, so the grid scrolls back up to it.
   useEffect(() => {
     if (!jumpTo) return
+    jumpFocus.current = true
     setRequestedPage(jumpTo.page)
     setHighlighted(jumpTo)
     pageRef.current?.scrollIntoView({ block: "center" })
-  }, [jumpTo])
+    onJumpApplied?.()
+  }, [jumpTo, onJumpApplied])
+
+  // Waits for the jumped-to Page: the previous one stays on screen while the
+  // next one loads.
+  useEffect(() => {
+    if (!jumpFocus.current || !binderPage) return
+    if (highlighted?.page !== binderPage.page) return
+    jumpFocus.current = false
+    pageRef.current
+      ?.querySelector<HTMLElement>('[aria-pressed="true"]')
+      ?.focus()
+  }, [binderPage, highlighted])
 
   // Steps from the requested Page, not the shown one, so two quick taps move
   // two Pages even before the first has loaded.
@@ -125,6 +146,14 @@ export function BinderView({
     stepPage(dx < 0 ? 1 : -1)
   }
 
+  // Pages renumber after a Leaf change, so a Slot picked or highlighted before
+  // it no longer names the same Slot.
+  function clearSlotMarks() {
+    setMoving(null)
+    setHighlighted(null)
+    setSelectedSlot(null)
+  }
+
   function addLeaf(placement: "before" | "after") {
     if (!binderPage) return
     setLeafError(null)
@@ -137,6 +166,7 @@ export function BinderView({
             return
           }
           invalidateBinder(queryClient, collectionId)
+          clearSlotMarks()
           // Turn to the new Leaf's front Page, so the blank Leaf is on screen.
           const leaf =
             placement === "after" ? binderPage.leaf + 1 : binderPage.leaf
@@ -163,6 +193,7 @@ export function BinderView({
             return
           }
           invalidateBinder(queryClient, collectionId)
+          clearSlotMarks()
           // The Leaf after the removed one takes its place, or the last Leaf
           // when the removed one was the last.
           setRequestedPage(
@@ -227,13 +258,14 @@ export function BinderView({
   }
 
   // Tapping the source again cancels; any other Slot takes the card, or swaps
-  // with the card it holds.
+  // with the card it holds. Taps wait while a move is in flight.
   function moveTo(target: SlotRef) {
-    if (!moving) return
+    if (!moving || moveInFlight.current) return
     if (slotKey(target) === slotKey(moving.source)) {
       setMoving(null)
       return
     }
+    moveInFlight.current = true
     setMoveError(null)
     moveMutation.mutate(
       { id: collectionId, data: { from: moving.source, to: target } },
@@ -249,6 +281,9 @@ export function BinderView({
           setMoving(null)
         },
         onError: () => setMoveError(NETWORK_ERROR),
+        onSettled: () => {
+          moveInFlight.current = false
+        },
       }
     )
   }
@@ -283,6 +318,8 @@ export function BinderView({
     )
   const highlightedHere =
     highlighted?.page === binderPage.page ? highlighted : undefined
+  const movingHere =
+    moving?.source.page === binderPage.page ? moving.source : undefined
   function closeSlot() {
     setSelectedSlot(null)
     openerRef.current?.focus()
@@ -372,22 +409,20 @@ export function BinderView({
         <BinderPageGrid
           page={binderPage}
           selected={openSlot ?? highlightedHere}
+          picked={movingHere}
           onSelect={(slot, tile) => {
+            const at: SlotRef = {
+              page: binderPage.page,
+              row: slot.row,
+              column: slot.column,
+            }
             if (moving) {
-              moveTo({
-                page: binderPage.page,
-                row: slot.row,
-                column: slot.column,
-              })
+              moveTo(at)
               return
             }
             setHighlighted(null)
             openerRef.current = tile
-            setSelectedSlot({
-              page: binderPage.page,
-              row: slot.row,
-              column: slot.column,
-            })
+            setSelectedSlot(at)
           }}
         />
         {openSlot && shownSlot && (

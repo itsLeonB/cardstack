@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import type { BinderSlotTarget } from "@/generated/models"
+import { slotKey } from "@/lib/binder"
 
 /**
  * Where a binder Card sits: one button per Slot holding it. Tapping one opens
@@ -9,20 +10,20 @@ export function CardPositions({
   positions,
   onFind,
 }: {
-  positions?: BinderSlotTarget[]
-  onFind?: (position: BinderSlotTarget) => void
+  positions: BinderSlotTarget[]
+  onFind: (position: BinderSlotTarget) => void
 }) {
-  if (!positions?.length) return null
   return (
     <div className="flex flex-wrap gap-1">
       {positions.map((position) => (
         <Button
-          key={`${position.page},${position.row},${position.column}`}
+          key={slotKey(position)}
           variant="outline"
           size="sm"
           // Above the card's stretched title link, which covers the tile.
           className="relative z-10"
-          onClick={() => onFind?.(position)}
+          // A fresh object per tap, so tapping the same position again jumps.
+          onClick={() => onFind({ ...position })}
         >
           Page {position.page} · row {position.row} · col {position.column}
         </Button>

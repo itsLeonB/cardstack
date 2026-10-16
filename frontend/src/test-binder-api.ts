@@ -1,5 +1,6 @@
 import { vi } from "vitest"
 import type { CardSummary, InventoryItem } from "@/generated/models"
+import type { SlotRef } from "@/lib/binder"
 
 // An in-memory binder behind a faked `fetch`, for tests of the binder views.
 // The generated client, the query cache and the invalidation under test are
@@ -44,8 +45,8 @@ export interface RequestBody {
   leaf?: number
   placement?: string
   cardId?: string
-  from?: { page: number; row: number; column: number }
-  to?: { page: number; row: number; column: number }
+  from?: SlotRef
+  to?: SlotRef
 }
 
 /** What the fake answers with: an envelope, an error, or nothing (204). */
@@ -182,6 +183,22 @@ function moveSlot(b: FakeBinder, body: RequestBody | undefined): Response {
   })
 }
 
+// A Leaf change renumbers the Pages from `from` on, so the Slots and the
+// positions the entries list shows move with them.
+function shiftPages(b: FakeBinder, from: number, delta: number) {
+  const moved: FakeBinder["filled"] = {}
+  for (const [page, slots] of Object.entries(b.filled)) {
+    const n = Number(page)
+    moved[n >= from ? n + delta : n] = slots
+  }
+  b.filled = moved
+  for (const item of b.entries) {
+    item.positions = item.positions?.map((p) =>
+      p.page >= from ? { ...p, page: p.page + delta } : p
+    )
+  }
+}
+
 function respond(
   b: FakeBinder,
   method: string,
@@ -212,6 +229,9 @@ function respond(
     })
   }
   if (method === "POST" && path.endsWith("/binder/leaves")) {
+    const leaf = body?.leaf ?? 1
+    const at = body?.placement === "after" ? leaf + 1 : leaf
+    shiftPages(b, 2 * at - 1, 2)
     b.leafCount += 1
     return json(201, { data: layoutOf(b) })
   }
@@ -226,6 +246,7 @@ function respond(
         })
       }
     }
+    shiftPages(b, 2 * n + 1, -2)
     b.leafCount -= 1
     return json(200, { data: layoutOf(b) })
   }
@@ -245,7 +266,7 @@ function respond(
     b.exists = false
     return json(204, null)
   }
-  if (method === "GET" && path.endsWith("/collections/col-1")) {
+  if (method === "GET" && /\/collections\/[^/]+$/.test(path)) {
     return json(200, {
       data: {
         id: "col-1",
@@ -257,7 +278,7 @@ function respond(
       },
     })
   }
-  if (method === "GET" && path.endsWith("/collections/col-1/entries")) {
+  if (method === "GET" && /\/collections\/[^/]+\/entries$/.test(path)) {
     return json(200, {
       data: b.entries,
       meta: { total: b.entries.length, page: 1, limit: 100 },

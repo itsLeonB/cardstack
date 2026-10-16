@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -54,6 +55,7 @@ async function renderCollectionPage(binder: FakeBinder) {
   )
   // The page's title shows once its Collection has loaded.
   await screen.findByRole("heading", { name: "Binder", level: 1 })
+  return router
 }
 
 function pick(options: {
@@ -120,30 +122,122 @@ describe("Collection page", () => {
       name: "Row 2, column 3: Pikachu",
     })
     expect(tile.getAttribute("aria-pressed")).toBe("true")
+    expect(document.activeElement).toBe(tile)
     expect(screen.queryByRole("region", { name: "Slot actions" })).toBeNull()
   })
 
-  it("reloads the entries after a Leaf is added, so positions follow the renumbered Pages", async () => {
-    const binder = fakeBinder({
-      rows: 2,
-      columns: 2,
-      entries: [
-        {
-          card: pikachu,
-          quantity: 1,
-          positions: [{ page: 1, row: 1, column: 1 }],
-        },
-      ],
+  it("jumps back to a position tapped again after the user turned pages", async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    await renderCollectionPage(
+      fakeBinder({
+        rows: 2,
+        columns: 3,
+        filled: { 4: { "2,3": { state: "card", card: pikachu } } },
+        entries: [
+          {
+            card: pikachu,
+            quantity: 1,
+            positions: [{ page: 4, row: 2, column: 3 }],
+          },
+        ],
+      })
+    )
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Page 4 · row 2 · col 3" })
+    )
+    expect(await screen.findByText("Page 4 of 20")).toBeTruthy()
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Page number" }), {
+      target: { value: "1" },
     })
-    await renderCollectionPage(binder)
+    fireEvent.click(screen.getByRole("button", { name: "Go to page" }))
+    expect(await screen.findByText("Page 1 of 20")).toBeTruthy()
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Page 4 · row 2 · col 3" })
+    )
+
+    expect(await screen.findByText("Page 4 of 20")).toBeTruthy()
+  })
+
+  it("moves a Card's position text when a Leaf is added before it", async () => {
+    await renderCollectionPage(
+      fakeBinder({
+        rows: 2,
+        columns: 2,
+        cardCount: 1,
+        filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+        entries: [
+          {
+            card: pikachu,
+            quantity: 1,
+            positions: [{ page: 1, row: 1, column: 1 }],
+          },
+        ],
+      })
+    )
     await screen.findByRole("button", { name: "Page 1 · row 1 · col 1" })
-    const entryLoads = () =>
-      binder.requests.filter((r) => r.path.endsWith("/entries")).length
-    const before = entryLoads()
 
-    fireEvent.click(screen.getByRole("button", { name: "Add Leaf after" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add Leaf before" }))
 
-    await waitFor(() => expect(entryLoads()).toBeGreaterThan(before))
+    expect(
+      await screen.findByRole("button", { name: "Page 3 · row 1 · col 1" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Page 1 · row 1 · col 1" })
+    ).toBeNull()
+  })
+
+  it("moves a Card's position text when an empty Leaf before it is removed", async () => {
+    await renderCollectionPage(
+      fakeBinder({
+        rows: 2,
+        columns: 2,
+        leafCount: 2,
+        cardCount: 1,
+        filled: { 3: { "1,1": { state: "card", card: pikachu } } },
+        entries: [
+          {
+            card: pikachu,
+            quantity: 1,
+            positions: [{ page: 3, row: 1, column: 1 }],
+          },
+        ],
+      })
+    )
+    await screen.findByRole("button", { name: "Page 3 · row 1 · col 1" })
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Leaf" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Page 1 · row 1 · col 1" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Page 3 · row 1 · col 1" })
+    ).toBeNull()
+  })
+
+  it("drops a pending move when the Collection changes", async () => {
+    const router = await renderCollectionPage(
+      fakeBinder({
+        rows: 2,
+        columns: 2,
+        cardCount: 1,
+        filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+      })
+    )
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move" }))
+    expect(screen.getByRole("status", { name: "Move a card" })).toBeTruthy()
+
+    await act(async () => {
+      router.history.push("/collections/col-2/")
+    })
+
+    await waitFor(() =>
+      expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
+    )
   })
 
   it("offers the Layout form on a plain Collection with no Cards", async () => {
@@ -177,7 +271,11 @@ describe("Collection page", () => {
 
   it("lists a binder's Cards without quantity controls", async () => {
     const entries = [
-      { quantity: 2, card: catalogCard("pikachu", "Pikachu", "025") },
+      {
+        quantity: 2,
+        card: catalogCard("pikachu", "Pikachu", "025"),
+        positions: [{ page: 1, row: 1, column: 1 }],
+      },
     ]
     await renderCollectionPage(fakeBinder({ entries }))
 
@@ -194,6 +292,7 @@ describe("Collection page", () => {
     )
 
     expect(await screen.findByLabelText("Quantity of Pikachu")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /^Page \d+ · row/ })).toBeNull()
   })
 
   it("shows the binder view once a binder is created from the plain page", async () => {

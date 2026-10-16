@@ -24,17 +24,14 @@ interface CollectionEntriesProps {
   search: CatalogFilters
   /** Receives the next filters; the route writes them to the URL. */
   onSearchChange: (next: CatalogFilters) => void
-  /** False on a binder, where quantities change only by placing Slots. */
-  quantityEditable?: boolean
-  /** Opens the binder on a position's Page; shown only where positions are. */
-  onFindPosition?: (position: BinderSlotTarget) => void
+  /** Opens the binder on a position's Page. */
+  onFindPosition: (position: BinderSlotTarget) => void
 }
 
 export function CollectionEntries({
   collectionId,
   search,
   onSearchChange,
-  quantityEditable = true,
   onFindPosition,
 }: CollectionEntriesProps) {
   const queryClient = useQueryClient()
@@ -125,14 +122,12 @@ export function CollectionEntries({
             : "This Collection has no Cards yet. Add some from the catalog."
         }
         renderControl={(card) => {
-          // A binder's quantities change only by placing Slots (ADR-0020), so
-          // its list shows where each Card sits instead.
-          if (!quantityEditable)
+          // A binder's Cards carry positions and change only by placing Slots
+          // (ADR-0020), so they show where they sit instead of a quantity.
+          const positions = serverPositions?.[card.id]
+          if (positions)
             return (
-              <CardPositions
-                positions={serverPositions?.[card.id]}
-                onFind={onFindPosition}
-              />
+              <CardPositions positions={positions} onFind={onFindPosition} />
             )
           const server = serverQuantities?.[card.id] ?? 0
           return (

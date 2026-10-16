@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
@@ -52,6 +52,7 @@ function CollectionPage() {
   // A position tapped in the entries list. A new object per tap, so tapping
   // the same position again still jumps.
   const [jumpTo, setJumpTo] = useState<BinderSlotTarget | null>(null)
+  const clearJump = useCallback(() => setJumpTo(null), [])
   const query = useGetCollection(collectionId)
   const collection =
     query.data?.status === 200 ? query.data.data.data : undefined
@@ -94,7 +95,14 @@ function CollectionPage() {
             }
           />
           {collection.binder && (
-            <BinderView collectionId={collectionId} jumpTo={jumpTo} />
+            // Keyed by Collection, so a pending move or highlight never
+            // carries over to another binder.
+            <BinderView
+              key={collectionId}
+              collectionId={collectionId}
+              jumpTo={jumpTo}
+              onJumpApplied={clearJump}
+            />
           )}
           {!collection.binder && collection.cardCount === 0 && (
             <CreateBinderPanel collectionId={collectionId} />
@@ -103,7 +111,6 @@ function CollectionPage() {
             collectionId={collectionId}
             search={search}
             onSearchChange={(next) => void changeSearch(next)}
-            quantityEditable={!collection.binder}
             onFindPosition={setJumpTo}
           />
         </>
