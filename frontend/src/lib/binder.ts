@@ -53,8 +53,9 @@ export function refreshAfterRemoveBinder(
 }
 
 /**
- * A Slot write changes quantities, so the Page, the Collection's entries and
- * Master Inventory all refresh. A Slot write is the only binder write that does.
+ * A write that changes which Cards the Slots hold changes quantities, so the
+ * Page, the Collection's entries and Master Inventory all refresh. Slot edits
+ * and the Phase 1 placement call this.
  */
 export function refreshAfterSlotWrite(
   queryClient: QueryClient,

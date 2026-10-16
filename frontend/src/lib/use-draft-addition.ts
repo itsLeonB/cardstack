@@ -175,19 +175,19 @@ export function useScanDraft(
       queue.cancelAll()
       setScans([])
     },
-    /** Takes the copies the Collection has placed out of the draft; a Scan with copies left stays. */
+    /** Takes the copies the Collection has placed out of the draft; returns how many Scans are still in it. */
     removeCopies(placed: Record<string, number>) {
-      setScans((list) => {
-        const owed = { ...placed }
-        return list.flatMap((s) => {
-          if (s.status !== "resolved" || !owed[s.cardId!]) return [s]
-          const taken = Math.min(owed[s.cardId!], s.quantity)
-          owed[s.cardId!] -= taken
-          return s.quantity > taken
-            ? [{ ...s, quantity: s.quantity - taken }]
-            : []
-        })
+      const owed = { ...placed }
+      const remaining = scans.flatMap((s) => {
+        if (s.status !== "resolved" || !owed[s.cardId!]) return [s]
+        const taken = Math.min(owed[s.cardId!], s.quantity)
+        owed[s.cardId!] -= taken
+        return s.quantity > taken
+          ? [{ ...s, quantity: s.quantity - taken }]
+          : []
       })
+      setScans(remaining)
+      return remaining.length
     },
   }
 }

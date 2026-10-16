@@ -61,13 +61,9 @@ export function ScanScreen({
   }
 
   function finishCommit({ placed, declined: next, failed }: CommitResult) {
-    draft.removeCopies(placed)
+    const left = draft.removeCopies(placed)
     setDeclined(next)
-    // Anything unresolved, or a Card with copies the Collection did not take.
-    const left =
-      draft.scans.some((s) => s.status !== "resolved") ||
-      summedRows(draft.scans).some((r) => r.quantity > (placed[r.cardId] ?? 0))
-    if (!left) onAdded()
+    if (left === 0) onAdded()
     else if (!failed && Object.keys(next).length === 0) setReviewing(false)
   }
 

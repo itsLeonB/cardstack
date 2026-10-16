@@ -24,7 +24,7 @@ import {
   invalidateCollectionCounts,
   invalidateCollectionEntries,
 } from "@/lib/collections"
-import { invalidateBinder } from "@/lib/binder"
+import { refreshAfterSlotWrite } from "@/lib/binder"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 
 class RequestError extends Error {}
@@ -42,6 +42,14 @@ export interface CommitResult {
   failed: boolean
 }
 
+/** What a commit has done so far, filled as each request answers. */
+interface CommitProgress {
+  placed: Record<string, number>
+  declined: Record<string, string>
+  /** Whether a request left, so the data must refresh even if its answer was lost. */
+  sent: boolean
+}
+
 /**
  * The review step of a Draft Addition: one row per Card, what each adds, what
  * the Collection already holds, and the commit. On a plain Collection a commit
@@ -49,7 +57,8 @@ export interface CommitResult {
  * fixed per row once computed and reused by a retry, so a write whose answer was
  * lost is not added twice. The capacity total only warns: the server decides.
  * On a binder a commit places each copy in an empty Slot instead, so there are
- * no targets, and the step shows the binder's empty Slots.
+ * no targets. A placement is not idempotent, so a lost answer there is reported
+ * as unconfirmed, and the step shows the binder's empty Slots.
  */
 export function ReviewStep({
   collectionId,
@@ -118,102 +127,121 @@ export function ReviewStep({
     collection.maxCardCount > 0 &&
     afterAdding! > collection.maxCardCount
 
+  // A placement is not idempotent: each copy takes an empty Slot, so a retry
+  // after a lost answer would take more. Chunks fill `progress` as they answer.
+  async function placeInBinder(progress: CommitProgress) {
+    // Rows are already one per Card, as the endpoint requires.
+    for (let i = 0; i < rows.length; i += MAX_CARD_IDS_PER_REQUEST) {
+      progress.sent = true
+      const response = await placeBinderCards(collectionId, {
+        items: rows.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
+      })
+      if (response.status !== 200)
+        throw new RequestError(
+          response.data.detail ?? "Could not add these cards."
+        )
+      // Placed per chunk, so a later chunk's failure cannot undo what this one did.
+      for (const result of response.data.data ?? []) {
+        if (result.placed > 0) progress.placed[result.cardId] = result.placed
+        if (result.declined > 0)
+          progress.declined[result.cardId] =
+            result.message ?? result.reason ?? "Declined."
+      }
+    }
+  }
+
+  async function addToPlainCollection(progress: CommitProgress) {
+    const missing = rows.filter(
+      (r) => targets.current.get(r.cardId)?.added !== r.quantity
+    )
+    // Fresh, not cached: the targets must come from what the Collection holds now.
+    for (const cardId of chunked(missing.map((r) => r.cardId))) {
+      const response = await queryClient.fetchQuery({
+        ...getListCollectionEntriesQueryOptions(collectionId, {
+          cardId,
+          limit: MAX_CARD_IDS_PER_REQUEST,
+        }),
+        staleTime: 0,
+      })
+      if (response.status !== 200)
+        throw new RequestError("Could not read the Collection's quantities.")
+      const current = new Map(
+        (response.data.data ?? []).map((i) => [i.card.id, i.quantity])
+      )
+      for (const r of missing.filter((m) => cardId.includes(m.cardId)))
+        targets.current.set(r.cardId, {
+          added: r.quantity,
+          target: (current.get(r.cardId) ?? 0) + r.quantity,
+        })
+    }
+    const items = rows.map((r) => ({
+      cardId: r.cardId,
+      quantity: targets.current.get(r.cardId)!.target,
+    }))
+    for (let i = 0; i < items.length; i += MAX_CARD_IDS_PER_REQUEST) {
+      progress.sent = true
+      const response = await bulkUpdateCollectionEntries(collectionId, {
+        items: items.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
+      })
+      if (response.status !== 200)
+        throw new RequestError(
+          response.data.detail ?? "Could not add these cards."
+        )
+      // Applied per chunk, so a later chunk's failure cannot undo what this one did.
+      for (const result of response.data.data ?? []) {
+        const { added } = targets.current.get(result.cardId)!
+        targets.current.delete(result.cardId)
+        if (result.status === InventoryChangeResultStatus.declined)
+          progress.declined[result.cardId] =
+            result.message ?? result.reason ?? "Declined."
+        else progress.placed[result.cardId] = added
+      }
+    }
+  }
+
   async function commit() {
     setBusy(true)
     setError(null)
-    const placed: Record<string, number> = {}
-    const declinedNow: Record<string, string> = {}
-    let sent = false
+    const progress: CommitProgress = { placed: {}, declined: {}, sent: false }
     let failed = false
     try {
-      if (binder) {
-        // Rows are already one per Card, as the endpoint requires.
-        for (let i = 0; i < rows.length; i += MAX_CARD_IDS_PER_REQUEST) {
-          sent = true
-          const response = await placeBinderCards(collectionId, {
-            items: rows.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
-          })
-          if (response.status !== 200)
-            throw new RequestError(
-              response.data.detail ?? "Could not add these cards."
-            )
-          // Placed per chunk, so a later chunk's failure cannot undo what this one did.
-          for (const result of response.data.data ?? []) {
-            if (result.placed > 0) placed[result.cardId] = result.placed
-            if (result.declined > 0)
-              declinedNow[result.cardId] = result.message ?? "Declined."
-          }
-        }
-      } else {
-        const missing = rows.filter(
-          (r) => targets.current.get(r.cardId)?.added !== r.quantity
-        )
-        // Fresh, not cached: the targets must come from what the Collection holds now.
-        for (const cardId of chunked(missing.map((r) => r.cardId))) {
-          const response = await queryClient.fetchQuery({
-            ...getListCollectionEntriesQueryOptions(collectionId, {
-              cardId,
-              limit: MAX_CARD_IDS_PER_REQUEST,
-            }),
-            staleTime: 0,
-          })
-          if (response.status !== 200)
-            throw new RequestError(
-              "Could not read the Collection's quantities."
-            )
-          const current = new Map(
-            (response.data.data ?? []).map((i) => [i.card.id, i.quantity])
-          )
-          for (const r of missing.filter((m) => cardId.includes(m.cardId)))
-            targets.current.set(r.cardId, {
-              added: r.quantity,
-              target: (current.get(r.cardId) ?? 0) + r.quantity,
-            })
-        }
-        const items = rows.map((r) => ({
-          cardId: r.cardId,
-          quantity: targets.current.get(r.cardId)!.target,
-        }))
-        for (let i = 0; i < items.length; i += MAX_CARD_IDS_PER_REQUEST) {
-          sent = true
-          const response = await bulkUpdateCollectionEntries(collectionId, {
-            items: items.slice(i, i + MAX_CARD_IDS_PER_REQUEST),
-          })
-          if (response.status !== 200)
-            throw new RequestError(
-              response.data.detail ?? "Could not add these cards."
-            )
-          // Applied per chunk, so a later chunk's failure cannot undo what this one did.
-          for (const result of response.data.data ?? []) {
-            targets.current.delete(result.cardId)
-            if (result.status === InventoryChangeResultStatus.declined)
-              declinedNow[result.cardId] =
-                result.message ?? result.reason ?? "Declined."
-            else
-              placed[result.cardId] = rows.find(
-                (r) => r.cardId === result.cardId
-              )!.quantity
-          }
-        }
-      }
+      if (binder) await placeInBinder(progress)
+      else await addToPlainCollection(progress)
     } catch (e) {
       failed = true
-      const reason = e instanceof RequestError ? e.message : NETWORK_ERROR
-      const count = Object.keys(placed).length
-      setError(
-        count > 0
-          ? `${reason} ${count} of ${rows.length} cards were already added and left your draft; the rest are still here.`
-          : `${reason} Your draft is unchanged.`
-      )
+      const count = Object.keys(progress.placed).length
+      if (binder && !(e instanceof RequestError)) {
+        // The answer was lost, so the copies may already be in the binder: the
+        // draft stays as it is and the user checks the binder before retrying.
+        const done =
+          count > 0
+            ? `${count} of ${rows.length} cards were already added and left your draft. `
+            : ""
+        setError(
+          `${done}The add could not be confirmed. Check the binder before adding again.`
+        )
+      } else {
+        const reason = e instanceof RequestError ? e.message : NETWORK_ERROR
+        setError(
+          count > 0
+            ? `${reason} ${count} of ${rows.length} cards were already added and left your draft; the rest are still here.`
+            : `${reason} Your draft is unchanged.`
+        )
+      }
     } finally {
       setBusy(false)
-      onCommitted({ placed, declined: declinedNow, failed })
-      // A lost answer may hide a committed write, so refresh after any send.
-      if (sent) {
-        invalidateMasterInventory(queryClient)
-        invalidateCollectionEntries(queryClient, collectionId)
-        if (binder) invalidateBinder(queryClient, collectionId)
-        else invalidateCollectionCounts(queryClient, collectionId)
+      onCommitted({
+        placed: progress.placed,
+        declined: progress.declined,
+        failed,
+      })
+      if (progress.sent) {
+        if (binder) refreshAfterSlotWrite(queryClient, collectionId)
+        else {
+          invalidateMasterInventory(queryClient)
+          invalidateCollectionEntries(queryClient, collectionId)
+          invalidateCollectionCounts(queryClient, collectionId)
+        }
       }
     }
   }

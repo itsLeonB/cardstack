@@ -9,6 +9,7 @@ import {
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ScanScreen } from "./scan-screen"
+import { getListMasterInventoryQueryKey } from "@/generated/endpoints/inventory/inventory"
 import type { FrameSource } from "@/lib/frame-source"
 import type { CardSummary } from "@/generated/models"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
@@ -37,6 +38,8 @@ let bulks: { cardId: string; quantity: number }[][] = []
 // A binder Collection's Slots: `cardTotal` of its `layout.capacity` are taken. Null for a plain Collection.
 let binder: { cardTotal: number } | null = null
 let placements: { cardId: string; quantity: number }[][] = []
+// What the next placement does: answer normally, a server error (nothing placed), or commit and lose the answer.
+let placementMode: "ok" | "error" | "lost" = "ok"
 const layout = { rows: 1, columns: 5, leafCount: 1, capacity: 10 }
 
 interface JsonBody {
@@ -93,6 +96,8 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
       items: { cardId: string; quantity: number }[]
     }
     placements.push(items)
+    if (placementMode === "error")
+      return Promise.resolve(json({ title: "boom", detail: "Try later." }, 503))
     const results = items.map(({ cardId, quantity }) => {
       const placed = Math.min(quantity, layout.capacity - binder!.cardTotal)
       const declined = quantity - placed
@@ -108,6 +113,9 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
           }
         : { cardId, placed, declined }
     })
+    // The write commits, but the answer never arrives.
+    if (placementMode === "lost")
+      return Promise.reject(new TypeError("offline"))
     return Promise.resolve(json({ data: results }))
   }
   if (url.pathname === "/collections/col-1/entries") {
@@ -168,10 +176,11 @@ const scan = (n: number, quantity = 1): ResolvedScan => ({
 
 const added = vi.fn()
 
-function renderScreen() {
-  const queryClient = new QueryClient({
+function renderScreen(
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ScanScreen collectionId="col-1" source={frames} onAdded={added} />
@@ -180,13 +189,22 @@ function renderScreen() {
 }
 
 // Opens the Review step from the sheet, once the seeded Scans have resolved.
-async function openReview() {
-  renderScreen()
+async function openReview(queryClient?: QueryClient) {
+  renderScreen(queryClient)
   await userEvent.click(
     await screen.findByRole("button", { name: "Review and add" })
   )
   return screen.findByRole("heading", { name: "Review and add" })
 }
+
+// GET requests the fake has answered for a path, so a test can see a refetch.
+const readsOf = (path: string) =>
+  vi
+    .mocked(fetch)
+    .mock.calls.filter(
+      ([input, init]) =>
+        (init?.method ?? "GET") === "GET" && String(input).includes(path)
+    ).length
 
 const reviewRow = async (name: string) => {
   const row = (await screen.findByText(name)).closest("li")
@@ -201,6 +219,7 @@ beforeEach(() => {
   bulks = []
   binder = null
   placements = []
+  placementMode = "ok"
   added.mockClear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   URL.createObjectURL = vi.fn(() => "blob:photo")
@@ -390,5 +409,68 @@ describe("adding to a binder", () => {
 
     expect(await screen.findByText("Empty Slots: 2 of 10")).toBeTruthy()
     expect(screen.queryByText(/Collection total/)).toBeNull()
+  })
+
+  it("refetches the binder Page and the entries, and invalidates Master Inventory, after a placement", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const inventory = getListMasterInventoryQueryKey()
+    queryClient.setQueryData(inventory, { status: 200, data: { data: [] } })
+    seed([scan(1)])
+    await openReview(queryClient)
+    const before = {
+      page: readsOf("/binder/pages/1"),
+      entries: readsOf("/collections/col-1/entries"),
+    }
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    await waitFor(() =>
+      expect(readsOf("/binder/pages/1")).toBeGreaterThan(before.page)
+    )
+    expect(readsOf("/collections/col-1/entries")).toBeGreaterThan(
+      before.entries
+    )
+    expect(queryClient.getQueryState(inventory)?.isInvalidated).toBe(true)
+  })
+
+  it("says the add could not be confirmed when the answer is lost, keeps the draft, and shows the Slots the binder now has", async () => {
+    seed([scan(1, 2)])
+    placementMode = "lost"
+    await openReview()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    expect(await screen.findByRole("alert")).toBeTruthy()
+    expect(screen.getByText(/could not be confirmed/)).toBeTruthy()
+    expect(
+      screen.getByText(/Check the binder before adding again/)
+    ).toBeTruthy()
+    expect(await screen.findByText("Empty Slots: 8 of 10")).toBeTruthy()
+    expect(added).not.toHaveBeenCalled()
+    expect(loadDraft("col-1")).toEqual([scan(1, 2)])
+  })
+
+  it("says nothing was added when the server refuses the placement", async () => {
+    seed([scan(1, 2)])
+    placementMode = "error"
+    await openReview()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    expect(await screen.findByRole("alert")).toBeTruthy()
+    expect(screen.getByText(/Your draft is unchanged/)).toBeTruthy()
+    expect(screen.queryByText(/could not be confirmed/)).toBeNull()
+    expect(await screen.findByText("Empty Slots: 10 of 10")).toBeTruthy()
+    expect(added).not.toHaveBeenCalled()
+    expect(loadDraft("col-1")).toEqual([scan(1, 2)])
   })
 })
