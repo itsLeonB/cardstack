@@ -12,6 +12,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	repository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+
 	uuid "github.com/google/uuid"
 )
 
@@ -707,6 +709,66 @@ func (_c *MockBinderSlotRepository_ListOccupiedSlots_Call) Return(_a0 []entity.B
 }
 
 func (_c *MockBinderSlotRepository_ListOccupiedSlots_Call) RunAndReturn(run func(context.Context, uuid.UUID, []uuid.UUID) ([]entity.BinderSlot, error)) *MockBinderSlotRepository_ListOccupiedSlots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListSlotsAt provides a mock function with given fields: ctx, collectionID, addresses
+func (_m *MockBinderSlotRepository) ListSlotsAt(ctx context.Context, collectionID uuid.UUID, addresses []repository.BinderSlotAddress) ([]entity.BinderSlot, error) {
+	ret := _m.Called(ctx, collectionID, addresses)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSlotsAt")
+	}
+
+	var r0 []entity.BinderSlot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, []repository.BinderSlotAddress) ([]entity.BinderSlot, error)); ok {
+		return rf(ctx, collectionID, addresses)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, []repository.BinderSlotAddress) []entity.BinderSlot); ok {
+		r0 = rf(ctx, collectionID, addresses)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.BinderSlot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, []repository.BinderSlotAddress) error); ok {
+		r1 = rf(ctx, collectionID, addresses)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockBinderSlotRepository_ListSlotsAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSlotsAt'
+type MockBinderSlotRepository_ListSlotsAt_Call struct {
+	*mock.Call
+}
+
+// ListSlotsAt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionID uuid.UUID
+//   - addresses []repository.BinderSlotAddress
+func (_e *MockBinderSlotRepository_Expecter) ListSlotsAt(ctx interface{}, collectionID interface{}, addresses interface{}) *MockBinderSlotRepository_ListSlotsAt_Call {
+	return &MockBinderSlotRepository_ListSlotsAt_Call{Call: _e.mock.On("ListSlotsAt", ctx, collectionID, addresses)}
+}
+
+func (_c *MockBinderSlotRepository_ListSlotsAt_Call) Run(run func(ctx context.Context, collectionID uuid.UUID, addresses []repository.BinderSlotAddress)) *MockBinderSlotRepository_ListSlotsAt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].([]repository.BinderSlotAddress))
+	})
+	return _c
+}
+
+func (_c *MockBinderSlotRepository_ListSlotsAt_Call) Return(_a0 []entity.BinderSlot, _a1 error) *MockBinderSlotRepository_ListSlotsAt_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockBinderSlotRepository_ListSlotsAt_Call) RunAndReturn(run func(context.Context, uuid.UUID, []repository.BinderSlotAddress) ([]entity.BinderSlot, error)) *MockBinderSlotRepository_ListSlotsAt_Call {
 	_c.Call.Return(run)
 	return _c
 }

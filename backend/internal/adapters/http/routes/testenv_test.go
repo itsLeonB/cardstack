@@ -112,14 +112,14 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string)
 		provider.ProvideCollectionService(ds),
 		provider.ProvideInventoryService(ds, images),
 		binder,
-		provider.ProvideBinderPlacementService(ds, binder),
+		provider.ProvideBinderSlotService(ds),
 		provider.ProvideMatchService(ds, images, embedder, settings),
 		provider.ProvideAdminSetService(ds, images),
 		provider.ProvideCardAdminService(ds, images, store),
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())
-	RegisterRoutes(api, services, limits, adminEmails)
+	require.NoError(t, RegisterRoutes(api, services, limits, adminEmails))
 
 	return testAPI{TestAPI: api, db: db, key: key, embedder: embedder, model: settings.Model, store: store}
 }

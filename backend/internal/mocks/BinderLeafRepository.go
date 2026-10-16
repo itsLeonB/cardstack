@@ -458,6 +458,64 @@ func (_c *MockBinderLeafRepository_GetGormInstance_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetLeafAt provides a mock function with given fields: ctx, collectionID, position
+func (_m *MockBinderLeafRepository) GetLeafAt(ctx context.Context, collectionID uuid.UUID, position int) (entity.BinderLeaf, error) {
+	ret := _m.Called(ctx, collectionID, position)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLeafAt")
+	}
+
+	var r0 entity.BinderLeaf
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) (entity.BinderLeaf, error)); ok {
+		return rf(ctx, collectionID, position)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) entity.BinderLeaf); ok {
+		r0 = rf(ctx, collectionID, position)
+	} else {
+		r0 = ret.Get(0).(entity.BinderLeaf)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, int) error); ok {
+		r1 = rf(ctx, collectionID, position)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockBinderLeafRepository_GetLeafAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLeafAt'
+type MockBinderLeafRepository_GetLeafAt_Call struct {
+	*mock.Call
+}
+
+// GetLeafAt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - collectionID uuid.UUID
+//   - position int
+func (_e *MockBinderLeafRepository_Expecter) GetLeafAt(ctx interface{}, collectionID interface{}, position interface{}) *MockBinderLeafRepository_GetLeafAt_Call {
+	return &MockBinderLeafRepository_GetLeafAt_Call{Call: _e.mock.On("GetLeafAt", ctx, collectionID, position)}
+}
+
+func (_c *MockBinderLeafRepository_GetLeafAt_Call) Run(run func(ctx context.Context, collectionID uuid.UUID, position int)) *MockBinderLeafRepository_GetLeafAt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockBinderLeafRepository_GetLeafAt_Call) Return(_a0 entity.BinderLeaf, _a1 error) *MockBinderLeafRepository_GetLeafAt_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockBinderLeafRepository_GetLeafAt_Call) RunAndReturn(run func(context.Context, uuid.UUID, int) (entity.BinderLeaf, error)) *MockBinderLeafRepository_GetLeafAt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Insert provides a mock function with given fields: ctx, model
 func (_m *MockBinderLeafRepository) Insert(ctx context.Context, model entity.BinderLeaf) (entity.BinderLeaf, error) {
 	ret := _m.Called(ctx, model)

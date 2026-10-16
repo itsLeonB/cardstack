@@ -35,7 +35,7 @@ func (h *BinderHandler) moveSlot(ctx context.Context, in binderSlotMoveInput) (d
 		return dto.BinderSlotMoveResult{}, err
 	}
 
-	err = h.binderSvc.MoveSlot(ctx, dto.BinderSlotMove{
+	err = h.slotSvc.MoveSlot(ctx, dto.BinderSlotMove{
 		ProfileID:    profileID,
 		CollectionID: in.ID,
 		From:         in.Body.From.target(),

@@ -10,12 +10,17 @@ import (
 	"gorm.io/gorm"
 )
 
+const pageNotFoundMsg = "this binder has no Page with that number"
+
 // BinderLeafRepository reads and writes a binder's Leaves.
 type BinderLeafRepository interface {
 	crud.Repository[entity.BinderLeaf]
 	// FindLeafAt returns the Leaf at position (counted from 1), or the zero value
 	// when there is none.
 	FindLeafAt(ctx context.Context, collectionID uuid.UUID, position int) (entity.BinderLeaf, error)
+	// GetLeafAt is FindLeafAt, with the not-found AppError for a Page beyond the
+	// last Leaf, which is the only way a Page number can miss.
+	GetLeafAt(ctx context.Context, collectionID uuid.UUID, position int) (entity.BinderLeaf, error)
 	// LeafCounts returns the Leaf count of each binder in one grouped query. A
 	// Collection with no Leaves is absent from the map.
 	LeafCounts(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error)
@@ -44,6 +49,18 @@ func (r *binderLeafRepository) FindLeafAt(ctx context.Context, collectionID uuid
 	return r.FindFirst(ctx, crud.Specification[entity.BinderLeaf]{
 		Model: entity.BinderLeaf{CollectionID: collectionID, Position: position},
 	})
+}
+
+func (r *binderLeafRepository) GetLeafAt(ctx context.Context, collectionID uuid.UUID, position int) (entity.BinderLeaf, error) {
+	leaf, err := r.FindLeafAt(ctx, collectionID, position)
+	if err != nil {
+		return entity.BinderLeaf{}, err
+	}
+	if leaf.IsZero() {
+		return entity.BinderLeaf{}, ungerr.NotFoundError(pageNotFoundMsg)
+	}
+
+	return leaf, nil
 }
 
 func (r *binderLeafRepository) LeafCounts(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {

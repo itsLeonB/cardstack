@@ -13,7 +13,7 @@ type binderPageReplaceInput struct {
 	Body binderPageReplaceBody
 }
 
-// The maxItems cap is the largest Layout, 6 × 6 Slots (dto.BinderMaxSlotsPerPage).
+// The maxItems cap is the largest Layout, 6 × 6 Slots (entity.MaxBinderSlotsPerPage).
 // A struct tag cannot read a constant, so binder_replace_page_handler_test.go
 // fails if the two drift apart.
 type binderPageReplaceBody struct {
@@ -38,7 +38,7 @@ func (h *BinderHandler) replacePage(ctx context.Context, in binderPageReplaceInp
 		slots[i] = dto.BinderSlotState{State: slot.State, CardID: slot.CardID}
 	}
 
-	return h.binderSvc.ReplacePage(ctx, dto.BinderPageReplace{
+	return h.slotSvc.ReplacePage(ctx, dto.BinderPageReplace{
 		ProfileID:    profileID,
 		CollectionID: in.ID,
 		Page:         in.Page,

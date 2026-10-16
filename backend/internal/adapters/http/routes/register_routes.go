@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"errors"
+
 	"github.com/danielgtaylor/huma/v2"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/http/handler"
@@ -16,13 +18,13 @@ import (
 // adminEmails are the Admins (ADMIN_EMAILS). The caller passes none unless the
 // R2 settings are also present, and with none the admin routes are not
 // registered at all (docs/adr/0019).
-func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.Limits, adminEmails []string) {
+func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.Limits, adminEmails []string) error {
 	healthHandler := handler.NewHealthHandler(services.Health)
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
-	binderHandler := handler.NewBinderHandler(services.Binder)
-	binderPlacementHandler := handler.NewBinderPlacementHandler(services.BinderPlacement)
+	binderHandler := handler.NewBinderHandler(services.Binder, services.BinderSlot)
+	binderPlacementHandler := handler.NewBinderPlacementHandler(services.BinderSlot)
 	matchHandler := handler.NewMatchHandler(services.Match)
 
 	// Secured:true only sets OpenAPI metadata. The guard is what decides: a
@@ -48,7 +50,9 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, binderHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderPlacementHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
-	markBinderNullable(api)
+	if err := markBinderNullable(api); err != nil {
+		return err
+	}
 
 	if len(adminEmails) > 0 {
 		// Guests pass Guard so AdminOnly can answer them with the same 404 as a
@@ -58,6 +62,8 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 		endpoint.RegisterAll(api, handler.NewAdminSetHandler(services.AdminSets).Routes(), guestsAllowed, perUser, adminOnly)
 		endpoint.RegisterAll(api, handler.NewAdminCardsHandler(services.CardAdmin).Routes(), guestsAllowed, perUser, adminOnly)
 	}
+
+	return nil
 }
 
 // markBinderNullable makes CollectionSummary.binder nullable in the spec. Huma
@@ -65,17 +71,19 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 // property is patched after registration: oneOf of the BinderLayout ref and
 // null, the OpenAPI 3.1 way to say nullable, which generators read as
 // BinderLayout | null.
-func markBinderNullable(api huma.API) {
+func markBinderNullable(api huma.API) error {
 	summary, ok := api.OpenAPI().Components.Schemas.Map()["CollectionSummary"]
 	if !ok {
-		return
+		return errors.New("markBinderNullable: CollectionSummary schema is not registered")
 	}
 	binder, ok := summary.Properties["binder"]
 	if !ok {
-		return
+		return errors.New("markBinderNullable: CollectionSummary has no binder property")
 	}
 	summary.Properties["binder"] = &huma.Schema{
 		OneOf:       []*huma.Schema{{Ref: binder.Ref}, {Type: "null"}},
 		Description: binder.Description,
 	}
+
+	return nil
 }
