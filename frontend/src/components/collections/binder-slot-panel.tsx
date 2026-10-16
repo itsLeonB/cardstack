@@ -17,16 +17,16 @@ import {
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
 
-type SlotAction = "place" | "replace" | "clear" | "markUnidentified"
+type SlotAction = "place" | "replace" | "move" | "clear" | "markUnidentified"
 
-// Menu order. A Move action (ticket 04) joins this list for a Slot that holds
-// a Card or is Unidentified.
+// Menu order. A Slot holding a Card or Unidentified can be moved; an empty
+// Slot has nothing to move.
 function slotActions(state: BinderSlot["state"]): SlotAction[] {
   switch (state) {
     case "card":
-      return ["replace", "clear", "markUnidentified"]
+      return ["replace", "move", "clear", "markUnidentified"]
     case "unidentified":
-      return ["place", "clear"]
+      return ["place", "move", "clear"]
     default:
       return ["place"]
   }
@@ -35,6 +35,7 @@ function slotActions(state: BinderSlot["state"]): SlotAction[] {
 const ACTION_LABELS = {
   place: "Place a Card",
   replace: "Replace card",
+  move: "Move",
   clear: "Clear",
   markUnidentified: "Mark Unidentified",
 } satisfies Record<SlotAction, string>
@@ -50,6 +51,7 @@ export function SlotPanel({
   at,
   slot,
   onClose,
+  onMove,
 }: {
   collectionId: string
   /** Where the Slot sits, which the write addresses. */
@@ -57,6 +59,8 @@ export function SlotPanel({
   slot: BinderSlot
   /** Closes the panel, after a write succeeds or from the Close button. */
   onClose: () => void
+  /** Picks this Slot as the source of a move; the binder view takes over from there. */
+  onMove: () => void
 }) {
   const queryClient = useQueryClient()
   const [searching, setSearching] = useState(false)
@@ -105,6 +109,8 @@ export function SlotPanel({
     setError(null)
     if (action === "place" || action === "replace") {
       setSearching(true)
+    } else if (action === "move") {
+      onMove()
     } else if (action === "clear") {
       clearMutation.mutate(target, settle("Could not clear this Slot."))
     } else {
