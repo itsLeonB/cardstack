@@ -6,12 +6,16 @@ Spec: `.scratch/binder-scanning/spec.md` (Phase 1 flow on a binder). Phase 1 spe
 
 **Blocked by:** 03 (place, clear, replace and mark Unidentified)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Adding a draft to a binder fills the first empty Slots in Page order, one Slot per copy, and updates the Inventory Entries to match
-- [ ] Two Scans of the same Card place two copies in two Slots
-- [ ] When there are fewer empty Slots than copies, the placed copies leave the draft and the rest stay with the reason "not enough empty Slots"
-- [ ] Applied rows leave the draft, the draft clears only when nothing stayed, and a full clear returns to the Collection's page
-- [ ] The review step shows the binder's empty-Slot count and does not show quantity inputs that would change the Slots
-- [ ] The Phase 1 flow on a plain Collection is unchanged
-- [ ] Covered by HTTP-boundary tests against real Postgres for the placement and frontend feature tests with the API client mocked for the review step
+- [x] Adding a draft to a binder fills the first empty Slots in Page order, one Slot per copy, and updates the Inventory Entries to match
+- [x] Two Scans of the same Card place two copies in two Slots
+- [x] When there are fewer empty Slots than copies, the placed copies leave the draft and the rest stay with the reason "not enough empty Slots"
+- [x] Applied rows leave the draft, the draft clears only when nothing stayed, and a full clear returns to the Collection's page
+- [x] The review step shows the binder's empty-Slot count and does not show quantity inputs that would change the Slots
+- [x] The Phase 1 flow on a plain Collection is unchanged
+- [x] Covered by HTTP-boundary tests against real Postgres for the placement and frontend feature tests with the API client mocked for the review step
+
+## Answer
+
+Implemented on `feat/binder-scanning` (backend and frontend). Backend: `POST /collections/{id}/binder/placements` places `{cardId, quantity}` items in the first empty Slots in Page order (front then back, row-major), reconciling Inventory Entries in the same transaction; per-item results report placed and declined copies with reason `not_enough_empty_slots` and a `message`; unknown Cards are declined per item; duplicate cardIds in one request are rejected, so the frontend merges Scans by Card first. Frontend: the review step calls it on a binder, declined copies stay in the draft, the empty-Slot count is `layout.capacity - cardTotal`, and the Scan cards link is back on a binder. Known limit: the placement is not idempotent, so a lost answer is reported as unconfirmed (the binder is refreshed and the user is told to check before adding again) and is not retried automatically.
