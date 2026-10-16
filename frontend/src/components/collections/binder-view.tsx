@@ -15,6 +15,7 @@ import { BinderLayoutForm } from "@/components/collections/binder-layout-form"
 import type { BinderLayoutValues } from "@/components/collections/binder-layout-form"
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { SlotPanel } from "@/components/collections/binder-slot-panel"
+import { PageScanScreen } from "@/components/scan/page-scan"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import {
   invalidateBinder,
@@ -36,6 +37,7 @@ export function BinderView({ collectionId }: { collectionId: string }) {
   const [editingLayout, setEditingLayout] = useState(false)
   const [layoutError, setLayoutError] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
+  const [scanning, setScanning] = useState(false)
   // Set once the Layout is gone, so the Page queries stop before the
   // Collection refetch unmounts this view.
   const [detached, setDetached] = useState(false)
@@ -205,6 +207,12 @@ export function BinderView({ collectionId }: { collectionId: string }) {
     )
   }
 
+  if (scanning) {
+    return (
+      <PageScanScreen page={binderPage} onClose={() => setScanning(false)} />
+    )
+  }
+
   const { layout, cardTotal, unidentifiedCount, leaf, side } = binderPage
   const empty = cardTotal === 0
   const openSlot =
@@ -279,6 +287,9 @@ export function BinderView({ collectionId }: { collectionId: string }) {
             {jumpError}
           </p>
         )}
+        <Button variant="outline" onClick={() => setScanning(true)}>
+          Scan this Page
+        </Button>
       </div>
 
       <section

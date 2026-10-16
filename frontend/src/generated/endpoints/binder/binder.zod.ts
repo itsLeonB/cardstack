@@ -173,6 +173,40 @@ export const GetBinderPageResponse = zod.object({
 })
 
 /**
+ * @summary Replace every Slot of a Page; returns what each Slot holds, with the reason for any Card the server did not know
+ */
+
+
+
+export const ReplaceBinderPageParams = zod.object({
+  "id": zod.string().describe('Collection ID'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.')
+})
+
+export const replaceBinderPageBodySlotsMax = 36;
+
+
+
+export const ReplaceBinderPageBody = zod.object({
+  "slots": zod.array(zod.object({
+  "cardId": zod.string().optional().describe('The Card, read only when state is card. An id the server does not know is stored as unidentified and reported for that Slot.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds the Card in cardId; unidentified: holds a card not yet identified.')
+})).max(replaceBinderPageBodySlotsMax).nullable().describe('One state per Slot in grid order: row by row, left to right. The count must match the binder\'s Layout.')
+})
+
+export const ReplaceBinderPageResponse = zod.object({
+  "data": zod.object({
+  "slots": zod.array(zod.object({
+  "cardId": zod.string().optional().describe('The Card stored in the Slot, set only when State is card.'),
+  "column": zod.int().describe('Column of the Slot on its Page, from 1.'),
+  "reason": zod.string().optional().describe('Why the Slot was stored differently from the request: unknown_card when the Card id is not known.'),
+  "row": zod.int().describe('Row of the Slot on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('The state the Slot was stored in.')
+})).nullable().describe('What each Slot of the Page holds after the replace, in grid order.')
+})
+})
+
+/**
  * @summary Empty a Slot, removing its Card or Unidentified mark; returns the Page
  */
 
@@ -344,6 +378,147 @@ export const MarkBinderSlotUnidentifiedResponse = zod.object({
   "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
 })).nullable(),
   "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+})
+})
+
+/**
+ * @summary Place Cards in a binder's first empty Slots in Page order, one Slot per copy; copies with no empty Slot are declined
+ */
+export const PlaceBinderCardsParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+export const placeBinderCardsBodyItemsItemQuantityMax = 2147483647;
+
+export const placeBinderCardsBodyItemsMax = 100;
+
+
+
+export const PlaceBinderCardsBody = zod.object({
+  "items": zod.array(zod.object({
+  "cardId": zod.string().describe('The Card to place. Must be unique within the request (400 otherwise).'),
+  "quantity": zod.int().min(1).max(placeBinderCardsBodyItemsItemQuantityMax).describe('Copies to place, one empty Slot each.')
+})).min(1).max(placeBinderCardsBodyItemsMax).nullable().describe('Cards to place, in order, at most 100.')
+})
+
+export const PlaceBinderCardsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "cardId": zod.string(),
+  "declined": zod.int(),
+  "message": zod.string().optional().describe('Human-readable reason for declined copies.'),
+  "placed": zod.int(),
+  "reason": zod.enum(['not_enough_empty_slots', 'card_not_found']).optional().describe('Why copies were declined.')
+})).nullable()
+})
+
+/**
+ * @summary Move a card to another Slot of the binder, swapping when the target holds a card; returns the source and target Pages
+ */
+export const MoveBinderSlotParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+
+
+
+
+
+
+
+
+export const MoveBinderSlotBody = zod.object({
+  "from": zod.object({
+  "column": zod.int().min(1).describe('Column of the Slot on its Page, counted from 1.'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.'),
+  "row": zod.int().min(1).describe('Row of the Slot on its Page, counted from 1.')
+}).describe('The filled Slot to move the card from.'),
+  "to": zod.object({
+  "column": zod.int().min(1).describe('Column of the Slot on its Page, counted from 1.'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.'),
+  "row": zod.int().min(1).describe('Row of the Slot on its Page, counted from 1.')
+}).describe('The Slot to move the card to. If it holds a card, the two cards swap.')
+})
+
+export const MoveBinderSlotResponse = zod.object({
+  "data": zod.object({
+  "from": zod.object({
+  "cardTotal": zod.int().describe('Slots holding a Card plus Unidentified Slots, across the whole binder.'),
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "leaf": zod.int().describe('Number of the Leaf this Page belongs to, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "side": zod.enum(['front', 'back']).describe('Which face of the Leaf this Page is.'),
+  "slots": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}).describe('The Card in the pocket, set only when State is card.'),
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
+})).nullable(),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+}).describe('The Page the card left, read after the move.'),
+  "to": zod.object({
+  "cardTotal": zod.int().describe('Slots holding a Card plus Unidentified Slots, across the whole binder.'),
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "leaf": zod.int().describe('Number of the Leaf this Page belongs to, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "side": zod.enum(['front', 'back']).describe('Which face of the Leaf this Page is.'),
+  "slots": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}).describe('The Card in the pocket, set only when State is card.'),
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
+})).nullable(),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+}).describe('The Page the card went to, read after the move.')
 })
 })
 

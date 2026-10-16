@@ -114,6 +114,8 @@ const frames: FrameSource = {
   videoRef: () => {},
   captureCamera: async () => new Blob(),
   fromFile: async () => new Blob(),
+  captureFrame: async () => new Blob(),
+  frameFromFile: async () => new Blob(),
 }
 
 const seed = (scans: ResolvedScan[]) => saveDraft("col-1", scans)

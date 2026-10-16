@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { fitLongSide, guideCrop, UPLOAD_LONG_SIDE } from "./frame-crop"
+import type { Rect } from "./frame-crop"
 
 export type CameraState = "starting" | "ready" | "denied" | "unavailable"
+
+/** The longest side of a whole photo kept for a Page scan to cut; cells are downsized after. */
+const FRAME_LONG_SIDE = 2048
 
 /**
  * Where scan frames come from. The scan screen only sees this boundary, so a
@@ -14,15 +18,18 @@ export interface FrameSource {
   videoRef: (el: HTMLVideoElement | null) => void
   captureCamera: () => Promise<Blob>
   fromFile: (file: File) => Promise<Blob>
+  /** The whole frame, uncropped, for a Page scan to cut into cells. */
+  captureFrame: () => Promise<Blob>
+  frameFromFile: (file: File) => Promise<Blob>
 }
 
-async function toGuideJpeg(
+/** Crops a frame to `crop` and downsizes it so its long side is at most `limit`, as a JPEG. */
+async function toJpeg(
   image: CanvasImageSource,
-  width: number,
-  height: number
+  crop: Rect,
+  limit: number
 ): Promise<Blob> {
-  const crop = guideCrop(width, height)
-  const out = fitLongSide(crop.w, crop.h, UPLOAD_LONG_SIDE)
+  const out = fitLongSide(crop.w, crop.h, limit)
   const canvas = document.createElement("canvas")
   canvas.width = out.w
   canvas.height = out.h
@@ -36,6 +43,26 @@ async function toGuideJpeg(
       0.9
     )
   )
+}
+
+const wholeFrame = (width: number, height: number): Rect => ({
+  x: 0,
+  y: 0,
+  w: width,
+  h: height,
+})
+
+async function decodeFile(
+  file: File,
+  crop: (width: number, height: number) => Rect,
+  limit: number
+): Promise<Blob> {
+  const bitmap = await createImageBitmap(file)
+  try {
+    return await toJpeg(bitmap, crop(bitmap.width, bitmap.height), limit)
+  } finally {
+    bitmap.close()
+  }
 }
 
 /** The real source: the rear camera when there is one, and any picked photo file. */
@@ -78,6 +105,11 @@ export function useCameraFrameSource(): FrameSource {
     }
   }, [attach])
 
+  const videoFrame = (el: HTMLVideoElement | null) => {
+    if (!el || !el.videoWidth) throw new Error("The camera is not ready")
+    return el
+  }
+
   return {
     camera,
     videoRef: useCallback(
@@ -88,17 +120,22 @@ export function useCameraFrameSource(): FrameSource {
       [attach]
     ),
     captureCamera: async () => {
-      const el = video.current
-      if (!el || !el.videoWidth) throw new Error("The camera is not ready")
-      return toGuideJpeg(el, el.videoWidth, el.videoHeight)
+      const el = videoFrame(video.current)
+      return toJpeg(
+        el,
+        guideCrop(el.videoWidth, el.videoHeight),
+        UPLOAD_LONG_SIDE
+      )
     },
-    fromFile: async (file) => {
-      const bitmap = await createImageBitmap(file)
-      try {
-        return await toGuideJpeg(bitmap, bitmap.width, bitmap.height)
-      } finally {
-        bitmap.close()
-      }
+    captureFrame: async () => {
+      const el = videoFrame(video.current)
+      return toJpeg(
+        el,
+        wholeFrame(el.videoWidth, el.videoHeight),
+        FRAME_LONG_SIDE
+      )
     },
+    fromFile: (file) => decodeFile(file, guideCrop, UPLOAD_LONG_SIDE),
+    frameFromFile: (file) => decodeFile(file, wholeFrame, FRAME_LONG_SIDE),
   }
 }
