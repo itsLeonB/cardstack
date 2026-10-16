@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
@@ -222,7 +221,7 @@ func TestBinderWriteSlotJoinsOpenTransaction(t *testing.T) {
 
 	var collection entity.Collection
 	require.NoError(t, api.db.First(&collection, "id = ?", uuid.MustParse(id)).Error)
-	binders := provider.ProvideBinderService(&provider.DataSources{Gorm: api.db}, mapper.NewImageHost(""))
+	slots := provider.ProvideBinderSlotService(&provider.DataSources{Gorm: api.db})
 	write := dto.BinderSlotWrite{
 		ProfileID:    collection.ProfileID,
 		CollectionID: collection.ID,
@@ -234,7 +233,7 @@ func TestBinderWriteSlotJoinsOpenTransaction(t *testing.T) {
 
 	errCallerFailed := errors.New("the caller's own step failed")
 	err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
-		if err := binders.WriteSlot(ctx, write); err != nil {
+		if err := slots.WriteSlot(ctx, write); err != nil {
 			return err
 		}
 		return errCallerFailed
@@ -245,7 +244,7 @@ func TestBinderWriteSlotJoinsOpenTransaction(t *testing.T) {
 	assert.Zero(t, masterQuantity(t, api, owner, card))
 
 	err = transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
-		return binders.WriteSlot(ctx, write)
+		return slots.WriteSlot(ctx, write)
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, getPage(t, api, owner, id, 1).Data.CardTotal)

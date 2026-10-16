@@ -117,7 +117,7 @@ func TestBinderPlacementRefusals(t *testing.T) {
 
 	plain := newBinderCollection(t, api, owner)
 	resp := postPlacements(api, owner, plain, placementItem(cards[0], 1))
-	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 
 	id := newBinderCollection(t, api, owner)
 	createBinder(t, api, owner, id, 1, 1, 1)

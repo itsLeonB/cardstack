@@ -16,7 +16,7 @@ func ToBinderLayout(layout entity.CollectionLayout, leafCount int) dto.BinderLay
 		Rows:      layout.Rows,
 		Columns:   layout.Columns,
 		LeafCount: leafCount,
-		Capacity:  leafCount * 2 * layout.Rows * layout.Columns,
+		Capacity:  PageCount(leafCount) * layout.SlotsPerPage(),
 	}
 }
 
@@ -28,7 +28,7 @@ func ToBinderSlots(host ImageHost, layout entity.CollectionLayout, slots []entit
 		byPosition[[2]int{slot.Row, slot.Column}] = slot
 	}
 
-	grid := make([]dto.BinderSlot, 0, layout.Rows*layout.Columns)
+	grid := make([]dto.BinderSlot, 0, layout.SlotsPerPage())
 	for row := 1; row <= layout.Rows; row++ {
 		for column := 1; column <= layout.Columns; column++ {
 			out := dto.BinderSlot{Row: row, Column: column, State: dto.BinderSlotEmpty}
@@ -94,6 +94,11 @@ func LeafOf(page int) (int, string) {
 		return page / 2, dto.BinderSideBack
 	}
 	return (page + 1) / 2, dto.BinderSideFront
+}
+
+// PageCount is the number of Pages a binder with leafCount Leaves has.
+func PageCount(leafCount int) int {
+	return 2 * leafCount
 }
 
 // ToCardPositions groups the Slots holding a Card by that Card, each Slot as its

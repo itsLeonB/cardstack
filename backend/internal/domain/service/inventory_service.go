@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	cardNotFoundMsg         = "card not found"
 	entryNotFoundMsg        = "card is not in this collection"
 	entryExistsMsg          = "card is already in this collection"
 	capacityExceededMsg     = "collection capacity limit exceeded"
@@ -55,7 +54,7 @@ type inventoryService struct {
 	slots       repository.BinderSlotRepository
 	entries     repository.InventoryRepository
 	catalog     repository.CatalogRepository
-	cards       crud.Repository[entity.Card]
+	cards       CardLookup
 	images      mapper.ImageHost
 }
 
@@ -66,7 +65,7 @@ func NewInventoryService(
 	slots repository.BinderSlotRepository,
 	entries repository.InventoryRepository,
 	catalog repository.CatalogRepository,
-	cards crud.Repository[entity.Card],
+	cards CardLookup,
 	images mapper.ImageHost,
 ) InventoryService {
 	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, slots: slots, entries: entries, catalog: catalog, cards: cards, images: images}
@@ -201,18 +200,6 @@ func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uu
 	return entry, nil
 }
 
-// findCard returns the Card, or the zero value when absent. Guards a nil id
-// for the same reason as findEntry.
-func (s *inventoryService) findCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
-	if cardID == uuid.Nil {
-		return entity.Card{}, nil
-	}
-
-	return s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-		Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}},
-	})
-}
-
 // exceedsCapacity reports whether raising a Card from current to quantity
 // leaves the Collection's summed quantity (sum, before the change) above its
 // limit (0 = no limit). A decrease never exceeds, even when already over.
@@ -256,7 +243,7 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 			return err
 		}
 
-		card, err := s.findCard(ctx, req.CardID)
+		card, err := s.cards.FindCard(ctx, req.CardID)
 		if err != nil {
 			return err
 		}
@@ -405,7 +392,7 @@ func (s *inventoryService) applyChange(ctx context.Context, c entity.Collection,
 	}
 
 	if existing.IsZero() {
-		card, err := s.findCard(ctx, item.CardID)
+		card, err := s.cards.FindCard(ctx, item.CardID)
 		if err != nil {
 			return dto.InventoryChangeResult{}, 0, err
 		}

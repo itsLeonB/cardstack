@@ -101,17 +101,10 @@ type BinderSlotWrite struct {
 	CardID       uuid.UUID
 }
 
-// BinderSlotChange is one Slot's new state inside a BinderSlotsWrite. State and
-// CardID mean what they do on BinderSlotWrite.
+// BinderSlotChange is one Slot's new state inside a Page or placement write. State
+// is one of the BinderSlot constants, and CardID is read only when it is card.
 type BinderSlotChange struct {
 	Target BinderSlotTarget
 	State  string
 	CardID uuid.UUID
-}
-
-// BinderSlotsWrite applies Changes, in order, to one binder in one transaction.
-type BinderSlotsWrite struct {
-	ProfileID    uuid.UUID
-	CollectionID uuid.UUID
-	Changes      []BinderSlotChange
 }

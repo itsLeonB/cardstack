@@ -12,11 +12,11 @@ import (
 )
 
 type BinderPlacementHandler struct {
-	placementSvc service.BinderPlacementService
+	slotSvc service.BinderSlotService
 }
 
-func NewBinderPlacementHandler(placementSvc service.BinderPlacementService) *BinderPlacementHandler {
-	return &BinderPlacementHandler{placementSvc: placementSvc}
+func NewBinderPlacementHandler(slotSvc service.BinderSlotService) *BinderPlacementHandler {
+	return &BinderPlacementHandler{slotSvc: slotSvc}
 }
 
 type placeCardsItem struct {
@@ -40,7 +40,7 @@ func (h *BinderPlacementHandler) placeCards(ctx context.Context, in placeCardsIn
 	items := ezutil.MapSlice(in.Body.Items, func(it placeCardsItem) dto.BinderPlacementItem {
 		return dto.BinderPlacementItem{CardID: it.CardID, Quantity: it.Quantity}
 	})
-	return h.placementSvc.PlaceCards(ctx, dto.BinderPlacementRequest{
+	return h.slotSvc.PlaceCards(ctx, dto.BinderPlacementRequest{
 		ProfileID:    profileID,
 		CollectionID: in.CollectionID,
 		Items:        items,

@@ -56,7 +56,10 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 
 	api := humagin.New(r, httpapi.NewServerConfig(configs.Env))
 	httpapi.UseRecovery(api)
-	routes.RegisterRoutes(api, providers.Services, ratelimit.NewLimits(configs.RateLimit, time.Now), adminEmails(configs))
+	if err := routes.RegisterRoutes(api, providers.Services, ratelimit.NewLimits(configs.RateLimit, time.Now), adminEmails(configs)); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
 
 	httpCfg := httpserver.ProductionConfig()
 	httpCfg.LoggerConfig = &httpserver.LoggerConfig{

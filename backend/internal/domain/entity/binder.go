@@ -16,6 +16,17 @@ type CollectionLayout struct {
 
 func (CollectionLayout) TableName() string { return "collection_layouts" }
 
+// MaxBinderGridSide is the most rows or columns a Page can have. Layouts are
+// validated against it, and a Replace Page body caps its Slot list at
+// MaxBinderSlotsPerPage.
+const MaxBinderGridSide = 6
+
+// MaxBinderSlotsPerPage is the Slot count of the largest Page.
+const MaxBinderSlotsPerPage = MaxBinderGridSide * MaxBinderGridSide
+
+// SlotsPerPage is the Slot count of one Page of this Layout.
+func (l CollectionLayout) SlotsPerPage() int { return l.Rows * l.Columns }
+
 // BinderLeaf is one physical sheet of a binder. Position is its number in turning
 // order (from 1), so the Pages after it are the ones numbered higher.
 type BinderLeaf struct {

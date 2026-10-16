@@ -47,7 +47,7 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewInventoryService(transactor, f.collections, f.layouts, f.slots, f.entries, f.catalog, f.cards, testImages)
+	f.svc = NewInventoryService(transactor, f.collections, f.layouts, f.slots, f.entries, f.catalog, NewCardLookup(f.cards), testImages)
 	return f
 }
 

@@ -30,6 +30,17 @@ type BinderSlotRepository interface {
 	// ListAllOccupiedSlots returns every occupied Slot of one Collection, Unidentified
 	// ones included, with their Leaves loaded so each Slot's Page can be computed.
 	ListAllOccupiedSlots(ctx context.Context, collectionID uuid.UUID) ([]entity.BinderSlot, error)
+	// ListSlotsAt returns the occupied Slots among addresses, so a write loads the
+	// Slots it touches and no others. An empty address has no row and is absent.
+	ListSlotsAt(ctx context.Context, collectionID uuid.UUID, addresses []BinderSlotAddress) ([]entity.BinderSlot, error)
+}
+
+// BinderSlotAddress is where a Slot sits: its Leaf, face, row and column.
+type BinderSlotAddress struct {
+	LeafID uuid.UUID
+	Side   string
+	Row    int
+	Column int
 }
 
 type binderSlotRepository struct {
@@ -150,4 +161,32 @@ func (r *binderSlotRepository) ListAllOccupiedSlots(ctx context.Context, collect
 		Model:            entity.BinderSlot{CollectionID: collectionID},
 		PreloadRelations: []string{"Leaf"},
 	})
+}
+
+func (r *binderSlotRepository) ListSlotsAt(ctx context.Context, collectionID uuid.UUID, addresses []BinderSlotAddress) ([]entity.BinderSlot, error) {
+	if collectionID == uuid.Nil || len(addresses) == 0 {
+		return nil, nil
+	}
+
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// go-crud has no tuple match, so the address is matched with a row-value IN.
+	keys := make([][]any, 0, len(addresses))
+	for _, address := range addresses {
+		keys = append(keys, []any{address.LeafID, address.Side, address.Row, address.Column})
+	}
+
+	var slots []entity.BinderSlot
+	err = db.Where("collection_id = ?", collectionID).
+		Where("(leaf_id, side, slot_row, slot_column) IN ?", keys).
+		Find(&slots).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "listing Slots at addresses")
+	}
+
+	return slots, nil
 }

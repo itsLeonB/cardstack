@@ -139,6 +139,33 @@ func TestBinderSlotRepository_ListOccupiedSlots(t *testing.T) {
 	assert.Len(t, slots, 1, "Slots of another Collection are not listed")
 }
 
+func TestBinderSlotRepository_ListSlotsAt(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](db))
+	fixture := newCatalogFixture(t, db)
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	card := fixture.newCard(t, db, set.ID, nil)
+
+	binder, leaf := newBinderWithLeaf(t, db, "List Slots At Test")
+	placeSlotRow(t, db, binder, leaf, 1, 1, &card.ID, false)
+	placeSlotRow(t, db, binder, leaf, 1, 2, &card.ID, false)
+	placeSlotRow(t, db, binder, leaf, 2, 1, nil, true)
+
+	slots, err := repo.ListSlotsAt(ctx, binder.ID, []BinderSlotAddress{
+		{LeafID: leaf.ID, Side: "front", Row: 1, Column: 1},
+		{LeafID: leaf.ID, Side: "front", Row: 2, Column: 1},
+		{LeafID: leaf.ID, Side: "front", Row: 2, Column: 2},
+	})
+	require.NoError(t, err)
+	require.Len(t, slots, 2, "only the addressed occupied Slots come back; the empty address has no row")
+	positions := make([][2]int, 0, len(slots))
+	for _, slot := range slots {
+		positions = append(positions, [2]int{slot.Row, slot.Column})
+	}
+	assert.ElementsMatch(t, [][2]int{{1, 1}, {2, 1}}, positions, "the unaddressed Slot (1,2) is not loaded")
+}
+
 func TestBinderSlotRepository_ListAllOccupiedSlots(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()

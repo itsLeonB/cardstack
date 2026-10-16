@@ -12,10 +12,11 @@ import (
 
 type BinderHandler struct {
 	binderSvc service.BinderService
+	slotSvc   service.BinderSlotService
 }
 
-func NewBinderHandler(binderSvc service.BinderService) *BinderHandler {
-	return &BinderHandler{binderSvc: binderSvc}
+func NewBinderHandler(binderSvc service.BinderService, slotSvc service.BinderSlotService) *BinderHandler {
+	return &BinderHandler{binderSvc: binderSvc, slotSvc: slotSvc}
 }
 
 type BinderGridBody struct {
@@ -175,7 +176,7 @@ func (h *BinderHandler) writeSlot(ctx context.Context, collectionID uuid.UUID, t
 		State:        state,
 		CardID:       cardID,
 	}
-	if err := h.binderSvc.WriteSlot(ctx, write); err != nil {
+	if err := h.slotSvc.WriteSlot(ctx, write); err != nil {
 		return dto.BinderPage{}, err
 	}
 

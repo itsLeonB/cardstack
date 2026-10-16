@@ -28,8 +28,9 @@ packages:
       UserRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
-      BinderPlacementService:
       BinderService:
+      BinderSlotService:
+      CardLookup:
       CatalogService:
       CollectionService:
       InventoryService:
