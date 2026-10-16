@@ -1,0 +1,37 @@
+frontend/src/components/collections/binder-move-banner.tsx
+  s_e65a643634957d::t_d5cab6b6be242c 1,21-33,35-38,40,45,57
+frontend/src/components/collections/binder-move.test.tsx
+  s_e65a643634957d::t_bd0981d4c27d9a 64,72,161,165-266,287
+frontend/src/components/collections/binder-page-grid.tsx
+  s_e65a643634957d::t_fd5f147ae69a92 10,15-16,34,45,50,56-57
+frontend/src/components/collections/binder-view.tsx
+  s_e65a643634957d::t_c49f361e806f61 37,40,42-43,71-75,97,101-113,149-156,169,196,261,263,268,284-286,321-322,412,414-418,420,425
+frontend/src/components/collections/card-positions.tsx
+  s_e65a643634957d::t_37e860ffcfcfac 3,13-14,20,25-26
+frontend/src/components/collections/collection-entries.test.tsx
+  s_e65a643634957d::t_d9470acc2adbc0 135,145,239-241,244
+frontend/src/components/collections/collection-entries.tsx
+  s_e65a643634957d::t_c4e0fe5a562001 27-28,125-128,130
+frontend/src/routes/_authenticated/collections/$collectionId/-collection-page.test.tsx
+  s_e65a643634957d::t_84dadcc16b118e 3,58,125,129-150,152-177,180,182-240,274-278,295
+frontend/src/routes/_authenticated/collections/$collectionId/index.tsx
+  s_e65a643634957d::t_964719d89d1ef5 1,55,98-105
+frontend/src/test-binder-api.ts
+  s_e65a643634957d::t_6de78f36ae647f 3,48-49,186-201,232-234,249,269,281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1b09cd5e8005e7eb603179e61911d2fd3d396c16",
+  "prompts": {},
+  "sessions": {
+    "s_e65a643634957d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e65a643634957d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
