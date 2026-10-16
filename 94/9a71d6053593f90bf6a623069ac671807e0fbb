@@ -1,0 +1,29 @@
+frontend/e2e/page-scan.spec.ts
+  s_c8ce55eef62a58::t_7fa8d056cb1d9e 1-238
+frontend/src/components/collections/binder-view.tsx
+  s_c8ce55eef62a58::t_666f5c7575dc9c 212-216
+frontend/src/components/scan/page-review.tsx
+  s_c8ce55eef62a58::t_6311cf648c063d 7-12,16,19,23-24,27,42,45,56,59,63,66,74,112-125
+frontend/src/components/scan/page-scan.test.tsx
+  s_c8ce55eef62a58::t_444c4436e63abb 10,16,18,47-49,51-52,56-72,78-85,136-137,139-141,143-151,174-181,185-186,298-406
+frontend/src/components/scan/page-scan.tsx
+  s_c8ce55eef62a58::t_81da61c2f17392 2-12,16-23,28-34,45-46,63,74-77,79-80,83-98,115,124-167,175,185-200,208,210-211,213-226,301-328
+frontend/src/lib/use-page-scan.ts
+  s_c8ce55eef62a58::t_f33c0d1138cb38 3-7,32-33,105-107,111-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "949a71d6053593f90bf6a623069ac671807e0fbb",
+  "prompts": {},
+  "sessions": {
+    "s_c8ce55eef62a58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c8ce55eef62a58",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
