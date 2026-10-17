@@ -21,6 +21,13 @@ import (
 
 // seedGame gives the test its own Game, so the Expansion Sets it sees are only
 // the ones it seeds, whatever else the shared database holds.
+// noCardLists answers the card list requests of the set tests: an empty page
+// makes the card phase record a failure for each set, and write nothing.
+func noCardLists(pages *mocks.MockPageSource) {
+	notSetsPage := mock.MatchedBy(func(pageURL string) bool { return pageURL != setsPageURL })
+	pages.EXPECT().Fetch(mock.Anything, notSetsPage).Return([]byte{}, nil).Maybe()
+}
+
 func seedGame(t *testing.T, db *gorm.DB) entity.Game {
 	t.Helper()
 
@@ -130,6 +137,7 @@ func TestIngester_Run_ClassifiesSetsAndWritesNothing(t *testing.T) {
 	seedCard(t, db, game.ID, unpublished.ID, "002", "hosted.webp")
 
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil)
 
 	in := NewIngester(db, pages)
@@ -173,6 +181,7 @@ func TestIngester_Run_SetFilterSelectsByEitherCode(t *testing.T) {
 	seedSet(t, db, game.ID, locale.ID, "SM-P")
 
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil)
 
 	in := NewIngester(db, pages)
@@ -191,6 +200,7 @@ func TestIngester_Run_UnseenGameListsEverySetAsNew(t *testing.T) {
 	db := testDB(t)
 
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil)
 
 	in := NewIngester(db, pages)
@@ -248,6 +258,7 @@ func TestIngester_Apply_CreatesMissingSetsUnpublished(t *testing.T) {
 	}
 
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil)
 
 	in := NewIngester(db, pages)
@@ -301,6 +312,7 @@ func TestIngester_Apply_FillsEmptyLogosWithoutTouchingTheRow(t *testing.T) {
 	before := setsByCode(t, db, game.ID)
 
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(
 		pageSet{code: "SM-P", logo: "https://static.example/sm-p.webp"},
 		pageSet{code: "AS4D", logo: "https://static.example/as4d.webp"},
@@ -333,6 +345,7 @@ func TestIngester_Apply_RerunChangesNothing(t *testing.T) {
 
 	game := seedGame(t, db)
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil).Times(2)
 
 	in := NewIngester(db, pages)
@@ -364,6 +377,7 @@ func TestIngester_Apply_SetCodeCreatesOnlyThatSet(t *testing.T) {
 
 	game := seedGame(t, db)
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil)
 
 	in := NewIngester(db, pages)
@@ -382,6 +396,7 @@ func TestIngester_Apply_NeedsTheGame(t *testing.T) {
 	db := testDB(t)
 
 	pages := mocks.NewMockPageSource(t)
+	noCardLists(pages)
 	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(fixturePage(t), nil)
 
 	in := NewIngester(db, pages)
@@ -429,10 +444,10 @@ func setsPage(sets ...pageSet) []byte {
 	for i, set := range sets {
 		fmt.Fprintf(&b,
 			`<div class="set-logo-grid-item" data-set-id="%d"><span class="set-logo-grid-item-code">%s</span>`+
-				`<a class="set-logo-grid-item-name">seeded %s</a>`+
+				`<a class="set-logo-grid-item-name" href="/sets/%d/seeded?setCardCountMode=anyCardVariant">seeded %s</a>`+
 				`<div class="set-logo-grid-item-release-date">Sep 16, 2026</div>`+
 				`<div class="progress-label">0/10</div>`,
-			i+1, set.code, set.code)
+			i+1, set.code, i+1, set.code)
 		if set.logo != "" {
 			fmt.Fprintf(&b, `<img class="set-logo-grid-item-logo" srcset="%s 272w">`, set.logo)
 		}

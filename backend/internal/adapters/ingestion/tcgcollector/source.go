@@ -26,13 +26,25 @@ func NewDirSource(dir string) PageSource {
 	return dirSource{dir: dir}
 }
 
-func (s dirSource) Fetch(_ context.Context, pageURL string) ([]byte, error) {
+// pageFileName names a page's file the way a saved-pages directory holds it:
+// the URL path with slashes as dashes, so https://www.tcgcollector.com/sets/id
+// is sets-id.html. The page cache uses the same names, so its files also work
+// as a -dir.
+func pageFileName(pageURL string) (string, error) {
 	parsed, err := url.Parse(pageURL)
 	if err != nil {
-		return nil, ungerr.Wrapf(err, "parsing page URL %s", pageURL)
+		return "", ungerr.Wrapf(err, "parsing page URL %s", pageURL)
 	}
 
-	name := strings.ReplaceAll(strings.Trim(parsed.Path, "/"), "/", "-") + ".html"
+	return strings.ReplaceAll(strings.Trim(parsed.Path, "/"), "/", "-") + ".html", nil
+}
+
+func (s dirSource) Fetch(_ context.Context, pageURL string) ([]byte, error) {
+	name, err := pageFileName(pageURL)
+	if err != nil {
+		return nil, err
+	}
+
 	page, err := os.ReadFile(filepath.Join(s.dir, name))
 	if err != nil {
 		return nil, ungerr.Wrapf(err, "reading saved page %s", name)

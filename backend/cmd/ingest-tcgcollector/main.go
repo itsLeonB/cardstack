@@ -1,11 +1,13 @@
 // Command ingest-tcgcollector compares TCG Collector's Indonesian sets list
 // with the catalog and prints what is missing. It is a dry run unless -apply
-// is set: then it creates the missing sets unpublished and fills empty set
-// logos, and writes nothing else. It prints its report to stdout, logs go to
+// is set: then it creates the missing sets unpublished, adds the missing Cards
+// to the listed sets, and fills empty set logos; nothing else is written. It
+// prints its report to stdout, logs go to
 // stderr. Manually triggered only. Without -dir it starts a visible Chrome
 // itself and fetches through it, so solve TCG Collector's challenge in that
-// window once; later runs reuse the profile. With -dir it reads pages saved by
-// hand instead (`make ingest-tcgcollector ARGS="-dir ./saved"`).
+// window once; later runs reuse the profile and read fetched pages from the
+// page cache. With -dir it reads pages saved by hand instead
+// (`make ingest-tcgcollector ARGS="-dir ./saved"`).
 package main
 
 import (
@@ -25,14 +27,11 @@ func main() {
 	dir := flag.String("dir", "", "directory of saved TCG Collector pages; the sets page is sets-id.html in it")
 	set := flag.String("set", "", "limit the report to one set by its code (e.g. \"SMP\" or \"SM-P\")")
 	apply := flag.Bool("apply", false, "create the missing sets unpublished and fill empty set logos; without it the command only reports")
-	refresh := flag.Bool("refresh", false, "refetch cached pages; accepted but has no effect until the page cache lands")
+	refresh := flag.Bool("refresh", false, "refetch the pages this run reads instead of using the page cache; with -set, only that set's pages and the sets page")
 	flag.Parse()
 
 	logger.Init("IngestTCGCollector")
 
-	if *refresh {
-		logger.Warn("-refresh has no effect yet: there is no page cache")
-	}
 	if err := config.Load(); err != nil {
 		logger.Fatal(err)
 	}
@@ -47,7 +46,7 @@ func main() {
 	defer closePages()
 
 	ingester := tcgcollector.NewIngester(providers.Gorm, pages)
-	report, err := ingester.Run(context.Background(), tcgcollector.Options{SetCode: *set, Apply: *apply})
+	report, err := ingester.Run(context.Background(), tcgcollector.Options{SetCode: *set, Apply: *apply, Refresh: *refresh})
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -58,7 +57,8 @@ func main() {
 }
 
 // newPageSource reads saved pages from dir when it is set. Otherwise it opens
-// the operator's visible Chrome, whose profile lives in the user cache dir.
+// the operator's visible Chrome, whose profile lives in the user cache dir, and
+// keeps every page it fetches in the page cache beside it.
 func newPageSource(dir string) (tcgcollector.PageSource, func()) {
 	if dir != "" {
 		return tcgcollector.NewDirSource(dir), func() {}
@@ -69,5 +69,7 @@ func newPageSource(dir string) (tcgcollector.PageSource, func()) {
 		logger.Fatal(err)
 	}
 
-	return tcgcollector.NewBrowserSource(filepath.Join(cacheDir, "cardstack", "tcgcollector-chrome"))
+	browser, closeBrowser := tcgcollector.NewBrowserSource(filepath.Join(cacheDir, "cardstack", "tcgcollector-chrome"))
+	cache := tcgcollector.NewCacheSource(filepath.Join(cacheDir, "cardstack", "tcgcollector-pages"), browser)
+	return cache, closeBrowser
 }

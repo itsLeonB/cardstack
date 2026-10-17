@@ -72,7 +72,7 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
-		crud.NewRepository[entity.Card](ds.Gorm),
+		catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm)),
 		images,
 	)
 }

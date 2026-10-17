@@ -17,6 +17,9 @@ type CardRepository interface {
 	// hosted image for each Expansion Set of the Game that has Cards. A set
 	// with no Cards is absent from the map.
 	CountsByExpansionSet(ctx context.Context, gameID uuid.UUID) (map[uuid.UUID]CardCounts, error)
+	// Exists reports whether a Card with the ID exists. It counts rows instead
+	// of loading one, so the Card's raw HTML is never read.
+	Exists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 // CardCounts is one Expansion Set's Card totals.
@@ -62,4 +65,15 @@ func (r *cardRepository) CountsByExpansionSet(ctx context.Context, gameID uuid.U
 	}
 
 	return counts, nil
+}
+
+func (r *cardRepository) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	var count int64
+	err = db.Model(&entity.Card{}).Where("id = ?", id).Count(&count).Error
+	return count > 0, err
 }
