@@ -47,3 +47,32 @@ func TestExpansionSetRepository_ListMissingCovers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, none)
 }
+
+// Insert would write the column default (published = true) for a zero
+// Published, so InsertUnpublished must write the false explicitly.
+func TestExpansionSetRepository_InsertUnpublished_StoresPublishedFalse(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewExpansionSetRepository(crud.NewRepository[entity.ExpansionSet](db))
+	gameID := insertTestGame(t, db)
+	localeID := insertTestLocale(t, db)
+
+	set, err := repo.InsertUnpublished(ctx, entity.ExpansionSet{
+		GameID:    gameID,
+		Code:      uuid.NewString(),
+		Name:      "Unpublished",
+		LocaleID:  localeID,
+		CreatedBy: entity.SourceTCGCollector,
+		UpdatedBy: entity.SourceTCGCollector,
+	})
+	require.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, set.ID)
+	assert.False(t, set.Published)
+
+	stored, err := repo.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{
+		Model: entity.ExpansionSet{BaseEntity: crud.BaseEntity{ID: set.ID}},
+	})
+	require.NoError(t, err)
+	assert.False(t, stored.Published)
+	assert.Equal(t, entity.SourceTCGCollector, stored.CreatedBy)
+}

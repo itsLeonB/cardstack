@@ -460,6 +460,63 @@ func (_c *MockExpansionSetRepository_InsertMany_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// InsertUnpublished provides a mock function with given fields: ctx, set
+func (_m *MockExpansionSetRepository) InsertUnpublished(ctx context.Context, set entity.ExpansionSet) (entity.ExpansionSet, error) {
+	ret := _m.Called(ctx, set)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertUnpublished")
+	}
+
+	var r0 entity.ExpansionSet
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, entity.ExpansionSet) (entity.ExpansionSet, error)); ok {
+		return rf(ctx, set)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, entity.ExpansionSet) entity.ExpansionSet); ok {
+		r0 = rf(ctx, set)
+	} else {
+		r0 = ret.Get(0).(entity.ExpansionSet)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, entity.ExpansionSet) error); ok {
+		r1 = rf(ctx, set)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockExpansionSetRepository_InsertUnpublished_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertUnpublished'
+type MockExpansionSetRepository_InsertUnpublished_Call struct {
+	*mock.Call
+}
+
+// InsertUnpublished is a helper method to define mock.On call
+//   - ctx context.Context
+//   - set entity.ExpansionSet
+func (_e *MockExpansionSetRepository_Expecter) InsertUnpublished(ctx interface{}, set interface{}) *MockExpansionSetRepository_InsertUnpublished_Call {
+	return &MockExpansionSetRepository_InsertUnpublished_Call{Call: _e.mock.On("InsertUnpublished", ctx, set)}
+}
+
+func (_c *MockExpansionSetRepository_InsertUnpublished_Call) Run(run func(ctx context.Context, set entity.ExpansionSet)) *MockExpansionSetRepository_InsertUnpublished_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(entity.ExpansionSet))
+	})
+	return _c
+}
+
+func (_c *MockExpansionSetRepository_InsertUnpublished_Call) Return(_a0 entity.ExpansionSet, _a1 error) *MockExpansionSetRepository_InsertUnpublished_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockExpansionSetRepository_InsertUnpublished_Call) RunAndReturn(run func(context.Context, entity.ExpansionSet) (entity.ExpansionSet, error)) *MockExpansionSetRepository_InsertUnpublished_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListMissingCovers provides a mock function with given fields: ctx, code
 func (_m *MockExpansionSetRepository) ListMissingCovers(ctx context.Context, code string) ([]entity.ExpansionSet, error) {
 	ret := _m.Called(ctx, code)

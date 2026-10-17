@@ -78,7 +78,7 @@ func (r *collectionRepository) SumQuantities(ctx context.Context, collectionIDs 
 	}
 	err = db.Model(&entity.InventoryEntry{}).
 		Select("collection_id, SUM(quantity) AS total").
-		Where("collection_id IN ?", collectionIDs).
+		Where("collection_id IN ? AND card_id IN (?)", collectionIDs, visibleCardIDs(db)).
 		Group("collection_id").
 		Scan(&rows).
 		Error

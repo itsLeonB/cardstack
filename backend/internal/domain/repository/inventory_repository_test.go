@@ -107,3 +107,29 @@ func TestInventoryRepository_ListHoldings(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got)
 }
+
+// TestInventoryRepository_SumQuantity_ExcludesCardsOfUnpublishedSets: the sum
+// counts only what a user can see, the same as the Cards the capacity check
+// is about.
+func TestInventoryRepository_SumQuantity_ExcludesCardsOfUnpublishedSets(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](db))
+	fixture := newCatalogFixture(t, db)
+	visible := fixture.newCard(t, db, fixture.newExpansionSet(t, db, nil, nil).ID, nil)
+	hiddenSet := fixture.newExpansionSet(t, db, nil, nil)
+	hidden := fixture.newCard(t, db, hiddenSet.ID, func(c *entity.Card) { c.LocalID = "002" })
+	hideSet(t, db, hiddenSet)
+
+	col := newTestCollection(t, db)
+	for _, e := range []entity.InventoryEntry{
+		{CollectionID: col.ID, CardID: visible.ID, Quantity: 2},
+		{CollectionID: col.ID, CardID: hidden.ID, Quantity: 3},
+	} {
+		require.NoError(t, db.Create(&e).Error)
+	}
+
+	sum, err := repo.SumQuantity(ctx, col.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, sum)
+}

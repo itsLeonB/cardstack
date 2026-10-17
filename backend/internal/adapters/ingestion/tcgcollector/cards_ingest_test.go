@@ -260,3 +260,109 @@ func TestIngester_Apply_FailsOnlyTheCardWhoseRarityIsUnknown(t *testing.T) {
 	set := setsByCode(t, db, game.ID)["SM-P"]
 	assert.Len(t, cardsOfSet(t, db, set.ID), 2, "the failed card is not inserted, and no rarity is created")
 }
+
+// seedTCGCollectorSet inserts an unpublished set that TCG Collector created,
+// as a run that stopped partway would leave it.
+func seedTCGCollectorSet(t *testing.T, db *gorm.DB, gameID, localeID uuid.UUID, code string) entity.ExpansionSet {
+	t.Helper()
+
+	set, err := crud.NewRepository[entity.ExpansionSet](db).Insert(context.Background(), entity.ExpansionSet{
+		CreatedBy: entity.SourceTCGCollector,
+		UpdatedBy: entity.SourceTCGCollector,
+		GameID:    gameID,
+		Code:      code,
+		Name:      "seeded " + code,
+		LocaleID:  localeID,
+	})
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&set).Update("published", false).Error)
+	set.Published = false
+	return set
+}
+
+func TestIngester_Apply_RerunAddsTheBasicEnergyAndVictorySymbolOfASetItCreated(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedTCGCollectorSet(t, db, game.ID, locale.ID, "SM-P")
+	// The first run wrote Oddish and then stopped, so the set is only partly filled.
+	seedCard(t, db, game.ID, set.ID, "001", "")
+
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-shiny-treasure.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, basicFireURL).Return(fixtureBytes(t, "card-energy-basic-fire.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, victoryURL).Return(fixtureBytes(t, "card-trainer-caitlin.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.Equal(t, []string{"191 Basic Fire Energy", "192 Victory Symbol"}, cards.Added,
+		"a set TCG Collector created is new to the run, so its Basic Energy and Victory Symbol are not skipped")
+	assert.Empty(t, cards.Skipped)
+	assert.Equal(t, 1, cards.Held)
+	assert.Len(t, cardsOfSet(t, db, set.ID), 3)
+}
+
+func TestIngester_Apply_BasicEnergyWhoseNumberIsHeldIsSkippedNotHeld(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedSet(t, db, game.ID, locale.ID, "SM-P")
+	seedCard(t, db, game.ID, set.ID, "1", "")
+	seedCard(t, db, game.ID, set.ID, "191", "")
+	seedCard(t, db, game.ID, set.ID, "SM-P", "")
+
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-shiny-treasure.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.Equal(t, 1, cards.Held, "only Oddish's 1 is held; the 191 is a skip, not a hold")
+	assert.Equal(t, []string{
+		"Basic Fire Energy: basic energy in a set that exists",
+		"Victory Symbol: the set already has a card with ID SM-P",
+	}, cards.Skipped)
+}
+
+// A byte that is not UTF-8 is one Postgres refuses in text, so Victory Symbol's
+// insert fails after the set's other Cards are written in the same transaction.
+// That rolls back the set and its Cards, and the other set is still written.
+func TestIngester_Apply_RollsBackASetWhoseCardInsertFails(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+
+	brokenList := bytes.ReplaceAll(fixtureBytes(t, "card-list-shiny-treasure.html"), []byte("Victory Symbol"), []byte("Victory\xffSymbol"))
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}, pageSet{code: "PGO"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, "https://www.tcgcollector.com/sets/1/seeded").Return(brokenList, nil)
+	pages.EXPECT().Fetch(mock.Anything, "https://www.tcgcollector.com/sets/2/seeded").Return(fixtureBytes(t, "card-list-shiny-treasure.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, oddishURL).Return(fixtureBytes(t, "card-pokemon-mega-venusaur.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, basicFireURL).Return(fixtureBytes(t, "card-energy-basic-fire.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, victoryURL).Return(fixtureBytes(t, "card-trainer-caitlin.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	require.Len(t, report.Failed, 1)
+	assert.Contains(t, report.Failed[0], "SM-P:")
+	assert.Empty(t, report.Cards[0].Added, "the failed set reports none of its Cards as written")
+
+	sets := setsByCode(t, db, game.ID)
+	assert.NotContains(t, sets, "SM-P", "the set goes back with the Cards it wrote")
+	require.Contains(t, sets, "PGO")
+	assert.Len(t, cardsOfSet(t, db, sets["PGO"].ID), 3)
+}

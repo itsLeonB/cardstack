@@ -225,6 +225,36 @@ func TestReport_Render_WritesPublishLine(t *testing.T) {
 	assert.True(t, strings.Contains(out.String(), "UPDATE expansion_sets SET published = true WHERE code = 'SV-P';"), out.String())
 }
 
+// The code is scraped, so a quote in it must not end the SQL string early.
+func TestReport_Render_EscapesQuotesInThePublishLine(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	err := Report{
+		Unpublished: []UnpublishedSet{{Code: "O'X"}},
+	}.Render(&out)
+	require.NoError(t, err)
+
+	assert.Contains(t, out.String(), "UPDATE expansion_sets SET published = true WHERE code = 'O''X';")
+}
+
+// Failures is what the command's exit status reads: a set that did not write
+// and a card that failed both count, and a set's skips and holds do not.
+func TestReport_Failures_CountsFailedSetsAndCards(t *testing.T) {
+	t.Parallel()
+
+	sets, cards := Report{
+		Failed: []string{"SM-P: database is down"},
+		Cards: []SetCards{
+			{Code: "SM-P", Failed: []string{"001 Oddish: rarity X is not in rarities"}, Skipped: []string{"Basic Fire Energy: basic energy in a set that exists"}, Held: 2},
+			{Code: "PGO", Failed: []string{"a", "b"}},
+		},
+	}.Failures()
+
+	assert.Equal(t, 1, sets)
+	assert.Equal(t, 3, cards)
+}
+
 func TestReport_Render_MarksCreatedSetsAndFailures(t *testing.T) {
 	t.Parallel()
 

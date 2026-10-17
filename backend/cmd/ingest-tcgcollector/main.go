@@ -30,7 +30,13 @@ func main() {
 	refresh := flag.Bool("refresh", false, "refetch the pages this run reads instead of using the page cache; with -set, only that set's pages and the sets page")
 	flag.Parse()
 
+	// The report is the command's output, so the logs go to stderr. The shared
+	// logger takes os.Stdout when it is initialised, so it is initialised while
+	// stdout points at stderr.
+	stdout := os.Stdout
+	os.Stdout = os.Stderr
 	logger.Init("IngestTCGCollector")
+	os.Stdout = stdout
 
 	if err := config.Load(); err != nil {
 		logger.Fatal(err)
@@ -51,8 +57,12 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	if err := report.Render(os.Stdout); err != nil {
+	if err := report.Render(stdout); err != nil {
 		logger.Fatal(err)
+	}
+
+	if sets, cards := report.Failures(); sets+cards > 0 {
+		logger.Fatalf("%d sets failed to write and %d cards failed: see the report", sets, cards)
 	}
 }
 

@@ -61,7 +61,7 @@ type client struct {
 	imageScheme string
 	imageClient *http.Client
 
-	// logoClient is imageClient for set logos, which come from logoHost (images.go).
+	// logoClient is imageClient for TCG Collector's CDN, which serves set logos and card images (images.go).
 	logoClient *http.Client
 }
 

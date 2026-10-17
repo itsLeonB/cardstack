@@ -165,17 +165,10 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 		logger.Infof("[%d/%d] %s new", i+1, len(listings), listing.Code)
 	}
 
-	var created map[string]bool
-	if opts.Apply {
-		created, report.Failed, err = in.apply(ctx, game.ID, listings, existing)
-		if err != nil {
-			return Report{}, err
-		}
-	}
-
 	if !game.IsZero() {
 		// Cards go in before the unpublished counts, which must include them.
-		report.Cards, err = in.cardReports(ctx, opts, game.ID, listings, created)
+		var created map[string]bool
+		report.Cards, created, report.Failed, err = in.writeSets(ctx, opts, game.ID, listings, existing)
 		if err != nil {
 			return Report{}, err
 		}
@@ -208,40 +201,52 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 	return report, nil
 }
 
-// apply creates each listed set the catalog lacks, unpublished, and fills the
-// logo of each matched set that has none. One failed set is logged and
-// collected while the others are still written, so the error is only for a
-// failure that stops every set.
-func (in *Ingester) apply(
-	ctx context.Context, gameID uuid.UUID, listings []SetListing, existing map[string]entity.ExpansionSet,
-) (map[string]bool, []string, error) {
-	locale, err := in.upsertLocale(ctx)
+// writeSets works through the listed sets in order. A dry run only reads each
+// set's Cards. With Apply, a missing set is created unpublished with its Cards
+// in one transaction, an existing set gets its new Cards the same way, and an
+// empty logo is filled. One failed set is logged and collected while the others
+// are still written, so the error is only for a failure that stops every set.
+func (in *Ingester) writeSets(
+	ctx context.Context, opts Options, gameID uuid.UUID, listings []SetListing, existing map[string]entity.ExpansionSet,
+) ([]SetCards, map[string]bool, []string, error) {
+	rarities, err := in.loadRarities(ctx, gameID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+
+	run := setRun{apply: opts.Apply, gameID: gameID, rarities: rarities, seriesIDs: map[string]*uuid.UUID{}}
+	if opts.Apply {
+		locale, err := in.upsertLocale(ctx)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		run.localeID = locale.ID
 	}
 
 	created := map[string]bool{}
+	var reports []SetCards
 	var failed []string
 	logos := 0
-	seriesIDs := map[string]*uuid.UUID{}
 	for i, listing := range listings {
 		progress := fmt.Sprintf("[%d/%d]", i+1, len(listings))
 		set, matched := existing[listing.Code]
 
-		if !matched {
-			if err := in.createSet(ctx, gameID, locale.ID, seriesIDs, listing); err != nil {
-				failure := fmt.Sprintf("%s: %v", listing.Code, err)
-				logger.Errorf("%s failed %s", progress, failure)
-				failed = append(failed, failure)
-				continue
-			}
+		result, err := in.setCards(ctx, run, listing, set, matched)
+		if err != nil {
+			failure := fmt.Sprintf("%s: %v", listing.Code, err)
+			logger.Errorf("%s failed %s", progress, failure)
+			failed = append(failed, failure)
+		} else if opts.Apply && !matched {
 			created[listing.Code] = true
 			logger.Infof("%s created %s", progress, listing.Code)
-			continue
 		}
+		logger.Infof(
+			"%s %s cards: %d to add, %d skipped, %d failed",
+			progress, listing.Code, len(result.Added), len(result.Skipped), len(result.Failed),
+		)
+		reports = append(reports, result)
 
-		if set.SourceLogoURL != "" || listing.LogoURL == "" {
-			logger.Infof("%s %s up to date", progress, listing.Code)
+		if !opts.Apply || !matched || set.SourceLogoURL != "" || listing.LogoURL == "" {
 			continue
 		}
 		if err := in.sets.FillSourceLogoURL(ctx, set.ID, listing.LogoURL); err != nil {
@@ -254,43 +259,33 @@ func (in *Ingester) apply(
 		logger.Infof("%s %s logo filled", progress, listing.Code)
 	}
 
-	logger.Infof("applied: %d created, %d logos filled, %d failed", len(created), logos, len(failed))
-	return created, failed, nil
+	if opts.Apply {
+		logger.Infof("applied: %d created, %d logos filled, %d failed", len(created), logos, len(failed))
+	}
+	return reports, created, failed, nil
 }
 
-// createSet inserts a listed set as unpublished. Its Series is the catalog
-// Series of the same name, or none when the catalog has no such Series.
-func (in *Ingester) createSet(
-	ctx context.Context, gameID, localeID uuid.UUID, seriesIDs map[string]*uuid.UUID, listing SetListing,
-) error {
-	seriesID, err := in.seriesID(ctx, gameID, listing.Series, seriesIDs)
+// insertSet creates the listed set unpublished, under the run's Game and Locale.
+// Its Series is the catalog Series of the same name, or none when the catalog
+// has no such Series. The caller's transaction makes it and its Cards
+// all-or-nothing.
+func (in *Ingester) insertSet(ctx context.Context, run setRun, listing SetListing) (entity.ExpansionSet, error) {
+	seriesID, err := in.seriesID(ctx, run.gameID, listing.Series, run.seriesIDs)
 	if err != nil {
-		return err
+		return entity.ExpansionSet{}, err
 	}
 
 	releaseDate := listing.ReleaseDate
-	return in.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		set, err := in.sets.Insert(ctx, entity.ExpansionSet{
-			GameID:        gameID,
-			Code:          listing.Code,
-			Name:          listing.Name,
-			LocaleID:      localeID,
-			SeriesID:      seriesID,
-			ReleaseDate:   &releaseDate,
-			SourceLogoURL: listing.LogoURL,
-			CreatedBy:     entity.SourceTCGCollector,
-			UpdatedBy:     entity.SourceTCGCollector,
-		})
-		if err != nil {
-			return err
-		}
-
-		// published's column default is true, and Create leaves a zero value to
-		// that default, so the unpublished state is a second write in the same
-		// transaction.
-		set.Published = false
-		_, err = in.sets.Update(ctx, set)
-		return err
+	return in.sets.InsertUnpublished(ctx, entity.ExpansionSet{
+		GameID:        run.gameID,
+		Code:          listing.Code,
+		Name:          listing.Name,
+		LocaleID:      run.localeID,
+		SeriesID:      seriesID,
+		ReleaseDate:   &releaseDate,
+		SourceLogoURL: listing.LogoURL,
+		CreatedBy:     entity.SourceTCGCollector,
+		UpdatedBy:     entity.SourceTCGCollector,
 	})
 }
 
@@ -374,7 +369,7 @@ func (r Report) Render(w io.Writer) error {
 			b.WriteString(" | created this run")
 		}
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "    UPDATE expansion_sets SET published = true WHERE code = '%s';\n", set.Code)
+		fmt.Fprintf(&b, "    UPDATE expansion_sets SET published = true WHERE code = '%s';\n", strings.ReplaceAll(set.Code, "'", "''"))
 	}
 
 	fmt.Fprintf(&b, "\nCards in the listed sets: %d sets\n", len(r.Cards))
@@ -408,4 +403,13 @@ func (r Report) Render(w io.Writer) error {
 		return ungerr.Wrap(err, "writing report")
 	}
 	return nil
+}
+
+// Failures counts the Expansion Sets that could not be written and the Cards
+// that failed, the two things that make the command exit non-zero.
+func (r Report) Failures() (sets, cards int) {
+	for _, set := range r.Cards {
+		cards += len(set.Failed)
+	}
+	return len(r.Failed), cards
 }
