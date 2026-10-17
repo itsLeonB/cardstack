@@ -274,6 +274,7 @@ type CardResult struct {
 	ExpansionSetName        string
 	ExpansionSetReleaseDate *time.Time
 	ExpansionSetCoverKey    string
+	ExpansionSetLogoKey     string
 	// Quantity is set only when searching within a Collection or a profile's Master Inventory.
 	Quantity int
 }
@@ -299,7 +300,8 @@ const cardResultColumns = `cards.id AS id,
 	expansion_sets.code AS expansion_set_code,
 	expansion_sets.name AS expansion_set_name,
 	expansion_sets.release_date AS expansion_set_release_date,
-	expansion_sets.cover_key AS expansion_set_cover_key`
+	expansion_sets.cover_key AS expansion_set_cover_key,
+	expansion_sets.logo_key AS expansion_set_logo_key`
 
 // likeEscaper escapes ILIKE's own wildcard characters (%, _) and its default
 // escape character (\) in a single pass, so a literal % or _ in user input

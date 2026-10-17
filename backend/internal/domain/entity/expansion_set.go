@@ -27,7 +27,7 @@ type ExpansionSet struct {
 	ImageKey       string `gorm:"not null;default:''"`
 	// CoverKey is the object-store key of the cover pre-sized to 128px from
 	// the ImageKey original (docs/adr/0017); "" until cmd/presize-images has
-	// run. It is the only cover address the API serves.
+	// run. The API serves LogoKey when set, otherwise this.
 	CoverKey string `gorm:"not null;default:''"`
 	// CreatedBy and UpdatedBy mean the same as on Card.
 	CreatedBy string `gorm:"not null"`
@@ -37,6 +37,10 @@ type ExpansionSet struct {
 	// leaves Published at Go's zero value gets a published set: a writer that
 	// needs an unpublished set must say so in the insert itself.
 	Published bool `gorm:"not null;default:true"`
+	// SourceLogoURL and LogoKey mean the same as SourceImageURL and ImageKey,
+	// for the set logo that TCG Collector supplies. The logo is hosted as is.
+	SourceLogoURL string `gorm:"not null;default:''"`
+	LogoKey       string `gorm:"not null;default:''"`
 }
 
 func (ExpansionSet) TableName() string { return "expansion_sets" }

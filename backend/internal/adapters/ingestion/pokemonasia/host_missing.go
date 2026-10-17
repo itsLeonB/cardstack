@@ -68,6 +68,8 @@ func (in *Ingester) HostMissingImages(ctx context.Context, setFilter string) (Su
 		}
 	}
 
+	in.hostSetLogos(ctx, sets)
+
 	if err := in.hostMissingCards(ctx, setIDs, setCodes); err != nil {
 		return Summary{}, err
 	}
@@ -142,4 +144,25 @@ func (in *Ingester) hostMissingCards(ctx context.Context, setIDs []uuid.UUID, se
 		logger.Infof("processed %d/%d card(s)", done, total)
 	}
 	return nil
+}
+
+// hostSetLogos hosts each set's logo in its own pass after the covers, with one log line per set.
+// Its failures land in the same list as the covers', so the run's exit status reflects them too.
+func (in *Ingester) hostSetLogos(ctx context.Context, sets []entity.ExpansionSet) {
+	for i, set := range sets {
+		switch {
+		case set.LogoKey != "":
+			logger.Infof("[%d/%d] set %s: logo already hosted", i+1, len(sets), set.Code)
+		case set.SourceLogoURL == "":
+			logger.Infof("[%d/%d] set %s: no logo address, nothing to host", i+1, len(sets), set.Code)
+		default:
+			failedBefore := in.failureCount()
+			in.hostSetLogo(ctx, set, set.Code)
+			if in.failureCount() > failedBefore {
+				logger.Warnf("[%d/%d] set %s: logo failed (see the failure above), re-run to retry", i+1, len(sets), set.Code)
+			} else {
+				logger.Infof("[%d/%d] set %s: logo hosted", i+1, len(sets), set.Code)
+			}
+		}
+	}
 }
