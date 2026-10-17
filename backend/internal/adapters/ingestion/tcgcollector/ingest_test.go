@@ -43,10 +43,12 @@ func seedSet(t *testing.T, db *gorm.DB, gameID, localeID uuid.UUID, code string)
 	t.Helper()
 
 	set, err := crud.NewRepository[entity.ExpansionSet](db).Insert(context.Background(), entity.ExpansionSet{
-		GameID:   gameID,
-		Code:     code,
-		Name:     "seeded " + code,
-		LocaleID: localeID,
+		CreatedBy: entity.SourcePokemonAsia,
+		UpdatedBy: entity.SourcePokemonAsia,
+		GameID:    gameID,
+		Code:      code,
+		Name:      "seeded " + code,
+		LocaleID:  localeID,
 	})
 	require.NoError(t, err)
 	return set
@@ -64,6 +66,8 @@ func seedCard(t *testing.T, db *gorm.DB, gameID, setID uuid.UUID, localID, image
 	require.NoError(t, err)
 
 	_, err = crud.NewRepository[entity.Card](db).Insert(context.Background(), entity.Card{
+		CreatedBy:      entity.SourcePokemonAsia,
+		UpdatedBy:      entity.SourcePokemonAsia,
 		ExpansionSetID: setID,
 		LocalID:        localID,
 		Name:           "seeded card",

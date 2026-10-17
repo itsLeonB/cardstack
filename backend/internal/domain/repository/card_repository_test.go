@@ -34,6 +34,8 @@ func TestCardRepository_CountsByExpansionSet_CountsOnlyTheGame(t *testing.T) {
 	insertCard := func(setID uuid.UUID, localID, imageKey string) {
 		t.Helper()
 		_, err := crud.NewRepository[entity.Card](db).Insert(ctx, entity.Card{
+			CreatedBy:      entity.SourcePokemonAsia,
+			UpdatedBy:      entity.SourcePokemonAsia,
 			ExpansionSetID: setID,
 			LocalID:        localID,
 			Name:           "card",
@@ -78,10 +80,12 @@ func insertTestLocale(t *testing.T, db *gorm.DB) uuid.UUID {
 func insertTestSet(t *testing.T, db *gorm.DB, gameID, localeID uuid.UUID) uuid.UUID {
 	t.Helper()
 	set, err := crud.NewRepository[entity.ExpansionSet](db).Insert(context.Background(), entity.ExpansionSet{
-		GameID:   gameID,
-		Code:     uuid.NewString(),
-		Name:     "test set",
-		LocaleID: localeID,
+		CreatedBy: entity.SourcePokemonAsia,
+		UpdatedBy: entity.SourcePokemonAsia,
+		GameID:    gameID,
+		Code:      uuid.NewString(),
+		Name:      "test set",
+		LocaleID:  localeID,
 	})
 	require.NoError(t, err)
 	return set.ID

@@ -49,15 +49,15 @@ func TestCatalogUnpublishedSets(t *testing.T) {
 	hiddenSeries := entity.Series{GameID: game.ID, Code: "hid-" + s, Name: "Hidden Series " + s}
 	require.NoError(t, api.db.Create(&hiddenSeries).Error)
 
-	visibleSet := entity.ExpansionSet{GameID: game.ID, Code: "vis-" + s, Name: "Visible Set " + s, LocaleID: locale.ID, SeriesID: &visibleSeries.ID}
+	visibleSet := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "vis-" + s, Name: "Visible Set " + s, LocaleID: locale.ID, SeriesID: &visibleSeries.ID}
 	require.NoError(t, api.db.Create(&visibleSet).Error)
-	hiddenSet := entity.ExpansionSet{GameID: game.ID, Code: "hid-" + s, Name: "Hidden Set " + s, LocaleID: locale.ID, SeriesID: &hiddenSeries.ID}
+	hiddenSet := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "hid-" + s, Name: "Hidden Set " + s, LocaleID: locale.ID, SeriesID: &hiddenSeries.ID}
 	require.NoError(t, api.db.Create(&hiddenSet).Error)
 	// Create would write the column default (true) for a false Published, so the hide is an update.
 	require.NoError(t, api.db.Model(&hiddenSet).Update("published", false).Error)
 
 	newCard := func(set entity.ExpansionSet, name, category string, tags ...string) entity.Card {
-		card := entity.Card{ExpansionSetID: set.ID, LocalID: "001", Name: name, Category: category,
+		card := entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, ExpansionSetID: set.ID, LocalID: "001", Name: name, Category: category,
 			Tags: append(datatypes.JSONSlice[string]{}, tags...), RarityID: rarity.ID, Attributes: datatypes.JSONMap{}}
 		require.NoError(t, api.db.Create(&card).Error)
 		return card
