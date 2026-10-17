@@ -57,7 +57,7 @@ func TestCatalogImageURLs(t *testing.T) {
 	}
 	hostedCard := newCard(hostedSet, "001", "cards/hosted-"+s)
 	unhostedCard := newCard(unhostedSet, "002", "")
-	loggedSet := entity.ExpansionSet{GameID: game.ID, Code: "logged-" + s, Name: "Logged " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png", SourceLogoURL: "https://static.tcgcollector.com/logo.png"}
+	loggedSet := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "logged-" + s, Name: "Logged " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png", SourceLogoURL: "https://static.tcgcollector.com/logo.png"}
 	require.NoError(t, db.Create(&loggedSet).Error)
 	require.NoError(t, db.Model(&loggedSet).Updates(map[string]any{"image_key": "expansion-sets/" + loggedSet.ID.String(), "cover_key": "expansion-sets/" + loggedSet.ID.String() + ".0123abcd.webp", "logo_key": "expansion-set-logos/" + loggedSet.ID.String()}).Error)
 	loggedCard := newCard(loggedSet, "003", "cards/logged-"+s)
