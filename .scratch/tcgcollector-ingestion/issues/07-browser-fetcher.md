@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A page-source implementation attaches to a visible Chrome using a persistent profile directory and returns the page HTML for a URL
 - [ ] Requests run one at a time, a few seconds apart, and never use a `?page=` URL
