@@ -31,6 +31,10 @@ packages:
       MatchService:
       UserService:
       IdentityCache:
+  github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/tcgcollector:
+    interfaces:
+      PageSource:
+      UnpublishedSetLister:
   github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth:
     interfaces:
       KeySource:
