@@ -369,7 +369,7 @@ func (in *Ingester) setCards(
 	ctx context.Context, run setRun, listing SetListing, set entity.ExpansionSet, matched bool,
 ) (SetCards, error) {
 	newSet := !matched || set.CreatedBy == entity.SourceTCGCollector
-	result := SetCards{Code: listing.Code, Name: listing.Name, Published: !newSet && set.Published}
+	result := SetCards{Code: listing.Code, Name: listing.Name, Published: matched && set.Published}
 
 	// A card list that cannot be read fails the set's Cards, not the set: a new
 	// set is still created, as it is for any run.

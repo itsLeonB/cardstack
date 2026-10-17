@@ -308,6 +308,32 @@ func TestIngester_Apply_RerunAddsTheBasicEnergyAndVictorySymbolOfASetItCreated(t
 	assert.Len(t, cardsOfSet(t, db, set.ID), 3)
 }
 
+func TestIngester_Apply_RerunOfAPublishedSetTheRunCreatedReportsItPublished(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedTCGCollectorSet(t, db, game.ID, locale.ID, "SM-P")
+	require.NoError(t, db.Model(&set).Update("published", true).Error)
+	seedCard(t, db, game.ID, set.ID, "001", "")
+
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-shiny-treasure.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, basicFireURL).Return(fixtureBytes(t, "card-energy-basic-fire.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, victoryURL).Return(fixtureBytes(t, "card-trainer-caitlin.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.True(t, cards.Published, "the set is published in the catalog, so its Cards are visible at once")
+	assert.Equal(t, []string{"191 Basic Fire Energy", "192 Victory Symbol"}, cards.Added)
+	assert.Len(t, cardsOfSet(t, db, set.ID), 3)
+}
+
 func TestIngester_Apply_BasicEnergyWhoseNumberIsHeldIsSkippedNotHeld(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
