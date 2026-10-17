@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 02, 03, 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `-apply` inserts each unmatched set with `created_by` and `updated_by` set to `tcgcollector`, `published` false, the mapped Series (empty when unknown), the Indonesian locale, name, release date and `source_logo_url`
 - [ ] An existing set with an empty logo gets `source_logo_url` only; its other columns, `created_by` and `updated_by` stay as they were; a set that already has a logo is left alone
