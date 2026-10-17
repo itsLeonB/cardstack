@@ -19,8 +19,11 @@ const (
 	challengePoll = 5 * time.Second
 )
 
-// challengeMarkers appear in the HTML of Cloudflare's challenge page.
-var challengeMarkers = []string{"cf_chl_opt", "challenge-platform", "<title>just a moment"}
+// challengeMarkers appear only on Cloudflare's interstitial: its challenge
+// config key and its page title. Cloudflare's precursor script and
+// window.__CF$cv$params block ride on every normal page, so matching them would
+// stall a run on a challenge nobody is being shown (ADR-0021).
+var challengeMarkers = []string{"_cf_chl_opt", "<title>just a moment"}
 
 // browserSource fetches pages through one visible Chrome. Its profile
 // directory keeps the operator's unlock for later runs. It never runs
