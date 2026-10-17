@@ -27,8 +27,12 @@ type ExpansionSet struct {
 	ImageKey       string `gorm:"not null;default:''"`
 	// CoverKey is the object-store key of the cover pre-sized to 128px from
 	// the ImageKey original (docs/adr/0017); "" until cmd/presize-images has
-	// run. It is the only cover address the API serves.
+	// run. The API serves LogoKey when set, otherwise this.
 	CoverKey string `gorm:"not null;default:''"`
+	// SourceLogoURL and LogoKey mean the same as SourceImageURL and ImageKey,
+	// for the set logo that TCG Collector supplies. The logo is hosted as is.
+	SourceLogoURL string `gorm:"not null;default:''"`
+	LogoKey       string `gorm:"not null;default:''"`
 	// Curated means the same as on Card.
 	Curated bool `gorm:"not null;default:false"`
 }

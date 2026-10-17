@@ -35,8 +35,17 @@ func ToExpansionSetSummary(host ImageHost, set entity.ExpansionSet) dto.Expansio
 		Code:        set.Code,
 		Name:        set.Name,
 		ReleaseDate: set.ReleaseDate,
-		ImageURL:    host.URL(set.CoverKey),
+		ImageURL:    setImageURL(host, set.LogoKey, set.CoverKey),
 	}
+}
+
+// setImageURL is the set's logo when TCG Collector supplied one, otherwise its
+// pre-sized cover; each side is empty until its key is set.
+func setImageURL(host ImageHost, logoKey, coverKey string) string {
+	if logoKey != "" {
+		return host.URL(logoKey)
+	}
+	return host.URL(coverKey)
 }
 
 // ToSeriesSummary converts an entity.Series plus its already-mapped
@@ -61,7 +70,7 @@ func ToCardSummary(host ImageHost, r repository.CardResult) dto.CardSummary {
 			Code:        r.ExpansionSetCode,
 			Name:        r.ExpansionSetName,
 			ReleaseDate: r.ExpansionSetReleaseDate,
-			ImageURL:    host.URL(r.ExpansionSetCoverKey),
+			ImageURL:    setImageURL(host, r.ExpansionSetLogoKey, r.ExpansionSetCoverKey),
 		},
 		LocalID:  r.LocalID,
 		Name:     r.Name,

@@ -61,3 +61,20 @@ func TestToCardSummary_BuildsImageURLsFromKeys(t *testing.T) {
 	assert.Empty(t, unhosted.ImageURL)
 	assert.Empty(t, unhosted.ExpansionSet.ImageURL)
 }
+
+func TestToExpansionSetSummary_PrefersLogoOverCover(t *testing.T) {
+	host := NewImageHost(testImageBase)
+
+	withLogo := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "S8a-P", CoverKey: "expansion-sets/x.0123abcd.webp", LogoKey: "expansion-set-logos/x", SourceLogoURL: "https://static.tcgcollector.com/x.png"})
+	assert.Equal(t, testImageBase+"/expansion-set-logos/x", withLogo.ImageURL)
+
+	coverOnly := ToExpansionSetSummary(host, entity.ExpansionSet{Code: "MA6", CoverKey: "expansion-sets/x.0123abcd.webp", SourceLogoURL: "https://static.tcgcollector.com/x.png"})
+	assert.Equal(t, testImageBase+"/expansion-sets/x.0123abcd.webp", coverOnly.ImageURL, "an unhosted logo address is never served")
+}
+
+func TestToCardSummary_PrefersSetLogoOverCover(t *testing.T) {
+	host := NewImageHost(testImageBase)
+
+	got := ToCardSummary(host, repository.CardResult{ExpansionSetLogoKey: "expansion-set-logos/s1", ExpansionSetCoverKey: "expansion-sets/s1.0123abcd.webp"})
+	assert.Equal(t, testImageBase+"/expansion-set-logos/s1", got.ExpansionSet.ImageURL)
+}

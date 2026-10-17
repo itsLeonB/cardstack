@@ -57,9 +57,13 @@ func TestCatalogImageURLs(t *testing.T) {
 	}
 	hostedCard := newCard(hostedSet, "001", "cards/hosted-"+s)
 	unhostedCard := newCard(unhostedSet, "002", "")
+	loggedSet := entity.ExpansionSet{GameID: game.ID, Code: "logged-" + s, Name: "Logged " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png", SourceLogoURL: "https://static.tcgcollector.com/logo.png"}
+	require.NoError(t, db.Create(&loggedSet).Error)
+	require.NoError(t, db.Model(&loggedSet).Updates(map[string]any{"image_key": "expansion-sets/" + loggedSet.ID.String(), "cover_key": "expansion-sets/" + loggedSet.ID.String() + ".0123abcd.webp", "logo_key": "expansion-set-logos/" + loggedSet.ID.String()}).Error)
+	loggedCard := newCard(loggedSet, "003", "cards/logged-"+s)
 
 	t.Run("cards", func(t *testing.T) {
-		resp := api.Get("/catalog/cards?expansionSetId=" + hostedSet.ID.String() + "&expansionSetId=" + unhostedSet.ID.String())
+		resp := api.Get("/catalog/cards?expansionSetId=" + hostedSet.ID.String() + "&expansionSetId=" + unhostedSet.ID.String() + "&expansionSetId=" + loggedSet.ID.String())
 		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 		var body cardsEnvelope
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
@@ -68,7 +72,8 @@ func TestCatalogImageURLs(t *testing.T) {
 		for _, c := range body.Data {
 			byID[c.ID] = c
 		}
-		require.Len(t, byID, 2)
+		require.Len(t, byID, 3)
+		assert.Equal(t, testImageBase+"/expansion-set-logos/"+loggedSet.ID.String(), byID[loggedCard.ID].ExpansionSet.ImageURL, "a set's logo wins over its cover")
 		assert.Equal(t, testImageBase+"/cards/hosted-"+s, byID[hostedCard.ID].ImageURL)
 		assert.Equal(t, testImageBase+"/expansion-sets/"+hostedSet.ID.String()+".0123abcd.webp", byID[hostedCard.ID].ExpansionSet.ImageURL)
 		assert.Empty(t, byID[unhostedCard.ID].ImageURL, "no key means no image, never the source address")
@@ -86,6 +91,7 @@ func TestCatalogImageURLs(t *testing.T) {
 			urls[set.ID] = set.ImageURL
 		}
 		assert.Equal(t, testImageBase+"/expansion-sets/"+hostedSet.ID.String()+".0123abcd.webp", urls[hostedSet.ID])
+		assert.Equal(t, testImageBase+"/expansion-set-logos/"+loggedSet.ID.String(), urls[loggedSet.ID], "a set's logo wins over its cover")
 		assert.Empty(t, urls[unhostedSet.ID])
 		_, listed := urls[unhostedSet.ID]
 		assert.True(t, listed, "the unhosted set is still listed")
