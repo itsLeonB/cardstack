@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A migration adds `created_by` and `updated_by` text columns (values `pokemon-asia`, `tcgcollector`, `admin`) to `cards` and `expansion_sets`, backfills every row to `pokemon-asia` in both, maps rows with `curated = true` to `admin` in both, then drops `curated`; a column comment says they hold a Source, not a user
 - [ ] The Asia ingester inserts with both columns `pokemon-asia`, updates a Card or Expansion Set only while `updated_by` is `pokemon-asia`, and leaves any other row untouched
