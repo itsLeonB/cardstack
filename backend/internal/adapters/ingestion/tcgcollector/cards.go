@@ -347,29 +347,43 @@ func (r rarityLookup) resolve(code string) (uuid.UUID, error) {
 	return id, nil
 }
 
+// setRun is what the sets of one run share: whether to write, the Game and
+// Locale a new set is created under, and the lookups its Cards and Series
+// resolve against.
+type setRun struct {
+	apply     bool
+	gameID    uuid.UUID
+	localeID  uuid.UUID
+	rarities  rarityLookup
+	seriesIDs map[string]*uuid.UUID
+}
+
 // setCards reads one listed set's card list and works out which Cards the
-// catalog lacks. With apply it inserts them. set is the catalog row, zero when
-// the set does not exist. newSet marks a set this run creates or a dry run
-// would create: it has no Cards yet, so Basic Energy and the Victory Symbol
-// are ingested as they are.
+// catalog lacks. set is the catalog row, valid only when matched. A set is new
+// when it is not in the catalog or TCG Collector created it: its Basic Energy
+// and Victory Symbol are ingested as they are, because a first run that
+// stopped partway leaves such a set without them. With apply the Cards are
+// written in one transaction, together with the set when it is created. A
+// failed write returns its error and leaves that set's rows unwritten.
 func (in *Ingester) setCards(
-	ctx context.Context, apply bool, listing SetListing, set entity.ExpansionSet, newSet bool, rarities rarityLookup,
+	ctx context.Context, run setRun, listing SetListing, set entity.ExpansionSet, matched bool,
 ) (SetCards, error) {
+	newSet := !matched || set.CreatedBy == entity.SourceTCGCollector
 	result := SetCards{Code: listing.Code, Name: listing.Name, Published: !newSet && set.Published}
 
+	// A card list that cannot be read fails the set's Cards, not the set: a new
+	// set is still created, as it is for any run.
+	var listed []cardListing
 	page, err := in.pages.Fetch(ctx, listing.CardListURL)
-	if err != nil {
-		result.Failed = append(result.Failed, fmt.Sprintf("card list: %v", err))
-		return result, nil
+	if err == nil {
+		listed, err = parseCardList(page)
 	}
-	listed, err := parseCardList(page)
 	if err != nil {
 		result.Failed = append(result.Failed, fmt.Sprintf("card list: %v", err))
-		return result, nil
 	}
 
 	var existing []entity.Card
-	if !newSet {
+	if matched {
 		existing, err = in.cards.FindAll(ctx, crud.Specification[entity.Card]{
 			Model: entity.Card{ExpansionSetID: set.ID},
 		})
@@ -388,23 +402,19 @@ func (in *Ingester) setCards(
 	}
 	width := numberWidth(existing)
 
-	type pending struct {
+	type wanted struct {
 		listing cardListing
 		number  int
 	}
-	var todo []pending
+	var todo []wanted
 	for _, card := range listed {
 		number, ok := cardNumber(card.Number)
 		if !ok {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: number %q has no digits", card.Name, card.Number))
 			continue
 		}
-		if held[number] {
-			result.Held++
-			continue
-		}
-		held[number] = true
-
+		// The skips come before the held check, so a Card skipped for its kind
+		// counts as Skipped even when its number is held.
 		if !newSet && isBasicEnergy(card.Name) {
 			result.Skipped = append(result.Skipped, fmt.Sprintf("%s: basic energy in a set that exists", card.Name))
 			continue
@@ -413,10 +423,20 @@ func (in *Ingester) setCards(
 			result.Skipped = append(result.Skipped, fmt.Sprintf("%s: the set already has a card with ID %s", card.Name, listing.Code))
 			continue
 		}
+		if held[number] {
+			result.Held++
+			continue
+		}
+		held[number] = true
 
-		todo = append(todo, pending{listing: card, number: number})
+		todo = append(todo, wanted{listing: card, number: number})
 	}
 
+	type pendingCard struct {
+		label string
+		card  entity.Card
+	}
+	var pending []pendingCard
 	for i, item := range todo {
 		if i > 0 && i%cardBatch == 0 {
 			logger.Infof("%s processed %d/%d cards", listing.Code, i, len(todo))
@@ -424,23 +444,45 @@ func (in *Ingester) setCards(
 
 		localID := fmt.Sprintf("%0*d", width, item.number)
 		label := fmt.Sprintf("%s %s", localID, item.listing.Name)
-		card, err := in.newCard(ctx, set.ID, localID, item.listing, rarities)
+		card, err := in.newCard(ctx, localID, item.listing, run.rarities)
 		if err != nil {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", label, err))
 			continue
 		}
+		pending = append(pending, pendingCard{label: label, card: card})
+	}
 
-		if apply {
-			if _, err := in.cards.Insert(ctx, card); err != nil {
-				result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", label, err))
-				continue
-			}
-		}
-
-		result.Added = append(result.Added, label)
-		if item.listing.ImageURL == "" {
+	for _, p := range pending {
+		result.Added = append(result.Added, p.label)
+		if p.card.SourceImageURL == "" {
 			result.WithoutImage++
 		}
+	}
+	if !run.apply {
+		return result, nil
+	}
+
+	err = in.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		setID := set.ID
+		if !matched {
+			created, err := in.insertSet(ctx, run, listing)
+			if err != nil {
+				return err
+			}
+			setID = created.ID
+		}
+
+		for _, p := range pending {
+			p.card.ExpansionSetID = setID
+			if _, err := in.cards.Insert(ctx, p.card); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		result.Added, result.WithoutImage = nil, 0
+		return result, err
 	}
 
 	return result, nil
@@ -449,7 +491,7 @@ func (in *Ingester) setCards(
 // newCard fetches a listed card's page and builds the Card to insert. Errors
 // here are the card's own and only fail that card.
 func (in *Ingester) newCard(
-	ctx context.Context, setID uuid.UUID, localID string, listing cardListing, rarities rarityLookup,
+	ctx context.Context, localID string, listing cardListing, rarities rarityLookup,
 ) (entity.Card, error) {
 	page, err := in.pages.Fetch(ctx, listing.PageURL)
 	if err != nil {
@@ -470,7 +512,6 @@ func (in *Ingester) newCard(
 	}
 
 	return entity.Card{
-		ExpansionSetID: setID,
 		LocalID:        localID,
 		Name:           listing.Name,
 		Category:       detail.Category,
@@ -483,41 +524,4 @@ func (in *Ingester) newCard(
 		CreatedBy:      entity.SourceTCGCollector,
 		UpdatedBy:      entity.SourceTCGCollector,
 	}, nil
-}
-
-// cardReports runs the card ingestion over the listed sets, in listing order.
-// A set that an apply failed to create has no row to hold Cards, so it is left
-// out: its failure is already in the report.
-func (in *Ingester) cardReports(
-	ctx context.Context, opts Options, gameID uuid.UUID, listings []SetListing, created map[string]bool,
-) ([]SetCards, error) {
-	sets, err := in.loadSets(ctx, gameID)
-	if err != nil {
-		return nil, err
-	}
-	rarities, err := in.loadRarities(ctx, gameID)
-	if err != nil {
-		return nil, err
-	}
-
-	var reports []SetCards
-	for i, listing := range listings {
-		set, ok := sets[listing.Code]
-		if !ok && opts.Apply {
-			continue
-		}
-
-		// A set not in the catalog yet is new, and so is one this run created.
-		result, err := in.setCards(ctx, opts.Apply, listing, set, !ok || created[listing.Code], rarities)
-		if err != nil {
-			return nil, err
-		}
-		logger.Infof(
-			"[%d/%d] %s cards: %d to add, %d skipped, %d failed",
-			i+1, len(listings), listing.Code, len(result.Added), len(result.Skipped), len(result.Failed),
-		)
-		reports = append(reports, result)
-	}
-
-	return reports, nil
 }
