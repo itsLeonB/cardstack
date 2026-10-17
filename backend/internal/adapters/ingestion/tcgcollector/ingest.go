@@ -19,56 +19,58 @@ import (
 // Collector rows share.
 const gameSlug = "pokemon-tcg"
 
-// UnpublishedSetLister lists a Game's Expansion Sets that are not published.
-type UnpublishedSetLister interface {
-	ListUnpublished(ctx context.Context, gameID uuid.UUID) ([]entity.ExpansionSet, error)
-}
+// localeCode is the Indonesian locale TCG Collector's sets are written in, the
+// same locale the Pokémon Asia ingester writes.
+const localeCode = "id"
 
-// noUnpublished stands in until the published column exists, so no set is
-// unpublished yet.
-type noUnpublished struct{}
-
-func (noUnpublished) ListUnpublished(context.Context, uuid.UUID) ([]entity.ExpansionSet, error) {
-	return nil, nil
-}
-
-// Ingester classifies TCG Collector's sets list against the catalog. It
-// writes nothing yet.
+// Ingester compares TCG Collector's sets list with the catalog, and with
+// Options.Apply creates the sets the catalog lacks and fills the missing logos.
 type Ingester struct {
-	games       crud.Repository[entity.Game]
-	sets        crud.Repository[entity.ExpansionSet]
-	cards       repository.CardRepository
-	pages       PageSource
-	unpublished UnpublishedSetLister
-	gameSlug    string
+	games      crud.Repository[entity.Game]
+	sets       repository.ExpansionSetRepository
+	cards      repository.CardRepository
+	locales    crud.Repository[entity.Locale]
+	series     crud.Repository[entity.Series]
+	transactor crud.Transactor
+	pages      PageSource
+	gameSlug   string
 }
 
 func NewIngester(db *gorm.DB, pages PageSource) *Ingester {
 	return &Ingester{
-		games:       crud.NewRepository[entity.Game](db),
-		sets:        crud.NewRepository[entity.ExpansionSet](db),
-		cards:       repository.NewCardRepository(crud.NewRepository[entity.Card](db)),
-		pages:       pages,
-		unpublished: noUnpublished{},
-		gameSlug:    gameSlug,
+		games:      crud.NewRepository[entity.Game](db),
+		sets:       repository.NewExpansionSetRepository(crud.NewRepository[entity.ExpansionSet](db)),
+		cards:      repository.NewCardRepository(crud.NewRepository[entity.Card](db)),
+		locales:    crud.NewRepository[entity.Locale](db),
+		series:     crud.NewRepository[entity.Series](db),
+		transactor: crud.NewTransactor(db),
+		pages:      pages,
+		gameSlug:   gameSlug,
 	}
 }
 
 // Options narrows a run.
 type Options struct {
-	// SetCode limits the report to one listed set, by its catalog code. ""
-	// means every set.
+	// SetCode limits the run to one listed set, by its catalog code. "" means
+	// every set.
 	SetCode string
+	// Apply creates the missing sets and fills the missing logos. Without it the
+	// run only reports.
+	Apply bool
 }
 
 // Report is what a run found, grouped the way the operator reads it.
 type Report struct {
 	// Matched are the listed sets the catalog already holds.
 	Matched []SetListing
-	// New are the listed sets the catalog lacks.
+	// New are the listed sets the catalog lacked before this run.
 	New []SetListing
 	// Unpublished are the catalog's unpublished sets, with what they need checked.
+	// Sets this run created are among them.
 	Unpublished []UnpublishedSet
+	// Failed are the sets a -apply write could not finish, with the cause. The
+	// other sets are still written.
+	Failed []string
 }
 
 // UnpublishedSet is one unpublished Expansion Set in the catalog.
@@ -78,9 +80,13 @@ type UnpublishedSet struct {
 	CardCount         int
 	CardsWithoutImage int
 	SeriesUnknown     bool
+	// Created marks a set this run created, so the operator knows it is new.
+	Created bool
 }
 
 // Run reads the sets list and classifies every listed set against the catalog.
+// With opts.Apply it writes the missing sets and logos first, so the
+// unpublished list it reports includes the sets it just created.
 func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 	page, err := in.pages.Fetch(ctx, setsPageURL)
 	if err != nil {
@@ -106,26 +112,29 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	if opts.Apply && game.IsZero() {
+		return Report{}, ungerr.Unknownf("game %s is not in the catalog: run ingest-pokemon-asia first", in.gameSlug)
+	}
 
 	// A missing Game means no Expansion Set exists yet. The game checks below
 	// matter: a zero GameID is dropped from a query's WHERE clause, which would
 	// list the sets of every game.
-	codes := map[string]bool{}
+	existing := map[string]entity.ExpansionSet{}
 	if !game.IsZero() {
-		existing, err := in.sets.FindAll(ctx, crud.Specification[entity.ExpansionSet]{
+		sets, err := in.sets.FindAll(ctx, crud.Specification[entity.ExpansionSet]{
 			Model: entity.ExpansionSet{GameID: game.ID},
 		})
 		if err != nil {
 			return Report{}, err
 		}
-		for _, set := range existing {
-			codes[set.Code] = true
+		for _, set := range sets {
+			existing[set.Code] = set
 		}
 	}
 
 	var report Report
 	for i, listing := range listings {
-		if codes[listing.Code] {
+		if _, ok := existing[listing.Code]; ok {
 			report.Matched = append(report.Matched, listing)
 			logger.Infof("[%d/%d] %s matched", i+1, len(listings), listing.Code)
 			continue
@@ -134,8 +143,16 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 		logger.Infof("[%d/%d] %s new", i+1, len(listings), listing.Code)
 	}
 
+	var created map[string]bool
+	if opts.Apply {
+		created, report.Failed, err = in.apply(ctx, game.ID, listings, existing)
+		if err != nil {
+			return Report{}, err
+		}
+	}
+
 	if !game.IsZero() {
-		unpublished, err := in.unpublished.ListUnpublished(ctx, game.ID)
+		unpublished, err := in.sets.ListUnpublished(ctx, game.ID)
 		if err != nil {
 			return Report{}, err
 		}
@@ -151,6 +168,7 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 				CardCount:         count.Total,
 				CardsWithoutImage: count.WithoutImage,
 				SeriesUnknown:     set.SeriesID == nil,
+				Created:           created[set.Code],
 			})
 		}
 	}
@@ -160,6 +178,134 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 		len(listings), len(report.Matched), len(report.New), len(report.Unpublished),
 	)
 	return report, nil
+}
+
+// apply creates each listed set the catalog lacks, unpublished, and fills the
+// logo of each matched set that has none. One failed set is logged and
+// collected while the others are still written, so the error is only for a
+// failure that stops every set.
+func (in *Ingester) apply(
+	ctx context.Context, gameID uuid.UUID, listings []SetListing, existing map[string]entity.ExpansionSet,
+) (map[string]bool, []string, error) {
+	locale, err := in.upsertLocale(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	created := map[string]bool{}
+	var failed []string
+	logos := 0
+	seriesIDs := map[string]*uuid.UUID{}
+	for i, listing := range listings {
+		progress := fmt.Sprintf("[%d/%d]", i+1, len(listings))
+		set, matched := existing[listing.Code]
+
+		if !matched {
+			if err := in.createSet(ctx, gameID, locale.ID, seriesIDs, listing); err != nil {
+				failure := fmt.Sprintf("%s: %v", listing.Code, err)
+				logger.Errorf("%s failed %s", progress, failure)
+				failed = append(failed, failure)
+				continue
+			}
+			created[listing.Code] = true
+			logger.Infof("%s created %s", progress, listing.Code)
+			continue
+		}
+
+		if set.SourceLogoURL != "" || listing.LogoURL == "" {
+			logger.Infof("%s %s up to date", progress, listing.Code)
+			continue
+		}
+		if err := in.sets.FillSourceLogoURL(ctx, set.ID, listing.LogoURL); err != nil {
+			failure := fmt.Sprintf("%s: %v", listing.Code, err)
+			logger.Errorf("%s failed %s", progress, failure)
+			failed = append(failed, failure)
+			continue
+		}
+		logos++
+		logger.Infof("%s %s logo filled", progress, listing.Code)
+	}
+
+	logger.Infof("applied: %d created, %d logos filled, %d failed", len(created), logos, len(failed))
+	return created, failed, nil
+}
+
+// createSet inserts a listed set as unpublished. Its Series is the catalog
+// Series of the same name, or none when the catalog has no such Series.
+func (in *Ingester) createSet(
+	ctx context.Context, gameID, localeID uuid.UUID, seriesIDs map[string]*uuid.UUID, listing SetListing,
+) error {
+	seriesID, err := in.seriesID(ctx, gameID, listing.Series, seriesIDs)
+	if err != nil {
+		return err
+	}
+
+	releaseDate := listing.ReleaseDate
+	return in.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		set, err := in.sets.Insert(ctx, entity.ExpansionSet{
+			GameID:        gameID,
+			Code:          listing.Code,
+			Name:          listing.Name,
+			LocaleID:      localeID,
+			SeriesID:      seriesID,
+			ReleaseDate:   &releaseDate,
+			SourceLogoURL: listing.LogoURL,
+			CreatedBy:     entity.SourceTCGCollector,
+			UpdatedBy:     entity.SourceTCGCollector,
+		})
+		if err != nil {
+			return err
+		}
+
+		// published's column default is true, and Create leaves a zero value to
+		// that default, so the unpublished state is a second write in the same
+		// transaction.
+		set.Published = false
+		_, err = in.sets.Update(ctx, set)
+		return err
+	})
+}
+
+// seriesID returns the ID of the catalog Series with the given name, or nil
+// when the name is empty or the catalog has no such Series. A nil leaves the
+// set's Series unknown, which the report shows.
+func (in *Ingester) seriesID(
+	ctx context.Context, gameID uuid.UUID, name string, seriesIDs map[string]*uuid.UUID,
+) (*uuid.UUID, error) {
+	if name == "" {
+		return nil, nil
+	}
+	if id, ok := seriesIDs[name]; ok {
+		return id, nil
+	}
+
+	series, err := in.series.FindFirst(ctx, crud.Specification[entity.Series]{
+		Model: entity.Series{GameID: gameID, Name: name},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if series.IsZero() {
+		logger.Warnf("series %q is not in the catalog: its sets stay without a Series", name)
+		seriesIDs[name] = nil
+		return nil, nil
+	}
+	seriesIDs[name] = &series.ID
+	return &series.ID, nil
+}
+
+// upsertLocale find-or-creates the Indonesian Locale row.
+func (in *Ingester) upsertLocale(ctx context.Context) (entity.Locale, error) {
+	locale, err := in.locales.FindFirst(ctx, crud.Specification[entity.Locale]{
+		Model: entity.Locale{Code: localeCode},
+	})
+	if err != nil {
+		return entity.Locale{}, err
+	}
+	if !locale.IsZero() {
+		return locale, nil
+	}
+	return in.locales.Insert(ctx, entity.Locale{Code: localeCode})
 }
 
 func filterByCode(listings []SetListing, code string) []SetListing {
@@ -196,8 +342,16 @@ func (r Report) Render(w io.Writer) error {
 		if set.SeriesUnknown {
 			b.WriteString(" | series: UNKNOWN")
 		}
+		if set.Created {
+			b.WriteString(" | created this run")
+		}
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "    UPDATE expansion_sets SET published = true WHERE code = '%s';\n", set.Code)
+	}
+
+	fmt.Fprintf(&b, "\nFailed to write: %d\n", len(r.Failed))
+	for _, failure := range r.Failed {
+		fmt.Fprintf(&b, "  %s\n", failure)
 	}
 
 	_, err := io.WriteString(w, b.String())

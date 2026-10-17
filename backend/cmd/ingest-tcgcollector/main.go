@@ -1,9 +1,10 @@
 // Command ingest-tcgcollector compares TCG Collector's Indonesian sets list
-// with the catalog and prints what is missing. It is a dry run: it writes
-// nothing and prints its report to stdout, logs go to stderr. Manually
-// triggered only; run it with -dir pointing at a saved copy of the sets page
-// (`make ingest-tcgcollector ARGS="-dir ./saved"`), since the browser fetcher
-// is not built yet.
+// with the catalog and prints what is missing. It is a dry run unless -apply
+// is set: then it creates the missing sets unpublished and fills empty set
+// logos, and writes nothing else. It prints its report to stdout, logs go to
+// stderr. Manually triggered only; run it with -dir pointing at a saved copy
+// of the sets page (`make ingest-tcgcollector ARGS="-dir ./saved"`), since the
+// browser fetcher is not built yet.
 package main
 
 import (
@@ -21,15 +22,12 @@ import (
 func main() {
 	dir := flag.String("dir", "", "directory of saved TCG Collector pages; the sets page is sets-id.html in it")
 	set := flag.String("set", "", "limit the report to one set by its code (e.g. \"SMP\" or \"SM-P\")")
-	apply := flag.Bool("apply", false, "create and update rows; not implemented yet, so the command only reports")
+	apply := flag.Bool("apply", false, "create the missing sets unpublished and fill empty set logos; without it the command only reports")
 	refresh := flag.Bool("refresh", false, "refetch cached pages; accepted but has no effect until the page cache lands")
 	flag.Parse()
 
 	logger.Init("IngestTCGCollector")
 
-	if *apply {
-		logger.Fatal("-apply is not implemented yet: this command only reports")
-	}
 	if *refresh {
 		logger.Warn("-refresh has no effect yet: there is no page cache")
 	}
@@ -48,7 +46,7 @@ func main() {
 	defer cleanup()
 
 	ingester := tcgcollector.NewIngester(providers.Gorm, tcgcollector.NewDirSource(*dir))
-	report, err := ingester.Run(context.Background(), tcgcollector.Options{SetCode: *set})
+	report, err := ingester.Run(context.Background(), tcgcollector.Options{SetCode: *set, Apply: *apply})
 	if err != nil {
 		logger.Fatal(err)
 	}
