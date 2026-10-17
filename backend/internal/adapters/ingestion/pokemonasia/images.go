@@ -140,7 +140,7 @@ func (in *Ingester) hostImage(ctx context.Context, key, sourceURL string) error 
 // address, or hosting is off. A failure is recorded and swallowed: the key
 // stays empty so the API serves no image and a later run retries.
 func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansionCode, siteCardID string) {
-	if in.store == nil || card.Curated || card.ImageKey != "" || card.SourceImageURL == "" {
+	if in.store == nil || card.UpdatedBy != entity.SourcePokemonAsia || card.ImageKey != "" || card.SourceImageURL == "" {
 		return
 	}
 	key := cardImageKey(card.ID)
@@ -153,7 +153,7 @@ func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansi
 
 // hostSetCover is hostCardImage for an Expansion Set's cover.
 func (in *Ingester) hostSetCover(ctx context.Context, set entity.ExpansionSet, expansionCode string) {
-	if in.store == nil || set.Curated || set.ImageKey != "" || set.SourceImageURL == "" {
+	if in.store == nil || set.UpdatedBy != entity.SourcePokemonAsia || set.ImageKey != "" || set.SourceImageURL == "" {
 		return
 	}
 	key := expansionSetImageKey(set.ID)

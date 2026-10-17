@@ -78,7 +78,8 @@ func (s *adminSetService) CreateExpansionSet(ctx context.Context, req dto.Expans
 		}
 		written, err = s.sets.Insert(ctx, entity.ExpansionSet{
 			GameID: series.GameID, Code: req.Code, LocaleID: locale.ID,
-			Name: req.Name, SeriesID: &series.ID, ReleaseDate: &req.ReleaseDate, Curated: true,
+			Name: req.Name, SeriesID: &series.ID, ReleaseDate: &req.ReleaseDate,
+			CreatedBy: entity.SourceAdmin, UpdatedBy: entity.SourceAdmin,
 		})
 		return err
 	})
@@ -104,7 +105,7 @@ func (s *adminSetService) UpdateExpansionSet(ctx context.Context, req dto.Expans
 			return ungerr.UnprocessableEntityError(seriesOtherGameMsg)
 		}
 
-		set.Name, set.SeriesID, set.ReleaseDate, set.Curated = req.Name, &series.ID, &req.ReleaseDate, true
+		set.Name, set.SeriesID, set.ReleaseDate, set.UpdatedBy = req.Name, &series.ID, &req.ReleaseDate, entity.SourceAdmin
 		written, err = s.sets.Update(ctx, set)
 		return err
 	})

@@ -274,5 +274,7 @@ func mapCard(detail cardDetail, expansionSetID, rarityID uuid.UUID, imageURL str
 		SourceImageURL: imageURL,
 		Attributes:     datatypes.JSONMap(attributes),
 		Raw:            string(raw),
+		CreatedBy:      entity.SourcePokemonAsia,
+		UpdatedBy:      entity.SourcePokemonAsia,
 	}
 }

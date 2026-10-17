@@ -124,7 +124,8 @@ func (s *cardAdminService) CreateCard(ctx context.Context, req dto.AdminCardCrea
 		}
 		saved, err = s.cards.Insert(ctx, entity.Card{
 			ExpansionSetID: set.ID, LocalID: req.LocalID, Name: req.Name, Category: req.Category,
-			Illustrator: req.Illustrator, Tags: tagsOf(req.Tags), RarityID: rarityID, Attributes: datatypes.JSONMap{}, Curated: true,
+			Illustrator: req.Illustrator, Tags: tagsOf(req.Tags), RarityID: rarityID, Attributes: datatypes.JSONMap{},
+			CreatedBy: entity.SourceAdmin, UpdatedBy: entity.SourceAdmin,
 		})
 		return err
 	})
@@ -157,7 +158,7 @@ func (s *cardAdminService) UpdateCard(ctx context.Context, req dto.AdminCardUpda
 			return err
 		}
 		card.Name, card.Category, card.Tags = req.Name, req.Category, tagsOf(req.Tags)
-		card.Illustrator, card.Curated = req.Illustrator, true
+		card.Illustrator, card.UpdatedBy = req.Illustrator, entity.SourceAdmin
 		saved, err = s.cards.Update(ctx, card)
 		return err
 	})
@@ -294,9 +295,9 @@ func (s *cardAdminService) ConfirmImage(ctx context.Context, req dto.CardImageCo
 	}
 
 	saved, err := s.updateCard(ctx, req.CardID, func(card *entity.Card) {
-		// Curated here too: an Admin may confirm an image for a Card that
-		// ingestion wrote and no UpsertCard has marked yet.
-		card.ImageKey, card.Curated = key, true
+		// An Admin may confirm an image for a Card that ingestion wrote, so the
+		// Admin becomes the last updater here too (docs/adr/0021).
+		card.ImageKey, card.UpdatedBy = key, entity.SourceAdmin
 	})
 	if err != nil {
 		return dto.AdminCard{}, err
