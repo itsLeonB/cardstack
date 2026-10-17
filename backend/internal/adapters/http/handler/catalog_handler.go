@@ -29,7 +29,7 @@ func NewCatalogHandler(catalogSvc service.CatalogService) *CatalogHandler {
 type listSeriesInput struct{}
 
 func (h *CatalogHandler) listSeries(ctx context.Context, _ listSeriesInput) (dto.SeriesBrowseResult, error) {
-	return h.catalogSvc.ListSeries(ctx)
+	return h.catalogSvc.ListSeries(ctx, catalogAccessFrom(ctx))
 }
 
 type listRaritiesInput struct{}
@@ -41,13 +41,13 @@ func (h *CatalogHandler) listRarities(ctx context.Context, _ listRaritiesInput) 
 type listCategoriesInput struct{}
 
 func (h *CatalogHandler) listCategories(ctx context.Context, _ listCategoriesInput) ([]string, error) {
-	return h.catalogSvc.ListCategories(ctx)
+	return h.catalogSvc.ListCategories(ctx, catalogAccessFrom(ctx))
 }
 
 type listTagsInput struct{}
 
 func (h *CatalogHandler) listTags(ctx context.Context, _ listTagsInput) ([]string, error) {
-	return h.catalogSvc.ListTags(ctx)
+	return h.catalogSvc.ListTags(ctx, catalogAccessFrom(ctx))
 }
 
 // CardFilterParams are the filter query parameters shared by GET
@@ -116,6 +116,12 @@ func buildCardFilter(p CardFilterParams) (dto.CardFilter, error) {
 	}, nil
 }
 
+// catalogAccessFrom is what the caller may see of the catalog: AdminFlag marks
+// an Admin, and every other caller sees only published Expansion Sets.
+func catalogAccessFrom(ctx context.Context) dto.CatalogAccess {
+	return dto.CatalogAccess{Admin: authpkg.CallerFrom(ctx).IsAdmin}
+}
+
 func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) ([]dto.CardSummary, dto.PaginationMeta, error) {
 	filter, err := buildCardFilter(in.CardFilterParams)
 	if err != nil {
@@ -127,6 +133,7 @@ func (h *CatalogHandler) searchCards(ctx context.Context, in searchCardsInput) (
 	filter.Page = in.Page
 	filter.Limit = in.Limit
 	filter.Guest = authpkg.CallerFrom(ctx).IsGuest()
+	filter.CatalogAccess = catalogAccessFrom(ctx)
 
 	return h.catalogSvc.SearchCards(ctx, filter)
 }
@@ -137,6 +144,7 @@ func (h *CatalogHandler) listFacets(ctx context.Context, in listFacetsInput) (dt
 		return dto.CatalogFacets{}, err
 	}
 	filter.Guest = authpkg.CallerFrom(ctx).IsGuest()
+	filter.CatalogAccess = catalogAccessFrom(ctx)
 
 	return h.catalogSvc.ListFacets(ctx, filter)
 }

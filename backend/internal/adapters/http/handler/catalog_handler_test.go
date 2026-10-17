@@ -32,7 +32,7 @@ func newTestCatalogHandler(t *testing.T) (*mocks.MockCatalogService, humatest.Te
 
 func TestCatalogHandler_ListSeries(t *testing.T) {
 	svc, api := newTestCatalogHandler(t)
-	svc.EXPECT().ListSeries(mock.Anything).Return(dto.SeriesBrowseResult{
+	svc.EXPECT().ListSeries(mock.Anything, mock.Anything).Return(dto.SeriesBrowseResult{
 		Series:                 []dto.SeriesSummary{{Code: "sv", Name: "Scarlet & Violet"}},
 		UngroupedExpansionSets: []dto.ExpansionSetSummary{{Code: "promo", Name: "Promo Set"}},
 	}, nil)
@@ -68,7 +68,7 @@ func TestCatalogHandler_ListRarities(t *testing.T) {
 
 func TestCatalogHandler_ListCategories(t *testing.T) {
 	svc, api := newTestCatalogHandler(t)
-	svc.EXPECT().ListCategories(mock.Anything).Return([]string{"Pokémon", "Trainer"}, nil)
+	svc.EXPECT().ListCategories(mock.Anything, mock.Anything).Return([]string{"Pokémon", "Trainer"}, nil)
 
 	resp := api.Get("/catalog/categories")
 	if resp.Code != http.StatusOK {
@@ -82,7 +82,7 @@ func TestCatalogHandler_ListCategories(t *testing.T) {
 
 func TestCatalogHandler_ListTags(t *testing.T) {
 	svc, api := newTestCatalogHandler(t)
-	svc.EXPECT().ListTags(mock.Anything).Return([]string{"Basic"}, nil)
+	svc.EXPECT().ListTags(mock.Anything, mock.Anything).Return([]string{"Basic"}, nil)
 
 	resp := api.Get("/catalog/tags")
 	if resp.Code != http.StatusOK {
@@ -186,7 +186,7 @@ func trimTrailingNewline(s string) string {
 func TestCatalogHandler_UnclassifiedErrorsAreRedacted(t *testing.T) {
 	leak := errors.New("failed to connect: postgres://admin:s3cr3t@dbhost:5432/cards")
 	svc, api := newTestCatalogHandler(t)
-	svc.EXPECT().ListSeries(mock.Anything).Return(dto.SeriesBrowseResult{}, leak)
+	svc.EXPECT().ListSeries(mock.Anything, mock.Anything).Return(dto.SeriesBrowseResult{}, leak)
 	svc.EXPECT().SearchCards(mock.Anything, mock.Anything).Return(nil, dto.PaginationMeta{}, leak)
 
 	for _, path := range []string{"/catalog/series", "/catalog/cards"} {

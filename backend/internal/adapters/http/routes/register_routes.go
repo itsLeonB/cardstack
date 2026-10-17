@@ -40,7 +40,9 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	})
 
 	endpoint.RegisterAll(api, healthHandler.Routes())
-	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser)
+	// The catalog serves Admins the unpublished sets too (GLOSSARY.md Published),
+	// so it flags the caller rather than gating the route.
+	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser, authpkg.AdminFlag(adminEmails))
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
