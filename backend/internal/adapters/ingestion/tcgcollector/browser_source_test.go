@@ -16,8 +16,10 @@ const normalPage = `<html><head><title>Pokémon TCG sets (Indonesian TCG) – TC
 <script>window.__CF$cv$params={r:'a4bcd58e7e60ce63',t:'MTc5MjIxNDIxNw==',u:'01a0756244307b428e74e70222d81ac1',ut:'w3TG1JRh6KN1.Gv6KLjxAFRoijq5uTbV5U0rmp4SCto-1792214218-1.2.1.1-kUR3OgCWn3mm9ABQFFrXXf3k60dsJ8GosKbnwGlsytpYZTHa8Gs7NwtIQasFXsuKZLYK0Q7JhtBUpmFPFdq1.mpLE0WRFc1jLZox7P205x0',i:60};(function(){if(!document.body)return;var s=document.createElement('script');s.src='/cdn-cgi/challenge-platform/scripts/precursor/main.js';document.head.appendChild(s);})();</script>
 </head><body><main><h1>Indonesian TCG Sets</h1></main></body></html>`
 
-// interstitialPage is a trimmed copy of Cloudflare's challenge page: its
-// challenge config key and its title are the markers that are on screen.
+// interstitialPage is Cloudflare's challenge page as it serves it, written down
+// rather than captured: no saved page in references/tcg-collector is an
+// interstitial. It carries both markers, so configKeyPage and the title-only
+// case below are what pin each marker on its own.
 const interstitialPage = `<html lang="en-US"><head><title>Just a moment...</title>
 <meta http-equiv="refresh" content="390">
 </head><body class="no-js"><div class="main-wrapper" role="main"><div class="main-content"><noscript>Enable JavaScript and cookies to continue</noscript></div></div>
