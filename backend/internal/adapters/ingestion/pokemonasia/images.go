@@ -42,8 +42,8 @@ func expansionSetImageKey(id uuid.UUID) string { return "expansion-sets/" + id.S
 // imageFetcher downloads one image address, so a row's source decides which host it may come from.
 type imageFetcher func(ctx context.Context, rawURL string) ([]byte, string, error)
 
-// A set logo comes from TCG Collector's CDN, not the Asia host, so it has its own
-// allowed host and client (ticket 03).
+// Set logos and TCG Collector's card images come from its CDN, not the Asia
+// host, so they share this allowed host and client (ticket 03, ADR-0016).
 const (
 	logoScheme = "https"
 	logoHost   = "static.tcgcollector.com"
@@ -87,8 +87,23 @@ func (c *client) fetchImage(ctx context.Context, rawURL string) ([]byte, string,
 }
 
 // fetchLogo downloads a set logo, which may come only from the TCG Collector CDN.
-func (c *client) fetchLogo(ctx context.Context, rawURL string) ([]byte, string, error) {
+// fetchTCGCollector downloads an image from TCG Collector's CDN, the one host
+// its set logos and card images may come from.
+func (c *client) fetchTCGCollector(ctx context.Context, rawURL string) ([]byte, string, error) {
 	return c.fetchFrom(ctx, rawURL, logoScheme, logoHost, c.logoClient)
+}
+
+// cardImageFetcher returns how a card's image is downloaded, from the source
+// that last wrote its row. It is nil for a row no source may re-host (an Admin
+// edit keeps the image it was given), so the card is left alone.
+func (c *client) cardImageFetcher(updatedBy string) imageFetcher {
+	switch updatedBy {
+	case entity.SourcePokemonAsia:
+		return c.fetchImage
+	case entity.SourceTCGCollector:
+		return c.fetchTCGCollector
+	}
+	return nil
 }
 
 func (c *client) fetchFrom(ctx context.Context, rawURL, scheme, host string, hc *http.Client) ([]byte, string, error) {
@@ -164,11 +179,12 @@ func (in *Ingester) hostImage(ctx context.Context, fetch imageFetcher, key, sour
 // address, or hosting is off. A failure is recorded and swallowed: the key
 // stays empty so the API serves no image and a later run retries.
 func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansionCode, siteCardID string) {
-	if in.store == nil || card.UpdatedBy != entity.SourcePokemonAsia || card.ImageKey != "" || card.SourceImageURL == "" {
+	fetch := in.client.cardImageFetcher(card.UpdatedBy)
+	if in.store == nil || fetch == nil || card.ImageKey != "" || card.SourceImageURL == "" {
 		return
 	}
 	key := cardImageKey(card.ID)
-	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID}, "card image", key, card.SourceImageURL, in.client.fetchImage, func() error {
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID}, "card image", key, card.SourceImageURL, fetch, func() error {
 		card.ImageKey = key
 		_, err := in.cards.Update(ctx, card)
 		return err
@@ -177,7 +193,7 @@ func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansi
 
 // hostSetCover is hostCardImage for an Expansion Set's cover.
 func (in *Ingester) hostSetCover(ctx context.Context, set entity.ExpansionSet, expansionCode string) {
-	if in.store == nil || set.UpdatedBy != entity.SourcePokemonAsia || set.ImageKey != "" || set.SourceImageURL == "" {
+	if in.store == nil || !ownedByAsia(set.UpdatedBy) || set.ImageKey != "" || set.SourceImageURL == "" {
 		return
 	}
 	key := expansionSetImageKey(set.ID)
@@ -196,7 +212,7 @@ func (in *Ingester) hostSetLogo(ctx context.Context, set entity.ExpansionSet, ex
 		return
 	}
 	key := expansionSetLogoKey(set.ID)
-	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode}, "expansion set logo", key, set.SourceLogoURL, in.client.fetchLogo, func() error {
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode}, "expansion set logo", key, set.SourceLogoURL, in.client.fetchTCGCollector, func() error {
 		row, err := in.sets.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{Model: entity.ExpansionSet{BaseEntity: crud.BaseEntity{ID: set.ID}}})
 		if err != nil {
 			return err
