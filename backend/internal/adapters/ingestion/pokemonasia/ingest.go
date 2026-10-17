@@ -537,10 +537,6 @@ func (in *Ingester) upsertExpansionSet(
 		return entity.ExpansionSet{}, err
 	}
 
-	if existing.Curated {
-		return existing, nil // docs/adr/0019
-	}
-
 	releaseDate := listing.ReleaseDate
 	if existing.IsZero() {
 		return in.sets.Insert(ctx, entity.ExpansionSet{
@@ -551,7 +547,13 @@ func (in *Ingester) upsertExpansionSet(
 			SeriesID:       &seriesID,
 			ReleaseDate:    &releaseDate,
 			SourceImageURL: listing.ImageURL,
+			CreatedBy:      entity.SourcePokemonAsia,
+			UpdatedBy:      entity.SourcePokemonAsia,
 		})
+	}
+
+	if !ownedByAsia(existing.UpdatedBy) {
+		return existing, nil // docs/adr/0021
 	}
 
 	existing.Name = listing.Name
@@ -560,6 +562,13 @@ func (in *Ingester) upsertExpansionSet(
 	existing.ReleaseDate = &releaseDate
 	existing.SourceImageURL = listing.ImageURL
 	return in.sets.Update(ctx, existing)
+}
+
+// ownedByAsia reports whether this ingester last wrote the row. Only such a row
+// is overwritten or re-hosted from the Asia site: an Admin edit and a row that
+// TCG Collector wrote are left as they are.
+func ownedByAsia(updatedBy string) bool {
+	return updatedBy == entity.SourcePokemonAsia
 }
 
 func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Card, error) {
@@ -572,8 +581,8 @@ func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Ca
 	if existing.IsZero() {
 		return in.cards.Insert(ctx, card)
 	}
-	if existing.Curated {
-		return existing, nil // docs/adr/0019
+	if !ownedByAsia(existing.UpdatedBy) {
+		return existing, nil // docs/adr/0021
 	}
 
 	existing.Name = card.Name

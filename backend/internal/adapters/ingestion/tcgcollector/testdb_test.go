@@ -1,0 +1,85 @@
+package tcgcollector
+
+import (
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
+	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/pressly/goose/v3"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
+)
+
+// TestMain initializes the package-global logger before any test runs: it's
+// normally set up once in cmd/*/main.go, but client.go's retry path now logs
+// through it too, and logger.Global is nil (a call panics) until Init runs.
+func TestMain(m *testing.M) {
+	logger.Init("pokemonasia_test")
+	os.Exit(m.Run())
+}
+
+// testDBConfig holds this file's Postgres DSN pieces, loaded via envconfig
+// with the same bare DB_* env var names internal/domain/repository's
+// testDB helper reads manually.
+type testDBConfig struct {
+	Host     string `envconfig:"DB_HOST" default:"localhost"`
+	Port     string `envconfig:"DB_PORT" default:"5432"`
+	User     string `envconfig:"DB_USER" default:"cardstack"`
+	Password string `envconfig:"DB_PASSWORD" default:"cardstack"`
+	Name     string `envconfig:"DB_NAME" default:"cardstack"`
+}
+
+// testDB takes the same real-Postgres testing approach as
+// internal/domain/repository's testDB helper (see its doc comment for how
+// to start a matching local Postgres, per docs/adr/0005) — same setup
+// ticket 03's tcgdex ingester used. It deliberately does not truncate
+// tables — this DB is shared with other packages' tests — so tests use
+// uniqueCode for one-of-a-kind natural keys.
+func testDB(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	var cfg testDBConfig
+	if err := envconfig.Process("", &cfg); err != nil {
+		t.Fatalf("loading test DB config: %v", err)
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name,
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
+	if err != nil {
+		t.Fatalf("connecting to test postgres (see internal/domain/repository's testDB doc comment for how to start one locally): %v", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("getting sql.DB: %v", err)
+	}
+	// Unclosed per-test pools exhaust Postgres's connection limit.
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	goose.SetBaseFS(migrations.Migrations)
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatalf("setting goose dialect: %v", err)
+	}
+	if err := goose.Up(sqlDB, "."); err != nil {
+		t.Fatalf("running migrations: %v", err)
+	}
+
+	return db
+}
+
+// uniqueCode returns a set/series/rarity code unique to this test run, so
+// tests never collide with each other or leftover rows regardless of run
+// order (mirrors internal/domain/repository's uniqueEmail).
+func uniqueCode(t *testing.T) string {
+	t.Helper()
+	return uuid.NewString()
+}

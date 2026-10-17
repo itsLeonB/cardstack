@@ -16,6 +16,9 @@ type Caller struct {
 	ProfileID uuid.UUID
 	// Email is the verified email claim of the token; empty for a Guest.
 	Email string
+	// IsAdmin is set by AdminFlag on routes that serve Admins and non-Admins
+	// alike; AdminOnly routes do not need it.
+	IsAdmin bool
 }
 
 func (c Caller) IsGuest() bool { return c.ProfileID == uuid.Nil }

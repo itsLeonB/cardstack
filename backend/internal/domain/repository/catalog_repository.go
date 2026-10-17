@@ -30,24 +30,29 @@ import (
 // email, cache, object storage), not domain logic and the database access
 // behind it, which is unlikely to change and belongs in domain.
 type CatalogRepository interface {
-	// ListSeries returns every Series, ordered by name.
-	ListSeries(ctx context.Context) ([]entity.Series, error)
+	// ListSeries returns every Series, ordered by name. Unless
+	// includeUnpublished, a Series whose sets are all unpublished is left out
+	// and its date ignores them.
+	ListSeries(ctx context.Context, includeUnpublished bool) ([]entity.Series, error)
 	// ListExpansionSets returns every Expansion Set whose SeriesID is in
 	// seriesIDs, ordered by release date (sets with an unknown release date
-	// sort last) then name.
-	ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error)
+	// sort last) then name. Unless includeUnpublished, unpublished sets are
+	// left out.
+	ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID, includeUnpublished bool) ([]entity.ExpansionSet, error)
 	// ListUngroupedExpansionSets returns every Expansion Set whose SeriesID
 	// is nil, ordered the same way ListExpansionSets orders each Series's
-	// sets.
-	ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error)
+	// sets, and with the same includeUnpublished rule.
+	ListUngroupedExpansionSets(ctx context.Context, includeUnpublished bool) ([]entity.ExpansionSet, error)
 	// ListRarities returns every Rarity across all Games, ordered by name.
 	ListRarities(ctx context.Context) ([]entity.Rarity, error)
 	// ListDistinctCategories returns the distinct Card.Category values
-	// actually in use, ordered alphabetically.
-	ListDistinctCategories(ctx context.Context) ([]string, error)
+	// actually in use, ordered alphabetically. Unless includeUnpublished, only
+	// Cards of published sets count.
+	ListDistinctCategories(ctx context.Context, includeUnpublished bool) ([]string, error)
 	// ListDistinctTags returns the distinct values found across every
-	// Card's Tags array, ordered alphabetically.
-	ListDistinctTags(ctx context.Context) ([]string, error)
+	// Card's Tags array, ordered alphabetically, with the same
+	// includeUnpublished rule as ListDistinctCategories.
+	ListDistinctTags(ctx context.Context, includeUnpublished bool) ([]string, error)
 	// SearchCards returns the Cards matching filter (joined with their
 	// Rarity and Expansion Set), limited/offset per filter, plus the total
 	// number of Cards matching filter before that pagination.
@@ -75,17 +80,27 @@ func NewCatalogRepository(base crud.Repository[entity.Card]) CatalogRepository {
 // no release date of its own: it is ordered by the earliest release date among
 // its own Expansion Sets, derived at query time. A Series with no known date
 // (all its sets undated, or no sets) sorts last; ties break by name.
-func (r *catalogRepository) ListSeries(ctx context.Context) ([]entity.Series, error) {
+func (r *catalogRepository) ListSeries(ctx context.Context, includeUnpublished bool) ([]entity.Series, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	dates := db.Table("expansion_sets").Select("series_id, MIN(release_date) AS release_date").Group("series_id")
+	if !includeUnpublished {
+		dates = dates.Where("published = true")
+	}
+
+	q := db.Select("series.*").Joins("LEFT JOIN (?) AS set_dates ON set_dates.series_id = series.id", dates)
+	if !includeUnpublished {
+		// A Series with sets but none published is hidden. One with no sets at all
+		// stays, as it always has.
+		q = q.Where(`(NOT EXISTS (SELECT 1 FROM expansion_sets WHERE expansion_sets.series_id = series.id)
+			OR EXISTS (SELECT 1 FROM expansion_sets WHERE expansion_sets.series_id = series.id AND expansion_sets.published))`)
+	}
+
 	var series []entity.Series
-	err = db.
-		Select("series.*").
-		Joins("LEFT JOIN (SELECT series_id, MIN(release_date) AS release_date FROM expansion_sets GROUP BY series_id) AS set_dates ON set_dates.series_id = series.id").
-		Order("set_dates.release_date DESC NULLS LAST, series.name ASC").
+	err = q.Order("set_dates.release_date DESC NULLS LAST, series.name ASC").
 		Find(&series).
 		Error
 	return series, err
@@ -96,7 +111,7 @@ func (r *catalogRepository) ListSeries(ctx context.Context) ([]entity.Series, er
 // release date sort last), then name. An empty seriesIDs returns no rows
 // rather than every Expansion Set, since the only caller (ListSeries's
 // nesting) always passes the Series it actually found.
-func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error) {
+func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID, includeUnpublished bool) ([]entity.ExpansionSet, error) {
 	if len(seriesIDs) == 0 {
 		return nil, nil
 	}
@@ -107,8 +122,7 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 	}
 
 	var sets []entity.ExpansionSet
-	err = db.
-		Where("series_id IN ?", seriesIDs).
+	err = visibleSets(db.Where("series_id IN ?", seriesIDs), includeUnpublished).
 		Order("release_date DESC NULLS LAST, name ASC").
 		Find(&sets).
 		Error
@@ -122,15 +136,14 @@ func (r *catalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []u
 // (see GLOSSARY.md's Series entry), not an edge case to special-case away -
 // this is how it's surfaced through GET /catalog/series alongside the grouped
 // Series.
-func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
+func (r *catalogRepository) ListUngroupedExpansionSets(ctx context.Context, includeUnpublished bool) ([]entity.ExpansionSet, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var sets []entity.ExpansionSet
-	err = db.
-		Where("series_id IS NULL").
+	err = visibleSets(db.Where("series_id IS NULL"), includeUnpublished).
 		Order("release_date DESC NULLS LAST, name ASC").
 		Find(&sets).
 		Error
@@ -151,15 +164,14 @@ func (r *catalogRepository) ListRarities(ctx context.Context) ([]entity.Rarity, 
 
 // ListDistinctCategories returns the distinct Card.Category values actually
 // in use, ordered alphabetically.
-func (r *catalogRepository) ListDistinctCategories(ctx context.Context) ([]string, error) {
+func (r *catalogRepository) ListDistinctCategories(ctx context.Context, includeUnpublished bool) ([]string, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var categories []string
-	err = db.
-		Model(&entity.Card{}).
+	err = visibleCards(db.Model(&entity.Card{}), includeUnpublished).
 		Distinct("category").
 		Order("category ASC").
 		Pluck("category", &categories).
@@ -174,18 +186,19 @@ func (r *catalogRepository) ListDistinctCategories(ctx context.Context) ([]strin
 // express directly. The jsonb_typeof guard skips any row whose Tags isn't
 // actually a JSON array (e.g. an unset Tags column stores JSON null) -
 // jsonb_array_elements_text errors on a non-array/scalar value otherwise.
-func (r *catalogRepository) ListDistinctTags(ctx context.Context) ([]string, error) {
+func (r *catalogRepository) ListDistinctTags(ctx context.Context, includeUnpublished bool) ([]string, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var tags []string
-	err = db.
-		Raw(`SELECT DISTINCT tag FROM cards, jsonb_array_elements_text(cards.tags) AS tag
-			WHERE jsonb_typeof(cards.tags) = 'array'
-			ORDER BY tag ASC`).
-		Scan(&tags).
+	err = visibleCards(db.Table("cards").
+		Joins("CROSS JOIN LATERAL jsonb_array_elements_text(cards.tags) AS tag").
+		Where("jsonb_typeof(cards.tags) = 'array'"), includeUnpublished).
+		Distinct().
+		Order("tag ASC").
+		Pluck("tag", &tags).
 		Error
 	return tags, err
 }
@@ -209,8 +222,11 @@ type CardFilter struct {
 	Categories      []string
 	Tags            []string
 	CardIDs         []uuid.UUID
-	Limit           int
-	Offset          int
+	// IncludeUnpublished lets the query see Cards of unpublished Expansion Sets
+	// (an Admin's view). It applies to the facet options as well as the Cards.
+	IncludeUnpublished bool
+	Limit              int
+	Offset             int
 }
 
 // CardFacets is ListCardFacets's result. Each option set already includes
@@ -258,6 +274,7 @@ type CardResult struct {
 	ExpansionSetName        string
 	ExpansionSetReleaseDate *time.Time
 	ExpansionSetCoverKey    string
+	ExpansionSetLogoKey     string
 	// Quantity is set only when searching within a Collection or a profile's Master Inventory.
 	Quantity int
 }
@@ -283,7 +300,8 @@ const cardResultColumns = `cards.id AS id,
 	expansion_sets.code AS expansion_set_code,
 	expansion_sets.name AS expansion_set_name,
 	expansion_sets.release_date AS expansion_set_release_date,
-	expansion_sets.cover_key AS expansion_set_cover_key`
+	expansion_sets.cover_key AS expansion_set_cover_key,
+	expansion_sets.logo_key AS expansion_set_logo_key`
 
 // likeEscaper escapes ILIKE's own wildcard characters (%, _) and its default
 // escape character (\) in a single pass, so a literal % or _ in user input
@@ -294,9 +312,10 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 // cardsBase is the query over cards that filters apply to: all Cards, or only
 // the Collection's when filter.CollectionID is set.
 func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
-	// A Curated Card with no image key is one an Admin has saved but whose
-	// upload is not confirmed yet; it stays out of every list (docs/adr/0019).
-	q := db.Table("cards").Where("NOT (cards.curated AND cards.image_key = '')")
+	// A Card an Admin last updated with no image key is one an Admin has saved
+	// but whose upload is not confirmed yet; it stays out of every list
+	// (docs/adr/0019, docs/adr/0021).
+	q := db.Table("cards").Where("NOT (cards.updated_by = ? AND cards.image_key = '')", entity.SourceAdmin)
 	if filter.CollectionID != uuid.Nil {
 		q = q.Joins("JOIN inventory_entries ON inventory_entries.card_id = cards.id AND inventory_entries.collection_id = ?", filter.CollectionID)
 	} else if filter.ProfileID != uuid.Nil {
@@ -305,7 +324,32 @@ func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
 			WHERE c.profile_id = ? GROUP BY ie.card_id) AS master_inventory
 			ON master_inventory.card_id = cards.id`, filter.ProfileID)
 	}
-	return q
+	return visibleCards(q, filter.IncludeUnpublished)
+}
+
+// visibleSets narrows a query over expansion_sets to published sets, unless
+// includeUnpublished (an Admin's view, GLOSSARY.md Published).
+func visibleSets(query *gorm.DB, includeUnpublished bool) *gorm.DB {
+	if includeUnpublished {
+		return query
+	}
+	return query.Where("published = true")
+}
+
+// visibleCardIDs is the subquery of the Card IDs a user can see, for a query
+// that filters another table by card_id instead of joining cards.
+func visibleCardIDs(db *gorm.DB) *gorm.DB {
+	return visibleCards(db.Model(&entity.Card{}).Select("cards.id"), false)
+}
+
+// visibleCards narrows a query over cards to Cards of published Expansion
+// Sets, unless includeUnpublished. The subquery keeps the condition clear of
+// any join the caller already has on expansion_sets.
+func visibleCards(query *gorm.DB, includeUnpublished bool) *gorm.DB {
+	if includeUnpublished {
+		return query
+	}
+	return query.Where("cards.expansion_set_id IN (SELECT id FROM expansion_sets WHERE published = true)")
 }
 
 // applyCardFilters adds filter's non-empty facets as WHERE conditions to
@@ -404,7 +448,7 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 	}
 	var sets []entity.ExpansionSet
 	if ids := unionIDs(setIDs, filter.ExpansionSetIDs); len(ids) > 0 {
-		if err := db.Where("id IN ?", ids).
+		if err := visibleSets(db.Where("id IN ?", ids), filter.IncludeUnpublished).
 			Order("release_date ASC NULLS LAST, name ASC").Find(&sets).Error; err != nil {
 			return CardFacets{}, ungerr.Wrap(err, "listing expansion set facet options")
 		}

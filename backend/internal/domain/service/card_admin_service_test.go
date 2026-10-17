@@ -117,7 +117,8 @@ func TestCardAdminService_CreateCard_DefaultsToTanpaTandaAndIsCurated(t *testing
 	f.expectRarityByName(promo)
 	want := entity.Card{
 		ExpansionSetID: f.set.ID, LocalID: "001", Name: "Pikachu", Category: "Pokémon",
-		Tags: datatypes.JSONSlice[string]{}, RarityID: promo.ID, Attributes: datatypes.JSONMap{}, Curated: true,
+		Tags: datatypes.JSONSlice[string]{}, RarityID: promo.ID, Attributes: datatypes.JSONMap{},
+		CreatedBy: entity.SourceAdmin, UpdatedBy: entity.SourceAdmin,
 	}
 	inserted := want
 	inserted.BaseEntity = baseEntity(uuid.New())
@@ -140,7 +141,8 @@ func TestCardAdminService_CreateCard_TrainerKeepsItsTagsAndChosenRarity(t *testi
 	f.expectRarityByID(chosen.ID, chosen)
 	f.cards.EXPECT().Insert(f.ctx, entity.Card{
 		ExpansionSetID: f.set.ID, LocalID: "001", Name: "Pikachu", Category: "Trainer", Illustrator: "Someone",
-		Tags: datatypes.JSONSlice[string]{"Item", "Supporter"}, RarityID: chosen.ID, Attributes: datatypes.JSONMap{}, Curated: true,
+		Tags: datatypes.JSONSlice[string]{"Item", "Supporter"}, RarityID: chosen.ID, Attributes: datatypes.JSONMap{},
+		CreatedBy: entity.SourceAdmin, UpdatedBy: entity.SourceAdmin,
 	}).Return(entity.Card{BaseEntity: baseEntity(uuid.New()), Tags: datatypes.JSONSlice[string]{"Item", "Supporter"}}, nil).Once()
 
 	got, err := f.svc.CreateCard(f.ctx, req)
@@ -213,8 +215,8 @@ func TestCardAdminService_UpdateCard_ReplacesEveryFieldWithTheRequests(t *testin
 	f.expectRarityByID(chosen.ID, chosen)
 	// The illustrator is not in the request, so it is cleared, not kept.
 	want := stored
-	want.Name, want.Category, want.Tags, want.RarityID, want.Illustrator, want.Curated =
-		"Pikachu", "Trainer", datatypes.JSONSlice[string]{"Item"}, chosen.ID, "", true
+	want.Name, want.Category, want.Tags, want.RarityID, want.Illustrator, want.UpdatedBy =
+		"Pikachu", "Trainer", datatypes.JSONSlice[string]{"Item"}, chosen.ID, "", entity.SourceAdmin
 	f.cards.EXPECT().Update(f.ctx, want).Return(want, nil).Once()
 
 	got, err := f.svc.UpdateCard(f.ctx, req)
@@ -330,12 +332,12 @@ func TestCardAdminService_ConfirmImage_AcceptsJPEGPNGAndWebP(t *testing.T) {
 	for name, head := range heads {
 		t.Run(name, func(t *testing.T) {
 			f := newCardAdminFixture(t)
-			// Not Curated, as a Card ingestion wrote: confirming marks it.
-			card := entity.Card{BaseEntity: baseEntity(uuid.New()), ExpansionSetID: f.set.ID, Name: "X"}
+			// Last updated by ingestion, so confirming makes the Admin the updater.
+			card := entity.Card{BaseEntity: baseEntity(uuid.New()), ExpansionSetID: f.set.ID, Name: "X", CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia}
 			key := f.expectConfirmReads(card, head, nil)
 			f.expectLockedCard(card)
 			want := card
-			want.ImageKey, want.Curated = key, true
+			want.ImageKey, want.UpdatedBy = key, entity.SourceAdmin
 			f.cards.EXPECT().Update(f.ctx, want).Return(want, nil).Once()
 
 			got, err := f.svc.ConfirmImage(f.ctx, dto.CardImageConfirm{CardID: card.ID})

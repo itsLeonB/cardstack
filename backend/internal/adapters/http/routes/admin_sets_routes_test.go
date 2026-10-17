@@ -73,7 +73,7 @@ func (f adminSetFixture) seedSet(t *testing.T, code string, releaseDate time.Tim
 	t.Helper()
 	locale := entity.Locale{Code: "seed-" + uuid.NewString()}
 	require.NoError(t, f.api.db.Create(&locale).Error)
-	set := entity.ExpansionSet{GameID: f.game.ID, Code: code, Name: "Seeded " + code, LocaleID: locale.ID, SeriesID: &f.series.ID, ReleaseDate: &releaseDate}
+	set := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: f.game.ID, Code: code, Name: "Seeded " + code, LocaleID: locale.ID, SeriesID: &f.series.ID, ReleaseDate: &releaseDate}
 	require.NoError(t, f.api.db.Create(&set).Error)
 	return set
 }
@@ -101,7 +101,8 @@ func TestAdminSets_CreateMakesACuratedSetThatBrowseShowsUnderItsSeries(t *testin
 	assert.Empty(t, got.Data.ImageURL, "no cover")
 
 	row := f.setByCode(t, code)
-	assert.True(t, row.Curated)
+	assert.Equal(t, entity.SourceAdmin, row.CreatedBy)
+	assert.Equal(t, entity.SourceAdmin, row.UpdatedBy)
 	assert.Equal(t, f.series.ID, *row.SeriesID)
 	assert.Equal(t, "2019-05-08", row.ReleaseDate.Format(time.DateOnly))
 	assert.NotEqual(t, uuid.Nil, row.LocaleID)
@@ -121,7 +122,7 @@ func TestAdminSets_EditingAnIngestedSetKeepsItsIdentityAndMarksItCurated(t *test
 	f := newAdminSetFixture(t)
 	code := "ASIA-" + f.suffix
 	seeded := f.seedSet(t, code, time.Date(2016, 12, 2, 0, 0, 0, 0, time.UTC))
-	require.False(t, seeded.Curated)
+	require.Equal(t, entity.SourcePokemonAsia, seeded.UpdatedBy)
 
 	status, body := f.update(t, seeded.ID, map[string]any{"name": "Corrected name", "releaseDate": "2016-12-03", "seriesId": f.series.ID})
 
@@ -132,7 +133,7 @@ func TestAdminSets_EditingAnIngestedSetKeepsItsIdentityAndMarksItCurated(t *test
 	assert.Equal(t, seeded.LocaleID, row.LocaleID)
 	assert.Equal(t, "Corrected name", row.Name)
 	assert.Equal(t, "2016-12-03", row.ReleaseDate.Format(time.DateOnly))
-	assert.True(t, row.Curated)
+	assert.Equal(t, entity.SourceAdmin, row.UpdatedBy)
 
 	status, body = f.update(t, seeded.ID, map[string]any{"name": "Corrected name", "releaseDate": "2016-12-03", "seriesId": f.series.ID})
 	require.Equal(t, http.StatusOK, status, body)
@@ -179,7 +180,7 @@ func TestAdminSets_CreateOfAnExistingCodeIsAConflictAndChangesNothing(t *testing
 	row := f.setByCode(t, code)
 	assert.Equal(t, seeded.ID, row.ID)
 	assert.Equal(t, seeded.Name, row.Name, "a duplicate is not an update")
-	assert.False(t, row.Curated)
+	assert.NotEqual(t, entity.SourceAdmin, row.UpdatedBy)
 }
 
 func TestAdminSets_UnknownSeriesIsAValidationErrorAndWritesNothing(t *testing.T) {
@@ -202,7 +203,7 @@ func TestAdminSets_AddingALaterSetDoesNotReorderSeries(t *testing.T) {
 	newerDate := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
 	locale := entity.Locale{Code: "seed-" + uuid.NewString()}
 	require.NoError(t, f.api.db.Create(&locale).Error)
-	require.NoError(t, f.api.db.Create(&entity.ExpansionSet{GameID: f.game.ID, Code: "NEW-" + f.suffix, Name: "n", LocaleID: locale.ID, SeriesID: &newer.ID, ReleaseDate: &newerDate}).Error)
+	require.NoError(t, f.api.db.Create(&entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: f.game.ID, Code: "NEW-" + f.suffix, Name: "n", LocaleID: locale.ID, SeriesID: &newer.ID, ReleaseDate: &newerDate}).Error)
 
 	order := func() (older, newerAt int) {
 		ids := []uuid.UUID{}

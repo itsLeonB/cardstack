@@ -63,7 +63,7 @@ func (f catalogFixture) newExpansionSet(t *testing.T, db *gorm.DB, seriesID *uui
 	t.Helper()
 	suffix := uuid.NewString()
 
-	set := entity.ExpansionSet{
+	set := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia,
 		GameID:      f.game.ID,
 		Code:        "set-" + suffix,
 		Name:        "Catalog Test Set " + suffix,
@@ -82,7 +82,7 @@ func (f catalogFixture) newCard(t *testing.T, db *gorm.DB, setID uuid.UUID, muta
 	t.Helper()
 	suffix := uuid.NewString()
 
-	card := entity.Card{
+	card := entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia,
 		ExpansionSetID: setID,
 		LocalID:        "001",
 		Name:           "Catalog Test Card " + suffix,
@@ -107,7 +107,7 @@ func TestCatalogRepository_ListSeries(t *testing.T) {
 	series := fixture.newSeries(t, db)
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
-	all, err := repo.ListSeries(context.Background())
+	all, err := repo.ListSeries(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListSeries: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestCatalogRepository_ListSeries_OrdersByEarliestSetReleaseDateDesc(t *test
 	require.NoError(t, db.Save(&noSets).Error)
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
-	all, err := repo.ListSeries(context.Background())
+	all, err := repo.ListSeries(context.Background(), false)
 	require.NoError(t, err)
 
 	// The table is shared with other tests and never truncated, so keep
@@ -201,7 +201,7 @@ func TestCatalogRepository_ListExpansionSets(t *testing.T) {
 	fixture.newExpansionSet(t, db, &otherSeries.ID, nil)
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
-	sets, err := repo.ListExpansionSets(context.Background(), []uuid.UUID{series.ID})
+	sets, err := repo.ListExpansionSets(context.Background(), []uuid.UUID{series.ID}, false)
 	if err != nil {
 		t.Fatalf("ListExpansionSets: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestCatalogRepository_ListUngroupedExpansionSets(t *testing.T) {
 	grouped := fixture.newExpansionSet(t, db, &series.ID, nil)
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
-	all, err := repo.ListUngroupedExpansionSets(context.Background())
+	all, err := repo.ListUngroupedExpansionSets(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListUngroupedExpansionSets: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestCatalogRepository_ListExpansionSets_EmptyIDs(t *testing.T) {
 	db := testDB(t)
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
 
-	sets, err := repo.ListExpansionSets(context.Background(), nil)
+	sets, err := repo.ListExpansionSets(context.Background(), nil, false)
 	if err != nil {
 		t.Fatalf("ListExpansionSets: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestCatalogRepository_ListDistinctCategories(t *testing.T) {
 	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.Category = uniqueCategory })
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
-	categories, err := repo.ListDistinctCategories(context.Background())
+	categories, err := repo.ListDistinctCategories(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListDistinctCategories: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestCatalogRepository_ListDistinctTags(t *testing.T) {
 	})
 
 	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
-	tags, err := repo.ListDistinctTags(context.Background())
+	tags, err := repo.ListDistinctTags(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListDistinctTags: %v", err)
 	}

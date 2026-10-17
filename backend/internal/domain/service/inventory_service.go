@@ -51,7 +51,7 @@ type inventoryService struct {
 	collections repository.CollectionRepository
 	entries     repository.InventoryRepository
 	catalog     repository.CatalogRepository
-	cards       crud.Repository[entity.Card]
+	cards       repository.CardRepository
 	images      mapper.ImageHost
 }
 
@@ -60,7 +60,7 @@ func NewInventoryService(
 	collections repository.CollectionRepository,
 	entries repository.InventoryRepository,
 	catalog repository.CatalogRepository,
-	cards crud.Repository[entity.Card],
+	cards repository.CardRepository,
 	images mapper.ImageHost,
 ) InventoryService {
 	return &inventoryService{transactor: transactor, collections: collections, entries: entries, catalog: catalog, cards: cards, images: images}
@@ -167,16 +167,14 @@ func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uu
 	return entry, nil
 }
 
-// findCard returns the Card, or the zero value when absent. Guards a nil id
-// for the same reason as findEntry.
-func (s *inventoryService) findCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+// cardExists reports whether the Card is in the catalog. Guards a nil id for
+// the same reason as findEntry.
+func (s *inventoryService) cardExists(ctx context.Context, cardID uuid.UUID) (bool, error) {
 	if cardID == uuid.Nil {
-		return entity.Card{}, nil
+		return false, nil
 	}
 
-	return s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-		Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}},
-	})
+	return s.cards.Exists(ctx, cardID)
 }
 
 // exceedsCapacity reports whether raising a Card from current to quantity
@@ -219,11 +217,11 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 			return err
 		}
 
-		card, err := s.findCard(ctx, req.CardID)
+		exists, err := s.cardExists(ctx, req.CardID)
 		if err != nil {
 			return err
 		}
-		if card.IsZero() {
+		if !exists {
 			return ungerr.NotFoundError(cardNotFoundMsg)
 		}
 
@@ -359,11 +357,11 @@ func (s *inventoryService) applyChange(ctx context.Context, c entity.Collection,
 	}
 
 	if existing.IsZero() {
-		card, err := s.findCard(ctx, item.CardID)
+		exists, err := s.cardExists(ctx, item.CardID)
 		if err != nil {
 			return dto.InventoryChangeResult{}, 0, err
 		}
-		if card.IsZero() {
+		if !exists {
 			return declined(dto.InventoryReasonCardNotFound, cardNotFoundMsg), 0, nil
 		}
 		if item.Quantity == 0 {

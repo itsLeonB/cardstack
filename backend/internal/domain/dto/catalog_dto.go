@@ -82,6 +82,17 @@ type CardFilter struct {
 	// CatalogService.SearchCards). The zero value is a Guest, so a caller that
 	// forgets to set it gets the locked preview, never the full catalog.
 	Guest bool
+	// CatalogAccess says whether the caller may see unpublished Expansion Sets.
+	// Only the catalog search sets it; Inventory leaves it false, so a picker
+	// never offers an unpublished Card to anyone.
+	CatalogAccess
+}
+
+// CatalogAccess is what the caller may see of the catalog beyond what every
+// caller sees. Admin lets them see unpublished Expansion Sets and their Cards
+// (GLOSSARY.md Published); the zero value sees only published ones.
+type CatalogAccess struct {
+	Admin bool
 }
 
 // ExpansionSetFacetOption is one Expansion Set choice in GET

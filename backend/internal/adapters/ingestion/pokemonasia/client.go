@@ -60,6 +60,9 @@ type client struct {
 	imageHost   string
 	imageScheme string
 	imageClient *http.Client
+
+	// logoClient is imageClient for TCG Collector's CDN, which serves set logos and card images (images.go).
+	logoClient *http.Client
 }
 
 func newClient() *client {
@@ -70,6 +73,7 @@ func newClient() *client {
 		imageHost:   sourceHost,
 		imageScheme: sourceScheme,
 		imageClient: newImageClient(sourceScheme, sourceHost),
+		logoClient:  newImageClient(logoScheme, logoHost),
 	}
 }
 

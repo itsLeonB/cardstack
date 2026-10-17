@@ -44,12 +44,12 @@ func newTestCardsInSet(t *testing.T, n int, releaseDate *time.Time) []uuid.UUID 
 	require.NoError(t, db.Create(&locale).Error)
 	rarity := entity.Rarity{GameID: game.ID, Code: "R-" + s, Name: "Rarity " + s}
 	require.NoError(t, db.Create(&rarity).Error)
-	set := entity.ExpansionSet{GameID: game.ID, Code: "set-" + s, Name: "Set " + s, LocaleID: locale.ID, ReleaseDate: releaseDate}
+	set := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "set-" + s, Name: "Set " + s, LocaleID: locale.ID, ReleaseDate: releaseDate}
 	require.NoError(t, db.Create(&set).Error)
 
 	ids := make([]uuid.UUID, n)
 	for i := range ids {
-		card := entity.Card{ExpansionSetID: set.ID, LocalID: string(rune('a' + i)), Name: "Card " + s, Category: "Pokémon",
+		card := entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, ExpansionSetID: set.ID, LocalID: string(rune('a' + i)), Name: "Card " + s, Category: "Pokémon",
 			Tags: datatypes.JSONSlice[string]{}, RarityID: rarity.ID, Attributes: datatypes.JSONMap{}}
 		require.NoError(t, db.Create(&card).Error)
 		ids[i] = card.ID

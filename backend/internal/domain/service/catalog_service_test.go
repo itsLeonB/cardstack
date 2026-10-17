@@ -42,12 +42,12 @@ func TestCatalogService_ListSeries_NestsExpansionSets(t *testing.T) {
 	}
 
 	repo := mocks.NewMockCatalogRepository(t)
-	repo.EXPECT().ListSeries(ctx).Return(series, nil).Once()
-	repo.EXPECT().ListExpansionSets(ctx, []uuid.UUID{seriesID, otherSeriesID}).Return(sets, nil).Once()
-	repo.EXPECT().ListUngroupedExpansionSets(ctx).Return(ungrouped, nil).Once()
+	repo.EXPECT().ListSeries(ctx, false).Return(series, nil).Once()
+	repo.EXPECT().ListExpansionSets(ctx, []uuid.UUID{seriesID, otherSeriesID}, false).Return(sets, nil).Once()
+	repo.EXPECT().ListUngroupedExpansionSets(ctx, false).Return(ungrouped, nil).Once()
 	svc := NewCatalogService(repo, testImages)
 
-	got, err := svc.ListSeries(ctx)
+	got, err := svc.ListSeries(ctx, dto.CatalogAccess{})
 	if err != nil {
 		t.Fatalf("ListSeries: %v", err)
 	}
@@ -70,10 +70,10 @@ func TestCatalogService_ListSeries_PropagatesRepositoryError(t *testing.T) {
 	wantErr := errors.New("boom")
 
 	repo := mocks.NewMockCatalogRepository(t)
-	repo.EXPECT().ListSeries(ctx).Return(nil, wantErr).Once()
+	repo.EXPECT().ListSeries(ctx, false).Return(nil, wantErr).Once()
 	svc := NewCatalogService(repo, testImages)
 
-	_, err := svc.ListSeries(ctx)
+	_, err := svc.ListSeries(ctx, dto.CatalogAccess{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected error %v, got %v", wantErr, err)
 	}
@@ -84,12 +84,12 @@ func TestCatalogService_ListSeries_PropagatesUngroupedExpansionSetsError(t *test
 	wantErr := errors.New("boom")
 
 	repo := mocks.NewMockCatalogRepository(t)
-	repo.EXPECT().ListSeries(ctx).Return(nil, nil).Once()
-	repo.EXPECT().ListExpansionSets(ctx, []uuid.UUID{}).Return(nil, nil).Once()
-	repo.EXPECT().ListUngroupedExpansionSets(ctx).Return(nil, wantErr).Once()
+	repo.EXPECT().ListSeries(ctx, false).Return(nil, nil).Once()
+	repo.EXPECT().ListExpansionSets(ctx, []uuid.UUID{}, false).Return(nil, nil).Once()
+	repo.EXPECT().ListUngroupedExpansionSets(ctx, false).Return(nil, wantErr).Once()
 	svc := NewCatalogService(repo, testImages)
 
-	_, err := svc.ListSeries(ctx)
+	_, err := svc.ListSeries(ctx, dto.CatalogAccess{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected error %v, got %v", wantErr, err)
 	}
@@ -117,11 +117,11 @@ func TestCatalogService_ListCategoriesAndTags(t *testing.T) {
 	ctx := context.Background()
 
 	repo := mocks.NewMockCatalogRepository(t)
-	repo.EXPECT().ListDistinctCategories(ctx).Return([]string{"Pokémon", "Trainer"}, nil).Once()
-	repo.EXPECT().ListDistinctTags(ctx).Return([]string{"Basic", "Stage 1"}, nil).Once()
+	repo.EXPECT().ListDistinctCategories(ctx, false).Return([]string{"Pokémon", "Trainer"}, nil).Once()
+	repo.EXPECT().ListDistinctTags(ctx, false).Return([]string{"Basic", "Stage 1"}, nil).Once()
 	svc := NewCatalogService(repo, testImages)
 
-	categories, err := svc.ListCategories(ctx)
+	categories, err := svc.ListCategories(ctx, dto.CatalogAccess{})
 	if err != nil {
 		t.Fatalf("ListCategories: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestCatalogService_ListCategoriesAndTags(t *testing.T) {
 		t.Fatalf("expected repo's categories passed through, got %v", categories)
 	}
 
-	tags, err := svc.ListTags(ctx)
+	tags, err := svc.ListTags(ctx, dto.CatalogAccess{})
 	if err != nil {
 		t.Fatalf("ListTags: %v", err)
 	}

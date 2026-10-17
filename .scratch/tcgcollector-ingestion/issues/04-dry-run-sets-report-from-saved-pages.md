@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A new command with a Makefile target and a doc line, manual only; flags `-dir`, `-set CODE`, `-apply` (not wired to writes yet, dry run is the default), `-refresh` (accepted, used from ticket 06); report on stdout, logs on stderr
 - [ ] A page-source interface (URL in, HTML out) with a directory-reader implementation for `-dir`

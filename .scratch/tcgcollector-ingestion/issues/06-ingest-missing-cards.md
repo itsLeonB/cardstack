@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 04, 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] The card-list parser reads each Card's TCG Collector id, name, number and image (largest srcset entry) from a trimmed copy of the saved list pages, one page per set with no `?page=`
 - [ ] The card-page parser reads rarity (the code in parentheses; `—` means `Tanpa Tanda`), illustrator (`—` means empty), regulation mark, category (Pokémon when HP is shown, else Trainer or Energi from the subtype line) and tags (Item, Supporter, Stadium, Pokémon Tool, Energi Dasar, Energi Spesial; other words dropped), from trimmed copies of the Pokémon, Trainer and Energy sample pages

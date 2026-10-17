@@ -57,8 +57,8 @@ func TestHostedImagesMigration_BackfillsSourceAndLeavesKeyEmpty(t *testing.T) {
 		require.NoError(t, tx.Raw(`INSERT INTO games (slug, name) VALUES (?, ?) RETURNING id`, "mig-"+s, "Mig").Scan(&gameID).Error)
 		require.NoError(t, tx.Raw(`INSERT INTO locales (code) VALUES (?) RETURNING id`, "mig-"+s).Scan(&localeID).Error)
 		require.NoError(t, tx.Raw(`INSERT INTO rarities (game_id, code, name) VALUES (?, 'C', 'Common') RETURNING id`, gameID).Scan(&rarityID).Error)
-		require.NoError(t, tx.Raw(`INSERT INTO expansion_sets (game_id, code, name, locale_id, image_url) VALUES (?, ?, 'Set', ?, 'https://source.test/set.png') RETURNING id`, gameID, "mig-"+s, localeID).Scan(&setID).Error)
-		require.NoError(t, tx.Exec(`INSERT INTO cards (expansion_set_id, local_id, name, category, tags, rarity_id, attributes, image_url) VALUES (?, '001', 'Card', 'Pokémon', '[]', ?, '{}', 'https://source.test/card.png')`, setID, rarityID).Error)
+		require.NoError(t, tx.Raw(`INSERT INTO expansion_sets (game_id, code, name, locale_id, image_url, created_by, updated_by) VALUES (?, ?, 'Set', ?, 'https://source.test/set.png', 'pokemon-asia', 'pokemon-asia') RETURNING id`, gameID, "mig-"+s, localeID).Scan(&setID).Error)
+		require.NoError(t, tx.Exec(`INSERT INTO cards (expansion_set_id, local_id, name, category, tags, rarity_id, attributes, image_url, created_by, updated_by) VALUES (?, '001', 'Card', 'Pokémon', '[]', ?, '{}', 'https://source.test/card.png', 'pokemon-asia', 'pokemon-asia')`, setID, rarityID).Error)
 
 		require.NoError(t, tx.Exec(up).Error)
 

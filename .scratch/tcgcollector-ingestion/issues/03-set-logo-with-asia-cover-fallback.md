@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A migration adds `source_logo_url` and `logo_key` to `expansion_sets`, both empty by default
 - [ ] Every API response that gives a set's cover URL gives the logo URL when `logo_key` is set and the existing cover otherwise
