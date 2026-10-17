@@ -26,6 +26,10 @@ type ExpansionSetRepository interface {
 	// It changes no other column, not even updated_by, so the row keeps its
 	// writer (docs/adr/0021).
 	FillSourceLogoURL(ctx context.Context, id uuid.UUID, url string) error
+	// InsertUnpublished inserts the set with published = false and returns it
+	// with its ID. Insert cannot write that false: a zero Published takes the
+	// column default (true).
+	InsertUnpublished(ctx context.Context, set entity.ExpansionSet) (entity.ExpansionSet, error)
 }
 
 type expansionSetRepository struct {
@@ -80,4 +84,27 @@ func (r *expansionSetRepository) FillSourceLogoURL(ctx context.Context, id uuid.
 		return ungerr.Wrap(err, "filling expansion set logo")
 	}
 	return nil
+}
+
+func (r *expansionSetRepository) InsertUnpublished(ctx context.Context, set entity.ExpansionSet) (entity.ExpansionSet, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return entity.ExpansionSet{}, err
+	}
+
+	set.Published = false
+	row := expansionSetInsert{ExpansionSet: set}
+	if err := db.Create(&row).Error; err != nil {
+		return entity.ExpansionSet{}, ungerr.Wrap(err, "inserting unpublished expansion set")
+	}
+
+	return row.ExpansionSet, nil
+}
+
+// expansionSetInsert shadows Published with a field that has no column
+// default. Create would otherwise replace a zero Published with the default
+// (true), so the false reaches the insert itself.
+type expansionSetInsert struct {
+	entity.ExpansionSet
+	Published bool `gorm:"not null"`
 }

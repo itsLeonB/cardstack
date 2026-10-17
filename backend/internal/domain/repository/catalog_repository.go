@@ -336,6 +336,12 @@ func visibleSets(query *gorm.DB, includeUnpublished bool) *gorm.DB {
 	return query.Where("published = true")
 }
 
+// visibleCardIDs is the subquery of the Card IDs a user can see, for a query
+// that filters another table by card_id instead of joining cards.
+func visibleCardIDs(db *gorm.DB) *gorm.DB {
+	return visibleCards(db.Model(&entity.Card{}).Select("cards.id"), false)
+}
+
 // visibleCards narrows a query over cards to Cards of published Expansion
 // Sets, unless includeUnpublished. The subquery keeps the condition clear of
 // any join the caller already has on expansion_sets.
