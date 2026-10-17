@@ -13,3 +13,5 @@
 - [ ] A short doc line says how to start Chrome, unlock it once, and fall back to saving pages for `-dir`
 - [ ] Not tested in CI; the ticket comments record a manual check: unlock, fetch the sets page, fetch a card list page, and resume after a forced re-challenge
 - [ ] Backend verification script passes
+
+**Amended:** the first item's "does nothing to evade the challenge" still holds. Challenge detection now matches the interstitial's own markers (its config key or the `Just a moment` title) and no longer counts Cloudflare's precursor script, which rides on every normal page, so the fetcher stops waiting for a challenge that nobody is being shown (ADR-0021, ticket 09).
