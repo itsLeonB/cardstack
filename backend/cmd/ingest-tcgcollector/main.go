@@ -1,15 +1,17 @@
 // Command ingest-tcgcollector compares TCG Collector's Indonesian sets list
 // with the catalog and prints what is missing. It is a dry run: it writes
 // nothing and prints its report to stdout, logs go to stderr. Manually
-// triggered only; run it with -dir pointing at a saved copy of the sets page
-// (`make ingest-tcgcollector ARGS="-dir ./saved"`), since the browser fetcher
-// is not built yet.
+// triggered only. Without -dir it starts a visible Chrome itself and fetches
+// through it, so solve TCG Collector's challenge in that window once; later
+// runs reuse the profile. With -dir it reads pages saved by hand instead
+// (`make ingest-tcgcollector ARGS="-dir ./saved"`).
 package main
 
 import (
 	"context"
 	"flag"
 	"os"
+	"path/filepath"
 
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/tcgcollector"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
@@ -33,10 +35,6 @@ func main() {
 	if *refresh {
 		logger.Warn("-refresh has no effect yet: there is no page cache")
 	}
-	if *dir == "" {
-		logger.Fatal("-dir is required: the browser fetcher is not built yet")
-	}
-
 	if err := config.Load(); err != nil {
 		logger.Fatal(err)
 	}
@@ -47,7 +45,10 @@ func main() {
 	}
 	defer cleanup()
 
-	ingester := tcgcollector.NewIngester(providers.Gorm, tcgcollector.NewDirSource(*dir))
+	pages, closePages := newPageSource(*dir)
+	defer closePages()
+
+	ingester := tcgcollector.NewIngester(providers.Gorm, pages)
 	report, err := ingester.Run(context.Background(), tcgcollector.Options{SetCode: *set})
 	if err != nil {
 		logger.Fatal(err)
@@ -56,4 +57,19 @@ func main() {
 	if err := report.Render(os.Stdout); err != nil {
 		logger.Fatal(err)
 	}
+}
+
+// newPageSource reads saved pages from dir when it is set. Otherwise it opens
+// the operator's visible Chrome, whose profile lives in the user cache dir.
+func newPageSource(dir string) (tcgcollector.PageSource, func()) {
+	if dir != "" {
+		return tcgcollector.NewDirSource(dir), func() {}
+	}
+
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	return tcgcollector.NewBrowserSource(filepath.Join(cacheDir, "cardstack", "tcgcollector-chrome"))
 }
