@@ -84,8 +84,8 @@ func TestUserRepository_LockIdentity(t *testing.T) {
 	}()
 
 	select {
-	case <-waiterDone:
-		t.Fatal("a second transaction acquired the identity lock while the first held it")
+	case err := <-waiterDone:
+		t.Fatalf("a second transaction acquired the identity lock while the first held it (err: %v)", err)
 	case <-time.After(300 * time.Millisecond):
 	}
 
