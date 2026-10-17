@@ -29,8 +29,9 @@ type ExpansionSet struct {
 	// the ImageKey original (docs/adr/0017); "" until cmd/presize-images has
 	// run. It is the only cover address the API serves.
 	CoverKey string `gorm:"not null;default:''"`
-	// Curated means the same as on Card.
-	Curated bool `gorm:"not null;default:false"`
+	// CreatedBy and UpdatedBy mean the same as on Card.
+	CreatedBy string `gorm:"not null"`
+	UpdatedBy string `gorm:"not null"`
 }
 
 func (ExpansionSet) TableName() string { return "expansion_sets" }

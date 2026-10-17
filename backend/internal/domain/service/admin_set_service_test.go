@@ -87,7 +87,7 @@ func TestAdminSetService_NewSetFiledUnderANewIndonesianLocale(t *testing.T) {
 	f.expectLocale(entity.Locale{})
 	f.locales.EXPECT().Insert(f.ctx, entity.Locale{Code: adminLocaleCode}).Return(locale, nil).Once()
 	want := entity.ExpansionSet{
-		GameID: f.series.GameID, Code: "SM-P", Name: "Promo", LocaleID: locale.ID, SeriesID: &f.series.ID, ReleaseDate: &release, Curated: true,
+		GameID: f.series.GameID, Code: "SM-P", Name: "Promo", LocaleID: locale.ID, SeriesID: &f.series.ID, ReleaseDate: &release, CreatedBy: entity.SourceAdmin, UpdatedBy: entity.SourceAdmin,
 	}
 	written := want
 	written.BaseEntity = baseEntity(uuid.New())
@@ -106,7 +106,9 @@ func TestAdminSetService_NewSetReusesTheExistingLocale(t *testing.T) {
 	f.expectSeries(true)
 	f.expectSetWithCode(entity.ExpansionSet{})
 	f.expectLocale(locale)
-	f.sets.EXPECT().Insert(f.ctx, mock.MatchedBy(func(s entity.ExpansionSet) bool { return s.LocaleID == locale.ID && s.Curated })).
+	f.sets.EXPECT().Insert(f.ctx, mock.MatchedBy(func(s entity.ExpansionSet) bool {
+		return s.LocaleID == locale.ID && s.CreatedBy == entity.SourceAdmin && s.UpdatedBy == entity.SourceAdmin
+	})).
 		Return(entity.ExpansionSet{BaseEntity: baseEntity(uuid.New())}, nil).Once()
 
 	_, err := f.svc.CreateExpansionSet(f.ctx, f.createReq(release))
@@ -135,7 +137,7 @@ func TestAdminSetService_UpdateReplacesNameDateAndSeriesKeepsCodeAndMarksCurated
 	f.expectLockedSetByID(ingested.ID, ingested)
 	f.expectSeries(false)
 	want := ingested
-	want.Name, want.SeriesID, want.ReleaseDate, want.Curated = "Promo", &f.series.ID, &release, true
+	want.Name, want.SeriesID, want.ReleaseDate, want.UpdatedBy = "Promo", &f.series.ID, &release, entity.SourceAdmin
 	f.sets.EXPECT().Update(f.ctx, want).Return(want, nil).Once()
 
 	got, err := f.svc.UpdateExpansionSet(f.ctx, dto.ExpansionSetUpdate{ID: ingested.ID, Name: "Promo", ReleaseDate: release, SeriesID: f.series.ID})

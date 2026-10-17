@@ -343,7 +343,7 @@ func TestMapCard(t *testing.T) {
 				RegulationMark: "I",
 				Attributes:     map[string]any{"stage": "Stage 2"},
 			},
-			want: entity.Card{
+			want: entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia,
 				ExpansionSetID: expansionSetID,
 				LocalID:        "001",
 				Name:           "Mega Venusaur ex",
@@ -367,7 +367,7 @@ func TestMapCard(t *testing.T) {
 				RegulationMark: "C",
 				Attributes:     map[string]any{},
 			},
-			want: entity.Card{
+			want: entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia,
 				ExpansionSetID: expansionSetID,
 				LocalID:        "150",
 				Name:           "Ultra Ball",

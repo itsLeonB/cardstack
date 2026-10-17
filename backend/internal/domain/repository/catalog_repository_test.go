@@ -63,7 +63,7 @@ func (f catalogFixture) newExpansionSet(t *testing.T, db *gorm.DB, seriesID *uui
 	t.Helper()
 	suffix := uuid.NewString()
 
-	set := entity.ExpansionSet{
+	set := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia,
 		GameID:      f.game.ID,
 		Code:        "set-" + suffix,
 		Name:        "Catalog Test Set " + suffix,
@@ -82,7 +82,7 @@ func (f catalogFixture) newCard(t *testing.T, db *gorm.DB, setID uuid.UUID, muta
 	t.Helper()
 	suffix := uuid.NewString()
 
-	card := entity.Card{
+	card := entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia,
 		ExpansionSetID: setID,
 		LocalID:        "001",
 		Name:           "Catalog Test Card " + suffix,

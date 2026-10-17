@@ -43,14 +43,14 @@ func TestCatalogImageURLs(t *testing.T) {
 	rarity := entity.Rarity{GameID: game.ID, Code: "R-" + s, Name: "Rarity " + s}
 	require.NoError(t, db.Create(&rarity).Error)
 
-	hostedSet := entity.ExpansionSet{GameID: game.ID, Code: "hosted-" + s, Name: "Hosted " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png"}
+	hostedSet := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "hosted-" + s, Name: "Hosted " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png"}
 	require.NoError(t, db.Create(&hostedSet).Error)
 	require.NoError(t, db.Model(&hostedSet).Updates(map[string]any{"image_key": "expansion-sets/" + hostedSet.ID.String(), "cover_key": "expansion-sets/" + hostedSet.ID.String() + ".0123abcd.webp"}).Error)
-	unhostedSet := entity.ExpansionSet{GameID: game.ID, Code: "unhosted-" + s, Name: "Unhosted " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png"}
+	unhostedSet := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "unhosted-" + s, Name: "Unhosted " + s, LocaleID: locale.ID, SourceImageURL: "https://source.test/set.png"}
 	require.NoError(t, db.Create(&unhostedSet).Error)
 
 	newCard := func(set entity.ExpansionSet, localID, key string) entity.Card {
-		card := entity.Card{ExpansionSetID: set.ID, LocalID: localID, Name: "Card " + s, Category: "Pokémon", Tags: datatypes.JSONSlice[string]{},
+		card := entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, ExpansionSetID: set.ID, LocalID: localID, Name: "Card " + s, Category: "Pokémon", Tags: datatypes.JSONSlice[string]{},
 			RarityID: rarity.ID, Attributes: datatypes.JSONMap{}, SourceImageURL: "https://source.test/" + localID + ".png", ImageKey: key}
 		require.NoError(t, db.Create(&card).Error)
 		return card

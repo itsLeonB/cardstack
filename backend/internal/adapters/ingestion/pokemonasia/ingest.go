@@ -537,10 +537,6 @@ func (in *Ingester) upsertExpansionSet(
 		return entity.ExpansionSet{}, err
 	}
 
-	if existing.Curated {
-		return existing, nil // docs/adr/0019
-	}
-
 	releaseDate := listing.ReleaseDate
 	if existing.IsZero() {
 		return in.sets.Insert(ctx, entity.ExpansionSet{
@@ -551,7 +547,13 @@ func (in *Ingester) upsertExpansionSet(
 			SeriesID:       &seriesID,
 			ReleaseDate:    &releaseDate,
 			SourceImageURL: listing.ImageURL,
+			CreatedBy:      entity.SourcePokemonAsia,
+			UpdatedBy:      entity.SourcePokemonAsia,
 		})
+	}
+
+	if existing.UpdatedBy != entity.SourcePokemonAsia {
+		return existing, nil // docs/adr/0021
 	}
 
 	existing.Name = listing.Name
@@ -572,8 +574,8 @@ func (in *Ingester) upsertCard(ctx context.Context, card entity.Card) (entity.Ca
 	if existing.IsZero() {
 		return in.cards.Insert(ctx, card)
 	}
-	if existing.Curated {
-		return existing, nil // docs/adr/0019
+	if existing.UpdatedBy != entity.SourcePokemonAsia {
+		return existing, nil // docs/adr/0021
 	}
 
 	existing.Name = card.Name
