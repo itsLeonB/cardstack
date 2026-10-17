@@ -27,7 +27,7 @@ help:
 	@echo "  make http-hot                - Start the HTTP server with hot reload (requires air)"
 	@echo "  make job                     - Run migrations (production)"
 	@echo "  make ingest-pokemon-asia     - Ingest Pokémon Asia catalog data (manual, no scheduler)"
-	@echo "  make ingest-tcgcollector     - Dry-run report of TCG Collector sets missing from the catalog, from saved pages (manual; ARGS=\"-dir DIR [-set CODE]\")"
+	@echo "  make ingest-tcgcollector     - TCG Collector sets missing from the catalog: dry-run report, or -apply to create them unpublished, from saved pages (manual; ARGS=\"-dir DIR [-set CODE] [-apply]\")"
 	@echo "  make host-images             - Copy images missing from R2 straight from the database (manual)"
 	@echo "  make host-series-images      - Upload assets/series logos to R2 and set series.image_key (manual)"
 	@echo "  make presize-images          - Resize Expansion Set covers to 128px WebP in R2 and set expansion_sets.cover_key (manual, needs vips)"
