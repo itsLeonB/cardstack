@@ -32,6 +32,7 @@ type Ingester struct {
 	locales    crud.Repository[entity.Locale]
 	series     crud.Repository[entity.Series]
 	transactor crud.Transactor
+	rarities   crud.Repository[entity.Rarity]
 	pages      PageSource
 	gameSlug   string
 }
@@ -43,10 +44,27 @@ func NewIngester(db *gorm.DB, pages PageSource) *Ingester {
 		cards:      repository.NewCardRepository(crud.NewRepository[entity.Card](db)),
 		locales:    crud.NewRepository[entity.Locale](db),
 		series:     crud.NewRepository[entity.Series](db),
+		rarities:   crud.NewRepository[entity.Rarity](db),
 		transactor: crud.NewTransactor(db),
 		pages:      pages,
 		gameSlug:   gameSlug,
 	}
+}
+
+// loadSets reads the Game's Expansion Sets by code.
+func (in *Ingester) loadSets(ctx context.Context, gameID uuid.UUID) (map[string]entity.ExpansionSet, error) {
+	sets, err := in.sets.FindAll(ctx, crud.Specification[entity.ExpansionSet]{
+		Model: entity.ExpansionSet{GameID: gameID},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	byCode := make(map[string]entity.ExpansionSet, len(sets))
+	for _, set := range sets {
+		byCode[set.Code] = set
+	}
+	return byCode, nil
 }
 
 // Options narrows a run.
@@ -57,6 +75,9 @@ type Options struct {
 	// Apply creates the missing sets and fills the missing logos. Without it the
 	// run only reports.
 	Apply bool
+	// Refresh refetches the pages this run reads instead of using the page
+	// cache. With SetCode that is the sets page and that set's pages.
+	Refresh bool
 }
 
 // Report is what a run found, grouped the way the operator reads it.
@@ -71,6 +92,8 @@ type Report struct {
 	// Failed are the sets a -apply write could not finish, with the cause. The
 	// other sets are still written.
 	Failed []string
+	// Cards are the card ingestion's results for each listed set in scope.
+	Cards []SetCards
 }
 
 // UnpublishedSet is one unpublished Expansion Set in the catalog.
@@ -88,6 +111,10 @@ type UnpublishedSet struct {
 // With opts.Apply it writes the missing sets and logos first, so the
 // unpublished list it reports includes the sets it just created.
 func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
+	if opts.Refresh {
+		ctx = withRefresh(ctx)
+	}
+
 	page, err := in.pages.Fetch(ctx, setsPageURL)
 	if err != nil {
 		return Report{}, err
@@ -121,14 +148,9 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 	// list the sets of every game.
 	existing := map[string]entity.ExpansionSet{}
 	if !game.IsZero() {
-		sets, err := in.sets.FindAll(ctx, crud.Specification[entity.ExpansionSet]{
-			Model: entity.ExpansionSet{GameID: game.ID},
-		})
+		existing, err = in.loadSets(ctx, game.ID)
 		if err != nil {
 			return Report{}, err
-		}
-		for _, set := range sets {
-			existing[set.Code] = set
 		}
 	}
 
@@ -152,6 +174,12 @@ func (in *Ingester) Run(ctx context.Context, opts Options) (Report, error) {
 	}
 
 	if !game.IsZero() {
+		// Cards go in before the unpublished counts, which must include them.
+		report.Cards, err = in.cardReports(ctx, opts, game.ID, listings, created)
+		if err != nil {
+			return Report{}, err
+		}
+
 		unpublished, err := in.sets.ListUnpublished(ctx, game.ID)
 		if err != nil {
 			return Report{}, err
@@ -347,6 +375,27 @@ func (r Report) Render(w io.Writer) error {
 		}
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "    UPDATE expansion_sets SET published = true WHERE code = '%s';\n", set.Code)
+	}
+
+	fmt.Fprintf(&b, "\nCards in the listed sets: %d sets\n", len(r.Cards))
+	for _, set := range r.Cards {
+		published := 0
+		if set.Published {
+			published = len(set.Added)
+		}
+		fmt.Fprintf(
+			&b, "  %-10s %s | added: %d | added to a published set: %d | held: %d | skipped: %d | failed: %d | added without image: %d\n",
+			set.Code, set.Name, len(set.Added), published, set.Held, len(set.Skipped), len(set.Failed), set.WithoutImage,
+		)
+		for _, card := range set.Added {
+			fmt.Fprintf(&b, "    + %s\n", card)
+		}
+		for _, skip := range set.Skipped {
+			fmt.Fprintf(&b, "    skip %s\n", skip)
+		}
+		for _, failure := range set.Failed {
+			fmt.Fprintf(&b, "    fail %s\n", failure)
+		}
 	}
 
 	fmt.Fprintf(&b, "\nFailed to write: %d\n", len(r.Failed))

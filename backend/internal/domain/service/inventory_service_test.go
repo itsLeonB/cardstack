@@ -25,7 +25,7 @@ type inventoryFixture struct {
 	collections *mocks.MockCollectionRepository
 	entries     *mocks.MockInventoryRepository
 	catalog     *mocks.MockCatalogRepository
-	cards       *mocks.MockRepository[entity.Card]
+	cards       *mocks.MockCardRepository
 	svc         InventoryService
 }
 
@@ -39,7 +39,7 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 	f.collections = mocks.NewMockCollectionRepository(t)
 	f.entries = mocks.NewMockInventoryRepository(t)
 	f.catalog = mocks.NewMockCatalogRepository(t)
-	f.cards = mocks.NewMockRepository[entity.Card](t)
+	f.cards = mocks.NewMockCardRepository(t)
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
@@ -63,11 +63,7 @@ func lockedEntrySpec(collectionID, cardID uuid.UUID) crud.Specification[entity.I
 }
 
 func (f inventoryFixture) expectCard(cardID uuid.UUID, found bool) {
-	got := entity.Card{}
-	if found {
-		got.BaseEntity = baseEntity(cardID)
-	}
-	f.cards.EXPECT().FindFirst(f.ctx, crud.Specification[entity.Card]{Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}}}).Return(got, nil).Once()
+	f.cards.EXPECT().Exists(f.ctx, cardID).Return(found, nil).Once()
 }
 
 func (f inventoryFixture) expectEntry(cardID uuid.UUID, existing entity.InventoryEntry) {
@@ -224,7 +220,7 @@ func TestInventoryService_Add_PropagatesRepositoryError(t *testing.T) {
 	f := newInventoryFixture(t, 0)
 	wantErr := errors.New("boom")
 	f.lockedCollection()
-	f.cards.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.Card{}, wantErr).Once()
+	f.cards.EXPECT().Exists(f.ctx, mock.Anything).Return(false, wantErr).Once()
 
 	_, err := f.svc.Add(f.ctx, f.entryReq(uuid.New(), 1))
 	assert.ErrorIs(t, err, wantErr)

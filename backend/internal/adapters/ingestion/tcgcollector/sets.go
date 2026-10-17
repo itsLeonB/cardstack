@@ -12,7 +12,10 @@ import (
 
 // setsPageURL is TCG Collector's Indonesian sets list. DirSource finds a saved
 // copy of it by this URL's path.
-const setsPageURL = "https://www.tcgcollector.com/sets/id"
+const setsPageURL = tcgCollectorOrigin + "/sets/id"
+
+// tcgCollectorOrigin is the site's scheme and host, the base of every page path.
+const tcgCollectorOrigin = "https://www.tcgcollector.com"
 
 // releaseDateLayout matches the list's "Sep 16, 2026" release dates.
 const releaseDateLayout = "Jan 2, 2006"
@@ -53,6 +56,8 @@ type SetListing struct {
 	CardCount int
 	// LogoURL is the widest srcset entry, "" when the set has no logo.
 	LogoURL string
+	// CardListURL is the set's card list page, read by the card ingestion.
+	CardListURL string
 	// SeriesHeading is the heading the set sits under, verbatim. Series is the
 	// catalog name for it, "" when the heading is not in seriesByHeading.
 	SeriesHeading string
@@ -107,6 +112,14 @@ func parseSetItem(item *goquery.Selection) (SetListing, error) {
 		return SetListing{}, ungerr.Unknownf("set %s has no code", id)
 	}
 
+	// The link's query only picks the card count mode, and the card list is
+	// read without it so that it is one page with no ?page=.
+	link, ok := item.Find("a.set-logo-grid-item-name").First().Attr("href")
+	if !ok || link == "" {
+		return SetListing{}, ungerr.Unknownf("set %s has no card list link", tcgCode)
+	}
+	listPath, _, _ := strings.Cut(link, "?")
+
 	released := strings.TrimSpace(item.Find("div.set-logo-grid-item-release-date").First().Text())
 	releaseDate, err := time.Parse(releaseDateLayout, released)
 	if err != nil {
@@ -127,6 +140,7 @@ func parseSetItem(item *goquery.Selection) (SetListing, error) {
 		ReleaseDate:    releaseDate,
 		CardCount:      cardCount,
 		LogoURL:        largestSrcset(item.Find("img.set-logo-grid-item-logo").AttrOr("srcset", "")),
+		CardListURL:    tcgCollectorOrigin + listPath,
 	}, nil
 }
 
