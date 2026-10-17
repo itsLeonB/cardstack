@@ -55,10 +55,7 @@ func Guard(api huma.API, verifier TokenVerifier, users service.UserService, allo
 // case-insensitively, and answers everyone else, Guest or signed in, with the
 // same 404 so an admin route does not reveal itself. It must run after Guard.
 func AdminOnly(api huma.API, emails []string) func(huma.Context, func(huma.Context)) {
-	allowed := make(map[string]struct{}, len(emails))
-	for _, email := range emails {
-		allowed[strings.ToLower(email)] = struct{}{}
-	}
+	allowed := adminEmailSet(emails)
 
 	return func(ctx huma.Context, next func(huma.Context)) {
 		caller := CallerFrom(ctx.Context())
@@ -68,6 +65,30 @@ func AdminOnly(api huma.API, emails []string) func(huma.Context, func(huma.Conte
 		}
 		next(ctx)
 	}
+}
+
+// AdminFlag marks the caller IsAdmin when its email is in emails, and lets
+// everyone through: it is for routes that serve Admins and non-Admins alike,
+// which then narrow what they return. It must run after Guard.
+func AdminFlag(emails []string) func(huma.Context, func(huma.Context)) {
+	allowed := adminEmailSet(emails)
+
+	return func(ctx huma.Context, next func(huma.Context)) {
+		caller := CallerFrom(ctx.Context())
+		_, ok := allowed[strings.ToLower(caller.Email)]
+		caller.IsAdmin = ok && !caller.IsGuest()
+		next(WithCaller(ctx, caller))
+	}
+}
+
+// adminEmailSet lowercases emails into a lookup set, since email comparison is
+// case-insensitive.
+func adminEmailSet(emails []string) map[string]struct{} {
+	allowed := make(map[string]struct{}, len(emails))
+	for _, email := range emails {
+		allowed[strings.ToLower(email)] = struct{}{}
+	}
+	return allowed
 }
 
 // writeErr answers through the Huma error seam (ADR-0013): an AppError keeps

@@ -32,6 +32,11 @@ type ExpansionSet struct {
 	// CreatedBy and UpdatedBy mean the same as on Card.
 	CreatedBy string `gorm:"not null"`
 	UpdatedBy string `gorm:"not null"`
+	// Published hides the set and its Cards from everyone but an Admin
+	// (GLOSSARY.md Published). The column defaults to true, so an insert that
+	// leaves Published at Go's zero value gets a published set: a writer that
+	// needs an unpublished set must say so in the insert itself.
+	Published bool `gorm:"not null;default:true"`
 }
 
 func (ExpansionSet) TableName() string { return "expansion_sets" }

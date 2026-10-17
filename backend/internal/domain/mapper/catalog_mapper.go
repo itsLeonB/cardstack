@@ -97,13 +97,14 @@ func ToStringFacetOption(o repository.StringFacetOption) dto.StringFacetOption {
 // collection scope are the caller's to set.
 func ToRepoCardFilter(filter dto.CardFilter) repository.CardFilter {
 	return repository.CardFilter{
-		Name:            filter.Name,
-		ExpansionSetIDs: filter.ExpansionSetIDs,
-		LocalID:         filter.LocalID,
-		RarityIDs:       filter.RarityIDs,
-		Categories:      filter.Categories,
-		Tags:            filter.Tags,
-		CardIDs:         filter.CardIDs,
+		Name:               filter.Name,
+		ExpansionSetIDs:    filter.ExpansionSetIDs,
+		LocalID:            filter.LocalID,
+		RarityIDs:          filter.RarityIDs,
+		Categories:         filter.Categories,
+		Tags:               filter.Tags,
+		CardIDs:            filter.CardIDs,
+		IncludeUnpublished: filter.Admin,
 	}
 }
 

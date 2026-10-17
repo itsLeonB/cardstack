@@ -22,9 +22,9 @@ func (_m *MockCatalogService) EXPECT() *MockCatalogService_Expecter {
 	return &MockCatalogService_Expecter{mock: &_m.Mock}
 }
 
-// ListCategories provides a mock function with given fields: ctx
-func (_m *MockCatalogService) ListCategories(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
+// ListCategories provides a mock function with given fields: ctx, access
+func (_m *MockCatalogService) ListCategories(ctx context.Context, access dto.CatalogAccess) ([]string, error) {
+	ret := _m.Called(ctx, access)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListCategories")
@@ -32,19 +32,19 @@ func (_m *MockCatalogService) ListCategories(ctx context.Context) ([]string, err
 
 	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CatalogAccess) ([]string, error)); ok {
+		return rf(ctx, access)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CatalogAccess) []string); ok {
+		r0 = rf(ctx, access)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CatalogAccess) error); ok {
+		r1 = rf(ctx, access)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -59,13 +59,14 @@ type MockCatalogService_ListCategories_Call struct {
 
 // ListCategories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogService_Expecter) ListCategories(ctx interface{}) *MockCatalogService_ListCategories_Call {
-	return &MockCatalogService_ListCategories_Call{Call: _e.mock.On("ListCategories", ctx)}
+//   - access dto.CatalogAccess
+func (_e *MockCatalogService_Expecter) ListCategories(ctx interface{}, access interface{}) *MockCatalogService_ListCategories_Call {
+	return &MockCatalogService_ListCategories_Call{Call: _e.mock.On("ListCategories", ctx, access)}
 }
 
-func (_c *MockCatalogService_ListCategories_Call) Run(run func(ctx context.Context)) *MockCatalogService_ListCategories_Call {
+func (_c *MockCatalogService_ListCategories_Call) Run(run func(ctx context.Context, access dto.CatalogAccess)) *MockCatalogService_ListCategories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(dto.CatalogAccess))
 	})
 	return _c
 }
@@ -75,7 +76,7 @@ func (_c *MockCatalogService_ListCategories_Call) Return(_a0 []string, _a1 error
 	return _c
 }
 
-func (_c *MockCatalogService_ListCategories_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockCatalogService_ListCategories_Call {
+func (_c *MockCatalogService_ListCategories_Call) RunAndReturn(run func(context.Context, dto.CatalogAccess) ([]string, error)) *MockCatalogService_ListCategories_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -195,9 +196,9 @@ func (_c *MockCatalogService_ListRarities_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// ListSeries provides a mock function with given fields: ctx
-func (_m *MockCatalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error) {
-	ret := _m.Called(ctx)
+// ListSeries provides a mock function with given fields: ctx, access
+func (_m *MockCatalogService) ListSeries(ctx context.Context, access dto.CatalogAccess) (dto.SeriesBrowseResult, error) {
+	ret := _m.Called(ctx, access)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSeries")
@@ -205,17 +206,17 @@ func (_m *MockCatalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseR
 
 	var r0 dto.SeriesBrowseResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (dto.SeriesBrowseResult, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CatalogAccess) (dto.SeriesBrowseResult, error)); ok {
+		return rf(ctx, access)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) dto.SeriesBrowseResult); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CatalogAccess) dto.SeriesBrowseResult); ok {
+		r0 = rf(ctx, access)
 	} else {
 		r0 = ret.Get(0).(dto.SeriesBrowseResult)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CatalogAccess) error); ok {
+		r1 = rf(ctx, access)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -230,13 +231,14 @@ type MockCatalogService_ListSeries_Call struct {
 
 // ListSeries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogService_Expecter) ListSeries(ctx interface{}) *MockCatalogService_ListSeries_Call {
-	return &MockCatalogService_ListSeries_Call{Call: _e.mock.On("ListSeries", ctx)}
+//   - access dto.CatalogAccess
+func (_e *MockCatalogService_Expecter) ListSeries(ctx interface{}, access interface{}) *MockCatalogService_ListSeries_Call {
+	return &MockCatalogService_ListSeries_Call{Call: _e.mock.On("ListSeries", ctx, access)}
 }
 
-func (_c *MockCatalogService_ListSeries_Call) Run(run func(ctx context.Context)) *MockCatalogService_ListSeries_Call {
+func (_c *MockCatalogService_ListSeries_Call) Run(run func(ctx context.Context, access dto.CatalogAccess)) *MockCatalogService_ListSeries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(dto.CatalogAccess))
 	})
 	return _c
 }
@@ -246,14 +248,14 @@ func (_c *MockCatalogService_ListSeries_Call) Return(_a0 dto.SeriesBrowseResult,
 	return _c
 }
 
-func (_c *MockCatalogService_ListSeries_Call) RunAndReturn(run func(context.Context) (dto.SeriesBrowseResult, error)) *MockCatalogService_ListSeries_Call {
+func (_c *MockCatalogService_ListSeries_Call) RunAndReturn(run func(context.Context, dto.CatalogAccess) (dto.SeriesBrowseResult, error)) *MockCatalogService_ListSeries_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListTags provides a mock function with given fields: ctx
-func (_m *MockCatalogService) ListTags(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
+// ListTags provides a mock function with given fields: ctx, access
+func (_m *MockCatalogService) ListTags(ctx context.Context, access dto.CatalogAccess) ([]string, error) {
+	ret := _m.Called(ctx, access)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListTags")
@@ -261,19 +263,19 @@ func (_m *MockCatalogService) ListTags(ctx context.Context) ([]string, error) {
 
 	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CatalogAccess) ([]string, error)); ok {
+		return rf(ctx, access)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CatalogAccess) []string); ok {
+		r0 = rf(ctx, access)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CatalogAccess) error); ok {
+		r1 = rf(ctx, access)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -288,13 +290,14 @@ type MockCatalogService_ListTags_Call struct {
 
 // ListTags is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogService_Expecter) ListTags(ctx interface{}) *MockCatalogService_ListTags_Call {
-	return &MockCatalogService_ListTags_Call{Call: _e.mock.On("ListTags", ctx)}
+//   - access dto.CatalogAccess
+func (_e *MockCatalogService_Expecter) ListTags(ctx interface{}, access interface{}) *MockCatalogService_ListTags_Call {
+	return &MockCatalogService_ListTags_Call{Call: _e.mock.On("ListTags", ctx, access)}
 }
 
-func (_c *MockCatalogService_ListTags_Call) Run(run func(ctx context.Context)) *MockCatalogService_ListTags_Call {
+func (_c *MockCatalogService_ListTags_Call) Run(run func(ctx context.Context, access dto.CatalogAccess)) *MockCatalogService_ListTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(dto.CatalogAccess))
 	})
 	return _c
 }
@@ -304,7 +307,7 @@ func (_c *MockCatalogService_ListTags_Call) Return(_a0 []string, _a1 error) *Moc
 	return _c
 }
 
-func (_c *MockCatalogService_ListTags_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockCatalogService_ListTags_Call {
+func (_c *MockCatalogService_ListTags_Call) RunAndReturn(run func(context.Context, dto.CatalogAccess) ([]string, error)) *MockCatalogService_ListTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
