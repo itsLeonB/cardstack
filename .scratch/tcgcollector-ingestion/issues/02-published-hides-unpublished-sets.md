@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] A migration adds `expansion_sets.published`, true for every existing row and true by default
 - [ ] Series and Expansion Set listings, name search, rarity, category and tag filters, facet counts, pagination totals and card detail exclude unpublished sets and their Cards for a Guest and for a signed-in non-Admin
