@@ -206,6 +206,10 @@ function respond(
   body: RequestBody | undefined
 ): Response {
   const page = path.match(/\/binder\/pages\/(\d+)$/)
+  // The fake accepts the replace without storing it, and reports no Slot results.
+  if (method === "PUT" && page) {
+    return json(200, { data: { slots: null } })
+  }
   if (method === "GET" && page) {
     const n = Number(page[1])
     if (n < 1 || n > b.leafCount * 2) {
