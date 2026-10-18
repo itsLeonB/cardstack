@@ -35,7 +35,11 @@ const reviewFor = (page: number): PendingPageReview => ({
   collectionId: "col-1",
   page,
   grid: { rows: 2, columns: 2 },
-  cells: [{ photo: new Blob(["cell"]), match: { status: "failed" } }],
+  // One cell per Slot: a review whose cells do not match the Layout is discarded on open.
+  cells: Array.from({ length: 4 }, () => ({
+    photo: new Blob(["cell"]),
+    match: { status: "failed" as const },
+  })),
 })
 
 function renderBinder() {
