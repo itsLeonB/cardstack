@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/ungerr"
 )
 
 // maxImageBytes caps a downloaded image. The address comes from scraped
@@ -36,6 +38,19 @@ var allowedImageTypes = map[string]bool{
 func cardImageKey(id uuid.UUID) string { return "cards/" + id.String() }
 
 func expansionSetImageKey(id uuid.UUID) string { return "expansion-sets/" + id.String() }
+
+// imageFetcher downloads one image address, so a row's source decides which host it may come from.
+type imageFetcher func(ctx context.Context, rawURL string) ([]byte, string, error)
+
+// Set logos and TCG Collector's card images come from its CDN, not the Asia
+// host, so they share this allowed host and client (ticket 03, ADR-0016).
+const (
+	logoScheme = "https"
+	logoHost   = "static.tcgcollector.com"
+)
+
+// expansionSetLogoKey is kept apart from expansionSetImageKey so the logo and the cover never share a key.
+func expansionSetLogoKey(id uuid.UUID) string { return "expansion-set-logos/" + id.String() }
 
 // newImageClient builds the HTTP client for image downloads. It is separate
 // from the page client so it can refuse any redirect that leaves the source
@@ -68,6 +83,30 @@ func checkImageURL(u *url.URL, scheme, host string) error {
 // not trusted. Anything off the source host, over maxImageBytes, or not a
 // recognised raster image is an error, so nothing bad reaches the bucket.
 func (c *client) fetchImage(ctx context.Context, rawURL string) ([]byte, string, error) {
+	return c.fetchFrom(ctx, rawURL, c.imageScheme, c.imageHost, c.imageClient)
+}
+
+// fetchLogo downloads a set logo, which may come only from the TCG Collector CDN.
+// fetchTCGCollector downloads an image from TCG Collector's CDN, the one host
+// its set logos and card images may come from.
+func (c *client) fetchTCGCollector(ctx context.Context, rawURL string) ([]byte, string, error) {
+	return c.fetchFrom(ctx, rawURL, logoScheme, logoHost, c.logoClient)
+}
+
+// cardImageFetcher returns how a card's image is downloaded, from the source
+// that last wrote its row. It is nil for a row no source may re-host (an Admin
+// edit keeps the image it was given), so the card is left alone.
+func (c *client) cardImageFetcher(updatedBy string) imageFetcher {
+	switch updatedBy {
+	case entity.SourcePokemonAsia:
+		return c.fetchImage
+	case entity.SourceTCGCollector:
+		return c.fetchTCGCollector
+	}
+	return nil
+}
+
+func (c *client) fetchFrom(ctx context.Context, rawURL, scheme, host string, hc *http.Client) ([]byte, string, error) {
 	base, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("parsing base address: %w", err)
@@ -77,7 +116,7 @@ func (c *client) fetchImage(ctx context.Context, rawURL string) ([]byte, string,
 		return nil, "", fmt.Errorf("invalid image address %q", rawURL)
 	}
 	target := base.ResolveReference(ref)
-	if err := checkImageURL(target, c.imageScheme, c.imageHost); err != nil {
+	if err := checkImageURL(target, scheme, host); err != nil {
 		return nil, "", err
 	}
 
@@ -91,7 +130,7 @@ func (c *client) fetchImage(ctx context.Context, rawURL string) ([]byte, string,
 	if err != nil {
 		return nil, "", fmt.Errorf("building image request: %w", err)
 	}
-	resp, err := c.imageClient.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("requesting image: %w", err)
 	}
@@ -124,8 +163,8 @@ func (c *client) fetchImage(ctx context.Context, rawURL string) ([]byte, string,
 }
 
 // hostImage copies the image at sourceURL into the object store under key.
-func (in *Ingester) hostImage(ctx context.Context, key, sourceURL string) error {
-	body, contentType, err := in.client.fetchImage(ctx, sourceURL)
+func (in *Ingester) hostImage(ctx context.Context, fetch imageFetcher, key, sourceURL string) error {
+	body, contentType, err := fetch(ctx, sourceURL)
 	if err != nil {
 		return fmt.Errorf("downloading %s: %w", sourceURL, err)
 	}
@@ -140,11 +179,12 @@ func (in *Ingester) hostImage(ctx context.Context, key, sourceURL string) error 
 // address, or hosting is off. A failure is recorded and swallowed: the key
 // stays empty so the API serves no image and a later run retries.
 func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansionCode, siteCardID string) {
-	if in.store == nil || card.Curated || card.ImageKey != "" || card.SourceImageURL == "" {
+	fetch := in.client.cardImageFetcher(card.UpdatedBy)
+	if in.store == nil || fetch == nil || card.ImageKey != "" || card.SourceImageURL == "" {
 		return
 	}
 	key := cardImageKey(card.ID)
-	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID}, "card image", key, card.SourceImageURL, func() error {
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode, CardID: siteCardID}, "card image", key, card.SourceImageURL, fetch, func() error {
 		card.ImageKey = key
 		_, err := in.cards.Update(ctx, card)
 		return err
@@ -153,13 +193,35 @@ func (in *Ingester) hostCardImage(ctx context.Context, card entity.Card, expansi
 
 // hostSetCover is hostCardImage for an Expansion Set's cover.
 func (in *Ingester) hostSetCover(ctx context.Context, set entity.ExpansionSet, expansionCode string) {
-	if in.store == nil || set.Curated || set.ImageKey != "" || set.SourceImageURL == "" {
+	if in.store == nil || !ownedByAsia(set.UpdatedBy) || set.ImageKey != "" || set.SourceImageURL == "" {
 		return
 	}
 	key := expansionSetImageKey(set.ID)
-	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode}, "expansion set cover", key, set.SourceImageURL, func() error {
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode}, "expansion set cover", key, set.SourceImageURL, in.client.fetchImage, func() error {
 		set.ImageKey = key
 		_, err := in.sets.Update(ctx, set)
+		return err
+	})
+}
+
+// hostSetLogo hosts a set's logo under its own key, once. The save reloads the row, because
+// the caller's copy predates the cover pass in the same run and a whole-row Update would
+// write its stale image key back.
+func (in *Ingester) hostSetLogo(ctx context.Context, set entity.ExpansionSet, expansionCode string) {
+	if in.store == nil || set.LogoKey != "" || set.SourceLogoURL == "" {
+		return
+	}
+	key := expansionSetLogoKey(set.ID)
+	in.hostAndSave(ctx, IngestFailure{ExpansionCode: expansionCode}, "expansion set logo", key, set.SourceLogoURL, in.client.fetchTCGCollector, func() error {
+		row, err := in.sets.FindFirst(ctx, crud.Specification[entity.ExpansionSet]{Model: entity.ExpansionSet{BaseEntity: crud.BaseEntity{ID: set.ID}}})
+		if err != nil {
+			return err
+		}
+		if row.IsZero() {
+			return ungerr.Unknownf("expansion set %s was removed before its logo key was saved", expansionCode)
+		}
+		row.LogoKey = key
+		_, err = in.sets.Update(ctx, row)
 		return err
 	})
 }
@@ -167,8 +229,8 @@ func (in *Ingester) hostSetCover(ctx context.Context, set entity.ExpansionSet, e
 // hostAndSave copies sourceURL to key, then runs save to persist the key.
 // base carries the failure's identifiers; a failure at either step is
 // recorded with Stage "hosting <what>" or "saving <what> key".
-func (in *Ingester) hostAndSave(ctx context.Context, base IngestFailure, what, key, sourceURL string, save func() error) {
-	if err := in.hostImage(ctx, key, sourceURL); err != nil {
+func (in *Ingester) hostAndSave(ctx context.Context, base IngestFailure, what, key, sourceURL string, fetch imageFetcher, save func() error) {
+	if err := in.hostImage(ctx, fetch, key, sourceURL); err != nil {
 		base.Stage, base.Err = "hosting "+what, err
 		in.recordImageFailure(ctx, base)
 		return
@@ -177,6 +239,12 @@ func (in *Ingester) hostAndSave(ctx context.Context, base IngestFailure, what, k
 		base.Stage, base.Err = "saving "+what+" key", err
 		in.recordImageFailure(ctx, base)
 	}
+}
+
+func (in *Ingester) failureCount() int {
+	in.failuresMu.Lock()
+	defer in.failuresMu.Unlock()
+	return len(in.failures)
 }
 
 // recordImageFailure records f unless ctx was canceled: a Ctrl+C is the

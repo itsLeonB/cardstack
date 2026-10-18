@@ -61,6 +61,13 @@ func useSourceImages(in *Ingester, handler http.HandlerFunc) *sourceHostTranspor
 	return rt
 }
 
+// useLogoImages serves TCG Collector CDN downloads (set logos and card images) from its own client and transport.
+func useLogoImages(in *Ingester, handler http.HandlerFunc) *sourceHostTransport {
+	rt := &sourceHostTransport{handler: handler}
+	in.client.logoClient.Transport = rt
+	return rt
+}
+
 func servePNG(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "image/png")
 	_, _ = w.Write(pngBytes)
@@ -356,6 +363,75 @@ func TestIngester_HostSetCover_HostsOnceUnderSetNamespace(t *testing.T) {
 
 	f.in.hostSetCover(context.Background(), hosted, "CODE") // skip-if-hosted: Put is expected only once
 	assert.Len(t, rt.hosts(), 1)
+}
+
+func TestIngester_HostSetLogo_HostsOnceUnderLogoNamespace(t *testing.T) {
+	f := newHostingFixture(t)
+	rt := useLogoImages(f.in, servePNG)
+	f.store.EXPECT().Put(mock.Anything, "expansion-set-logos/"+f.set.ID.String(), "image/png", pngBytes).Return(nil).Once()
+	f.set.SourceLogoURL = "https://static.tcgcollector.com/logo.png"
+
+	f.in.hostSetLogo(context.Background(), f.set, "CODE")
+	hosted, err := f.in.sets.FindFirst(context.Background(), crud.Specification[entity.ExpansionSet]{Model: entity.ExpansionSet{GameID: f.in.gameID, Code: f.set.Code}})
+	require.NoError(t, err)
+	assert.Equal(t, "expansion-set-logos/"+f.set.ID.String(), hosted.LogoKey)
+	assert.Empty(t, hosted.ImageKey, "hosting the logo leaves the cover alone")
+
+	f.in.hostSetLogo(context.Background(), hosted, "CODE") // skip-if-hosted: Put is expected only once
+	assert.Len(t, rt.hosts(), 1)
+}
+
+func TestClient_FetchTCGCollector_RejectsHostsOtherThanTCGCollector(t *testing.T) {
+	c := newClient()
+	rt := &sourceHostTransport{handler: http.HandlerFunc(servePNG)}
+	c.logoClient.Transport = rt
+
+	_, _, err := c.fetchTCGCollector(context.Background(), "https://asia.pokemon-card.com/id/products/logo.png")
+	require.Error(t, err)
+	assert.Empty(t, rt.hosts(), "a logo address off the TCG Collector CDN is refused before any request")
+}
+
+// A card TCG Collector wrote keeps its writer when its image is hosted, and its
+// image comes from the TCG Collector CDN, not the Asia site.
+func TestIngester_HostCardImage_HostsTCGCollectorCardFromItsCDN(t *testing.T) {
+	f := newHostMissingFixture(t)
+	ctx := context.Background()
+	card := f.card(t)
+	card.UpdatedBy = entity.SourceTCGCollector
+	card.SourceImageURL = "https://static.tcgcollector.com/content/images/a.png"
+	tcgCard, err := f.in.cards.Update(ctx, card)
+	require.NoError(t, err)
+
+	cdn := useLogoImages(f.in, servePNG)
+	asia := useSourceImages(f.in, servePNG)
+	f.store.EXPECT().Put(mock.Anything, "cards/"+tcgCard.ID.String(), "image/png", pngBytes).Return(nil).Once()
+
+	f.in.hostCardImage(ctx, tcgCard, f.set.Code, tcgCard.LocalID)
+
+	hosted := f.card(t)
+	assert.Equal(t, "cards/"+tcgCard.ID.String(), hosted.ImageKey)
+	assert.Equal(t, entity.SourceTCGCollector, hosted.UpdatedBy, "hosting leaves the writer as it was")
+	assert.Equal(t, []string{"static.tcgcollector.com"}, cdn.hosts())
+	assert.Empty(t, asia.hosts())
+}
+
+// An Admin edit is never re-hosted from either site, whatever its source address.
+func TestIngester_HostCardImage_NeverHostsAnAdminEdit(t *testing.T) {
+	f := newHostMissingFixture(t)
+	ctx := context.Background()
+	card := f.card(t)
+	card.UpdatedBy = entity.SourceAdmin
+	adminCard, err := f.in.cards.Update(ctx, card)
+	require.NoError(t, err)
+
+	cdn := useLogoImages(f.in, servePNG)
+	asia := useSourceImages(f.in, servePNG)
+
+	f.in.hostCardImage(ctx, adminCard, f.set.Code, adminCard.LocalID)
+
+	assert.Empty(t, cdn.hosts())
+	assert.Empty(t, asia.hosts())
+	assert.Empty(t, f.card(t).ImageKey)
 }
 
 const coverURL = "https://asia.pokemon-card.com/id/products/cover.png"
@@ -677,4 +753,30 @@ func TestIngester_HostMissingImages_RequiresObjectStore(t *testing.T) {
 	_, err := in.HostMissingImages(context.Background(), "")
 
 	require.Error(t, err)
+}
+
+func TestIngester_HostMissingImages_HostsSetLogoOnceAlongsideCover(t *testing.T) {
+	f := newHostMissingFixture(t)
+	ctx := context.Background()
+	f.set.SourceLogoURL = "https://static.tcgcollector.com/logo.png"
+	set, err := f.in.sets.Update(ctx, f.set)
+	require.NoError(t, err)
+	f.set = set
+
+	useSourceImages(f.in, servePNG)
+	logo := useLogoImages(f.in, servePNG)
+	f.store.EXPECT().Put(mock.Anything, "expansion-sets/"+f.set.ID.String(), "image/png", pngBytes).Return(nil).Once()
+	f.store.EXPECT().Put(mock.Anything, "expansion-set-logos/"+f.set.ID.String(), "image/png", pngBytes).Return(nil).Once()
+	f.store.EXPECT().Put(mock.Anything, "cards/"+f.cardID.String(), "image/png", pngBytes).Return(nil).Once()
+
+	summary, err := f.in.HostMissingImages(ctx, f.set.Code)
+	require.NoError(t, err)
+	assert.Empty(t, summary.Failures)
+	set, _ = f.reload(t)
+	assert.Equal(t, "expansion-set-logos/"+f.set.ID.String(), set.LogoKey)
+	assert.Equal(t, "expansion-sets/"+f.set.ID.String(), set.ImageKey, "saving the logo keeps the cover key the cover pass just wrote")
+
+	_, err = f.in.HostMissingImages(ctx, f.set.Code)
+	require.NoError(t, err)
+	assert.Len(t, logo.hosts(), 1, "a rerun skips a logo that is already hosted")
 }

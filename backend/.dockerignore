@@ -1,0 +1,2 @@
+# Test fixtures are not needed to build the image.
+**/testdata

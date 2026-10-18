@@ -40,11 +40,11 @@ func seedLockCatalog(t *testing.T, api testAPI) lockCatalog {
 	require.NoError(t, api.db.Create(&locale).Error)
 	rarity := entity.Rarity{GameID: game.ID, Code: "R-" + s, Name: "Rarity " + s}
 	require.NoError(t, api.db.Create(&rarity).Error)
-	set := entity.ExpansionSet{GameID: game.ID, Code: "lock-" + s, Name: "Lock " + s, LocaleID: locale.ID}
+	set := entity.ExpansionSet{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, GameID: game.ID, Code: "lock-" + s, Name: "Lock " + s, LocaleID: locale.ID}
 	require.NoError(t, api.db.Create(&set).Error)
 
 	for i := 1; i <= lockedCardCount; i++ {
-		card := entity.Card{ExpansionSetID: set.ID, LocalID: strconv.Itoa(1000 + i), Name: "Lock Card " + s, Category: "Pokémon",
+		card := entity.Card{CreatedBy: entity.SourcePokemonAsia, UpdatedBy: entity.SourcePokemonAsia, ExpansionSetID: set.ID, LocalID: strconv.Itoa(1000 + i), Name: "Lock Card " + s, Category: "Pokémon",
 			Tags: datatypes.JSONSlice[string]{"tag-" + s}, RarityID: rarity.ID, Attributes: datatypes.JSONMap{}}
 		require.NoError(t, api.db.Create(&card).Error)
 	}

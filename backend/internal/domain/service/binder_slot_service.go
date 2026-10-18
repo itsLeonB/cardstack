@@ -81,7 +81,7 @@ func (s *binderSlotService) WriteSlot(ctx context.Context, req dto.BinderSlotWri
 			return err
 		}
 		if req.State == dto.BinderSlotCard {
-			if _, err := s.cards.GetCard(ctx, req.CardID); err != nil {
+			if err := s.cards.RequireCard(ctx, req.CardID); err != nil {
 				return err
 			}
 		}
@@ -219,11 +219,11 @@ func (s *binderSlotService) PlaceCards(ctx context.Context, req dto.BinderPlacem
 
 		var changes []dto.BinderSlotChange
 		for _, item := range req.Items {
-			card, err := s.cards.FindCard(ctx, item.CardID)
+			exists, err := s.cards.CardExists(ctx, item.CardID)
 			if err != nil {
 				return err
 			}
-			if card.IsZero() {
+			if !exists {
 				results = append(results, dto.BinderPlacementResult{
 					CardID:   item.CardID,
 					Declined: item.Quantity,
@@ -393,11 +393,11 @@ func (s *binderSlotService) storedSlotState(ctx context.Context, want dto.Binder
 
 	exists, looked := known[want.CardID]
 	if !looked {
-		card, err := s.cards.FindCard(ctx, want.CardID)
+		var err error
+		exists, err = s.cards.CardExists(ctx, want.CardID)
 		if err != nil {
 			return "", nil, "", err
 		}
-		exists = !card.IsZero()
 		known[want.CardID] = exists
 	}
 	if !exists {

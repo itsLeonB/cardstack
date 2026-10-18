@@ -119,3 +119,28 @@ func TestCollectionRepository_SumQuantities(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got)
 }
+
+// TestCollectionRepository_SumQuantities_ExcludesCardsOfUnpublishedSets: the
+// same visibility rule as InventoryRepository.SumQuantity, which it must match.
+func TestCollectionRepository_SumQuantities_ExcludesCardsOfUnpublishedSets(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewCollectionRepository(crud.NewRepository[entity.Collection](db))
+	fixture := newCatalogFixture(t, db)
+	visible := fixture.newCard(t, db, fixture.newExpansionSet(t, db, nil, nil).ID, nil)
+	hiddenSet := fixture.newExpansionSet(t, db, nil, nil)
+	hidden := fixture.newCard(t, db, hiddenSet.ID, func(c *entity.Card) { c.LocalID = "002" })
+	hideSet(t, db, hiddenSet)
+
+	col := newTestCollection(t, db)
+	for _, e := range []entity.InventoryEntry{
+		{CollectionID: col.ID, CardID: visible.ID, Quantity: 2},
+		{CollectionID: col.ID, CardID: hidden.ID, Quantity: 3},
+	} {
+		require.NoError(t, db.Create(&e).Error)
+	}
+
+	got, err := repo.SumQuantities(ctx, []uuid.UUID{col.ID})
+	require.NoError(t, err)
+	assert.Equal(t, 2, got[col.ID])
+}

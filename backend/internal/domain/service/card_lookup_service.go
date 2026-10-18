@@ -4,48 +4,46 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	crud "github.com/itsLeonB/go-crud"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/ungerr"
 )
 
 const cardNotFoundMsg = "card not found"
 
 // CardLookup is the one rule for resolving a Card id, shared by the inventory and
-// binder services. A nil id matches no Card, so it is never sent to the database.
+// binder services. A nil id matches no Card, so it is never sent to the database,
+// and a Card of an unpublished Expansion Set counts as absent.
 type CardLookup interface {
-	// FindCard returns the Card, or the zero value with no error when there is none.
-	FindCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error)
-	// GetCard is FindCard, with the not-found AppError for a Card that does not exist.
-	GetCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error)
+	// CardExists reports whether the Card exists and is visible to a user.
+	CardExists(ctx context.Context, cardID uuid.UUID) (bool, error)
+	// RequireCard is CardExists, with the not-found AppError for a Card that does not exist.
+	RequireCard(ctx context.Context, cardID uuid.UUID) error
 }
 
 type cardLookup struct {
-	cards crud.Repository[entity.Card]
+	cards repository.CardRepository
 }
 
-func NewCardLookup(cards crud.Repository[entity.Card]) CardLookup {
+func NewCardLookup(cards repository.CardRepository) CardLookup {
 	return &cardLookup{cards: cards}
 }
 
-func (s *cardLookup) FindCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+func (s *cardLookup) CardExists(ctx context.Context, cardID uuid.UUID) (bool, error) {
 	if cardID == uuid.Nil {
-		return entity.Card{}, nil
+		return false, nil
 	}
 
-	return s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-		Model: entity.Card{BaseEntity: crud.BaseEntity{ID: cardID}},
-	})
+	return s.cards.Exists(ctx, cardID)
 }
 
-func (s *cardLookup) GetCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
-	card, err := s.FindCard(ctx, cardID)
+func (s *cardLookup) RequireCard(ctx context.Context, cardID uuid.UUID) error {
+	exists, err := s.CardExists(ctx, cardID)
 	if err != nil {
-		return entity.Card{}, err
+		return err
 	}
-	if card.IsZero() {
-		return entity.Card{}, ungerr.NotFoundError(cardNotFoundMsg)
+	if !exists {
+		return ungerr.NotFoundError(cardNotFoundMsg)
 	}
 
-	return card, nil
+	return nil
 }

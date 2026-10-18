@@ -243,11 +243,11 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 			return err
 		}
 
-		card, err := s.cards.FindCard(ctx, req.CardID)
+		exists, err := s.cards.CardExists(ctx, req.CardID)
 		if err != nil {
 			return err
 		}
-		if card.IsZero() {
+		if !exists {
 			return ungerr.NotFoundError(cardNotFoundMsg)
 		}
 
@@ -392,11 +392,11 @@ func (s *inventoryService) applyChange(ctx context.Context, c entity.Collection,
 	}
 
 	if existing.IsZero() {
-		card, err := s.cards.FindCard(ctx, item.CardID)
+		exists, err := s.cards.CardExists(ctx, item.CardID)
 		if err != nil {
 			return dto.InventoryChangeResult{}, 0, err
 		}
-		if card.IsZero() {
+		if !exists {
 			return declined(dto.InventoryReasonCardNotFound, cardNotFoundMsg), 0, nil
 		}
 		if item.Quantity == 0 {

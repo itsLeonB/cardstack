@@ -29,7 +29,7 @@ Vite bakes `VITE_*` vars into the bundle at build time, so a changed value needs
 
 ## Catalog admin rollout order
 
-Apply the migration that adds `curated` to `cards` and `expansion_sets` with `make job` against the production database first (additive: `not null default false`, so the running API is unaffected), then deploy the API, then the frontend. The ingester reads the column, so run it only after the migration; it never overwrites a Curated row (ADR-0019).
+Apply the migrations with `make job` against the production database first, then deploy the API, then the frontend. The migration `20261017000001` replaces `curated` on `cards` and `expansion_sets` with `created_by` and `updated_by` (it backfills every row to `pokemon-asia`, and rows that were curated to `admin`), and the API and the ingesters read those columns, so run an ingester only after the migration. An ingester changes a row only while `updated_by` is its own Source (ADR-0021). `make ingest-tcgcollector` is manual only and never runs on Railway: it is a dry run unless `ARGS="-apply"` is passed, and it creates new Expansion Sets unpublished (publish by SQL, see its report).
 
 ## A failed Vercel build keeps serving the old bundle
 

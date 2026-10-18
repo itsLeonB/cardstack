@@ -19,6 +19,7 @@ packages:
       BinderLayoutRepository:
       BinderLeafRepository:
       BinderSlotRepository:
+      CardRepository:
       CatalogRepository:
       CollectionRepository:
       EmbeddingRepository:
@@ -37,6 +38,9 @@ packages:
       MatchService:
       UserService:
       IdentityCache:
+  github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/tcgcollector:
+    interfaces:
+      PageSource:
   github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth:
     interfaces:
       KeySource:

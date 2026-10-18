@@ -103,13 +103,7 @@ func occupiedSlot(row, column int) entity.BinderSlot {
 }
 
 func (f binderFixture) expectCard(cardID uuid.UUID, found bool) {
-	card := entity.Card{}
-	if found {
-		card = entity.Card{BaseEntity: baseEntity(cardID)}
-	}
-	f.cards.EXPECT().FindFirst(f.ctx, mock.MatchedBy(func(spec crud.Specification[entity.Card]) bool {
-		return spec.Model.ID == cardID
-	})).Return(card, nil).Once()
+	f.cards.EXPECT().Exists(f.ctx, cardID).Return(found, nil).Once()
 }
 
 func TestBinderSlotService_MoveSlot_RejectsSourceOutsideLayout(t *testing.T) {
@@ -254,7 +248,7 @@ func TestBinderSlotService_WriteSlot_RefusesUnknownCardBeforeWriting(t *testing.
 	f := newBinderFixture(t)
 	f.expectWriteStart(2, 2)
 	cardID := uuid.New()
-	f.cards.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.Card{}, nil).Once()
+	f.cards.EXPECT().Exists(f.ctx, mock.Anything).Return(false, nil).Once()
 
 	err := f.slot.WriteSlot(f.ctx, dto.BinderSlotWrite{
 		ProfileID:    f.profileID,
@@ -303,7 +297,7 @@ func TestBinderSlotService_ReplacePage_UnknownCardIsStoredUnidentified(t *testin
 	f.expectWriteStart(2, 2)
 	leaf := testBinderLeaf(f)
 	f.leaves.EXPECT().GetLeafAt(f.ctx, f.collection.ID, 1).Return(leaf, nil).Once()
-	f.cards.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.Card{}, nil).Once()
+	f.cards.EXPECT().Exists(f.ctx, mock.Anything).Return(false, nil).Once()
 	f.expectOccupied()
 
 	// Only the unknown card's Slot is written, as Unidentified; the three empty Slots write nothing.
@@ -349,7 +343,7 @@ func TestBinderSlotService_ReplacePage_ReconcilesEachCardOnce(t *testing.T) {
 	f.leaves.EXPECT().GetLeafAt(f.ctx, f.collection.ID, 1).Return(leaf, nil).Once()
 	card := entity.Card{BaseEntity: baseEntity(uuid.New())}
 	// Both copies name the card, which is looked up once for the whole Page.
-	f.cards.EXPECT().FindFirst(f.ctx, mock.Anything).Return(card, nil).Once()
+	f.cards.EXPECT().Exists(f.ctx, card.ID).Return(true, nil).Once()
 	f.expectOccupied()
 	f.slots.EXPECT().Insert(f.ctx, mock.MatchedBy(func(s entity.BinderSlot) bool {
 		return s.CardID != nil && *s.CardID == card.ID

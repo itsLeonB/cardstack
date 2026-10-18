@@ -38,15 +38,15 @@ type CatalogService interface {
 	// series-less Expansion Set is a legitimate domain state, not a special
 	// case, and this is its only way to be reachable through the catalog
 	// browse surface.
-	ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error)
+	ListSeries(ctx context.Context, access dto.CatalogAccess) (dto.SeriesBrowseResult, error)
 	// ListRarities returns every Rarity across all Games, ordered by name.
 	ListRarities(ctx context.Context) ([]dto.RaritySummary, error)
 	// ListCategories returns the distinct Card categories actually in use,
-	// ordered alphabetically.
-	ListCategories(ctx context.Context) ([]string, error)
+	// ordered alphabetically. An access without Admin counts only published sets.
+	ListCategories(ctx context.Context, access dto.CatalogAccess) ([]string, error)
 	// ListTags returns the distinct Card tags actually in use, ordered
-	// alphabetically.
-	ListTags(ctx context.Context) ([]string, error)
+	// alphabetically, with the same access rule as ListCategories.
+	ListTags(ctx context.Context, access dto.CatalogAccess) ([]string, error)
 	// SearchCards returns the page of Cards matching filter, plus that
 	// page's pagination metadata. A Guest (filter.Guest) gets a preview: one
 	// page, reduced to the standard size of 24 if more was asked, with the true
@@ -71,18 +71,18 @@ func NewCatalogService(repo repository.CatalogRepository, images mapper.ImageHos
 	return &catalogService{repo: repo, images: images}
 }
 
-func (s *catalogService) ListSeries(ctx context.Context) (dto.SeriesBrowseResult, error) {
-	series, err := s.repo.ListSeries(ctx)
+func (s *catalogService) ListSeries(ctx context.Context, access dto.CatalogAccess) (dto.SeriesBrowseResult, error) {
+	series, err := s.repo.ListSeries(ctx, access.Admin)
 	if err != nil {
 		return dto.SeriesBrowseResult{}, err
 	}
 
-	sets, err := s.repo.ListExpansionSets(ctx, ezutil.MapSlice(series, func(sr entity.Series) uuid.UUID { return sr.ID }))
+	sets, err := s.repo.ListExpansionSets(ctx, ezutil.MapSlice(series, func(sr entity.Series) uuid.UUID { return sr.ID }), access.Admin)
 	if err != nil {
 		return dto.SeriesBrowseResult{}, err
 	}
 
-	ungrouped, err := s.repo.ListUngroupedExpansionSets(ctx)
+	ungrouped, err := s.repo.ListUngroupedExpansionSets(ctx, access.Admin)
 	if err != nil {
 		return dto.SeriesBrowseResult{}, err
 	}
@@ -114,12 +114,12 @@ func (s *catalogService) ListRarities(ctx context.Context) ([]dto.RaritySummary,
 	return ezutil.MapSlice(rarities, mapper.ToRaritySummary), nil
 }
 
-func (s *catalogService) ListCategories(ctx context.Context) ([]string, error) {
-	return s.repo.ListDistinctCategories(ctx)
+func (s *catalogService) ListCategories(ctx context.Context, access dto.CatalogAccess) ([]string, error) {
+	return s.repo.ListDistinctCategories(ctx, access.Admin)
 }
 
-func (s *catalogService) ListTags(ctx context.Context) ([]string, error) {
-	return s.repo.ListDistinctTags(ctx)
+func (s *catalogService) ListTags(ctx context.Context, access dto.CatalogAccess) ([]string, error) {
+	return s.repo.ListDistinctTags(ctx, access.Admin)
 }
 
 func (s *catalogService) SearchCards(ctx context.Context, filter dto.CardFilter) ([]dto.CardSummary, dto.PaginationMeta, error) {

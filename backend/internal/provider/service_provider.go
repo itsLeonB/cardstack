@@ -81,7 +81,7 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
-		service.NewCardLookup(crud.NewRepository[entity.Card](ds.Gorm)),
+		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
 		images,
 	)
 }
@@ -109,7 +109,7 @@ func ProvideBinderSlotService(ds *DataSources) service.BinderSlotService {
 		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
 		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
 		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
-		service.NewCardLookup(crud.NewRepository[entity.Card](ds.Gorm)),
+		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
 	)
 }
 

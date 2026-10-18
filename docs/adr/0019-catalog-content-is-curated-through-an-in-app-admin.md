@@ -1,3 +1,5 @@
+Status: the `curated` boolean is superseded by `created_by` and `updated_by` in [ADR-0021](0021-catalog-rows-record-who-created-and-last-updated-them.md); the rest stands.
+
 # Catalog content with no upstream source is curated by hand through an in-app admin, and curated rows beat ingestion
 
 The Indonesian promo set `SM-P` ("Kartu Promo Matahari & Bulan", about 186 cards) is missing from `asia.pokemon-card.com`, and no other source has it in a usable form: TCGdex has no Indonesian copy, Bulbapedia and Pokepedia sit behind bot challenges, and the Hong Kong and Taiwan `SM-P` sets are different cards. Card scanning needs an image of the Indonesian print (ADR-0018), which only a person holding the card can supply. So the catalog needs a way to enter Expansion Sets and Cards by hand, with images, that does not depend on a scrapeable source.

@@ -25,7 +25,7 @@ type binderFixture struct {
 	layouts     *mocks.MockBinderLayoutRepository
 	leaves      *mocks.MockBinderLeafRepository
 	slots       *mocks.MockBinderSlotRepository
-	cards       *mocks.MockRepository[entity.Card]
+	cards       *mocks.MockCardRepository
 	entries     *mocks.MockRepository[entity.InventoryEntry]
 	svc         BinderService
 	slot        BinderSlotService
@@ -41,7 +41,7 @@ func newBinderFixture(t *testing.T) binderFixture {
 	f.layouts = mocks.NewMockBinderLayoutRepository(t)
 	f.leaves = mocks.NewMockBinderLeafRepository(t)
 	f.slots = mocks.NewMockBinderSlotRepository(t)
-	f.cards = mocks.NewMockRepository[entity.Card](t)
+	f.cards = mocks.NewMockCardRepository(t)
 	f.entries = mocks.NewMockRepository[entity.InventoryEntry](t)
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).

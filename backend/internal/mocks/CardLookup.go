@@ -5,7 +5,6 @@ package mocks
 import (
 	context "context"
 
-	entity "github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	mock "github.com/stretchr/testify/mock"
 
 	uuid "github.com/google/uuid"
@@ -24,23 +23,23 @@ func (_m *MockCardLookup) EXPECT() *MockCardLookup_Expecter {
 	return &MockCardLookup_Expecter{mock: &_m.Mock}
 }
 
-// FindCard provides a mock function with given fields: ctx, cardID
-func (_m *MockCardLookup) FindCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+// CardExists provides a mock function with given fields: ctx, cardID
+func (_m *MockCardLookup) CardExists(ctx context.Context, cardID uuid.UUID) (bool, error) {
 	ret := _m.Called(ctx, cardID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FindCard")
+		panic("no return value specified for CardExists")
 	}
 
-	var r0 entity.Card
+	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (entity.Card, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
 		return rf(ctx, cardID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) entity.Card); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
 		r0 = rf(ctx, cardID)
 	} else {
-		r0 = ret.Get(0).(entity.Card)
+		r0 = ret.Get(0).(bool)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -52,88 +51,78 @@ func (_m *MockCardLookup) FindCard(ctx context.Context, cardID uuid.UUID) (entit
 	return r0, r1
 }
 
-// MockCardLookup_FindCard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindCard'
-type MockCardLookup_FindCard_Call struct {
+// MockCardLookup_CardExists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CardExists'
+type MockCardLookup_CardExists_Call struct {
 	*mock.Call
 }
 
-// FindCard is a helper method to define mock.On call
+// CardExists is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cardID uuid.UUID
-func (_e *MockCardLookup_Expecter) FindCard(ctx interface{}, cardID interface{}) *MockCardLookup_FindCard_Call {
-	return &MockCardLookup_FindCard_Call{Call: _e.mock.On("FindCard", ctx, cardID)}
+func (_e *MockCardLookup_Expecter) CardExists(ctx interface{}, cardID interface{}) *MockCardLookup_CardExists_Call {
+	return &MockCardLookup_CardExists_Call{Call: _e.mock.On("CardExists", ctx, cardID)}
 }
 
-func (_c *MockCardLookup_FindCard_Call) Run(run func(ctx context.Context, cardID uuid.UUID)) *MockCardLookup_FindCard_Call {
+func (_c *MockCardLookup_CardExists_Call) Run(run func(ctx context.Context, cardID uuid.UUID)) *MockCardLookup_CardExists_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID))
 	})
 	return _c
 }
 
-func (_c *MockCardLookup_FindCard_Call) Return(_a0 entity.Card, _a1 error) *MockCardLookup_FindCard_Call {
+func (_c *MockCardLookup_CardExists_Call) Return(_a0 bool, _a1 error) *MockCardLookup_CardExists_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockCardLookup_FindCard_Call) RunAndReturn(run func(context.Context, uuid.UUID) (entity.Card, error)) *MockCardLookup_FindCard_Call {
+func (_c *MockCardLookup_CardExists_Call) RunAndReturn(run func(context.Context, uuid.UUID) (bool, error)) *MockCardLookup_CardExists_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetCard provides a mock function with given fields: ctx, cardID
-func (_m *MockCardLookup) GetCard(ctx context.Context, cardID uuid.UUID) (entity.Card, error) {
+// RequireCard provides a mock function with given fields: ctx, cardID
+func (_m *MockCardLookup) RequireCard(ctx context.Context, cardID uuid.UUID) error {
 	ret := _m.Called(ctx, cardID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetCard")
+		panic("no return value specified for RequireCard")
 	}
 
-	var r0 entity.Card
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (entity.Card, error)); ok {
-		return rf(ctx, cardID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) entity.Card); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
 		r0 = rf(ctx, cardID)
 	} else {
-		r0 = ret.Get(0).(entity.Card)
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, cardID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
-// MockCardLookup_GetCard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCard'
-type MockCardLookup_GetCard_Call struct {
+// MockCardLookup_RequireCard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RequireCard'
+type MockCardLookup_RequireCard_Call struct {
 	*mock.Call
 }
 
-// GetCard is a helper method to define mock.On call
+// RequireCard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cardID uuid.UUID
-func (_e *MockCardLookup_Expecter) GetCard(ctx interface{}, cardID interface{}) *MockCardLookup_GetCard_Call {
-	return &MockCardLookup_GetCard_Call{Call: _e.mock.On("GetCard", ctx, cardID)}
+func (_e *MockCardLookup_Expecter) RequireCard(ctx interface{}, cardID interface{}) *MockCardLookup_RequireCard_Call {
+	return &MockCardLookup_RequireCard_Call{Call: _e.mock.On("RequireCard", ctx, cardID)}
 }
 
-func (_c *MockCardLookup_GetCard_Call) Run(run func(ctx context.Context, cardID uuid.UUID)) *MockCardLookup_GetCard_Call {
+func (_c *MockCardLookup_RequireCard_Call) Run(run func(ctx context.Context, cardID uuid.UUID)) *MockCardLookup_RequireCard_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(uuid.UUID))
 	})
 	return _c
 }
 
-func (_c *MockCardLookup_GetCard_Call) Return(_a0 entity.Card, _a1 error) *MockCardLookup_GetCard_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockCardLookup_RequireCard_Call) Return(_a0 error) *MockCardLookup_RequireCard_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockCardLookup_GetCard_Call) RunAndReturn(run func(context.Context, uuid.UUID) (entity.Card, error)) *MockCardLookup_GetCard_Call {
+func (_c *MockCardLookup_RequireCard_Call) RunAndReturn(run func(context.Context, uuid.UUID) error) *MockCardLookup_RequireCard_Call {
 	_c.Call.Return(run)
 	return _c
 }

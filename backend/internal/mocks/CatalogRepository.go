@@ -83,9 +83,9 @@ func (_c *MockCatalogRepository_ListCardFacets_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// ListDistinctCategories provides a mock function with given fields: ctx
-func (_m *MockCatalogRepository) ListDistinctCategories(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
+// ListDistinctCategories provides a mock function with given fields: ctx, includeUnpublished
+func (_m *MockCatalogRepository) ListDistinctCategories(ctx context.Context, includeUnpublished bool) ([]string, error) {
+	ret := _m.Called(ctx, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListDistinctCategories")
@@ -93,19 +93,19 @@ func (_m *MockCatalogRepository) ListDistinctCategories(ctx context.Context) ([]
 
 	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) ([]string, error)); ok {
+		return rf(ctx, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) []string); ok {
+		r0 = rf(ctx, includeUnpublished)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, bool) error); ok {
+		r1 = rf(ctx, includeUnpublished)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -120,13 +120,14 @@ type MockCatalogRepository_ListDistinctCategories_Call struct {
 
 // ListDistinctCategories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogRepository_Expecter) ListDistinctCategories(ctx interface{}) *MockCatalogRepository_ListDistinctCategories_Call {
-	return &MockCatalogRepository_ListDistinctCategories_Call{Call: _e.mock.On("ListDistinctCategories", ctx)}
+//   - includeUnpublished bool
+func (_e *MockCatalogRepository_Expecter) ListDistinctCategories(ctx interface{}, includeUnpublished interface{}) *MockCatalogRepository_ListDistinctCategories_Call {
+	return &MockCatalogRepository_ListDistinctCategories_Call{Call: _e.mock.On("ListDistinctCategories", ctx, includeUnpublished)}
 }
 
-func (_c *MockCatalogRepository_ListDistinctCategories_Call) Run(run func(ctx context.Context)) *MockCatalogRepository_ListDistinctCategories_Call {
+func (_c *MockCatalogRepository_ListDistinctCategories_Call) Run(run func(ctx context.Context, includeUnpublished bool)) *MockCatalogRepository_ListDistinctCategories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(bool))
 	})
 	return _c
 }
@@ -136,14 +137,14 @@ func (_c *MockCatalogRepository_ListDistinctCategories_Call) Return(_a0 []string
 	return _c
 }
 
-func (_c *MockCatalogRepository_ListDistinctCategories_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockCatalogRepository_ListDistinctCategories_Call {
+func (_c *MockCatalogRepository_ListDistinctCategories_Call) RunAndReturn(run func(context.Context, bool) ([]string, error)) *MockCatalogRepository_ListDistinctCategories_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListDistinctTags provides a mock function with given fields: ctx
-func (_m *MockCatalogRepository) ListDistinctTags(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
+// ListDistinctTags provides a mock function with given fields: ctx, includeUnpublished
+func (_m *MockCatalogRepository) ListDistinctTags(ctx context.Context, includeUnpublished bool) ([]string, error) {
+	ret := _m.Called(ctx, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListDistinctTags")
@@ -151,19 +152,19 @@ func (_m *MockCatalogRepository) ListDistinctTags(ctx context.Context) ([]string
 
 	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) ([]string, error)); ok {
+		return rf(ctx, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) []string); ok {
+		r0 = rf(ctx, includeUnpublished)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, bool) error); ok {
+		r1 = rf(ctx, includeUnpublished)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -178,13 +179,14 @@ type MockCatalogRepository_ListDistinctTags_Call struct {
 
 // ListDistinctTags is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogRepository_Expecter) ListDistinctTags(ctx interface{}) *MockCatalogRepository_ListDistinctTags_Call {
-	return &MockCatalogRepository_ListDistinctTags_Call{Call: _e.mock.On("ListDistinctTags", ctx)}
+//   - includeUnpublished bool
+func (_e *MockCatalogRepository_Expecter) ListDistinctTags(ctx interface{}, includeUnpublished interface{}) *MockCatalogRepository_ListDistinctTags_Call {
+	return &MockCatalogRepository_ListDistinctTags_Call{Call: _e.mock.On("ListDistinctTags", ctx, includeUnpublished)}
 }
 
-func (_c *MockCatalogRepository_ListDistinctTags_Call) Run(run func(ctx context.Context)) *MockCatalogRepository_ListDistinctTags_Call {
+func (_c *MockCatalogRepository_ListDistinctTags_Call) Run(run func(ctx context.Context, includeUnpublished bool)) *MockCatalogRepository_ListDistinctTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(bool))
 	})
 	return _c
 }
@@ -194,14 +196,14 @@ func (_c *MockCatalogRepository_ListDistinctTags_Call) Return(_a0 []string, _a1 
 	return _c
 }
 
-func (_c *MockCatalogRepository_ListDistinctTags_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockCatalogRepository_ListDistinctTags_Call {
+func (_c *MockCatalogRepository_ListDistinctTags_Call) RunAndReturn(run func(context.Context, bool) ([]string, error)) *MockCatalogRepository_ListDistinctTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListExpansionSets provides a mock function with given fields: ctx, seriesIDs
-func (_m *MockCatalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID) ([]entity.ExpansionSet, error) {
-	ret := _m.Called(ctx, seriesIDs)
+// ListExpansionSets provides a mock function with given fields: ctx, seriesIDs, includeUnpublished
+func (_m *MockCatalogRepository) ListExpansionSets(ctx context.Context, seriesIDs []uuid.UUID, includeUnpublished bool) ([]entity.ExpansionSet, error) {
+	ret := _m.Called(ctx, seriesIDs, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListExpansionSets")
@@ -209,19 +211,19 @@ func (_m *MockCatalogRepository) ListExpansionSets(ctx context.Context, seriesID
 
 	var r0 []entity.ExpansionSet
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []uuid.UUID) ([]entity.ExpansionSet, error)); ok {
-		return rf(ctx, seriesIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) ([]entity.ExpansionSet, error)); ok {
+		return rf(ctx, seriesIDs, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []uuid.UUID) []entity.ExpansionSet); ok {
-		r0 = rf(ctx, seriesIDs)
+	if rf, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) []entity.ExpansionSet); ok {
+		r0 = rf(ctx, seriesIDs, includeUnpublished)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]entity.ExpansionSet)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = rf(ctx, seriesIDs)
+	if rf, ok := ret.Get(1).(func(context.Context, []uuid.UUID, bool) error); ok {
+		r1 = rf(ctx, seriesIDs, includeUnpublished)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -237,13 +239,14 @@ type MockCatalogRepository_ListExpansionSets_Call struct {
 // ListExpansionSets is a helper method to define mock.On call
 //   - ctx context.Context
 //   - seriesIDs []uuid.UUID
-func (_e *MockCatalogRepository_Expecter) ListExpansionSets(ctx interface{}, seriesIDs interface{}) *MockCatalogRepository_ListExpansionSets_Call {
-	return &MockCatalogRepository_ListExpansionSets_Call{Call: _e.mock.On("ListExpansionSets", ctx, seriesIDs)}
+//   - includeUnpublished bool
+func (_e *MockCatalogRepository_Expecter) ListExpansionSets(ctx interface{}, seriesIDs interface{}, includeUnpublished interface{}) *MockCatalogRepository_ListExpansionSets_Call {
+	return &MockCatalogRepository_ListExpansionSets_Call{Call: _e.mock.On("ListExpansionSets", ctx, seriesIDs, includeUnpublished)}
 }
 
-func (_c *MockCatalogRepository_ListExpansionSets_Call) Run(run func(ctx context.Context, seriesIDs []uuid.UUID)) *MockCatalogRepository_ListExpansionSets_Call {
+func (_c *MockCatalogRepository_ListExpansionSets_Call) Run(run func(ctx context.Context, seriesIDs []uuid.UUID, includeUnpublished bool)) *MockCatalogRepository_ListExpansionSets_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]uuid.UUID))
+		run(args[0].(context.Context), args[1].([]uuid.UUID), args[2].(bool))
 	})
 	return _c
 }
@@ -253,7 +256,7 @@ func (_c *MockCatalogRepository_ListExpansionSets_Call) Return(_a0 []entity.Expa
 	return _c
 }
 
-func (_c *MockCatalogRepository_ListExpansionSets_Call) RunAndReturn(run func(context.Context, []uuid.UUID) ([]entity.ExpansionSet, error)) *MockCatalogRepository_ListExpansionSets_Call {
+func (_c *MockCatalogRepository_ListExpansionSets_Call) RunAndReturn(run func(context.Context, []uuid.UUID, bool) ([]entity.ExpansionSet, error)) *MockCatalogRepository_ListExpansionSets_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -316,9 +319,9 @@ func (_c *MockCatalogRepository_ListRarities_Call) RunAndReturn(run func(context
 	return _c
 }
 
-// ListSeries provides a mock function with given fields: ctx
-func (_m *MockCatalogRepository) ListSeries(ctx context.Context) ([]entity.Series, error) {
-	ret := _m.Called(ctx)
+// ListSeries provides a mock function with given fields: ctx, includeUnpublished
+func (_m *MockCatalogRepository) ListSeries(ctx context.Context, includeUnpublished bool) ([]entity.Series, error) {
+	ret := _m.Called(ctx, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSeries")
@@ -326,19 +329,19 @@ func (_m *MockCatalogRepository) ListSeries(ctx context.Context) ([]entity.Serie
 
 	var r0 []entity.Series
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]entity.Series, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) ([]entity.Series, error)); ok {
+		return rf(ctx, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []entity.Series); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) []entity.Series); ok {
+		r0 = rf(ctx, includeUnpublished)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]entity.Series)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, bool) error); ok {
+		r1 = rf(ctx, includeUnpublished)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -353,13 +356,14 @@ type MockCatalogRepository_ListSeries_Call struct {
 
 // ListSeries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogRepository_Expecter) ListSeries(ctx interface{}) *MockCatalogRepository_ListSeries_Call {
-	return &MockCatalogRepository_ListSeries_Call{Call: _e.mock.On("ListSeries", ctx)}
+//   - includeUnpublished bool
+func (_e *MockCatalogRepository_Expecter) ListSeries(ctx interface{}, includeUnpublished interface{}) *MockCatalogRepository_ListSeries_Call {
+	return &MockCatalogRepository_ListSeries_Call{Call: _e.mock.On("ListSeries", ctx, includeUnpublished)}
 }
 
-func (_c *MockCatalogRepository_ListSeries_Call) Run(run func(ctx context.Context)) *MockCatalogRepository_ListSeries_Call {
+func (_c *MockCatalogRepository_ListSeries_Call) Run(run func(ctx context.Context, includeUnpublished bool)) *MockCatalogRepository_ListSeries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(bool))
 	})
 	return _c
 }
@@ -369,14 +373,14 @@ func (_c *MockCatalogRepository_ListSeries_Call) Return(_a0 []entity.Series, _a1
 	return _c
 }
 
-func (_c *MockCatalogRepository_ListSeries_Call) RunAndReturn(run func(context.Context) ([]entity.Series, error)) *MockCatalogRepository_ListSeries_Call {
+func (_c *MockCatalogRepository_ListSeries_Call) RunAndReturn(run func(context.Context, bool) ([]entity.Series, error)) *MockCatalogRepository_ListSeries_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListUngroupedExpansionSets provides a mock function with given fields: ctx
-func (_m *MockCatalogRepository) ListUngroupedExpansionSets(ctx context.Context) ([]entity.ExpansionSet, error) {
-	ret := _m.Called(ctx)
+// ListUngroupedExpansionSets provides a mock function with given fields: ctx, includeUnpublished
+func (_m *MockCatalogRepository) ListUngroupedExpansionSets(ctx context.Context, includeUnpublished bool) ([]entity.ExpansionSet, error) {
+	ret := _m.Called(ctx, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListUngroupedExpansionSets")
@@ -384,19 +388,19 @@ func (_m *MockCatalogRepository) ListUngroupedExpansionSets(ctx context.Context)
 
 	var r0 []entity.ExpansionSet
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]entity.ExpansionSet, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) ([]entity.ExpansionSet, error)); ok {
+		return rf(ctx, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []entity.ExpansionSet); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, bool) []entity.ExpansionSet); ok {
+		r0 = rf(ctx, includeUnpublished)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]entity.ExpansionSet)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, bool) error); ok {
+		r1 = rf(ctx, includeUnpublished)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -411,13 +415,14 @@ type MockCatalogRepository_ListUngroupedExpansionSets_Call struct {
 
 // ListUngroupedExpansionSets is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockCatalogRepository_Expecter) ListUngroupedExpansionSets(ctx interface{}) *MockCatalogRepository_ListUngroupedExpansionSets_Call {
-	return &MockCatalogRepository_ListUngroupedExpansionSets_Call{Call: _e.mock.On("ListUngroupedExpansionSets", ctx)}
+//   - includeUnpublished bool
+func (_e *MockCatalogRepository_Expecter) ListUngroupedExpansionSets(ctx interface{}, includeUnpublished interface{}) *MockCatalogRepository_ListUngroupedExpansionSets_Call {
+	return &MockCatalogRepository_ListUngroupedExpansionSets_Call{Call: _e.mock.On("ListUngroupedExpansionSets", ctx, includeUnpublished)}
 }
 
-func (_c *MockCatalogRepository_ListUngroupedExpansionSets_Call) Run(run func(ctx context.Context)) *MockCatalogRepository_ListUngroupedExpansionSets_Call {
+func (_c *MockCatalogRepository_ListUngroupedExpansionSets_Call) Run(run func(ctx context.Context, includeUnpublished bool)) *MockCatalogRepository_ListUngroupedExpansionSets_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(bool))
 	})
 	return _c
 }
@@ -427,7 +432,7 @@ func (_c *MockCatalogRepository_ListUngroupedExpansionSets_Call) Return(_a0 []en
 	return _c
 }
 
-func (_c *MockCatalogRepository_ListUngroupedExpansionSets_Call) RunAndReturn(run func(context.Context) ([]entity.ExpansionSet, error)) *MockCatalogRepository_ListUngroupedExpansionSets_Call {
+func (_c *MockCatalogRepository_ListUngroupedExpansionSets_Call) RunAndReturn(run func(context.Context, bool) ([]entity.ExpansionSet, error)) *MockCatalogRepository_ListUngroupedExpansionSets_Call {
 	_c.Call.Return(run)
 	return _c
 }
