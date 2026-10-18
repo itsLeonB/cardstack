@@ -1,6 +1,6 @@
 # Binder scanning
 
-Status: implemented except ticket 09 (the binder-cell accuracy check, which needs real binder photos and the full embedded catalog)
+Status: implemented except ticket 09 (the binder-cell accuracy check, which needs real binder photos and the full embedded catalog) and ticket 10 (the page-review pill and menu redesign, amended into this spec, not yet built)
 
 ## Problem Statement
 
@@ -10,7 +10,7 @@ A collector who keeps cards in a physical binder has two problems the app does n
 
 A Collection can be given a Layout, which turns it into a binder: rows and columns per Page, and a number of Leaves, each Leaf having a front Page and a back Page. The Collection's page shows the binder as something to flip through, one Page at a time, with a grid of Slots that show the Card in each pocket, empty pockets, and pockets holding a card the app could not identify (Unidentified). The user adds or removes a Leaf at the Page they are looking at.
 
-To fill a Page, the user swipes to it and presses scan. They photograph it, drag four corners onto the outer corners of the pocket grid, and the browser flattens the photo and cuts one image per pocket. Each cell is matched with the existing match endpoint, and a review grid with the same rows and columns as the Layout shows the result, with a candidate dropdown on unsure cells. Confirming replaces that Page: each Slot becomes empty, a Card, or Unidentified, and anything the app could not decide becomes Unidentified rather than blocking. The user can also place, clear, replace and move cards by hand, and the Collection's entry list shows where each card sits and jumps to it.
+To fill a Page, the user swipes to it and presses scan. They photograph it, drag four corners onto the outer corners of the pocket grid, and the browser flattens the photo and cuts one image per pocket. Each cell is matched with the existing match endpoint, and a review grid with the same rows and columns as the Layout shows the result: each cell is just its cut image with a soft pill over the bottom naming the chosen Card, and the pill opens a menu to pick another candidate, an empty pocket, or Unidentified. Confirming replaces that Page: each Slot becomes empty, a Card, or Unidentified, and anything the app could not decide becomes Unidentified rather than blocking. The user can also place, clear, replace and move cards by hand, and the Collection's entry list shows where each card sits and jumps to it.
 
 In a binder, the Slots are the truth for quantity. A Card's quantity is the number of its Slots, and the Inventory Entries are kept in step with the Slots inside the same transaction, so Master Inventory, entry search and every Phase 1 read keep working. The Phase 1 "Scan cards" flow still works on a binder by placing each added copy in the first empty Slot.
 
@@ -50,14 +50,14 @@ This spec covers Phase 2 of card scanning. Phase 1 (one card per photo, Draft Ad
 30. As a collector, I want the cell images downsized and sent as JPEG like Phase 1 captures, so that scans stay fast and light on data.
 31. As a collector, I want every cell of a Page matched with the same match service as single scans, so that the Page and single scans behave the same.
 32. As a collector, I want a review grid with the same rows and columns as my Layout, so that each cell sits where the pocket is.
-33. As a collector, I want to see each cell's matched Card in the review grid as soon as it is known, with loading cells marked, so that I can follow progress.
-34. As a collector, I want an unsure cell to offer its other candidates in a dropdown that defaults to the top one, so that I can correct it in a couple of taps.
-35. As a collector, I want to mark a cell as an empty pocket, so that an empty pocket is not stored as a card.
-36. As a collector, I want to mark a cell Unidentified by hand, so that a card the catalog cannot offer is still recorded.
-37. As a collector, I want a cell that failed to match or had no good candidate to default to Unidentified without blocking me, so that one bad cell does not stop the Page.
-38. As a collector, I want to retry a cell that failed to match, so that a network error does not cost me the Unidentified result.
+33. As a collector, I want to see each cell's matched Card on its pill as soon as it is known, with loading cells marked, so that I can follow progress.
+34. As a collector, I want every cell's pill to open a menu of the matcher's other candidates with the top one already chosen, so that I can correct it in a couple of taps without the app labelling any cell "unsure".
+35. As a collector, I want to choose Empty from a cell's menu, so that an empty pocket is not stored as a card.
+36. As a collector, I want to choose Unidentified from a cell's menu, so that a card the catalog cannot offer is still recorded.
+37. As a collector, I want a cell that failed to match or had no good candidate to default to Unidentified and say so on its pill without blocking me, so that one bad cell does not stop the Page.
+38. As a collector, I want a failed cell's pill to offer Retry, so that a network error does not cost me the Unidentified result.
 39. As a collector, I want confirm to wait until every cell has finished matching, so that no cell is left out by accident.
-40. As a collector, I want cells that differ from what the Page holds now to be highlighted, so that I can see what confirming will change.
+40. As a collector, I want cells that differ from what the Page holds now to be ringed, so that I can see what confirming will change.
 41. As a collector, I want confirming to replace the whole Page, so that re-scanning also corrects earlier mistakes.
 42. As a collector, I want a card the server does not know to be stored as Unidentified and reported to me, so that one bad id does not fail the Page.
 43. As a collector, I want confirm to be repeatable without side effects, so that a retry after a lost response is safe.
@@ -82,6 +82,15 @@ This spec covers Phase 2 of card scanning. Phase 1 (one card per photo, Draft Ad
 62. As the site owner, I want the accuracy of binder-cell matching measured on real Page photos, so that I know whether single-card accuracy holds for pockets.
 63. As the site owner, I want the cell margin to be one tunable constant, so that I can adjust it after seeing the accuracy results.
 64. As a developer, I want the page-scan screen to reuse the existing match endpoint, so that no new matcher or batch endpoint is needed.
+65. As a collector, I want the review grid to show only each cell's image with a soft pill over its bottom edge, so that the grid is not cluttered or tight.
+66. As a collector, I want the pill to show the chosen Card's name, set code and local ID, so that I can check it against the photo at a glance.
+67. As a collector, I want the pill to stay legible over any card art, so that I can read it on a dark or a bright card.
+68. As a collector, I want the pill's menu to list the matcher's candidates, up to five, in one column and Empty and Unidentified in another, so that every choice for the cell is in one place.
+69. As a collector, I want the menu to stack its two groups on a phone, so that it fits a narrow screen without sideways scrolling.
+70. As a collector, I want the menu to show which item is chosen now, so that I know what I would be changing.
+71. As a collector, I want choosing a candidate after choosing Empty or Unidentified to put a Card back in the cell, and choosing again to replace the earlier choice, so that I can always change my mind.
+72. As a collector, I want a confident cell's menu to offer its one candidate plus Empty and Unidentified, so that I can still override a wrong confident match.
+73. As a screen reader user, I want each cell's pill to announce its position and its chosen Card, and each cell's photo to have a description, so that I can review a Page without seeing it.
 
 ## Implementation Decisions
 
@@ -122,7 +131,12 @@ This spec covers Phase 2 of card scanning. Phase 1 (one card per photo, Draft Ad
 - The user drags four corners onto the outer corners of the pocket grid, not the Page edge. The corners start as a centred rectangle. Automatic corner detection is deferred.
 - The browser flattens the quadrilateral to a rectangle, cuts it into equal cells (Layout rows × columns), crops each cell inward by a fixed margin (first value 3 percent per side, one tunable constant), downsizes to about 1024 pixels on the long side, and uploads each as a JPEG.
 - Each cell is sent to the existing match endpoint. Several run at a time and the rest queue, as in Phase 1. A Page of 9 to 12 cells is within the existing per-user rate limit (300 a minute, burst 100), so no new endpoint or batch route is added.
-- The review grid has the Layout's rows and columns. Each cell is one of: confident Card, unsure Card with candidate dropdown (default top), loading, failed, no good candidate, or marked empty. Every cell defaults to occupied. The user marks empty pockets by hand. A failed cell or a cell with no good candidate defaults to Unidentified at confirm, and failed cells offer Retry. Confirm waits until no cell is loading.
+- The review grid has the Layout's rows and columns. A cell is its cut image alone, with no card border or inner padding, and a small gap of at least 8 pixels between cells. The image has a description naming its row and column.
+- A soft pill sits over the bottom of each image and is the trigger of that cell's menu. When the cell holds a Card, the pill shows two lines: the Card's name, truncated, and its set code and local ID (`SET · #localId`). The pill is the same size on every cell whatever the Layout, at least 32 pixels tall, with light text on a dark translucent backdrop that holds a 4.5:1 contrast on any card art and text no smaller than 12 pixels. The trigger's accessible name carries the cell's position, the full Card name and the set, and a chevron icon shows that it opens.
+- Every cell defaults to occupied, with the matcher's top candidate chosen. The words "unsure" and "confident" never appear in the review grid; whether the matcher was confident changes only how many candidates the menu holds.
+- The menu has two groups. Candidates are one group, one text row each (name, then set code and local ID, with no card image), at most five; the matcher returns five when it is not confident and one when it is, and this is not changed. Empty and Unidentified are the other group. Side by side on wider screens (candidates left, Empty and Unidentified right), stacked on a phone, candidates first. The chosen item is marked. The menu is one single choice per cell: choosing a candidate clears an earlier Empty or Unidentified choice, and choosing Empty or Unidentified keeps the matcher's candidates so a later candidate choice restores them. Choosing the top candidate again is the way back to the matcher's answer, and the earlier press-again-to-unset behaviour is dropped.
+- Other cell states on the pill: while matching, "Matching…" and no menu; when the match failed, "Couldn't match" with a Retry action and a menu holding only Empty and Unidentified; when there is no good candidate, "Unidentified" with a menu holding only Empty and Unidentified; when chosen by hand, "Empty" or "Unidentified". A failed cell or a cell with no good candidate defaults to Unidentified at confirm. Confirm waits until no cell is loading.
+- A cell that differs from the Page's current Slot gets a ring around its image; its pill's accessible name says that it changes the Slot, replacing the visible "Changes this Slot" text.
 - Cells that differ from the Page's current Slots are highlighted. Confirming sends the Replace Page operation. The review lives in memory only and is not stored; leaving after edits asks for confirmation.
 
 **Binder view (frontend)**
@@ -151,7 +165,7 @@ A good test exercises external behavior only: a request in and a response out at
 
 Seams, preferring existing ones:
 - **Backend: the Huma HTTP boundary against real Postgres** (ADR-0005), as for the Phase 1 match endpoint and the catalog tests. It covers Layout creation and its limits and refusals, Leaf insert and remove with Page renumbering, Slot placement, clear, replace, move and swap, the Replace Page contract (including Unidentified, an unknown Card id, and a mismatched Slot count), the quantity invariant after every write, the bulk update refusing a binder, and the entry list's positions.
-- **Frontend: the binder route and the page-scan screen, rendered with the generated API client mocked** (the existing Vitest and Testing Library pattern). The frame source (camera or file picker) and the flatten-and-cut step are faked in tests, since jsdom has no canvas. This covers swiping and jumping between Pages, adding and removing a Leaf, manual Slot actions, the review grid (loading, failed, unsure dropdown, marked empty, Unidentified defaults, difference highlighting), confirm, and the Phase 1 review step placing copies in the first empty Slots.
+- **Frontend: the binder route and the page-scan screen, rendered with the generated API client mocked** (the existing Vitest and Testing Library pattern). The frame source (camera or file picker) and the flatten-and-cut step are faked in tests, since jsdom has no canvas. This covers swiping and jumping between Pages, adding and removing a Leaf, manual Slot actions, the review grid (loading, failed with Retry, the pill's name and set code and local ID, the menu with its candidates and with Empty and Unidentified, the one-candidate menu of a confident cell, changing a choice back and forth, Unidentified defaults, the difference ring, and no "unsure" text anywhere), confirm, and the Phase 1 review step placing copies in the first empty Slots.
 - **One Playwright spec** on the file-picker path with stubbed match responses, signed in through the existing Clerk e2e setup: create a binder, scan a Page, review, confirm. The cell cutting runs for real in Chromium.
 - **The binder-cell accuracy check is an offline script and report**, not a CI test, built like Phase 1's ticket 07: photos of real binder Pages, cell top-1 and top-5, and the tuned cell margin.
 
@@ -173,6 +187,7 @@ Prior art: the Phase 1 bulk update and match endpoint tests, the catalog and Col
 ## Further Notes
 
 - The matcher's accuracy on real phone photos is still unmeasured (Phase 1 ticket 07 is open, and ADR-0018 says so). Binder cells are harder than single-card photos because of sleeves, glare and cell edges, so the Phase 2 accuracy check may recommend the OCR hybrid from the Phase 1 spec. Phase 2 is built in parallel with ticket 07 by choice, and its tickets 1 to 6 do not depend on the check.
-- Reprints that tie are non-confident by design and appear as an unsure cell with a dropdown, as in Phase 1.
+- Reprints that tie are non-confident by design, so the matcher returns up to five candidates and the cell's menu lists them, as in Phase 1. A reprint that wins by a clear margin is confident, so its menu holds only that one candidate; widening that is a matcher change and not part of this spec.
+- The pill redesign applies to the page-scan review grid only. Phase 1's scan rows and candidate picker keep their own layout and wording.
 - The Phase 1 spec's Out of Scope section describes Phase 2 in outline. After this spec is accepted, that section should point here, and the two statements about "one slot per physical copy being undecided" are now settled: one Slot per physical copy, with Slots as the truth.
 - Setting a Layout clears `max_card_count`, so a Collection's capacity field is hidden on a binder. A future request to cap a binder below its Slot count would reopen this.
