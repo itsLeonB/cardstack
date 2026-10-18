@@ -63,8 +63,11 @@ describe("BinderView", () => {
     renderWithClient(<BinderView collectionId="col-1" />)
 
     expect(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     ).toBeTruthy()
+    expect(screen.getByText("BS · #025")).toBeTruthy()
     expect(
       screen.getByRole("button", { name: "Row 1, column 2: Unidentified" })
     ).toBeTruthy()

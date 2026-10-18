@@ -119,7 +119,7 @@ describe("Collection page", () => {
 
     expect(await screen.findByText("Page 4 of 20")).toBeTruthy()
     const tile = screen.getByRole("button", {
-      name: "Row 2, column 3: Pikachu",
+      name: "Row 2, column 3: Pikachu, Base Set",
     })
     expect(tile.getAttribute("aria-pressed")).toBe("true")
     expect(document.activeElement).toBe(tile)
@@ -226,7 +226,9 @@ describe("Collection page", () => {
       })
     )
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     expect(screen.getByRole("status", { name: "Move a card" })).toBeTruthy()

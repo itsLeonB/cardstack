@@ -9,6 +9,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cardCode } from "@/lib/binder"
 import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
 import { useObjectUrl } from "@/lib/use-page-scan"
@@ -41,9 +42,6 @@ function choiceOf(cell: PageCell): Choice {
   }
   return { value: "unidentified" }
 }
-
-const cardCode = (card: CardSummary) =>
-  `${card.expansionSet.code} · #${card.localId}`
 
 /** The cut cells in the Page's rows and columns, each showing how its match went. */
 export function PageReview({

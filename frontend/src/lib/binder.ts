@@ -1,6 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { getGetCollectionQueryKey } from "@/generated/endpoints/collections/collections"
-import type { BinderPageSide, BinderSlotTarget } from "@/generated/models"
+import type {
+  BinderPageSide,
+  BinderSlotTarget,
+  CardSummary,
+} from "@/generated/models"
 import {
   invalidateCollectionCounts,
   invalidateCollectionEntries,
@@ -18,6 +22,11 @@ export const BINDER_PRESETS = [
 // limit and the leaf count on the create route), so change them together.
 export const MAX_GRID = 6
 export const MAX_LEAVES = 100
+
+/** The print a Card is, as the review pill and the binder tile show it: `SET · #localId`. */
+export function cardCode(card: CardSummary) {
+  return `${card.expansionSet.code} · #${card.localId}`
+}
 
 /** The preset whose rows and columns match, or "custom". */
 export function presetIdFor(rows: number, columns: number): string {
