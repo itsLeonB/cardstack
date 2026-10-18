@@ -1,3 +1,4 @@
+import { RiArrowDownSLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -42,7 +43,7 @@ function choiceOf(cell: PageCell): Choice {
 }
 
 const cardCode = (card: CardSummary) =>
-  `${card.expansionSet.code} · ${card.localId}`
+  `${card.expansionSet.code} · #${card.localId}`
 
 /** The cut cells in the Page's rows and columns, each showing how its match went. */
 export function PageReview({
@@ -87,7 +88,7 @@ export function PageReview({
 // Dark and translucent so white text keeps 4.5:1 over bright card art; the
 // same height in every Layout so a 6 by 6 Page reads like a 2 by 2.
 const PILL =
-  "flex h-11 min-w-0 flex-1 flex-col justify-center rounded-xl bg-black/80 px-2 text-left text-xs leading-tight text-white"
+  "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl bg-black/80 px-2 text-left text-xs leading-tight text-white"
 
 function CellReview({
   label,
@@ -137,8 +138,11 @@ function CellReview({
                 />
               }
             >
-              <span className="truncate font-medium">{pill.first}</span>
-              {pill.second && <span className="truncate">{pill.second}</span>}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-medium">{pill.first}</span>
+                {pill.second && <span className="truncate">{pill.second}</span>}
+              </span>
+              <RiArrowDownSLine className="size-4 shrink-0" aria-hidden />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"

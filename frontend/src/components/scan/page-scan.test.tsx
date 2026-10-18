@@ -312,9 +312,9 @@ describe("ScanPageFlow", () => {
     const first = await within(cell(1, 1)).findByRole("button", {
       name: /^Row 1, column 1: Card 1, Starter Set 1/,
     })
-    expect(first.textContent).toBe("Card 1SCE · 1")
+    expect(first.textContent).toBe("Card 1SCE · #1")
     // An unsure match starts on its top candidate.
-    expect(pill(1, 2)?.textContent).toBe("Card 2SCE · 2")
+    expect(pill(1, 2)?.textContent).toBe("Card 2SCE · #2")
     expect(await within(cell(2, 1)).findByText("Unidentified")).toBeTruthy()
     expect(pill(2, 2)?.textContent).toBe("Couldn't match")
     expect(
@@ -345,13 +345,13 @@ describe("ScanPageFlow", () => {
     }
     // A confident cell's menu holds its one candidate, Empty and Unidentified.
     expect(await items(1, 1)).toEqual([
-      ["Card 1SCE · 1", "true"],
+      ["Card 1SCE · #1", "true"],
       ["Empty", "false"],
       ["Unidentified", "false"],
     ])
     expect(await items(1, 2)).toEqual([
-      ["Card 2SCE · 2", "true"],
-      ["Card 3SCE · 3", "false"],
+      ["Card 2SCE · #2", "true"],
+      ["Card 3SCE · #3", "false"],
       ["Empty", "false"],
       ["Unidentified", "false"],
     ])
@@ -377,17 +377,17 @@ describe("ScanPageFlow", () => {
     const chosen = () => pill(1, 1)?.textContent
 
     await pick(user, 1, 1, /^Card 2/)
-    expect(chosen()).toBe("Card 2SCE · 2")
+    expect(chosen()).toBe("Card 2SCE · #2")
     await pick(user, 1, 1, "Empty")
     expect(chosen()).toBe("Empty")
     await pick(user, 1, 1, "Unidentified")
     expect(chosen()).toBe("Unidentified")
     // The candidates stay, so picking one restores it and clears the mark.
     await pick(user, 1, 1, /^Card 2/)
-    expect(chosen()).toBe("Card 2SCE · 2")
+    expect(chosen()).toBe("Card 2SCE · #2")
     // Picking the top candidate returns to the matcher's answer.
     await pick(user, 1, 1, /^Card 1/)
-    expect(chosen()).toBe("Card 1SCE · 1")
+    expect(chosen()).toBe("Card 1SCE · #1")
   })
 
   it("retries a failed cell, which goes back to the queue", async () => {
