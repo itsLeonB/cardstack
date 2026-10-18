@@ -20,6 +20,12 @@ import { useBinderMove } from "@/components/collections/use-binder-move"
 import { PageScanScreen } from "@/components/scan/page-scan"
 import { PendingReviewBanner } from "@/components/scan/pending-review-banner"
 import type { PendingPageReview } from "@/lib/page-review-store"
+import {
+  applyLeafChange,
+  discardMismatchedReviews,
+} from "@/lib/page-review-leaf"
+import type { LeafChange } from "@/lib/page-review-leaf"
+import { useSession } from "@/lib/session"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import {
   invalidateBinder,
@@ -54,6 +60,10 @@ export function BinderView({
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [resuming, setResuming] = useState<PendingPageReview>()
+  // Bumped once the stored reviews change, so the banner reads them again.
+  const [reviewsVersion, setReviewsVersion] = useState(0)
+  const { user } = useSession()
+  const userId = user?.id
   // Set once the Layout is gone, so the Page queries stop before the
   // Collection refetch unmounts this view.
   const [detached, setDetached] = useState(false)
@@ -109,6 +119,27 @@ export function BinderView({
       ?.focus()
   }, [binderPage, highlighted])
 
+  // A review saved for another Layout no longer fits its cells, so it goes when
+  // the binder opens.
+  const rows = binderPage?.layout.rows
+  const columns = binderPage?.layout.columns
+  useEffect(() => {
+    if (userId === undefined || rows === undefined || columns === undefined) {
+      return
+    }
+    // Without IndexedDB nothing was saved, so there is nothing to discard.
+    discardMismatchedReviews({ userId, collectionId }, { rows, columns }).then(
+      (pages) => {
+        if (pages.length === 0) return
+        toast.info(
+          `Discarded the pending review of Page ${pages.join(" and Page ")}: the Layout changed.`
+        )
+        setReviewsVersion((version) => version + 1)
+      },
+      () => undefined
+    )
+  }, [userId, collectionId, rows, columns])
+
   // Steps from the requested Page, not the shown one, so two quick taps move
   // two Pages even before the first has loaded.
   function stepPage(delta: number) {
@@ -151,6 +182,12 @@ export function BinderView({
     setSelectedSlot(null)
   }
 
+  // Renumbers the stored reviews of this binder. Without IndexedDB there are none.
+  function moveReviews(change: LeafChange): Promise<number[]> {
+    if (userId === undefined) return Promise.resolve([])
+    return applyLeafChange({ userId, collectionId }, change).catch(() => [])
+  }
+
   function addLeaf(placement: "before" | "after") {
     if (!binderPage) return
     setLeafError(null)
@@ -167,7 +204,11 @@ export function BinderView({
           // Turn to the new Leaf's front Page, so the blank Leaf is on screen.
           const leaf =
             placement === "after" ? binderPage.leaf + 1 : binderPage.leaf
-          setRequestedPage(pageOf(leaf, "front"))
+          // The reviews move first, so the Page turned to shows its own review.
+          void moveReviews({ kind: "add", leaf }).then(() => {
+            setReviewsVersion((version) => version + 1)
+            setRequestedPage(pageOf(leaf, "front"))
+          })
         },
         onError: () => toast.error(NETWORK_ERROR),
       }
@@ -193,11 +234,20 @@ export function BinderView({
           clearSlotMarks()
           // The Leaf after the removed one takes its place, or the last Leaf
           // when the removed one was the last.
-          setRequestedPage(
-            Math.min(
-              pageOf(binderPage.leaf, "front"),
-              pageOf(response.data.data.leafCount, "back")
-            )
+          const nextPage = Math.min(
+            pageOf(binderPage.leaf, "front"),
+            pageOf(response.data.data.leafCount, "back")
+          )
+          void moveReviews({ kind: "remove", leaf: binderPage.leaf }).then(
+            (pages) => {
+              if (pages.length > 0) {
+                toast.info(
+                  `Discarded the pending review of Page ${pages.join(" and Page ")} with its Leaf.`
+                )
+              }
+              setReviewsVersion((version) => version + 1)
+              setRequestedPage(nextPage)
+            }
           )
         },
         onError: () => toast.error(NETWORK_ERROR),
@@ -364,6 +414,7 @@ export function BinderView({
           </p>
         )}
         <PendingReviewBanner
+          key={reviewsVersion}
           collectionId={collectionId}
           page={binderPage.page}
           onResume={(review) => {
