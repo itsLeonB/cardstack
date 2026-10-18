@@ -1,6 +1,6 @@
 import { cn } from "cn"
 import type { BinderPage, BinderSlot } from "@/generated/models"
-import { slotKey } from "@/lib/binder"
+import { cardCode, slotKey } from "@/lib/binder"
 import type { SlotRef } from "@/lib/binder"
 
 /** One Page's Slots in the Layout's rows and columns; tapping a Slot selects it. */
@@ -61,7 +61,7 @@ function SlotTile({
     return (
       <button
         type="button"
-        aria-label={`${where}: ${slot.card.name}`}
+        aria-label={`${where}: ${slot.card.name}, ${slot.card.expansionSet.name}`}
         aria-pressed={selected}
         onClick={(event) => onSelect(event.currentTarget)}
         className={cn(tile, "flex flex-col gap-1 bg-card p-1")}
@@ -73,7 +73,7 @@ function SlotTile({
           className="aspect-[5/7] w-full rounded object-cover"
         />
         <span className="truncate text-xs font-medium">{slot.card.name}</span>
-        <span className="text-xs">#{slot.card.localId}</span>
+        <span className="truncate text-xs">{cardCode(slot.card)}</span>
       </button>
     )
   }

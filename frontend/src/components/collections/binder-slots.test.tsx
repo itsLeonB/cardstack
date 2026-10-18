@@ -87,7 +87,9 @@ describe("binder Slot actions", () => {
     await searchAndPlace("Place a Card", "Pikachu")
 
     expect(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     ).toBeTruthy()
     expect(
       screen.getByText("Cards and Unidentified: 1 of 80 slots")
@@ -124,7 +126,9 @@ describe("binder Slot actions", () => {
     renderWithClient(<BinderView collectionId="col-1" />)
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
 
     expect(screen.getByRole("button", { name: "Replace card" })).toBeTruthy()
@@ -144,7 +148,9 @@ describe("binder Slot actions", () => {
     renderWithClient(<BinderView collectionId="col-1" />)
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Clear" }))
 
@@ -169,12 +175,16 @@ describe("binder Slot actions", () => {
     renderWithClient(<BinderView collectionId="col-1" />)
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     await searchAndPlace("Replace card", "Bulbasaur")
 
     expect(
-      await screen.findByRole("button", { name: "Row 1, column 1: Bulbasaur" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Bulbasaur, Base Set",
+      })
     ).toBeTruthy()
     expect(lastWrite(binder.requests)).toMatchObject({
       method: "PUT",
@@ -195,7 +205,9 @@ describe("binder Slot actions", () => {
     renderWithClient(<BinderView collectionId="col-1" />)
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Mark Unidentified" }))
 
@@ -233,7 +245,9 @@ describe("binder Slot actions", () => {
     await searchAndPlace("Place a Card", "Pikachu")
 
     expect(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     ).toBeTruthy()
     expect(screen.getByText("Unidentified: 0")).toBeTruthy()
   })
@@ -287,7 +301,9 @@ describe("binder Slot actions", () => {
     )
     await searchAndPlace("Place a Card", "Pikachu")
 
-    await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    await screen.findByRole("button", {
+      name: "Row 1, column 1: Pikachu, Base Set",
+    })
     for (const key of keys)
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
   })
@@ -343,7 +359,9 @@ describe("binder Slot actions", () => {
     fireEvent.click(tile)
     await searchAndPlace("Place a Card", "Pikachu")
 
-    await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+    await screen.findByRole("button", {
+      name: "Row 1, column 1: Pikachu, Base Set",
+    })
     expect(screen.queryByRole("region", { name: "Slot actions" })).toBeNull()
     expect(document.activeElement).toBe(tile)
   })

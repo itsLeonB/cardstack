@@ -58,7 +58,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     expect(screen.getByRole("status", { name: "Move a card" })).toBeTruthy()
@@ -76,7 +78,9 @@ describe("BinderView move and swap", () => {
       to: { page: 2, row: 1, column: 2 },
     })
     expect(
-      await screen.findByRole("button", { name: "Row 1, column 2: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 2: Pikachu, Base Set",
+      })
     ).toBeTruthy()
   })
 
@@ -92,7 +96,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     await goToPage(2)
@@ -103,7 +109,9 @@ describe("BinderView move and swap", () => {
     )
 
     expect(
-      await screen.findByRole("button", { name: "Row 1, column 2: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 2: Pikachu, Base Set",
+      })
     ).toBeTruthy()
     await goToPage(1)
     expect(
@@ -151,11 +159,13 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     fireEvent.click(
-      screen.getByRole("button", { name: "Row 1, column 1: Pikachu" })
+      screen.getByRole("button", { name: "Row 1, column 1: Pikachu, Base Set" })
     )
 
     expect(screen.queryByRole("status", { name: "Move a card" })).toBeNull()
@@ -171,7 +181,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     fireEvent.click(screen.getByRole("button", { name: "Cancel move" }))
@@ -189,7 +201,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     fireEvent.keyDown(document, { key: "Escape" })
@@ -207,7 +221,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
 
@@ -225,7 +241,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     const target = screen.getByRole("button", {
@@ -249,7 +267,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     // Another writer clears the source after it was picked.
@@ -274,7 +294,9 @@ describe("BinderView move and swap", () => {
     })
     renderBinder(binder)
     fireEvent.click(
-      await screen.findByRole("button", { name: "Row 1, column 1: Pikachu" })
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
     )
     fireEvent.click(screen.getByRole("button", { name: "Move" }))
     fireEvent.click(
