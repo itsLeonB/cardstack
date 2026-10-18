@@ -18,6 +18,8 @@ import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { SlotPanel } from "@/components/collections/binder-slot-panel"
 import { useBinderMove } from "@/components/collections/use-binder-move"
 import { PageScanScreen } from "@/components/scan/page-scan"
+import { PendingReviewBanner } from "@/components/scan/pending-review-banner"
+import type { PendingPageReview } from "@/lib/page-review-store"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import {
   invalidateBinder,
@@ -51,6 +53,7 @@ export function BinderView({
   const [layoutError, setLayoutError] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [scanning, setScanning] = useState(false)
+  const [resuming, setResuming] = useState<PendingPageReview>()
   // Set once the Layout is gone, so the Page queries stop before the
   // Collection refetch unmounts this view.
   const [detached, setDetached] = useState(false)
@@ -273,7 +276,11 @@ export function BinderView({
       <PageScanScreen
         collectionId={collectionId}
         page={binderPage}
-        onClose={() => setScanning(false)}
+        resume={resuming}
+        onClose={() => {
+          setScanning(false)
+          setResuming(undefined)
+        }}
       />
     )
   }
@@ -356,6 +363,14 @@ export function BinderView({
             {jumpError}
           </p>
         )}
+        <PendingReviewBanner
+          collectionId={collectionId}
+          page={binderPage.page}
+          onResume={(review) => {
+            setResuming(review)
+            setScanning(true)
+          }}
+        />
         <Button variant="outline" onClick={() => setScanning(true)}>
           Scan this Page
         </Button>

@@ -53,6 +53,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6",
+    "fake-indexeddb": "^6.2.6",
     "jsdom": "^30",
     "orval": "^8.33.0",
     "oxlint": "^1.83.0",

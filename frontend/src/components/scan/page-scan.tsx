@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useBlocker } from "@tanstack/react-router"
 import {
@@ -26,6 +26,8 @@ import type {
 } from "@/generated/models"
 import { refreshAfterSlotWrite } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
+import { removePageReview, savePageReview } from "@/lib/page-review-store"
+import type { PendingPageReview } from "@/lib/page-review-store"
 import { useCameraFrameSource } from "@/lib/frame-source"
 import type { FrameSource } from "@/lib/frame-source"
 import {
@@ -35,6 +37,7 @@ import {
   frameLongSide,
 } from "@/lib/page-cut"
 import type { Corners, Grid } from "@/lib/page-cut"
+import { useSession } from "@/lib/session"
 import type { PageCell } from "@/lib/use-page-scan"
 import {
   changesSlot,
@@ -56,13 +59,18 @@ interface ScanPageProps {
   collectionId: string
   /** The Page being viewed: its number, Layout and Slots. */
   page: BinderPage
+  /** A pending review to pick up where it was left, instead of starting at the photo. */
+  resume?: PendingPageReview
   onClose: () => void
 }
 
 /** Scans the viewed Page. Opens the camera only while it is on screen. */
 export function PageScanScreen(props: ScanPageProps) {
   const source = useCameraFrameSource()
-  return <ScanPageFlow {...props} source={source} />
+  const { user } = useSession()
+  // The binder is only reached signed in, so a review always has an owner.
+  if (!user) return null
+  return <ScanPageFlow {...props} userId={user.id} source={source} />
 }
 
 /**
@@ -72,15 +80,23 @@ export function PageScanScreen(props: ScanPageProps) {
 export function ScanPageFlow({
   collectionId,
   page,
+  resume,
+  userId,
   source,
   cut = cutPage,
   onClose,
-}: ScanPageProps & { source: FrameSource; cut?: typeof cutPage }) {
+}: ScanPageProps & {
+  userId: string
+  source: FrameSource
+  cut?: typeof cutPage
+}) {
   const grid: Grid = { rows: page.layout.rows, columns: page.layout.columns }
   const longSide = frameLongSide(grid)
   const [frame, setFrame] = useState<Blob>()
   const [corners, setCorners] = useState<Corners>(CENTRED)
-  const [reviewing, setReviewing] = useState(false)
+  const [reviewing, setReviewing] = useState(resume !== undefined)
+  // Set once a save fails (no IndexedDB): the review is then kept in memory only.
+  const [memoryOnly, setMemoryOnly] = useState(false)
   const [cutting, setCutting] = useState(false)
   // Set by a mark or a candidate pick, and cleared when the photo is cut again or saved.
   const [edited, setEdited] = useState(false)
@@ -89,16 +105,28 @@ export function ScanPageFlow({
   const [error, setError] = useState<string | null>(null)
   // Slots stored as Unidentified because the server did not know the Card.
   const [unknownCards, setUnknownCards] = useState<BinderSlotResult[]>()
-  const matches = usePageMatches()
+  const matches = usePageMatches(resume?.cells)
   const frameUrl = useObjectUrl(frame)
   const queryClient = useQueryClient()
   const replace = useReplaceBinderPage()
-  // A route change (browser Back, an in-app link) waits for the user while the review holds edits.
+  // A route change (browser Back, an in-app link) waits for the user only while a memory-only review holds edits.
   const blocker = useBlocker({
-    shouldBlockFn: () => edited,
-    enableBeforeUnload: () => edited,
+    shouldBlockFn: () => memoryOnly && edited,
+    enableBeforeUnload: () => memoryOnly && edited,
     withResolver: true,
   })
+
+  // Every change to the cells is saved, so the review survives leaving or a reload.
+  useEffect(() => {
+    if (memoryOnly || matches.cells.length === 0) return
+    savePageReview({
+      userId,
+      collectionId,
+      page: page.page,
+      grid,
+      cells: matches.cells,
+    }).catch(() => setMemoryOnly(true))
+  }, [matches.cells])
 
   const targets = matches.cells.map(slotTarget)
 
@@ -137,9 +165,9 @@ export function ScanPageFlow({
     }
   }
 
-  // Leaving after an edit would drop it, so the leave waits for the user to confirm.
+  // A memory-only review loses its edits on leave, so the leave waits for the user to confirm.
   function leave(action: () => void) {
-    if (edited) setLeaving(() => action)
+    if (memoryOnly && edited) setLeaving(() => action)
     else action()
   }
 
@@ -169,6 +197,12 @@ export function ScanPageFlow({
             return
           }
           setEdited(false)
+          // A review that cannot be cleared stays listed, where it can be discarded.
+          void removePageReview({
+            userId,
+            collectionId,
+            page: page.page,
+          }).catch(() => undefined)
           refreshAfterSlotWrite(queryClient, collectionId)
           const unknown = (response.data.data.slots ?? []).filter(
             (slot) => slot.reason === "unknown_card"
@@ -230,6 +264,12 @@ export function ScanPageFlow({
             <p role="status" className="text-sm">
               {matches.pending ? "Matching the cells…" : "Check each cell."}
             </p>
+            {memoryOnly && (
+              <p role="status" className="text-sm">
+                This review is not being saved, because this browser cannot
+                store it. Leaving this screen discards it.
+              </p>
+            )}
             <PageReview
               cells={matches.cells}
               grid={grid}
@@ -255,7 +295,7 @@ export function ScanPageFlow({
                   })
                 }
               >
-                Adjust corners
+                {frame ? "Adjust corners" : "Scan again"}
               </Button>
             </div>
           </div>
