@@ -29,7 +29,7 @@ export interface PageCell {
   match: CellMatch
   /** The Card the user chose from the candidates; the top one until they choose. */
   cardId?: string
-  /** A state the user set by hand, which overrides what the scan found. */
+  /** Empty or Unidentified, picked by hand in the cell's menu, which overrides the chosen Card. */
   mark?: "empty" | "unidentified"
 }
 
@@ -99,8 +99,9 @@ export function usePageMatches() {
         generation: generation.current,
       })
     },
+    /** Picks a candidate, which also clears a hand mark; the other candidates stay for a later pick. */
     choose(index: number, cardId: string) {
-      patch(index, { cardId })
+      patch(index, { cardId, mark: undefined })
     },
     mark(index: number, mark: PageCell["mark"]) {
       patch(index, { mark })

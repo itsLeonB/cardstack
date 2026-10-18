@@ -1,14 +1,48 @@
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
 import { useObjectUrl } from "@/lib/use-page-scan"
 import type { PageCell } from "@/lib/use-page-scan"
+import type { CardSummary } from "@/generated/models"
 
-// The states a cell can be set to by hand; pressing a set one again goes back to the scan's result.
-const MARKS = [
+type Mark = NonNullable<PageCell["mark"]>
+
+const MARKS: { mark: Mark; text: string }[] = [
   { mark: "empty", text: "Empty" },
   { mark: "unidentified", text: "Unidentified" },
-] as const
+]
+
+interface Choice {
+  value: string
+  card?: CardSummary
+}
+
+const isMark = (value: string): value is Mark =>
+  MARKS.some(({ mark }) => mark === value)
+
+/** What a cell is set to: a hand mark, else the chosen candidate; no candidate is Unidentified. */
+function choiceOf(cell: PageCell): Choice {
+  if (cell.mark) return { value: cell.mark }
+  const { match } = cell
+  if (match.status === "matched") {
+    const card =
+      match.candidates.find((c) => c.id === cell.cardId) ?? match.candidates[0]
+    if (card) return { value: card.id, card }
+  }
+  return { value: "unidentified" }
+}
+
+const cardCode = (card: CardSummary) =>
+  `${card.expansionSet.code} · ${card.localId}`
 
 /** The cut cells in the Page's rows and columns, each showing how its match went. */
 export function PageReview({
@@ -29,7 +63,7 @@ export function PageReview({
 }) {
   return (
     <div
-      className="grid gap-2"
+      className="grid gap-3"
       style={{ gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` }}
     >
       {cells.map((cell, index) => {
@@ -50,6 +84,11 @@ export function PageReview({
   )
 }
 
+// Dark and translucent so white text keeps 4.5:1 over bright card art; the
+// same height in every Layout so a 6 by 6 Page reads like a 2 by 2.
+const PILL =
+  "flex h-11 min-w-0 flex-1 flex-col justify-center rounded-xl bg-black/80 px-2 text-left text-xs leading-tight text-white"
+
 function CellReview({
   label,
   cell,
@@ -67,62 +106,122 @@ function CellReview({
 }) {
   const url = useObjectUrl(cell.photo)
   const { match } = cell
+  const loading = match.status === "queued" || match.status === "loading"
+  const failed = match.status === "failed"
+  const choice = choiceOf(cell)
+  const candidates = match.status === "matched" ? match.candidates : []
+  const pill =
+    failed && !cell.mark
+      ? { first: "Couldn't match", second: "" }
+      : textOf(choice)
+
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className={`flex min-w-0 flex-col gap-1 rounded-md border p-1 text-xs ${changed ? "ring-2 ring-primary" : ""}`}
-    >
+    <div role="group" aria-label={label} className="relative min-w-0">
       <img
         src={url}
-        alt=""
-        className="aspect-[5/7] w-full rounded bg-muted object-cover"
+        alt={`Photo of ${label.toLowerCase()}`}
+        data-changed={changed || undefined}
+        className={`aspect-[5/7] w-full rounded-md bg-muted object-cover ${changed ? "ring-2 ring-primary" : ""}`}
       />
-      {match.status === "queued" || match.status === "loading" ? (
-        <p>Matching…</p>
-      ) : match.status === "failed" ? (
-        <div className="flex flex-col items-start gap-1">
-          <p role="alert" className="text-destructive">
-            Could not match this cell.
-          </p>
-          <Button size="sm" variant="outline" onClick={onRetry}>
+      <div className="absolute inset-x-1 bottom-1 flex items-center gap-1">
+        {loading ? (
+          <p className={PILL}>Matching…</p>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={pillName(label, choice, changed, failed)}
+                  className={`${PILL} outline-none focus-visible:ring-3 focus-visible:ring-ring`}
+                />
+              }
+            >
+              <span className="truncate font-medium">{pill.first}</span>
+              {pill.second && <span className="truncate">{pill.second}</span>}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-[min(30rem,calc(100vw-1rem))]"
+            >
+              <DropdownMenuRadioGroup
+                value={choice.value}
+                onValueChange={(value) =>
+                  isMark(value) ? onMark(value) : onChoose(value)
+                }
+                className="grid gap-1 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+              >
+                {candidates.length > 0 && (
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Candidates</DropdownMenuLabel>
+                    {candidates.map((card) => (
+                      <DropdownMenuRadioItem
+                        key={card.id}
+                        value={card.id}
+                        className="py-1.5"
+                        closeOnClick
+                      >
+                        <span className="truncate">{card.name}</span>
+                        <span className="shrink-0 text-xs">
+                          {cardCode(card)}
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuGroup>
+                )}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Mark as</DropdownMenuLabel>
+                  {MARKS.map(({ mark, text }) => (
+                    <DropdownMenuRadioItem
+                      key={mark}
+                      value={mark}
+                      className="py-1.5"
+                      closeOnClick
+                    >
+                      {text}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {failed && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8 shrink-0"
+            onClick={onRetry}
+          >
             Retry
           </Button>
-        </div>
-      ) : match.candidates.length === 0 ? (
-        <p>No good candidate</p>
-      ) : match.confident ? (
-        <p className="font-medium">{match.candidates[0].name}</p>
-      ) : (
-        <label className="flex flex-col gap-1">
-          <span>Unsure: choose the card</span>
-          <select
-            value={cell.cardId}
-            onChange={(event) => onChoose(event.currentTarget.value)}
-            className="h-7 rounded-md border bg-background px-1"
-          >
-            {match.candidates.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.name} #{card.localId}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {changed && <p className="font-medium">Changes this Slot</p>}
-      <div className="flex flex-wrap gap-1">
-        {MARKS.map(({ mark, text }) => (
-          <Button
-            key={mark}
-            size="sm"
-            variant={cell.mark === mark ? "default" : "outline"}
-            aria-pressed={cell.mark === mark}
-            onClick={() => onMark(cell.mark === mark ? undefined : mark)}
-          >
-            {text}
-          </Button>
-        ))}
+        )}
       </div>
     </div>
   )
+}
+
+function textOf(choice: Choice) {
+  if (choice.card)
+    return { first: choice.card.name, second: cardCode(choice.card) }
+  return {
+    first: choice.value === "empty" ? "Empty" : "Unidentified",
+    second: "",
+  }
+}
+
+function pillName(
+  label: string,
+  choice: Choice,
+  changed: boolean,
+  failed: boolean
+) {
+  const what = choice.card
+    ? `${choice.card.name}, ${choice.card.expansionSet.name} ${choice.card.localId}`
+    : choice.value === "empty"
+      ? "Empty"
+      : failed
+        ? "Couldn't match, Unidentified"
+        : "Unidentified"
+  return `${label}: ${what}${changed ? ". Changes this Slot" : ""}`
 }

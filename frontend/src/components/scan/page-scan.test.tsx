@@ -207,6 +207,37 @@ const cell = (row: number, column: number) =>
 
 const confirmButton = () => screen.getByRole("button", { name: "Confirm" })
 
+// A cell's pill: its button named by the cell's position, or null while matching.
+const pill = (row: number, column: number) =>
+  within(cell(row, column)).queryByRole("button", {
+    name: new RegExp(`^Row ${row}, column ${column}:`),
+  })
+
+const openMenu = async (
+  user: ReturnType<typeof userEvent.setup>,
+  row: number,
+  column: number
+) => {
+  await user.click(
+    await within(cell(row, column)).findByRole("button", {
+      name: new RegExp(`^Row ${row}, column ${column}:`),
+    })
+  )
+  return screen.findByRole("menu")
+}
+
+/** Opens a cell's menu and picks the item whose name matches. */
+async function pick(
+  user: ReturnType<typeof userEvent.setup>,
+  row: number,
+  column: number,
+  name: string | RegExp
+) {
+  await openMenu(user, row, column)
+  await user.click(await screen.findByRole("menuitemradio", { name }))
+  await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+}
+
 // Four cells, each a confident match for its own card.
 const fourConfident: Reply[] = [1, 2, 3, 4].map((n) => ({
   confident: true,
@@ -261,11 +292,14 @@ describe("ScanPageFlow", () => {
     expect(cut.mock.calls[0][1][0].x).toBeCloseTo(0.14)
   })
 
-  it("shows each cell's match: confident, unsure with the top candidate, no good candidate, failed", async () => {
+  it("shows each cell's pill: the top candidate, no good candidate, failed, never unsure", async () => {
     const user = userEvent.setup()
     renderFlow()
     await scanPhoto(user)
     await waitFor(() => expect(matchCalls).toBe(3))
+    // While matching the pill has no menu.
+    expect(within(cell(1, 1)).getByText("Matching…")).toBeTruthy()
+    expect(pill(1, 1)).toBeNull()
 
     await answerAll([
       { confident: true, candidates: [candidate(1)] },
@@ -274,19 +308,86 @@ describe("ScanPageFlow", () => {
       "fail",
     ])
 
-    const unsure = await within(cell(1, 2)).findByRole("combobox")
-    const chosen = () =>
-      within(cell(1, 2)).getByRole("option", { selected: true }).textContent
-    expect(chosen()).toBe("Card 2 #2")
-    await user.selectOptions(unsure, "card-3")
-    expect(chosen()).toBe("Card 3 #3")
+    // A confident cell shows its Card's name, then set code and local ID.
+    const first = await within(cell(1, 1)).findByRole("button", {
+      name: /^Row 1, column 1: Card 1, Starter Set 1/,
+    })
+    expect(first.textContent).toBe("Card 1SCE · 1")
+    // An unsure match starts on its top candidate.
+    expect(pill(1, 2)?.textContent).toBe("Card 2SCE · 2")
+    expect(await within(cell(2, 1)).findByText("Unidentified")).toBeTruthy()
+    expect(pill(2, 2)?.textContent).toBe("Couldn't match")
     expect(
-      await within(cell(2, 1)).findByText("No good candidate")
+      within(cell(2, 2)).getByRole("button", { name: "Retry" })
     ).toBeTruthy()
-    expect(within(cell(2, 2)).getByRole("alert").textContent).toBe(
-      "Could not match this cell."
-    )
-    expect(within(cell(1, 1)).getByText("Card 1")).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/unsure/i)
+  })
+
+  it("opens a menu of the candidates and of Empty and Unidentified, one choice marked", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: true, candidates: [candidate(1)] },
+      { confident: false, candidates: [candidate(2), candidate(3)] },
+      { confident: false, candidates: [] },
+      "fail",
+    ])
+
+    const items = async (row: number, column: number) => {
+      const menu = await openMenu(user, row, column)
+      const rows = within(menu)
+        .getAllByRole("menuitemradio")
+        .map((item) => [item.textContent, item.getAttribute("aria-checked")])
+      await user.keyboard("{Escape}")
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+      return rows
+    }
+    // A confident cell's menu holds its one candidate, Empty and Unidentified.
+    expect(await items(1, 1)).toEqual([
+      ["Card 1SCE · 1", "true"],
+      ["Empty", "false"],
+      ["Unidentified", "false"],
+    ])
+    expect(await items(1, 2)).toEqual([
+      ["Card 2SCE · 2", "true"],
+      ["Card 3SCE · 3", "false"],
+      ["Empty", "false"],
+      ["Unidentified", "false"],
+    ])
+    // With no candidate, or a failed match, the cell is Unidentified.
+    expect(await items(2, 1)).toEqual([
+      ["Empty", "false"],
+      ["Unidentified", "true"],
+    ])
+    expect(await items(2, 2)).toEqual([
+      ["Empty", "false"],
+      ["Unidentified", "true"],
+    ])
+  })
+
+  it("is a single choice: Empty and Unidentified keep the candidates, a candidate clears them", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [candidate(1), candidate(2)] },
+      ...fourConfident.slice(1),
+    ])
+    const chosen = () => pill(1, 1)?.textContent
+
+    await pick(user, 1, 1, /^Card 2/)
+    expect(chosen()).toBe("Card 2SCE · 2")
+    await pick(user, 1, 1, "Empty")
+    expect(chosen()).toBe("Empty")
+    await pick(user, 1, 1, "Unidentified")
+    expect(chosen()).toBe("Unidentified")
+    // The candidates stay, so picking one restores it and clears the mark.
+    await pick(user, 1, 1, /^Card 2/)
+    expect(chosen()).toBe("Card 2SCE · 2")
+    // Picking the top candidate returns to the matcher's answer.
+    await pick(user, 1, 1, /^Card 1/)
+    expect(chosen()).toBe("Card 1SCE · 1")
   })
 
   it("retries a failed cell, which goes back to the queue", async () => {
@@ -342,7 +443,7 @@ describe("ScanPageFlow", () => {
     )
   })
 
-  it("saves each cell as the scan found it, with hand marks overriding it", async () => {
+  it("saves each cell as the scan found it, with the menu's choices overriding it", async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     renderFlow(source(), cut, onClose)
@@ -351,15 +452,11 @@ describe("ScanPageFlow", () => {
       { confident: true, candidates: [candidate(1)] },
       "fail",
       { confident: false, candidates: [] },
-      { confident: true, candidates: [candidate(2)] },
+      { confident: false, candidates: [candidate(2), candidate(3)] },
     ])
 
-    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
-    const unidentified = within(cell(2, 2)).getByRole("button", {
-      name: "Unidentified",
-    })
-    await user.click(unidentified)
-    await user.click(unidentified)
+    await pick(user, 1, 1, "Empty")
+    await pick(user, 2, 2, /^Card 3/)
     await user.click(confirmButton())
 
     await waitFor(() => expect(onClose).toHaveBeenCalled())
@@ -369,7 +466,7 @@ describe("ScanPageFlow", () => {
           { state: "empty" },
           { state: "unidentified" },
           { state: "unidentified" },
-          { state: "card", cardId: "card-2" },
+          { state: "card", cardId: "card-3" },
         ],
       },
     ])
@@ -396,10 +493,19 @@ describe("ScanPageFlow", () => {
       { confident: true, candidates: [candidate(4)] },
     ])
 
-    expect(
-      await within(cell(1, 2)).findByText("Changes this Slot")
-    ).toBeTruthy()
-    expect(within(cell(1, 1)).queryByText("Changes this Slot")).toBeNull()
+    const image = (row: number, column: number) =>
+      within(cell(row, column)).getByRole("img")
+    await waitFor(() =>
+      expect(pill(1, 2)?.getAttribute("aria-label")).toBe(
+        "Row 1, column 2: Couldn't match, Unidentified. Changes this Slot"
+      )
+    )
+    expect(image(1, 2).getAttribute("data-changed")).toBe("true")
+    expect(pill(1, 1)?.getAttribute("aria-label")).toBe(
+      "Row 1, column 1: Card 1, Starter Set 1"
+    )
+    expect(image(1, 1).getAttribute("data-changed")).toBeNull()
+    expect(document.body.textContent).not.toContain("Changes this Slot")
   })
 
   it("names a Slot the server stored as Unidentified for an unknown Card, then returns", async () => {
@@ -418,21 +524,21 @@ describe("ScanPageFlow", () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it("keeps Confirm disabled while a marked cell is still matching, then saves the mark", async () => {
+  it("keeps Confirm disabled while another cell is still matching, then saves the mark", async () => {
     const user = userEvent.setup()
     renderFlow()
     await scanPhoto(user)
     await waitFor(() => expect(matchCalls).toBe(3))
 
-    // Cell 1 is still loading when the user marks it Empty.
-    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
-    answerAt(1, fourConfident[1])
-    answerAt(1, fourConfident[2])
+    // Cell 1 is answered and marked Empty while the others are still loading.
+    answerAt(0, fourConfident[0])
     await waitFor(() => expect(matchCalls).toBe(4))
-    answerAt(1, fourConfident[3])
+    await pick(user, 1, 1, "Empty")
     expect(confirmButton().hasAttribute("disabled")).toBe(true)
 
-    answerAt(0, fourConfident[0])
+    answerAt(0, fourConfident[1])
+    answerAt(0, fourConfident[2])
+    answerAt(0, fourConfident[3])
     await waitFor(() =>
       expect(confirmButton().hasAttribute("disabled")).toBe(false)
     )
@@ -535,7 +641,7 @@ describe("ScanPageFlow", () => {
     const { router } = renderFlow()
     await scanPhoto(user)
     await answerAll(fourConfident)
-    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
+    await pick(user, 1, 1, "Empty")
 
     void router.history.push("/elsewhere")
     expect(await screen.findByText("Leave this review?")).toBeTruthy()
@@ -563,7 +669,7 @@ describe("ScanPageFlow", () => {
     window.dispatchEvent(idle)
     expect(idle.defaultPrevented).toBe(false)
 
-    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
+    await pick(user, 1, 1, "Empty")
     const edited = new Event("beforeunload", { cancelable: true })
     window.dispatchEvent(edited)
     expect(edited.defaultPrevented).toBe(true)
@@ -575,7 +681,7 @@ describe("ScanPageFlow", () => {
     renderFlow(source(), cut, onClose)
     await scanPhoto(user)
     await answerAll(fourConfident)
-    await user.click(within(cell(1, 1)).getByRole("button", { name: "Empty" }))
+    await pick(user, 1, 1, "Empty")
 
     await user.click(screen.getByRole("button", { name: "Back to binder" }))
     expect(await screen.findByText("Leave this review?")).toBeTruthy()
