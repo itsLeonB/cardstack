@@ -28,6 +28,7 @@ import { refreshAfterSlotWrite } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 import { removePageReview, savePageReview } from "@/lib/page-review-store"
 import type { PendingPageReview } from "@/lib/page-review-store"
+import { invalidatePendingReviews } from "@/lib/use-pending-reviews"
 import { useCameraFrameSource } from "@/lib/frame-source"
 import type { FrameSource } from "@/lib/frame-source"
 import {
@@ -125,7 +126,9 @@ export function ScanPageFlow({
       page: page.page,
       grid,
       cells: matches.cells,
-    }).catch(() => setMemoryOnly(true))
+    })
+      .then(() => invalidatePendingReviews(queryClient))
+      .catch(() => setMemoryOnly(true))
   }, [matches.cells])
 
   const targets = matches.cells.map(slotTarget)
@@ -202,7 +205,9 @@ export function ScanPageFlow({
             userId,
             collectionId,
             page: page.page,
-          }).catch(() => undefined)
+          })
+            .catch(() => undefined)
+            .then(() => invalidatePendingReviews(queryClient))
           refreshAfterSlotWrite(queryClient, collectionId)
           const unknown = (response.data.data.slots ?? []).filter(
             (slot) => slot.reason === "unknown_card"
