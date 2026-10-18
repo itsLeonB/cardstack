@@ -19,6 +19,8 @@ import { SlotPanel } from "@/components/collections/binder-slot-panel"
 import { useBinderMove } from "@/components/collections/use-binder-move"
 import { PageScanScreen } from "@/components/scan/page-scan"
 import { PendingReviewBanner } from "@/components/scan/pending-review-banner"
+import { PendingReviewNotice } from "@/components/scan/pending-review-notice"
+import { ScanThisPageButton } from "@/components/scan/scan-this-page-button"
 import type { PendingPageReview } from "@/lib/page-review-store"
 import {
   applyLeafChange,
@@ -413,6 +415,10 @@ export function BinderView({
             {jumpError}
           </p>
         )}
+        <PendingReviewNotice
+          collectionId={collectionId}
+          onJump={setRequestedPage}
+        />
         <PendingReviewBanner
           key={reviewsVersion}
           collectionId={collectionId}
@@ -422,9 +428,14 @@ export function BinderView({
             setScanning(true)
           }}
         />
-        <Button variant="outline" onClick={() => setScanning(true)}>
-          Scan this Page
-        </Button>
+        <ScanThisPageButton
+          collectionId={collectionId}
+          page={binderPage.page}
+          onScan={(review) => {
+            setResuming(review)
+            setScanning(true)
+          }}
+        />
       </div>
 
       {moving && (

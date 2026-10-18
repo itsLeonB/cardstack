@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { loadPageReview, removePageReview } from "@/lib/page-review-store"
 import type { PendingPageReview } from "@/lib/page-review-store"
 import { useSession } from "@/lib/session"
+import { invalidatePendingReviews } from "@/lib/use-pending-reviews"
 
 interface PendingReviewBannerProps {
   collectionId: string
@@ -35,6 +37,7 @@ export function PendingReviewBanner({
   const [review, setReview] = useState<PendingPageReview>()
   const [discarding, setDiscarding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (userId === undefined) return
@@ -58,6 +61,7 @@ export function PendingReviewBanner({
       () => {
         setReview(undefined)
         setDiscarding(false)
+        void invalidatePendingReviews(queryClient)
       },
       () => {
         setDiscarding(false)

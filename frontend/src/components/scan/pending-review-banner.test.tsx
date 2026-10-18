@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { PendingReviewBanner } from "./pending-review-banner"
 import { loadPageReview, savePageReview } from "@/lib/page-review-store"
@@ -31,6 +32,18 @@ const reviewFor = (userId: string, page = 1): PendingPageReview => ({
   cells: [{ photo: new Blob(["cell"]), match: { status: "failed" } }],
 })
 
+// The banner invalidates the pending-review list after a Discard, so it needs a client.
+function renderBanner(onResume: (review: PendingPageReview) => void) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <PendingReviewBanner collectionId="col-1" page={1} onResume={onResume} />
+    </QueryClientProvider>
+  )
+}
+
 beforeEach(() => {
   vi.stubGlobal("indexedDB", new IDBFactory())
   vi.stubGlobal("IDBKeyRange", IDBKeyRange)
@@ -46,9 +59,7 @@ describe("PendingReviewBanner", () => {
     signedInAs("user-1")
     await savePageReview(reviewFor("user-1"))
     const onResume = vi.fn()
-    render(
-      <PendingReviewBanner collectionId="col-1" page={1} onResume={onResume} />
-    )
+    renderBanner(onResume)
 
     await user.click(await screen.findByRole("button", { name: "Resume" }))
     expect(onResume).toHaveBeenCalledWith(
@@ -59,9 +70,7 @@ describe("PendingReviewBanner", () => {
   it("shows nothing for another user's review on the same Page", async () => {
     signedInAs("user-1")
     await savePageReview(reviewFor("user-2"))
-    render(
-      <PendingReviewBanner collectionId="col-1" page={1} onResume={vi.fn()} />
-    )
+    renderBanner(vi.fn())
 
     // The read is asynchronous, so let it finish before asserting nothing shows.
     await new Promise((resolve) => setTimeout(resolve, 20))
@@ -72,9 +81,7 @@ describe("PendingReviewBanner", () => {
     const user = userEvent.setup()
     signedInAs("user-1")
     await savePageReview(reviewFor("user-1"))
-    render(
-      <PendingReviewBanner collectionId="col-1" page={1} onResume={vi.fn()} />
-    )
+    renderBanner(vi.fn())
 
     await user.click(await screen.findByRole("button", { name: "Discard" }))
     const dialog = await screen.findByRole("alertdialog")
