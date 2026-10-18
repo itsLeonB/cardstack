@@ -16,7 +16,11 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { ScanPageFlow } from "./page-scan"
+import { loadPageReview, savePageReview } from "@/lib/page-review-store"
+import type { PendingPageReview } from "@/lib/page-review-store"
+import type { PageCell } from "@/lib/use-page-scan"
 import type { FrameSource } from "@/lib/frame-source"
 import type { Corners, Grid } from "@/lib/page-cut"
 import type {
@@ -150,7 +154,8 @@ function renderFlow(
   cutPhoto: CutPhoto = cut,
   onClose = vi.fn(),
   current = page,
-  history = createMemoryHistory({ initialEntries: ["/"] })
+  history = createMemoryHistory({ initialEntries: ["/"] }),
+  resume?: PendingPageReview
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -163,6 +168,8 @@ function renderFlow(
       <ScanPageFlow
         collectionId="col-1"
         page={current}
+        resume={resume}
+        userId="user-1"
         source={frames}
         cut={cutPhoto}
         onClose={onClose}
@@ -250,6 +257,8 @@ beforeEach(() => {
   saves = []
   unknownIndexes = []
   cut.mockClear()
+  vi.stubGlobal("indexedDB", new IDBFactory())
+  vi.stubGlobal("IDBKeyRange", IDBKeyRange)
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   URL.createObjectURL = vi.fn(() => "blob:photo")
   URL.revokeObjectURL = vi.fn()
@@ -637,6 +646,8 @@ describe("ScanPageFlow", () => {
   })
 
   it("asks before a route change while the review has edits", async () => {
+    // Without IndexedDB the review is memory-only, so the leave guard is on.
+    vi.stubGlobal("indexedDB", undefined)
     const user = userEvent.setup()
     const { router } = renderFlow()
     await scanPhoto(user)
@@ -659,6 +670,8 @@ describe("ScanPageFlow", () => {
   })
 
   it("warns before the tab closes only while the review has edits", async () => {
+    // Without IndexedDB the review is memory-only, so the leave guard is on.
+    vi.stubGlobal("indexedDB", undefined)
     const user = userEvent.setup()
     // The browser history is the one that listens for the tab closing.
     renderFlow(source(), cut, vi.fn(), page, createBrowserHistory())
@@ -676,6 +689,8 @@ describe("ScanPageFlow", () => {
   })
 
   it("asks before leaving a review that has edits", async () => {
+    // Without IndexedDB the review is memory-only, so the leave guard is on.
+    vi.stubGlobal("indexedDB", undefined)
     const user = userEvent.setup()
     const onClose = vi.fn()
     renderFlow(source(), cut, onClose)
@@ -694,5 +709,151 @@ describe("ScanPageFlow", () => {
     await user.click(screen.getByRole("button", { name: "Back to binder" }))
     await user.click(await screen.findByRole("button", { name: "Leave" }))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it("says the review is not saved, and guards leaving, when IndexedDB is missing", async () => {
+    vi.stubGlobal("indexedDB", undefined)
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+
+    expect(
+      await screen.findByText(/This review is not being saved/)
+    ).toBeTruthy()
+  })
+})
+
+describe("ScanPageFlow, pending Page Review", () => {
+  const key = { userId: "user-1", collectionId: "col-1", page: 1 }
+  const reviewOf = (cells: PageCell[]): PendingPageReview => ({
+    ...key,
+    grid: { rows: 2, columns: 2 },
+    cells,
+  })
+  const matched = (n: number): PageCell => ({
+    photo: jpeg(),
+    match: { status: "matched", confident: true, candidates: [cardOf(n)] },
+    cardId: `card-${n}`,
+  })
+  const fourMatched = reviewOf([1, 2, 3, 4].map(matched))
+
+  // Opens the flow on a saved review, as the binder does when the user resumes it.
+  const resumeFlow = (saved: PendingPageReview, onClose = vi.fn()) =>
+    renderFlow(
+      source(),
+      cut,
+      onClose,
+      page,
+      createMemoryHistory({ initialEntries: ["/"] }),
+      saved
+    )
+
+  it("saves the review after the cut, after each match, pick and mark", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells).toHaveLength(4)
+    )
+
+    await answerAll(fourConfident)
+    await waitFor(async () =>
+      expect(
+        (await loadPageReview(key))?.cells.every(
+          (c) => c.match.status === "matched"
+        )
+      ).toBe(true)
+    )
+
+    await pick(user, 1, 1, "Empty")
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells[0].mark).toBe("empty")
+    )
+  })
+
+  it("resumes a saved review, re-running only the cells that had not finished", async () => {
+    const saved = reviewOf([
+      matched(1),
+      { photo: jpeg(), match: { status: "queued" } },
+      { photo: jpeg(), match: { status: "loading" } },
+      { photo: jpeg(), match: { status: "failed" } },
+    ])
+    resumeFlow(saved)
+
+    await waitFor(() => expect(matchCalls).toBe(2))
+    expect(pill(1, 1)?.textContent).toContain("Card 1")
+    expect(
+      within(cell(2, 2)).getByRole("button", { name: "Retry" })
+    ).toBeTruthy()
+    answer(fourConfident[1])
+    answer(fourConfident[2])
+
+    await waitFor(() => expect(pill(1, 2)?.textContent).toContain("Card 2"))
+    expect(pill(2, 1)?.textContent).toContain("Card 3")
+    expect(matchCalls).toBe(2)
+  })
+
+  it("offers Scan again in place of Adjust corners, which starts from the photo step", async () => {
+    const user = userEvent.setup()
+    resumeFlow(fourMatched)
+
+    expect(screen.queryByRole("button", { name: "Adjust corners" })).toBeNull()
+    await user.click(await screen.findByRole("button", { name: "Scan again" }))
+
+    expect(await screen.findByLabelText("Choose a photo")).toBeTruthy()
+    expect(matchCalls).toBe(0)
+  })
+
+  it("keeps the review through unmounting and remounting the screen", async () => {
+    const user = userEvent.setup()
+    const view = renderFlow()
+    await scanPhoto(user)
+    await answerAll(fourConfident)
+    await pick(user, 1, 1, "Empty")
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells[0].mark).toBe("empty")
+    )
+    view.unmount()
+
+    resumeFlow((await loadPageReview(key))!)
+    expect(await screen.findByText("Check each cell.")).toBeTruthy()
+    expect(matchCalls).toBe(4)
+    expect(confirmButton().hasAttribute("disabled")).toBe(false)
+  })
+
+  it("leaves at once with edits in a saved review, with no dialog", async () => {
+    const user = userEvent.setup()
+    const { router } = resumeFlow(fourMatched)
+    await screen.findByRole("group", { name: "Row 1, column 1" })
+    await pick(user, 1, 1, "Empty")
+
+    void router.history.push("/elsewhere")
+    expect(await screen.findByText("Somewhere else")).toBeTruthy()
+    expect(screen.queryByText("Leave this review?")).toBeNull()
+  })
+
+  it("clears the saved review when Confirm succeeds, and keeps it when Confirm fails", async () => {
+    const user = userEvent.setup()
+    await savePageReview(fourMatched)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "PUT"
+          ? Promise.resolve(json({ title: "boom" }, 500))
+          : fakeApi(input, init)
+      )
+    )
+    const failed = resumeFlow(fourMatched)
+    await user.click(await screen.findByRole("button", { name: "Confirm" }))
+    expect(await screen.findByRole("alert")).toBeTruthy()
+    expect(await loadPageReview(key)).toBeDefined()
+    failed.unmount()
+
+    vi.stubGlobal("fetch", vi.fn(fakeApi))
+    const onClose = vi.fn()
+    resumeFlow(fourMatched, onClose)
+    await user.click(await screen.findByRole("button", { name: "Confirm" }))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(await loadPageReview(key)).toBeUndefined()
   })
 })

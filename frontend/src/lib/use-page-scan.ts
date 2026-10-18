@@ -33,12 +33,21 @@ export interface PageCell {
   mark?: "empty" | "unidentified"
 }
 
+// A cell that has no result yet, so it still has to match.
+const isUnfinished = (cell: PageCell) =>
+  cell.match.status === "queued" || cell.match.status === "loading"
+
 /**
- * The matches of one Page scan, held in memory only. Each cell's photo goes
- * through the Phase 1 `MatchQueue`, so at most MAX_MATCHES_IN_FLIGHT run at once.
+ * The matches of one Page scan. Each cell's photo goes through the Phase 1
+ * `MatchQueue`, so at most MAX_MATCHES_IN_FLIGHT run at once. A resumed review
+ * passes its saved cells: the unfinished ones match again, the rest keep their result.
  */
-export function usePageMatches() {
-  const [cells, setCells] = useState<PageCell[]>([])
+export function usePageMatches(resumed: PageCell[] = []) {
+  const [cells, setCells] = useState<PageCell[]>(() =>
+    resumed.map((cell): PageCell =>
+      isUnfinished(cell) ? { ...cell, match: { status: "queued" } } : cell
+    )
+  )
   // Each start bumps this, so a match still running from the last start
   // cannot write into the new cells.
   const generation = useRef(0)
@@ -78,11 +87,20 @@ export function usePageMatches() {
 
   useEffect(() => () => queue.cancelAll(), [queue])
 
+  // Runs once on mount: the unfinished cells of a resumed review match again.
+  useEffect(() => {
+    resumed.forEach((cell, index) => {
+      if (isUnfinished(cell))
+        queue.add(String(index), {
+          photo: cell.photo,
+          generation: generation.current,
+        })
+    })
+  }, [])
+
   return {
     cells,
-    pending: cells.some(
-      (c) => c.match.status === "queued" || c.match.status === "loading"
-    ),
+    pending: cells.some(isUnfinished),
     /** Starts the matches for the cells, in grid order, replacing any still running. */
     start(photos: Blob[]) {
       generation.current++

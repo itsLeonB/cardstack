@@ -32,6 +32,16 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   }
 })
 
+// The Page's pending-review banner reads the signed-in user.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@/lib/session", () => ({
+  useSession: () => ({
+    user: { id: "user-1", name: null, email: null },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}))
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
