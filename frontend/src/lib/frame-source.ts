@@ -62,6 +62,42 @@ async function decodeFile(
   }
 }
 
+const rearConstraints = { video: { facingMode: "environment" }, audio: false }
+
+/** Samsung labels its lenses `camera2 N, facing back`; N=0 is the 1x main, higher N the ultrawide and tele. */
+const mainRearId = (devices: MediaDeviceInfo[]) =>
+  devices
+    .map((d) => ({
+      id: d.deviceId,
+      n: /camera\d* (\d+), facing back/i.exec(d.label)?.[1],
+    }))
+    .filter((d) => d.n !== undefined)
+    .sort((a, b) => Number(a.n) - Number(b.n))[0]?.id
+
+/**
+ * The rear camera, preferring the 1x main lens: `facingMode` alone can hand
+ * over the ultrawide on multi-lens phones. Labels only show once permission
+ * is granted, so open by facing mode first, then reopen by device id.
+ */
+async function openRearCamera(): Promise<MediaStream> {
+  const first = await navigator.mediaDevices.getUserMedia(rearConstraints)
+  const devices = await navigator.mediaDevices
+    .enumerateDevices()
+    .catch(() => [])
+  const main = mainRearId(devices)
+  const current = first.getVideoTracks()[0]?.getSettings().deviceId
+  if (!main || main === current) return first
+  first.getTracks().forEach((t) => t.stop())
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: main } },
+      audio: false,
+    })
+  } catch {
+    return navigator.mediaDevices.getUserMedia(rearConstraints)
+  }
+}
+
 /** The real source: the rear camera when there is one, and any picked photo file. */
 export function useCameraFrameSource(): FrameSource {
   const [camera, setCamera] = useState<CameraState>("starting")
@@ -81,8 +117,7 @@ export function useCameraFrameSource(): FrameSource {
       return
     }
     let stopped = false
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "environment" }, audio: false })
+    openRearCamera()
       .then((media) => {
         if (stopped) return media.getTracks().forEach((t) => t.stop())
         stream.current = media
