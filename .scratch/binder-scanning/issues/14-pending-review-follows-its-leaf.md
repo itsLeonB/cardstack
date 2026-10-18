@@ -6,12 +6,16 @@ Spec: `.scratch/binder-scanning/spec.md` (Pending Page Review (frontend), story 
 
 **Blocked by:** 12
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Adding a Leaf before or after a Leaf renumbers the pending reviews of every later Page to match, so the banner and the notice show the new Page numbers and Resume opens the same review
-- [ ] Removing a Leaf renumbers the pending reviews of every later Page to match
-- [ ] Removing the Leaf that holds a pending review's Page discards that review and tells the user in one line
-- [ ] A pending review whose cell count does not match the Layout's rows and columns is discarded with a one-line message when the binder opens
-- [ ] A pending review of another binder or another user is never changed
-- [ ] The frontend tests (generated client mocked, IndexedDB faked) cover a shift on add, a shift on remove, a discard on remove of its own Leaf, and a discard on a Layout mismatch
-- [ ] Build, lint, format and unit tests pass
+- [x] Adding a Leaf before or after a Leaf renumbers the pending reviews of every later Page to match, so the banner and the notice show the new Page numbers and Resume opens the same review
+- [x] Removing a Leaf renumbers the pending reviews of every later Page to match
+- [x] Removing the Leaf that holds a pending review's Page discards that review and tells the user in one line
+- [x] A pending review whose cell count does not match the Layout's rows and columns is discarded with a one-line message when the binder opens
+- [x] A pending review of another binder or another user is never changed
+- [x] The frontend tests (generated client mocked, IndexedDB faked) cover a shift on add, a shift on remove, a discard on remove of its own Leaf, and a discard on a Layout mismatch
+- [x] Build, lint, format and unit tests pass
+
+## Answer
+
+Implemented on `feat/binder-scanning` (frontend): `lib/page-review-leaf.ts` plans and applies the shift (a Leaf is two Pages, so later Pages move by two; the highest first on add, the lowest first on remove). Removing a Leaf discards the reviews of its two Pages with a toast; opening the binder discards reviews whose cell count no longer matches rows × columns. The notice and banner refresh after each change. Known limit: a rename that fails partway is swallowed, so a review may sit on the wrong Page number but none is lost.

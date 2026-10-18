@@ -14,15 +14,19 @@ Decisions already made:
 
 **Blocked by:** None (can start immediately; ticket 10 is resolved)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] After "Cut and match", the review is saved as a pending Page Review for the signed-in user, the binder and the Page, and is saved again after each match result, pick and mark
-- [ ] Leaving the screen with Back to binder, refreshing, or closing and reopening the tab loses nothing, and no "Leave this review?" dialog or route blocker appears
-- [ ] A Page with a pending review shows a banner with Resume and Discard; Resume reopens the review with its photos, matches, picks and marks, and Discard removes it after the user confirms
-- [ ] A successful Confirm removes the pending review; a failed Confirm keeps it
-- [ ] On resume, queued and loading cells match again, finished matches are not re-run, and a failed cell still shows Couldn't match with Retry
-- [ ] A resumed review offers "Scan again" in place of "Adjust corners", and "Scan again" starts from the photo step
-- [ ] Another signed-in user on the same browser does not see the banner or the review
-- [ ] When IndexedDB cannot be used, the user is told the review is not being saved and it behaves as before, with the leave dialog and blocker on after edits
-- [ ] The frontend tests (generated client mocked, frame source and cut faked, IndexedDB faked in memory) cover save and restore across unmount and remount, the banner, Resume, Discard, Confirm clearing it, re-queued and finished cells, Retry, user isolation, and the IndexedDB-unavailable fallback
-- [ ] Build, lint, format and unit tests pass, and the Playwright page-scan spec still passes or is reported as unrun if Clerk sign-in times out in the sandbox
+- [x] After "Cut and match", the review is saved as a pending Page Review for the signed-in user, the binder and the Page, and is saved again after each match result, pick and mark
+- [x] Leaving the screen with Back to binder, refreshing, or closing and reopening the tab loses nothing, and no "Leave this review?" dialog or route blocker appears
+- [x] A Page with a pending review shows a banner with Resume and Discard; Resume reopens the review with its photos, matches, picks and marks, and Discard removes it after the user confirms
+- [x] A successful Confirm removes the pending review; a failed Confirm keeps it
+- [x] On resume, queued and loading cells match again, finished matches are not re-run, and a failed cell still shows Couldn't match with Retry
+- [x] A resumed review offers "Scan again" in place of "Adjust corners", and "Scan again" starts from the photo step
+- [x] Another signed-in user on the same browser does not see the banner or the review
+- [x] When IndexedDB cannot be used, the user is told the review is not being saved and it behaves as before, with the leave dialog and blocker on after edits
+- [x] The frontend tests (generated client mocked, frame source and cut faked, IndexedDB faked in memory) cover save and restore across unmount and remount, the banner, Resume, Discard, Confirm clearing it, re-queued and finished cells, Retry, user isolation, and the IndexedDB-unavailable fallback
+- [x] Build, lint, format and unit tests pass, and the Playwright page-scan spec still passes or is reported as unrun if Clerk sign-in times out in the sandbox
+
+## Answer
+
+Implemented on `feat/binder-scanning` (frontend): `lib/page-review-store.ts` (IndexedDB: save, load, list, remove, rename) keyed by user, Collection and Page. The scan flow saves after the cut and after every match, pick and mark, and clears on a successful Confirm. `PendingReviewBanner` offers Resume and Discard on the Page; a resumed review re-queues unfinished cells and offers "Scan again". The leave dialog and route blocker remain only in the memory-only fallback, entered when a save fails, with a notice. `fake-indexeddb` was added as a dev dependency. `e2e/page-scan.spec.ts` was not run (Clerk sign-in times out in the sandbox).
