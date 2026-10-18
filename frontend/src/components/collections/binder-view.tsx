@@ -21,6 +21,7 @@ import { PageScanScreen } from "@/components/scan/page-scan"
 import { PendingReviewBanner } from "@/components/scan/pending-review-banner"
 import { PendingReviewNotice } from "@/components/scan/pending-review-notice"
 import { ScanThisPageButton } from "@/components/scan/scan-this-page-button"
+import { invalidatePendingReviews } from "@/lib/use-pending-reviews"
 import type { PendingPageReview } from "@/lib/page-review-store"
 import {
   applyLeafChange,
@@ -137,10 +138,11 @@ export function BinderView({
           `Discarded the pending review of Page ${pages.join(" and Page ")}: the Layout changed.`
         )
         setReviewsVersion((version) => version + 1)
+        void invalidatePendingReviews(queryClient)
       },
       () => undefined
     )
-  }, [userId, collectionId, rows, columns])
+  }, [queryClient, userId, collectionId, rows, columns])
 
   // Steps from the requested Page, not the shown one, so two quick taps move
   // two Pages even before the first has loaded.
@@ -209,6 +211,7 @@ export function BinderView({
           // The reviews move first, so the Page turned to shows its own review.
           void moveReviews({ kind: "add", leaf }).then(() => {
             setReviewsVersion((version) => version + 1)
+            void invalidatePendingReviews(queryClient)
             setRequestedPage(pageOf(leaf, "front"))
           })
         },
@@ -248,6 +251,7 @@ export function BinderView({
                 )
               }
               setReviewsVersion((version) => version + 1)
+              void invalidatePendingReviews(queryClient)
               setRequestedPage(nextPage)
             }
           )

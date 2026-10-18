@@ -125,6 +125,41 @@ describe("BinderView pending Page Reviews follow their Leaf", () => {
     expect(await screen.findByText("Page 3 of 6")).toBeTruthy()
     expect(await screen.findByText(BANNER)).toBeTruthy()
   })
+
+  it("lists the new Page number in the notice after a Leaf is added before it", async () => {
+    stubBinderApi(fakeBinder())
+    await savePageReview(pendingReview(4))
+    renderWithClient(<BinderView collectionId="col-1" />)
+    await screen.findByText("Page 1 of 20")
+    goToPage(4)
+    expect(
+      await screen.findByRole("button", { name: "Go to Page 4" })
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Leaf before" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Go to Page 6" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Go to Page 4" })).toBeNull()
+  })
+
+  it("drops a pending review from the notice when its Page's Leaf is removed", async () => {
+    stubBinderApi(fakeBinder({ leafCount: 4 }))
+    await savePageReview(pendingReview(3))
+    renderWithClient(<BinderView collectionId="col-1" />)
+    await screen.findByText("Page 1 of 8")
+    goToPage(3)
+    expect(
+      await screen.findByRole("button", { name: "Go to Page 3" })
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Leaf" }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Go to Page 3" })).toBeNull()
+    )
+  })
 })
 
 describe("BinderView discards a review whose Layout no longer matches", () => {
