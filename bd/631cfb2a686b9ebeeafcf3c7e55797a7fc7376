@@ -1,0 +1,57 @@
+backend/.env.example
+  s_08b3a8affa63a0::t_631a65d33d5964 55-60
+backend/internal/adapters/http/auth/claims.go
+  s_08b3a8affa63a0::t_adba0bc9ef01f7 19-21
+backend/internal/adapters/http/auth/clerk_verifier.go
+  s_08b3a8affa63a0::t_8ab79d8653c1fd 42,46-47,100-101,111-115
+backend/internal/adapters/http/auth/clerk_verifier_test.go
+  s_08b3a8affa63a0::t_9adcae685a2506 29-31,77,109-122,201,213
+backend/internal/adapters/http/auth/middleware.go
+  s_08b3a8affa63a0::t_f8b91d46e70c8b 50,62,79
+backend/internal/adapters/http/auth/middleware_test.go
+  s_08b3a8affa63a0::t_c806f6a6e980d9 78-185
+backend/internal/adapters/http/routes/admin_routes_test.go
+  s_08b3a8affa63a0::t_a8c34e789d231f 24,55-64
+backend/internal/adapters/http/routes/catalog_published_routes_test.go
+  s_08b3a8affa63a0::t_8639e266826621 85
+backend/internal/adapters/http/routes/identity_routes_test.go
+  s_08b3a8affa63a0::t_378749cbb8a13e 40-44
+backend/internal/adapters/http/routes/testenv_test.go
+  s_08b3a8affa63a0::t_0106244924bdce 42-44,111,199-207
+backend/internal/adapters/http/server.go
+  s_08b3a8affa63a0::t_6f78beccb690b3 35-40
+backend/internal/adapters/http/server_test.go
+  s_08b3a8affa63a0::t_ed58162170be1a 25-56
+backend/internal/adapters/http/setup_sentinel.go
+  s_08b3a8affa63a0::t_329be0c20e8f16 5,16-18
+backend/internal/adapters/http/setup_sentinel_test.go
+  s_08b3a8affa63a0::t_050af71f3b6b5c 7,10-11,40-63
+backend/internal/core/config/admin_config.go
+  s_08b3a8affa63a0::t_ac24886a32a2ae 14-16,21-27
+backend/internal/core/config/app_config.go
+  s_08b3a8affa63a0::t_8cc0f5b0cf4510 30-35,41
+backend/internal/core/config/config.go
+  s_08b3a8affa63a0::t_6dca6d08dc6ca0 6,25-39
+backend/internal/core/config/config_test.go
+  s_08b3a8affa63a0::t_f1f3b4e65ce7d3 176-208
+backend/internal/domain/dto/user_dto.go
+  s_08b3a8affa63a0::t_33d370c2d976b2 15-17
+backend/internal/provider/auth_provider.go
+  s_08b3a8affa63a0::t_63a50d88f0c9ce 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "bd631cfb2a686b9ebeeafcf3c7e55797a7fc7376",
+  "prompts": {},
+  "sessions": {
+    "s_08b3a8affa63a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_08b3a8affa63a0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
