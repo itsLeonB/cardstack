@@ -12,6 +12,9 @@ type AuthIdentity struct {
 	Subject  string
 	Email    string
 	Name     string
+	// AdminOrigin is set when the token was minted for the Admin app's origin
+	// (ADMIN_CLIENT_URLS), not the user app's (docs/adr/0024).
+	AdminOrigin bool
 }
 
 // CallerIdentity is the user and profile an Auth Identity maps to.

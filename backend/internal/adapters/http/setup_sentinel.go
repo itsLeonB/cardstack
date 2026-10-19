@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
@@ -12,7 +13,9 @@ import (
 
 func setupSentinel(router *gin.Engine, skipPaths []string, logger zerolog.Logger) error {
 	corsCfg := httpserver.CORSConfig{
-		AllowedOrigins: config.Global.ClientUrls,
+		// CORS only keeps other browser origins out; the admin routes are guarded
+		// by the token's origin in the verifier (docs/adr/0024).
+		AllowedOrigins: slices.Concat(config.Global.ClientUrls, config.Global.AdminClientUrls),
 		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{
 			"Origin",

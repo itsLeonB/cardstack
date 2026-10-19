@@ -21,6 +21,7 @@ func (a testAPI) tokenFor(t *testing.T, email string) string {
 	t.Helper()
 	claims := validClaims()
 	claims["email"] = email
+	claims["azp"] = testAdminOrigin
 	return a.sign(t, claims)
 }
 
@@ -49,6 +50,16 @@ func TestAdminRoutes_UnlistedCallerAndGuestGetNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, signedIn.Code, "a signed-in caller who is not listed")
 	assert.Equal(t, http.StatusNotFound, guest.Code, "a guest")
 	assert.JSONEq(t, signedIn.Body.String(), guest.Body.String(), "the two answers are the same, so probing learns nothing")
+}
+
+func TestAdminRoutes_ListedEmailOnTheUserAppOriginGetsNotFound(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+
+	userApp := api.Get(adminCheckPath, bearer(api.userTokenFor(t, adminEmail)))
+	guest := api.Get(adminCheckPath)
+
+	assert.Equal(t, http.StatusNotFound, userApp.Code, "an Admin's token minted for the user app")
+	assert.JSONEq(t, guest.Body.String(), userApp.Body.String(), "the same body a Guest gets, so the Admin app is not revealed")
 }
 
 func TestAdminRoutes_AbsentWhenNoAdminIsConfigured(t *testing.T) {

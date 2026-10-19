@@ -22,6 +22,38 @@ func TestSetup_RefusesToBootOnAMalformedAdminEmail(t *testing.T) {
 	assert.ErrorContains(t, err, `"ownerexample.com"`)
 }
 
+func TestSetup_RefusesToBootWithAdminsButNoAdminAppOrigin(t *testing.T) {
+	configs := config.Config{
+		Clerk:     config.Clerk{SecretKey: "sk", Issuer: "https://x.clerk.accounts.dev"},
+		RateLimit: config.DefaultRateLimit(),
+		Match:     config.Match{Threshold: 0.85, Margin: 0.03},
+		Admin:     config.Admin{Emails: []string{"owner@example.com"}},
+	}
+
+	_, _, err := Setup(configs)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "ADMIN_CLIENT_URLS")
+}
+
+func TestSetup_RefusesToBootWithAnOriginInBothLists(t *testing.T) {
+	configs := config.Config{
+		Clerk:     config.Clerk{SecretKey: "sk", Issuer: "https://x.clerk.accounts.dev"},
+		RateLimit: config.DefaultRateLimit(),
+		Match:     config.Match{Threshold: 0.85, Margin: 0.03},
+		App:       config.App{ClientUrls: []string{"https://www.example.com"}},
+		Admin: config.Admin{
+			Emails:          []string{"owner@example.com"},
+			AdminClientUrls: []string{"https://www.example.com"},
+		},
+	}
+
+	_, _, err := Setup(configs)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, `"https://www.example.com"`)
+}
+
 func TestAdminEmails_NeedsTheR2Settings(t *testing.T) {
 	r2 := config.R2{AccountID: "a", AccessKeyID: "k", SecretAccessKey: "s", Bucket: "b"}
 	admin := config.Admin{Emails: []string{"owner@example.com"}}
