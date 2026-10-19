@@ -1,0 +1,325 @@
+admin/.env.example
+  s_8f613f1280b5ab::t_e42800273ff32a 1-8
+admin/.gitignore
+  s_8f613f1280b5ab::t_268fefcef10b0d 1-15
+admin/.npmrc
+  s_8f613f1280b5ab::t_9b196b9205640b 1
+admin/.oxlintrc.json
+  s_8f613f1280b5ab::t_3dcd3e6dcd2626 1-123
+admin/.prettierignore
+  s_8f613f1280b5ab::t_28fd6ed64dac79 1-6
+admin/.prettierrc
+  s_8f613f1280b5ab::t_b5d182210c0ab1 1-11
+admin/README.md
+  s_8f613f1280b5ab::t_e5923af3e7cebf 1-17
+admin/bun.lock
+  s_8f613f1280b5ab::t_6f8b0e9049920c 1-1401
+admin/components.json
+  s_8f613f1280b5ab::t_be6d32a3e65f57 1-25
+admin/orval.config.ts
+  s_8f613f1280b5ab::t_e98d1c9a4e1825 1-106
+admin/package.json
+  s_8f613f1280b5ab::t_48f8f488996d26 1-53
+admin/public/favicon.svg
+  s_8f613f1280b5ab::t_3ce204cecd1204 1
+admin/public/robots.txt
+  s_8f613f1280b5ab::t_75926b2c51521b 1-2
+admin/src/components/auth/clerk-bridge.tsx
+  s_8f613f1280b5ab::t_56d950528322c1 1-21
+admin/src/components/auth/clerk-provider.tsx
+  s_8f613f1280b5ab::t_f0afd31e82cb49 1-27
+admin/src/components/layout/crash-fallback.tsx
+  s_8f613f1280b5ab::t_a110ab029f6374 1-21
+admin/src/components/layout/not-found.tsx
+  s_8f613f1280b5ab::t_bf3d2c02f2d3ec 1-18
+admin/src/components/layout/page-container.tsx
+  s_8f613f1280b5ab::t_c7e259999ed9f1 1-28
+admin/src/components/layout/page-header.tsx
+  s_8f613f1280b5ab::t_7feaf02604f844 1-24
+admin/src/components/theme-provider.tsx
+  s_8f613f1280b5ab::t_7d855432465bba 1-93
+admin/src/components/ui/button.tsx
+  s_8f613f1280b5ab::t_66aa1d386d9878 1-86
+admin/src/generated/endpoints/admin/admin.ts
+  s_8f613f1280b5ab::t_76e3943a65e0f8 1-1029
+admin/src/generated/endpoints/catalog/catalog.ts
+  s_8f613f1280b5ab::t_7a97b9cda5b75a 1-294
+admin/src/generated/endpoints/index.ts
+  s_8f613f1280b5ab::t_54237a114284d5 1-8
+admin/src/generated/models/addEntryInputBody.ts
+  s_8f613f1280b5ab::t_c13a7e84d661bc 1-17
+admin/src/generated/models/adminCard.ts
+  s_8f613f1280b5ab::t_5bcea7d8b0a36d 1-19
+admin/src/generated/models/binderGridBody.ts
+  s_8f613f1280b5ab::t_7bb4b7f751cb6b 1-21
+admin/src/generated/models/binderLayout.ts
+  s_8f613f1280b5ab::t_a640c107c22864 1-17
+admin/src/generated/models/binderLayoutBody.ts
+  s_8f613f1280b5ab::t_3a464a1cb044b3 1-27
+admin/src/generated/models/binderLeafBody.ts
+  s_8f613f1280b5ab::t_83318b5bb16d83 1-18
+admin/src/generated/models/binderLeafBodyPlacement.ts
+  s_8f613f1280b5ab::t_388a80a7514311 1-17
+admin/src/generated/models/binderPage.ts
+  s_8f613f1280b5ab::t_67878ce9020788 1-25
+admin/src/generated/models/binderPageReplaceBody.ts
+  s_8f613f1280b5ab::t_10c59ed5401c5e 1-16
+admin/src/generated/models/binderPageReplaceResult.ts
+  s_8f613f1280b5ab::t_a6e2f9122081de 1-15
+admin/src/generated/models/binderPageSide.ts
+  s_8f613f1280b5ab::t_3b6d36c8ff8e4f 1-17
+admin/src/generated/models/binderPageSlotBody.ts
+  s_8f613f1280b5ab::t_62c439c7d3ad6e 1-14
+admin/src/generated/models/binderPageSlotBodyState.ts
+  s_8f613f1280b5ab::t_652789daac311f 1-18
+admin/src/generated/models/binderPlacementResult.ts
+  s_8f613f1280b5ab::t_79aac233099575 1-17
+admin/src/generated/models/binderPlacementResultReason.ts
+  s_8f613f1280b5ab::t_9ecd265a0cd5a5 1-17
+admin/src/generated/models/binderSlot.ts
+  s_8f613f1280b5ab::t_1ed4e7f1f81ad9 1-19
+admin/src/generated/models/binderSlotCardBody.ts
+  s_8f613f1280b5ab::t_9139a764afc9c0 1-11
+admin/src/generated/models/binderSlotMoveBody.ts
+  s_8f613f1280b5ab::t_205b9881117db9 1-14
+admin/src/generated/models/binderSlotMoveResult.ts
+  s_8f613f1280b5ab::t_766be8da702018 1-14
+admin/src/generated/models/binderSlotResult.ts
+  s_8f613f1280b5ab::t_782f6e5c2d7973 1-20
+admin/src/generated/models/binderSlotResultState.ts
+  s_8f613f1280b5ab::t_3df24147fc63b4 1-18
+admin/src/generated/models/binderSlotState.ts
+  s_8f613f1280b5ab::t_be679d89186293 1-18
+admin/src/generated/models/binderSlotTarget.ts
+  s_8f613f1280b5ab::t_8dc9e3c12ba27f 1-15
+admin/src/generated/models/binderSlotTargetBody.ts
+  s_8f613f1280b5ab::t_e8d62f069f1788 1-24
+admin/src/generated/models/bulkUpdateEntriesInputBody.ts
+  s_8f613f1280b5ab::t_20ffa4b66cff72 1-17
+admin/src/generated/models/bulkUpdateItem.ts
+  s_8f613f1280b5ab::t_2259c5f30559d7 1-17
+admin/src/generated/models/cardHolding.ts
+  s_8f613f1280b5ab::t_79101698e15068 1-12
+admin/src/generated/models/cardImageUpload.ts
+  s_8f613f1280b5ab::t_3ce8b041381de6 1-12
+admin/src/generated/models/cardImageUploadInputBody.ts
+  s_8f613f1280b5ab::t_8fb98f92ba88e8 1-12
+admin/src/generated/models/cardImageUploadInputBodyContentType.ts
+  s_8f613f1280b5ab::t_53bea79b9a3896 1-18
+admin/src/generated/models/cardSummary.ts
+  s_8f613f1280b5ab::t_6335b72c737aba 1-21
+admin/src/generated/models/catalogFacets.ts
+  s_8f613f1280b5ab::t_5a4a683f55d059 1-20
+admin/src/generated/models/collectionBody.ts
+  s_8f613f1280b5ab::t_b77120a983acc6 1-22
+admin/src/generated/models/collectionSummary.ts
+  s_8f613f1280b5ab::t_5c1104a19b5afa 1-17
+admin/src/generated/models/createCardInputBody.ts
+  s_8f613f1280b5ab::t_4fcb402b0f9fa7 1-35
+admin/src/generated/models/createCardInputBodyCategory.ts
+  s_8f613f1280b5ab::t_83557d21041bfb 1-15
+admin/src/generated/models/createCardInputBodyTagsItem.ts
+  s_8f613f1280b5ab::t_dcafa32a7cf655 1-15
+admin/src/generated/models/createExpansionSetInputBody.ts
+  s_8f613f1280b5ab::t_1bfc6d24b1a762 1-27
+admin/src/generated/models/envelopeAdminCard.ts
+  s_8f613f1280b5ab::t_1163fadbe10850 1-11
+admin/src/generated/models/envelopeBinderLayout.ts
+  s_8f613f1280b5ab::t_cf0f3d4c824056 1-11
+admin/src/generated/models/envelopeBinderPage.ts
+  s_8f613f1280b5ab::t_9ef7533d473aac 1-11
+admin/src/generated/models/envelopeBinderPageReplaceResult.ts
+  s_8f613f1280b5ab::t_2c0e6dda73eaf6 1-11
+admin/src/generated/models/envelopeBinderSlotMoveResult.ts
+  s_8f613f1280b5ab::t_4f6e6809c86fe5 1-11
+admin/src/generated/models/envelopeCardImageUpload.ts
+  s_8f613f1280b5ab::t_4db747d9f9e965 1-11
+admin/src/generated/models/envelopeCatalogFacets.ts
+  s_8f613f1280b5ab::t_898cde29b5f390 1-11
+admin/src/generated/models/envelopeCollectionSummary.ts
+  s_8f613f1280b5ab::t_d400ea347f9e12 1-11
+admin/src/generated/models/envelopeExpansionSetSummary.ts
+  s_8f613f1280b5ab::t_7cce7ea910a850 1-11
+admin/src/generated/models/envelopeHealthStatus.ts
+  s_8f613f1280b5ab::t_31eda79c42edc8 1-11
+admin/src/generated/models/envelopeInventoryEntry.ts
+  s_8f613f1280b5ab::t_be9fdc3796ecf7 1-11
+admin/src/generated/models/envelopeListBinderPlacementResult.ts
+  s_8f613f1280b5ab::t_33743586ed8200 1-12
+admin/src/generated/models/envelopeListCardHolding.ts
+  s_8f613f1280b5ab::t_0c5d301d5dbfbe 1-12
+admin/src/generated/models/envelopeListCollectionSummary.ts
+  s_8f613f1280b5ab::t_99f94749554bbd 1-12
+admin/src/generated/models/envelopeListInventoryChangeResult.ts
+  s_8f613f1280b5ab::t_8a5cec49848ff8 1-12
+admin/src/generated/models/envelopeListRaritySummary.ts
+  s_8f613f1280b5ab::t_88c0f95f776ef2 1-12
+admin/src/generated/models/envelopeListString.ts
+  s_8f613f1280b5ab::t_1e6077b932e0df 1-11
+admin/src/generated/models/envelopeMatchResult.ts
+  s_8f613f1280b5ab::t_8874850c064e8e 1-11
+admin/src/generated/models/envelopeSeriesBrowseResult.ts
+  s_8f613f1280b5ab::t_af9ec38c0a7a60 1-11
+admin/src/generated/models/envelopeWithMetaListCardSummaryPaginationMeta.ts
+  s_8f613f1280b5ab::t_2f320bf4dda47d 1-14
+admin/src/generated/models/envelopeWithMetaListInventoryItemPaginationMeta.ts
+  s_8f613f1280b5ab::t_177b77bd0b4012 1-14
+admin/src/generated/models/errorDetail.ts
+  s_8f613f1280b5ab::t_5d3eaddc02f9ff 1-15
+admin/src/generated/models/errorModel.ts
+  s_8f613f1280b5ab::t_8541ba8894c6c8 1-27
+admin/src/generated/models/expansionSetFacetOption.ts
+  s_8f613f1280b5ab::t_8842a8f5953c1e 1-16
+admin/src/generated/models/expansionSetSummary.ts
+  s_8f613f1280b5ab::t_1ceec085a4716f 1-14
+admin/src/generated/models/getAdminCardParams.ts
+  s_8f613f1280b5ab::t_9c73ee80bd6f10 1-19
+admin/src/generated/models/healthStatus.ts
+  s_8f613f1280b5ab::t_a9767fe42f2db8 1-10
+admin/src/generated/models/holdingCollection.ts
+  s_8f613f1280b5ab::t_f5f3862889b002 1-11
+admin/src/generated/models/index.ts
+  s_8f613f1280b5ab::t_067aa743f514f2 1-93
+admin/src/generated/models/inventoryChangeResult.ts
+  s_8f613f1280b5ab::t_ae48d62e71802d 1-19
+admin/src/generated/models/inventoryChangeResultReason.ts
+  s_8f613f1280b5ab::t_73f2926a9fe2cd 1-17
+admin/src/generated/models/inventoryChangeResultStatus.ts
+  s_8f613f1280b5ab::t_0b0948bde503dc 1-18
+admin/src/generated/models/inventoryEntry.ts
+  s_8f613f1280b5ab::t_3e10a932b76cc4 1-11
+admin/src/generated/models/inventoryItem.ts
+  s_8f613f1280b5ab::t_abb30d73cddd2d 1-18
+admin/src/generated/models/matchCandidate.ts
+  s_8f613f1280b5ab::t_6db7aca1354212 1-17
+admin/src/generated/models/matchResult.ts
+  s_8f613f1280b5ab::t_4d7a7855b9b329 1-14
+admin/src/generated/models/paginationMeta.ts
+  s_8f613f1280b5ab::t_897569e7e2d220 1-12
+admin/src/generated/models/placeCardsInputBody.ts
+  s_8f613f1280b5ab::t_89c6f2dfe1c9a3 1-17
+admin/src/generated/models/placeCardsItem.ts
+  s_8f613f1280b5ab::t_8b77582113a78a 1-17
+admin/src/generated/models/rarityFacetOption.ts
+  s_8f613f1280b5ab::t_6ddee7d36259b3 1-13
+admin/src/generated/models/raritySummary.ts
+  s_8f613f1280b5ab::t_b94d895f02bc31 1-12
+admin/src/generated/models/seriesBrowseResult.ts
+  s_8f613f1280b5ab::t_5e1af3a3a9aa77 1-15
+admin/src/generated/models/seriesSummary.ts
+  s_8f613f1280b5ab::t_3323e1b8efe33a 1-16
+admin/src/generated/models/stringFacetOption.ts
+  s_8f613f1280b5ab::t_7c0cbeb00ed57d 1-11
+admin/src/generated/models/updateCardInputBody.ts
+  s_8f613f1280b5ab::t_5317889e2d7bd1 1-30
+admin/src/generated/models/updateCardInputBodyCategory.ts
+  s_8f613f1280b5ab::t_eff6d873c7ae39 1-15
+admin/src/generated/models/updateCardInputBodyTagsItem.ts
+  s_8f613f1280b5ab::t_8d22b7f0ca1110 1-15
+admin/src/generated/models/updateEntryInputBody.ts
+  s_8f613f1280b5ab::t_ef4f30d7ea9842 1-15
+admin/src/generated/models/updateExpansionSetInputBody.ts
+  s_8f613f1280b5ab::t_2f528f462b735e 1-20
+admin/src/lib/admin-gate.ts
+  s_8f613f1280b5ab::t_a044fbb38b1791 1-26
+admin/src/lib/clerk-auth.ts
+  s_8f613f1280b5ab::t_5deb8c5d695428 1-148
+admin/src/lib/http.ts
+  s_8f613f1280b5ab::t_b171c6c66880a9 1-187
+admin/src/lib/site.ts
+  s_8f613f1280b5ab::t_4d3e34ad6fa888 1-8
+admin/src/routeTree.gen.ts
+  s_8f613f1280b5ab::t_2fd2e026d227c6 1-91
+admin/src/router.tsx
+  s_8f613f1280b5ab::t_3b9e78e4a9dd23 1-28
+admin/src/routes/-admin-gate.test.tsx
+  s_8f613f1280b5ab::t_45a6f5f06ee49d 1-101
+admin/src/routes/__root.tsx
+  s_8f613f1280b5ab::t_7997d9b4336f80 1-63
+admin/src/routes/_admin.tsx
+  s_8f613f1280b5ab::t_f8d64e11e5aa67 1-14
+admin/src/routes/_admin/index.tsx
+  s_8f613f1280b5ab::t_18bb9883c7a6ea 1-31
+admin/src/styles.css
+  s_8f613f1280b5ab::t_1348881e1a4630 1-134
+admin/src/test-clerk.tsx
+  s_8f613f1280b5ab::t_3e583084f2263a 1-63
+admin/src/test-setup.ts
+  s_8f613f1280b5ab::t_12699ab392b2f4 1-26
+admin/tools/api-address.test.ts
+  s_8f613f1280b5ab::t_8325799bbb8319 1-22
+admin/tools/api-address.ts
+  s_8f613f1280b5ab::t_56670d1d9e1e42 1-27
+admin/tools/clerk-key.test.ts
+  s_8f613f1280b5ab::t_e01a3bb26fcce2 1-31
+admin/tools/clerk-key.ts
+  s_8f613f1280b5ab::t_b13924fb8a50d7 1-27
+admin/tools/oxlint/anti-slop/effect/index.ts
+  s_8f613f1280b5ab::t_d6a582740e8a76 1-13
+admin/tools/oxlint/anti-slop/effect/rules/no-service-constructor-imports.ts
+  s_8f613f1280b5ab::t_3929e72e8e6df6 1-52
+admin/tools/oxlint/anti-slop/index.ts
+  s_8f613f1280b5ab::t_9dcce6a3fcd16a 1-41
+admin/tools/oxlint/anti-slop/rules/no-chained-type-assertions.ts
+  s_8f613f1280b5ab::t_9ae470908ffefd 1-77
+admin/tools/oxlint/anti-slop/rules/no-conditional-empty-object-spread.ts
+  s_8f613f1280b5ab::t_92941f129c0ffd 1-49
+admin/tools/oxlint/anti-slop/rules/no-known-value-widening.ts
+  s_8f613f1280b5ab::t_d2b46db56bd338 1-247
+admin/tools/oxlint/anti-slop/rules/no-module-mocking.ts
+  s_8f613f1280b5ab::t_56f0f1bead9e3f 1-91
+admin/tools/oxlint/anti-slop/rules/no-object-parameters.ts
+  s_8f613f1280b5ab::t_ba845d52ce529f 1-126
+admin/tools/oxlint/anti-slop/rules/no-reflect-apply.ts
+  s_8f613f1280b5ab::t_b993af46f3095a 1-28
+admin/tools/oxlint/anti-slop/rules/no-reflect-get.ts
+  s_8f613f1280b5ab::t_4d5047e8fd5a4f 1-28
+admin/tools/oxlint/anti-slop/rules/no-runtime-typeof.ts
+  s_8f613f1280b5ab::t_eeca0d370d7d8e 1-67
+admin/tools/oxlint/anti-slop/rules/no-shape-in-symbol-names.ts
+  s_8f613f1280b5ab::t_9dfa4a5478f2a8 1-39
+admin/tools/oxlint/anti-slop/rules/no-unknown-parameters.ts
+  s_8f613f1280b5ab::t_64e6ed242a37e9 1-83
+admin/tools/oxlint/anti-slop/rules/no-unknown-returns.ts
+  s_8f613f1280b5ab::t_f9e0ee658e8af7 1-115
+admin/tools/oxlint/anti-slop/rules/no-unknown-type-aliases.ts
+  s_8f613f1280b5ab::t_fc1bec9df0715c 1-70
+admin/tools/oxlint/anti-slop/rules/no-unsafe-dictionary-type.ts
+  s_8f613f1280b5ab::t_29a962c713050f 1-134
+admin/tools/oxlint/anti-slop/rules/no-widen-then-assert.ts
+  s_8f613f1280b5ab::t_aad5796c58d956 1-366
+admin/tools/oxlint/anti-slop/rules/require-safety-comment-for-type-assertion.ts
+  s_8f613f1280b5ab::t_0a9b63a1ae7ea0 1-62
+admin/tools/oxlint/anti-slop/shared/dictionary-types.ts
+  s_8f613f1280b5ab::t_64d0b8d1cf6b92 1-502
+admin/tools/oxlint/anti-slop/shared/lexical-type-parameters.ts
+  s_8f613f1280b5ab::t_967f5c1c9c43a3 1-61
+admin/tools/oxlint/anti-slop/shared/reflect-method.ts
+  s_8f613f1280b5ab::t_180fc9cc88ac89 1-35
+admin/tsconfig.json
+  s_8f613f1280b5ab::t_2b7546f4a34b93 1-33
+admin/vercel.json
+  s_8f613f1280b5ab::t_9488f6016318a2 1-14
+admin/vite.config.ts
+  s_8f613f1280b5ab::t_ed00b74e0d3179 1-22
+scripts/bootstrap-worktree/frontend.sh
+  s_8f613f1280b5ab::t_64c0cd44c0c9e3 2-4,11,25-30
+scripts/verification/frontend.sh
+  s_8f613f1280b5ab::t_c0652d6b5ecd43 2-3,6,13-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7604f3bd667df25a870caea412a43e80bd6a23a9",
+  "prompts": {},
+  "sessions": {
+    "s_8f613f1280b5ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8f613f1280b5ab",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
