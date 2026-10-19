@@ -47,7 +47,7 @@ func Guard(api huma.API, verifier TokenVerifier, users service.UserService, allo
 			return
 		}
 
-		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID, Email: identity.Email}))
+		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID, Email: identity.Email, AdminOrigin: identity.AdminOrigin}))
 	}
 }
 
@@ -59,7 +59,7 @@ func AdminOnly(api huma.API, emails []string) func(huma.Context, func(huma.Conte
 
 	return func(ctx huma.Context, next func(huma.Context)) {
 		caller := CallerFrom(ctx.Context())
-		if _, ok := allowed[strings.ToLower(caller.Email)]; caller.IsGuest() || !ok {
+		if _, ok := allowed[strings.ToLower(caller.Email)]; caller.IsGuest() || !ok || !caller.AdminOrigin {
 			writeErr(api, ctx, ungerr.NotFoundError("not found"))
 			return
 		}
@@ -76,7 +76,7 @@ func AdminFlag(emails []string) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		caller := CallerFrom(ctx.Context())
 		_, ok := allowed[strings.ToLower(caller.Email)]
-		caller.IsAdmin = ok && !caller.IsGuest()
+		caller.IsAdmin = ok && !caller.IsGuest() && caller.AdminOrigin
 		next(WithCaller(ctx, caller))
 	}
 }

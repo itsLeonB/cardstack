@@ -32,6 +32,12 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	if err := configs.ValidateAdminEmails(); err != nil {
 		return nil, nil, err
 	}
+	if err := configs.ValidateAdminClientUrls(); err != nil {
+		return nil, nil, err
+	}
+	if err := configs.ValidateAdminOrigins(); err != nil {
+		return nil, nil, err
+	}
 	if len(configs.ClientUrls) == 0 {
 		// A preview has none until its frontend is deployed.
 		logger.Error("APP_CLIENT_URLS is empty: every token will be rejected, since none can come from a configured frontend origin")

@@ -27,13 +27,18 @@ func (App) Prefix() string { return "APP" }
 // sign-in would just get a 401. An empty list is fine; a preview has none until
 // its frontend is deployed.
 func (a App) ValidateClientUrls() error {
-	for _, entry := range a.ClientUrls {
+	return validateBareOrigins("APP_CLIENT_URLS", a.ClientUrls)
+}
+
+// validateBareOrigins names the first entry of envVar that is not a bare origin.
+func validateBareOrigins(envVar string, entries []string) error {
+	for _, entry := range entries {
 		origin, err := url.Parse(entry)
 		if err != nil || entry != strings.TrimSpace(entry) ||
 			(origin.Scheme != "http" && origin.Scheme != "https") ||
 			origin.Host == "" || origin.User != nil ||
 			origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" {
-			return fmt.Errorf("APP_CLIENT_URLS entry %q is not a bare origin like https://www.example.com (no path, trailing slash, spaces or quotes)", entry)
+			return fmt.Errorf("%s entry %q is not a bare origin like https://www.example.com (no path, trailing slash, spaces or quotes)", envVar, entry)
 		}
 	}
 	return nil

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -19,6 +20,21 @@ type Config struct {
 	Embedding
 	Match
 	RateLimit
+}
+
+// ValidateAdminOrigins refuses a boot where a token's origin cannot say which
+// app it came from: an origin in both lists, or Admins with no Admin app origin
+// to accept them from (docs/adr/0024). With neither set it is fine.
+func (c Config) ValidateAdminOrigins() error {
+	if len(c.Emails) > 0 && len(c.AdminClientUrls) == 0 {
+		return errors.New("ADMIN_EMAILS is set but ADMIN_CLIENT_URLS is empty: the admin routes would answer no one, so list the Admin app's origin")
+	}
+	for _, origin := range c.AdminClientUrls {
+		if slices.Contains(c.ClientUrls, origin) {
+			return fmt.Errorf("%q is in both APP_CLIENT_URLS and ADMIN_CLIENT_URLS: a token's origin must belong to one app", origin)
+		}
+	}
+	return nil
 }
 
 var Global *Config
