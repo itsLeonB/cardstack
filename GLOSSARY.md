@@ -69,7 +69,7 @@ One pocket on a Page, addressed by its Page, row and column. Holds at most one p
 _Avoid_: calling a Slot a quantity or an Inventory Entry — an Inventory Entry says how many, a Slot says where.
 
 **Unidentified**:
-The state of a Slot that holds a physical card the app could not match to a Card, whether because matching failed, no candidate was good enough, or the user marked it by hand. It counts toward no Card's quantity and no Master Inventory, since it has no Card, but it is a physical card in the binder and is shown as a count. The user resolves it by placing a Card in the Slot.
+The state of a Slot or a Scan that holds a physical card the app could not match to a Card, whether because matching failed, no candidate was good enough, or the user marked it by hand. It counts toward no Card's quantity and no Master Inventory, since it has no Card, but it is a physical card in the binder and is shown as a count. The user resolves it by placing a Card in the Slot. An Unidentified Scan has no Slot to hold it and is set aside when its Draft Addition is confirmed.
 _Avoid_: "unknown card" — Phase 1 already uses that for a Card id the server does not know; here the card exists but has no identity yet.
 
 **Inventory Entry**:
@@ -81,12 +81,23 @@ An unsaved, transient list of Scans that a user builds by photographing cards, a
 _Avoid_: "inventory" or "collection" for the draft — it is neither; it is a pending change to one Collection's Inventory Entries.
 
 **Scan**:
-One photographed card in a Draft Addition, with the Card chosen for it and a quantity to add. A Scan shows the matcher's top candidate until the user picks another; when the matcher was not confident it also keeps the other candidates it ranked, so the user can change the choice, and when the matcher was confident it keeps only the top one. A Scan is pending while its photo is still being matched. Photographing the same Card twice makes two Scans; they are never merged, and the user may raise a Scan's quantity by hand.
+One photographed card in a Draft Addition, with the Card chosen for it and a quantity to add. A Scan shows the matcher's top candidate until the user picks another; when the matcher was not confident it also keeps the other candidates it ranked, so the user can change the choice, and when the matcher was confident it keeps only the top one. A Scan is pending while its photo is still being matched. A Scan can instead be marked Empty (the photo shows no card) or Unidentified (it shows a card but none of the candidates fits); a marked Scan adds nothing and is set aside when the Draft Addition is confirmed. Photographing the same Card twice makes two Scans; they are never merged, and the user may raise a Scan's quantity by hand.
 _Avoid_: "match" or "candidate" for the Scan itself — a candidate is one Card the matcher offered for a Scan, and the Scan is the row that holds the choice among them.
 
 **Page Review**:
 The result of photographing one Page of a binder-style Collection: one cell per Slot, each with the Card the matcher chose, the other candidates it ranked, and any choice the user made by hand (a different Card, Empty, or Unidentified). Aimed at exactly one Page, and nothing in it is placed in the binder until the user confirms, which replaces that whole Page. A Page Review is pending from the moment its cells are cut until it is confirmed or discarded, and the user can leave and come back to a pending one. A Page has at most one pending Page Review per user.
 _Avoid_: "Scan" or "Draft Addition" for it — a Scan is one photographed card in a Draft Addition, and a Draft Addition adds to a Collection's quantities, while a Page Review rewrites the Slots of one Page.
+
+**Detection**:
+What the matcher returned for one photographed card (a Scan, or one cell of a Page Review): the ranked Cards it offered, whether it was confident in the top one, and whether it saw no card at all. It is the matcher's answer as it was given; what the user then chose is separate and may differ.
+_Avoid_: using it for the choice itself — the Scan or cell holds what the user chose, the Detection holds what the matcher said.
+
+**Correction**:
+A confirmed Scan or cell whose final choice differs from its Detection: the user chose a Card other than the matcher's top one, marked it Empty (no card is there) or Unidentified (a card is there but no candidate fits), or placed a Card where the Detection was Empty or offered none. Only confirming makes a Correction: a choice changed and changed back, or one in a review that was never confirmed, is none. A confirmed Scan or cell without a Correction is a confirmation. Corrections are kept so the operator can see which Cards the matcher is least sure of and which photos it handles badly.
+
+**Reprint**:
+A Card that shares its name and its art with another Card in a different Expansion Set. The matcher cannot tell Reprints apart by the picture, so it also offers a Card's other Reprints: the printed set is the part the user has to choose.
+_Avoid_: calling a card re-released with new art a Reprint — that is a different Card.
 
 **Master Inventory**:
 Not a stored entity. The aggregate of a user's Inventory Entries across *all* their Collections, grouped by Card — "how many of this card do I own in total, anywhere." Computed on read, not written to.
