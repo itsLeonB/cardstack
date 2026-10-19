@@ -10,7 +10,7 @@ A collector who owns a stack of physical cards has to find each one in the catal
 
 The user opens one of their Collections and presses "Scan cards". A camera viewfinder with a card-shaped guide appears. Each capture is sent to the backend, which matches the photo against the catalog. Every capture becomes a Scan in a Draft Addition (a transient, unsaved list of Scans, each with a Card and a quantity to add) at once, showing the matcher's top candidate while a Scan that is still being matched shows as loading. A match that is not confident keeps its other candidates, and the user can pick a different one from a dropdown on that Scan. The Draft Addition is held in the browser and survives a refresh. When the user is done they review the list, adjust quantities, and press "Add to Collection", which writes the quantities into that Collection's Inventory Entries through the existing bulk update. Cards the Collection cannot take (capacity) stay in the draft with the reason shown.
 
-This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole binder page, recognising the layout, and storing card positions) is outlined under Out of Scope and gets its own spec after Phase 1 ships.
+This spec covers Phase 1 (one card per photo). Phase 2 (photographing a whole binder page, recognising the layout, and storing card positions) has its own spec: `.scratch/binder-scanning/spec.md`.
 
 ## User Stories
 
@@ -129,7 +129,7 @@ Prior art: the bulk update's service and route tests, the catalog and Collection
 
 ## Out of Scope
 
-- Phase 2: photographing a binder or album page, recognising its layout (pages, rows and columns), pointing it at an existing Collection and updating that Collection with the layout, and storing each card's position. Positional slots are the intended direction, so a Collection will eventually carry a page layout and slot records pointing to Cards. How a slot relates to quantity (one slot per physical copy) is deliberately undecided until Phase 1 ships. Phase 2 also needs server-side detection of many cards in one frame.
+- Phase 2: photographing a binder or album page, recognising its layout (pages, rows and columns), pointing it at an existing Collection and updating that Collection with the layout, and storing each card's position. Positional slots are the intended direction, so a Collection will eventually carry a page layout and slot records pointing to Cards. How a slot relates to quantity is now settled: one Slot per physical copy, with Slots as the truth (see `.scratch/binder-scanning/spec.md` and ADR-0020). Phase 2 also needs server-side detection of many cards in one frame.
 - Live scanning (the browser auto-detecting and capturing cards from video). Phase 1 is tap to capture.
 - A server-side Draft Addition table, multi-device draft sync, and drafts that expire.
 - Server-side card detection and cropping.

@@ -142,6 +142,7 @@ function renderEntries(search: CatalogFilters = {}) {
         collectionId="col-1"
         search={search}
         onSearchChange={onSearchChange}
+        onFindPosition={vi.fn()}
       />
     </QueryClientProvider>
   )
@@ -233,6 +234,15 @@ describe("CollectionEntries", () => {
     expect(quantityOf(1)).toBe("3")
     expect(screen.queryByRole("button", { name: /^Save/ })).toBeNull()
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull()
+  })
+
+  it("shows the Cards of a binder by position, without quantity controls", async () => {
+    serveEntries([{ ...entry(1), positions: [{ page: 1, row: 1, column: 1 }] }])
+    renderEntries()
+    await settle()
+    screen.getByText("1 of 1 cards loaded")
+    screen.getByRole("button", { name: "Page 1 · row 1 · col 1" })
+    expect(screen.queryByLabelText("Quantity of Card 1")).toBeNull()
   })
 
   it("requests 100 per page with the URL filters, keyed by the filters alone", async () => {

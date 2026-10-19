@@ -6,13 +6,17 @@ Spec: `.scratch/binder-scanning/spec.md` (Quantity invariant, Slot reads and wri
 
 **Blocked by:** 01 (binder foundation), 02 (binder view)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Placing a Card in an empty Slot, replacing, clearing, and marking Unidentified each work through the API and the binder view
-- [ ] After every write, each Card's Inventory Entry quantity equals the number of its Slots in that Collection, and a Card with no Slots has no entry
-- [ ] Unidentified Slots appear in no Inventory Entry and no Master Inventory total, and count toward the binder's card total
-- [ ] Placing a Card the server does not know is rejected, and nothing changes
-- [ ] A write on another user's binder is rejected
-- [ ] Master Inventory shows the quantities of Cards placed in a binder
-- [ ] The binder shows Slot actions in place of quantity inputs
-- [ ] Covered by HTTP-boundary tests against real Postgres (including the invariant after each operation) and frontend feature tests with the API client mocked
+- [x] Placing a Card in an empty Slot, replacing, clearing, and marking Unidentified each work through the API and the binder view
+- [x] After every write, each Card's Inventory Entry quantity equals the number of its Slots in that Collection, and a Card with no Slots has no entry
+- [x] Unidentified Slots appear in no Inventory Entry and no Master Inventory total, and count toward the binder's card total
+- [x] Placing a Card the server does not know is rejected, and nothing changes
+- [x] A write on another user's binder is rejected
+- [x] Master Inventory shows the quantities of Cards placed in a binder
+- [x] The binder shows Slot actions in place of quantity inputs
+- [x] Covered by HTTP-boundary tests against real Postgres (including the invariant after each operation) and frontend feature tests with the API client mocked
+
+## Answer
+
+Implemented on `feat/binder-scanning` (backend and frontend). Routes: `PUT /collections/{id}/binder/pages/{page}/slots/{row}/{column}` (body `{cardId}`; places, replaces, or gives a Card to an Unidentified Slot), `DELETE` the same path (clear), `PUT .../unidentified`; each returns the updated BinderPage. `BinderService.WriteSlot` is the one Slot-write path (recounts the affected Cards' Slots and reconciles Inventory Entries in the same transaction). An unknown Card id is a 404; a row or column outside the Layout is a 400. The frontend adds a Slot action panel (catalog search for place/replace). `CollectionSummary.binder` is now typed nullable in `openapi.json` by a post-registration patch (Huma cannot tag a `$ref` nullable) and the orval workaround is removed.

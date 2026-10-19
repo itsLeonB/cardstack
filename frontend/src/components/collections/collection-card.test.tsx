@@ -25,6 +25,7 @@ const collection = {
   description: "",
   maxCardCount: 0,
   cardCount: 37,
+  binder: null,
 }
 
 async function renderCard(overrides: Partial<typeof collection> = {}) {

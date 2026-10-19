@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { pageHead } from "@/lib/site"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
@@ -8,9 +9,12 @@ import {
   getGetCollectionQueryOptions,
   useGetCollection,
 } from "@/generated/endpoints/collections/collections"
+import type { BinderSlotTarget } from "@/generated/models"
 import { AddCardsLink } from "@/components/collections/add-cards-link"
 import { ScanLink } from "@/components/scan/scan-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
+import { BinderView } from "@/components/collections/binder-view"
+import { CreateBinderPanel } from "@/components/collections/create-binder-panel"
 import { catalogFilterSchema } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
@@ -43,6 +47,10 @@ function CollectionPage() {
     await navigate({ search: next })
     window.scrollTo({ top: 0, behavior: "instant" })
   }
+  // A position tapped in the entries list. A new object per tap, so tapping
+  // the same position again still jumps.
+  const [jumpTo, setJumpTo] = useState<BinderSlotTarget | null>(null)
+  const clearJump = useCallback(() => setJumpTo(null), [])
   const query = useGetCollection(collectionId)
   const collection =
     query.data?.status === 200 ? query.data.data.data : undefined
@@ -76,14 +84,30 @@ function CollectionPage() {
             actions={
               <div className="flex flex-wrap gap-2">
                 <ScanLink collectionId={collectionId} />
-                <AddCardsLink collectionId={collectionId} />
+                {!collection.binder && (
+                  <AddCardsLink collectionId={collectionId} />
+                )}
               </div>
             }
           />
+          {collection.binder && (
+            // Keyed by Collection, so a pending move or highlight never
+            // carries over to another binder.
+            <BinderView
+              key={collectionId}
+              collectionId={collectionId}
+              jumpTo={jumpTo}
+              onJumpApplied={clearJump}
+            />
+          )}
+          {!collection.binder && collection.cardCount === 0 && (
+            <CreateBinderPanel collectionId={collectionId} />
+          )}
           <CollectionEntries
             collectionId={collectionId}
             search={search}
             onSearchChange={(next) => void changeSearch(next)}
+            onFindPosition={setJumpTo}
           />
         </>
       )}

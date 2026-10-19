@@ -25,6 +25,8 @@ func InitializeProviders() (*Providers, func(), error) {
 	catalogService := ProvideCatalogService(dataSources, imageHost)
 	collectionService := ProvideCollectionService(dataSources)
 	inventoryService := ProvideInventoryService(dataSources, imageHost)
+	binderService := ProvideBinderService(dataSources, imageHost)
+	binderSlotService := ProvideBinderSlotService(dataSources)
 	imageEmbedder, err := ProvideImageEmbedder()
 	if err != nil {
 		cleanup()
@@ -35,7 +37,7 @@ func InitializeProviders() (*Providers, func(), error) {
 	adminSetService := ProvideAdminSetService(dataSources, imageHost)
 	objectStore := ProvideObjectStore()
 	cardAdminService := ProvideCardAdminService(dataSources, imageHost, objectStore)
-	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, matchService, adminSetService, cardAdminService)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, binderService, binderSlotService, matchService, adminSetService, cardAdminService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react"
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import { useListCollectionFacets } from "@/generated/endpoints/inventory/inventory"
+import { CardPositions } from "@/components/collections/card-positions"
 import { QuantityControl } from "@/components/collections/quantity-control"
+import type { BinderSlotTarget } from "@/generated/models"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import type { CatalogFilters } from "@/lib/catalog-search"
@@ -22,12 +24,15 @@ interface CollectionEntriesProps {
   search: CatalogFilters
   /** Receives the next filters; the route writes them to the URL. */
   onSearchChange: (next: CatalogFilters) => void
+  /** Opens the binder on a position's Page. */
+  onFindPosition: (position: BinderSlotTarget) => void
 }
 
 export function CollectionEntries({
   collectionId,
   search,
   onSearchChange,
+  onFindPosition,
 }: CollectionEntriesProps) {
   const queryClient = useQueryClient()
   // A save writes the confirmed quantities into the cached pages instead of
@@ -56,6 +61,7 @@ export function CollectionEntries({
 
   const results = useInfiniteCardResultsProps(query)
   const serverQuantities = query.data?.quantities
+  const serverPositions = query.data?.positions
   const facets =
     facetsQuery.data?.status === 200 ? facetsQuery.data.data.data : undefined
   const series =
@@ -116,6 +122,13 @@ export function CollectionEntries({
             : "This Collection has no Cards yet. Add some from the catalog."
         }
         renderControl={(card) => {
+          // A binder's Cards carry positions and change only by placing Slots
+          // (ADR-0020), so they show where they sit instead of a quantity.
+          const positions = serverPositions?.[card.id]
+          if (positions)
+            return (
+              <CardPositions positions={positions} onFind={onFindPosition} />
+            )
           const server = serverQuantities?.[card.id] ?? 0
           return (
             <QuantityControl

@@ -72,6 +72,446 @@
         ],
         "type": "object"
       },
+      "BinderGridBody": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "description": "Columns of Slots on each Page, from 1 to 6.",
+            "format": "int64",
+            "maximum": 6,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "rows": {
+            "description": "Rows of Slots on each Page, from 1 to 6.",
+            "format": "int64",
+            "maximum": 6,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "columns"
+        ],
+        "type": "object"
+      },
+      "BinderLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "capacity": {
+            "description": "Number of Slots in the binder.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "columns": {
+            "description": "Columns of Slots on each Page.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "leafCount": {
+            "description": "Number of Leaves; each Leaf has a front and a back Page.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "rows": {
+            "description": "Rows of Slots on each Page.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "columns",
+          "leafCount",
+          "capacity"
+        ],
+        "type": "object"
+      },
+      "BinderLayoutBody": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "description": "Columns of Slots on each Page, from 1 to 6.",
+            "format": "int64",
+            "maximum": 6,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "leafCount": {
+            "default": 10,
+            "description": "Number of Leaves the binder starts with, from 1 to 100.",
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "rows": {
+            "description": "Rows of Slots on each Page, from 1 to 6.",
+            "format": "int64",
+            "maximum": 6,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "columns"
+        ],
+        "type": "object"
+      },
+      "BinderLeafBody": {
+        "additionalProperties": false,
+        "properties": {
+          "leaf": {
+            "description": "Number of the Leaf the new Leaf goes beside.",
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "placement": {
+            "description": "Whether the new Leaf goes before or after that Leaf.",
+            "enum": [
+              "before",
+              "after"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "leaf",
+          "placement"
+        ],
+        "type": "object"
+      },
+      "BinderPage": {
+        "additionalProperties": false,
+        "properties": {
+          "cardTotal": {
+            "description": "Slots holding a Card plus Unidentified Slots, across the whole binder.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "layout": {
+            "$ref": "#/components/schemas/BinderLayout"
+          },
+          "leaf": {
+            "description": "Number of the Leaf this Page belongs to, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number in turning order, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "side": {
+            "description": "Which face of the Leaf this Page is.",
+            "enum": [
+              "front",
+              "back"
+            ],
+            "type": "string"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/BinderSlot"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "unidentifiedCount": {
+            "description": "Unidentified Slots, across the whole binder.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "leaf",
+          "side",
+          "layout",
+          "cardTotal",
+          "unidentifiedCount",
+          "slots"
+        ],
+        "type": "object"
+      },
+      "BinderPageReplaceBody": {
+        "additionalProperties": false,
+        "properties": {
+          "slots": {
+            "description": "One state per Slot in grid order: row by row, left to right. The count must match the binder's Layout.",
+            "items": {
+              "$ref": "#/components/schemas/BinderPageSlotBody"
+            },
+            "maxItems": 36,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "slots"
+        ],
+        "type": "object"
+      },
+      "BinderPageReplaceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "slots": {
+            "description": "What each Slot of the Page holds after the replace, in grid order.",
+            "items": {
+              "$ref": "#/components/schemas/BinderSlotResult"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "slots"
+        ],
+        "type": "object"
+      },
+      "BinderPageSlotBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card, read only when state is card. An id the server does not know is stored as unidentified and reported for that Slot.",
+            "type": "string"
+          },
+          "state": {
+            "description": "empty: no card; card: holds the Card in cardId; unidentified: holds a card not yet identified.",
+            "enum": [
+              "empty",
+              "card",
+              "unidentified"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "type": "object"
+      },
+      "BinderPlacementResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "string"
+          },
+          "declined": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Human-readable reason for declined copies.",
+            "type": "string"
+          },
+          "placed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why copies were declined.",
+            "enum": [
+              "not_enough_empty_slots",
+              "card_not_found"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardId",
+          "placed",
+          "declined"
+        ],
+        "type": "object"
+      },
+      "BinderSlot": {
+        "additionalProperties": false,
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary",
+            "description": "The Card in the pocket, set only when State is card."
+          },
+          "column": {
+            "description": "Column of the pocket on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "row": {
+            "description": "Row of the pocket on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "description": "empty: no card; card: holds Card; unidentified: holds a card the app could not identify.",
+            "enum": [
+              "empty",
+              "card",
+              "unidentified"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "state",
+          "card"
+        ],
+        "type": "object"
+      },
+      "BinderSlotCardBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to place in the Slot. A Slot that held a Card gives it up; an Unidentified Slot stops being Unidentified.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardId"
+        ],
+        "type": "object"
+      },
+      "BinderSlotMoveBody": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/BinderSlotTargetBody",
+            "description": "The filled Slot to move the card from."
+          },
+          "to": {
+            "$ref": "#/components/schemas/BinderSlotTargetBody",
+            "description": "The Slot to move the card to. If it holds a card, the two cards swap."
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "BinderSlotMoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/BinderPage",
+            "description": "The Page the card left, read after the move."
+          },
+          "to": {
+            "$ref": "#/components/schemas/BinderPage",
+            "description": "The Page the card went to, read after the move."
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "BinderSlotResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card stored in the Slot, set only when State is card.",
+            "type": "string"
+          },
+          "column": {
+            "description": "Column of the Slot on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why the Slot was stored differently from the request: unknown_card when the Card id is not known.",
+            "type": "string"
+          },
+          "row": {
+            "description": "Row of the Slot on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "description": "The state the Slot was stored in.",
+            "enum": [
+              "empty",
+              "card",
+              "unidentified"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "state"
+        ],
+        "type": "object"
+      },
+      "BinderSlotTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "description": "Column of the pocket on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number in turning order, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "row": {
+            "description": "Row of the pocket on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "row",
+          "column"
+        ],
+        "type": "object"
+      },
+      "BinderSlotTargetBody": {
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number in turning order, counted from 1.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "row": {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "row",
+          "column"
+        ],
+        "type": "object"
+      },
       "BulkUpdateEntriesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -296,6 +736,17 @@
       "CollectionSummary": {
         "additionalProperties": false,
         "properties": {
+          "binder": {
+            "description": "The binder's Layout, or null when the Collection is a plain box or deck.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BinderLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "cardCount": {
             "format": "int64",
             "type": "integer"
@@ -319,7 +770,8 @@
           "title",
           "description",
           "maxCardCount",
-          "cardCount"
+          "cardCount",
+          "binder"
         ],
         "type": "object"
       },
@@ -430,6 +882,54 @@
         ],
         "type": "object"
       },
+      "EnvelopeBinderLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BinderLayout"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeBinderPage": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BinderPage"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeBinderPageReplaceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BinderPageReplaceResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeBinderSlotMoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BinderSlotMoveResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeCardImageUpload": {
         "additionalProperties": false,
         "properties": {
@@ -495,6 +995,24 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/InventoryEntry"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeListBinderPlacementResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BinderPlacementResult"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -681,7 +1199,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller.",
+            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0.",
             "examples": [
               "login_required"
             ],
@@ -892,6 +1410,16 @@
           "card": {
             "$ref": "#/components/schemas/CardSummary"
           },
+          "positions": {
+            "description": "Where the Card sits in a binder: one position per Slot holding it, in Page order. Absent in a plain Collection.",
+            "items": {
+              "$ref": "#/components/schemas/BinderSlotTarget"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "quantity": {
             "format": "int64",
             "type": "integer"
@@ -966,6 +1494,48 @@
           "total",
           "page",
           "limit"
+        ],
+        "type": "object"
+      },
+      "PlaceCardsInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Cards to place, in order, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/PlaceCardsItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PlaceCardsItem": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card to place. Must be unique within the request (400 otherwise).",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Copies to place, one empty Slot each.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cardId",
+          "quantity"
         ],
         "type": "object"
       },
@@ -2305,6 +2875,783 @@
         "summary": "Edit one of the current user's own Collections",
         "tags": [
           "collections"
+        ]
+      }
+    },
+    "/collections/{id}/binder": {
+      "delete": {
+        "operationId": "remove-binder",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Remove a binder's Layout while all its Slots are empty, leaving a plain Collection",
+        "tags": [
+          "binder"
+        ]
+      },
+      "post": {
+        "operationId": "create-binder",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderLayoutBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderLayout"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Turn one of the current user's empty Collections into a binder",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/layout": {
+      "put": {
+        "operationId": "update-binder-grid",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderGridBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderLayout"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change the rows and columns of a binder whose Slots are all empty",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/leaves": {
+      "post": {
+        "operationId": "add-binder-leaf",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderLeafBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderLayout"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Add a Leaf before or after another Leaf, renumbering the Pages after it",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/leaves/{leaf}": {
+      "delete": {
+        "operationId": "remove-binder-leaf",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Number of the Leaf to remove, counted from 1 in turning order.",
+            "in": "path",
+            "name": "leaf",
+            "required": true,
+            "schema": {
+              "description": "Number of the Leaf to remove, counted from 1 in turning order.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderLayout"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Remove a Leaf whose Pages hold no card, renumbering the Pages after it",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/pages/{page}": {
+      "get": {
+        "operationId": "get-binder-page",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Read one Page of a binder with its Slots in grid order",
+        "tags": [
+          "binder"
+        ]
+      },
+      "put": {
+        "operationId": "replace-binder-page",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderPageReplaceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPageReplaceResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Replace every Slot of a Page; returns what each Slot holds, with the reason for any Card the server did not know",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/pages/{page}/slots/{row}/{column}": {
+      "delete": {
+        "operationId": "clear-binder-slot",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "description": "Row of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "description": "Column of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Empty a Slot, removing its Card or Unidentified mark; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      },
+      "put": {
+        "operationId": "place-binder-card",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "description": "Row of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "description": "Column of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderSlotCardBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Place a Card in a Slot, replacing the Card it held or taking it from Unidentified; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/pages/{page}/slots/{row}/{column}/unidentified": {
+      "put": {
+        "operationId": "mark-binder-slot-unidentified",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Row of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "description": "Row of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Column of the Slot on its Page, counted from 1.",
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "description": "Column of the Slot on its Page, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Mark a Slot Unidentified, removing the Card it held; returns the Page",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/placements": {
+      "post": {
+        "operationId": "place-binder-cards",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceCardsInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListBinderPlacementResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Place Cards in a binder's first empty Slots in Page order, one Slot per copy; copies with no empty Slot are declined",
+        "tags": [
+          "binder"
+        ]
+      }
+    },
+    "/collections/{id}/binder/slots/move": {
+      "post": {
+        "operationId": "move-binder-slot",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BinderSlotMoveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderSlotMoveResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Move a card to another Slot of the binder, swapping when the target holds a card; returns the source and target Pages",
+        "tags": [
+          "binder"
         ]
       }
     },

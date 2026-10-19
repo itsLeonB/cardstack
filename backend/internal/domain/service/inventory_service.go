@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
@@ -14,12 +15,12 @@ import (
 )
 
 const (
-	cardNotFoundMsg        = "card not found"
-	entryNotFoundMsg       = "card is not in this collection"
-	entryExistsMsg         = "card is already in this collection"
-	capacityExceededMsg    = "collection capacity limit exceeded"
-	quantityNotPositiveMsg = "quantity must be positive"
-	duplicateCardMsg       = "duplicate cardId in request"
+	entryNotFoundMsg        = "card is not in this collection"
+	entryExistsMsg          = "card is already in this collection"
+	capacityExceededMsg     = "collection capacity limit exceeded"
+	quantityNotPositiveMsg  = "quantity must be positive"
+	duplicateCardMsg        = "duplicate cardId in request"
+	binderQuantityLockedMsg = "a binder's quantities change only by placing or clearing Slots"
 )
 
 // InventoryService scopes every method to the request's ProfileID; another
@@ -49,21 +50,25 @@ type InventoryService interface {
 type inventoryService struct {
 	transactor  crud.Transactor
 	collections repository.CollectionRepository
+	layouts     repository.BinderLayoutRepository
+	slots       repository.BinderSlotRepository
 	entries     repository.InventoryRepository
 	catalog     repository.CatalogRepository
-	cards       repository.CardRepository
+	cards       CardLookup
 	images      mapper.ImageHost
 }
 
 func NewInventoryService(
 	transactor crud.Transactor,
 	collections repository.CollectionRepository,
+	layouts repository.BinderLayoutRepository,
+	slots repository.BinderSlotRepository,
 	entries repository.InventoryRepository,
 	catalog repository.CatalogRepository,
-	cards repository.CardRepository,
+	cards CardLookup,
 	images mapper.ImageHost,
 ) InventoryService {
-	return &inventoryService{transactor: transactor, collections: collections, entries: entries, catalog: catalog, cards: cards, images: images}
+	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, slots: slots, entries: entries, catalog: catalog, cards: cards, images: images}
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -79,7 +84,21 @@ func (s *inventoryService) List(ctx context.Context, req dto.InventoryListReques
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) }), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+	items := ezutil.MapSlice(results, func(r repository.CardResult) dto.InventoryItem { return mapper.ToInventoryItem(s.images, r) })
+	// Only a binder has Slots, so a plain Collection's list finds none and omits positions.
+	if len(items) > 0 {
+		cardIDs := ezutil.MapSlice(items, func(i dto.InventoryItem) uuid.UUID { return i.Card.ID })
+		slots, err := s.slots.ListOccupiedSlots(ctx, req.CollectionID, cardIDs)
+		if err != nil {
+			return nil, dto.PaginationMeta{}, err
+		}
+		positions := mapper.ToCardPositions(slots)
+		for i := range items {
+			items[i].Positions = positions[items[i].Card.ID]
+		}
+	}
+
+	return items, dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func (s *inventoryService) ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error) {
@@ -141,6 +160,20 @@ func (s *inventoryService) ListCardHoldings(ctx context.Context, req dto.CardHol
 	return ezutil.MapSlice(holdings, mapper.ToCardHolding), nil
 }
 
+// refuseBinder refuses a quantity write on a binder, whose quantities change
+// only by placing or clearing Slots (docs/adr/0020).
+func (s *inventoryService) refuseBinder(ctx context.Context, collectionID uuid.UUID) error {
+	isBinder, err := s.layouts.IsBinder(ctx, collectionID)
+	if err != nil {
+		return err
+	}
+	if isBinder {
+		return apperr.WithCode(ungerr.ConflictError(binderQuantityLockedMsg), apperr.CodeBinderQuantityLocked)
+	}
+
+	return nil
+}
+
 // findEntry returns the Card's row-locked entry, or the zero value when absent.
 // A nil card id would drop that condition (see crud.WhereBySpec), hence the guard.
 func (s *inventoryService) findEntry(ctx context.Context, collectionID, cardID uuid.UUID) (entity.InventoryEntry, error) {
@@ -165,16 +198,6 @@ func (s *inventoryService) getEntry(ctx context.Context, collectionID, cardID uu
 	}
 
 	return entry, nil
-}
-
-// cardExists reports whether the Card is in the catalog. Guards a nil id for
-// the same reason as findEntry.
-func (s *inventoryService) cardExists(ctx context.Context, cardID uuid.UUID) (bool, error) {
-	if cardID == uuid.Nil {
-		return false, nil
-	}
-
-	return s.cards.Exists(ctx, cardID)
 }
 
 // exceedsCapacity reports whether raising a Card from current to quantity
@@ -216,8 +239,11 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 		if err != nil {
 			return err
 		}
+		if err := s.refuseBinder(ctx, c.ID); err != nil {
+			return err
+		}
 
-		exists, err := s.cardExists(ctx, req.CardID)
+		exists, err := s.cards.CardExists(ctx, req.CardID)
 		if err != nil {
 			return err
 		}
@@ -263,6 +289,9 @@ func (s *inventoryService) UpdateQuantity(ctx context.Context, req dto.Inventory
 		if err != nil {
 			return err
 		}
+		if err := s.refuseBinder(ctx, c.ID); err != nil {
+			return err
+		}
 
 		entry, err := s.getEntry(ctx, c.ID, req.CardID)
 		if err != nil {
@@ -290,6 +319,9 @@ func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLoo
 		if err != nil {
 			return err
 		}
+		if err := s.refuseBinder(ctx, c.ID); err != nil {
+			return err
+		}
 
 		entry, err := s.getEntry(ctx, c.ID, req.CardID)
 		if err != nil {
@@ -314,6 +346,9 @@ func (s *inventoryService) BulkUpdate(ctx context.Context, req dto.InventoryBulk
 		results = make([]dto.InventoryChangeResult, 0, len(req.Items))
 		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
+			return err
+		}
+		if err := s.refuseBinder(ctx, c.ID); err != nil {
 			return err
 		}
 
@@ -357,7 +392,7 @@ func (s *inventoryService) applyChange(ctx context.Context, c entity.Collection,
 	}
 
 	if existing.IsZero() {
-		exists, err := s.cardExists(ctx, item.CardID)
+		exists, err := s.cards.CardExists(ctx, item.CardID)
 		if err != nil {
 			return dto.InventoryChangeResult{}, 0, err
 		}

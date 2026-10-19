@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -28,6 +28,8 @@ type Services struct {
 	Catalog    service.CatalogService
 	Collection service.CollectionService
 	Inventory  service.InventoryService
+	Binder     service.BinderService
+	BinderSlot service.BinderSlotService
 	Match      service.MatchService
 	AdminSets  service.AdminSetService
 	CardAdmin  service.CardAdminService
@@ -62,7 +64,12 @@ func ProvideCatalogService(ds *DataSources, images mapper.ImageHost) service.Cat
 // ProvideCollectionService builds the collection service over ds's DB, for
 // the same reason ProvideCatalogService is its own provider.
 func ProvideCollectionService(ds *DataSources) service.CollectionService {
-	return service.NewCollectionService(catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)))
+	return service.NewCollectionService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+	)
 }
 
 // ProvideInventoryService builds the inventory service over ds's DB.
@@ -70,10 +77,39 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 	return service.NewInventoryService(
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
 		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
-		catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm)),
+		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
 		images,
+	)
+}
+
+// ProvideBinderService builds the binder service over ds's DB.
+func ProvideBinderService(ds *DataSources, images mapper.ImageHost) service.BinderService {
+	return service.NewBinderService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
+		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
+		images,
+	)
+}
+
+// ProvideBinderSlotService builds the Slot-write service over ds's DB, the
+// placement, move and page writes that keep Inventory Entries in step with Slots.
+func ProvideBinderSlotService(ds *DataSources) service.BinderSlotService {
+	return service.NewBinderSlotService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
+		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
+		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
 	)
 }
 
@@ -130,7 +166,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Verifier:   verifier,
@@ -138,6 +174,8 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		Catalog:    catalog,
 		Collection: collection,
 		Inventory:  inventory,
+		Binder:     binder,
+		BinderSlot: binderSlot,
 		Match:      match,
 		AdminSets:  adminSets,
 		CardAdmin:  cardAdmin,

@@ -1,0 +1,24 @@
+# 10: Page review pill and menu
+
+**What to build:** The page-scan review grid stops looking cluttered and tight. Each cell is just its cut image, with a soft pill over the bottom edge showing the chosen Card's name on one line and its set code and local ID on the next. The pill opens a menu: the matcher's candidates (up to five, one text row each) in one group, and Empty and Unidentified in another. The groups sit side by side on wider screens and stack on a phone. The top candidate is chosen to begin with, the word "unsure" never appears, and the user can pick another candidate, Empty or Unidentified from the same menu. The cell's other states live on the pill too: Matching…, Couldn't match with Retry, Unidentified when there is no good candidate, and Empty or Unidentified when chosen by hand. A cell that would change the Page's current Slot gets a ring around its image. Confirming still replaces the Page exactly as before.
+
+Spec: `.scratch/binder-scanning/spec.md` (Page scan (frontend), stories 33 to 40 and 65 to 73). Page-scan review grid only; Phase 1's scan rows and candidate picker are untouched, and there is no backend or match endpoint change (a confident match still returns one candidate, so its menu holds that one plus Empty and Unidentified). Visual rules came from the `ui-ux-pro-max` pass: a dark translucent pill backdrop with a 4.5:1 contrast, 12 pixel minimum text, a pill at least 32 pixels tall, and at least 8 pixels between cells.
+
+**Blocked by:** 06 (scan a page, resolved)
+
+**Status:** resolved
+
+- [x] Each review cell is its image alone, with no card border or inner padding, at least 8 pixels apart, and the image has a description naming its row and column
+- [x] A pill over the image bottom shows the chosen Card's name (truncated) and its set code and local ID, is the same size in every Layout, is at least 32 pixels tall, stays legible over bright and dark card art, and its accessible name gives the cell's position, the full Card name and the set
+- [x] The pill opens a menu with the candidates in one group (name, then set code and local ID, no card image) and Empty and Unidentified in the other, side by side on wider screens and stacked with candidates first on a phone, with the current choice marked
+- [x] The top candidate is chosen to begin with, and a confident cell's menu holds its one candidate plus Empty and Unidentified
+- [x] The menu is a single choice: picking a candidate clears an earlier Empty or Unidentified choice, picking Empty or Unidentified keeps the candidates so a later candidate pick restores them, picking the top candidate returns to the matcher's answer, and the press-again-to-unset behaviour and the separate Empty and Unidentified buttons are gone
+- [x] The pill reads Matching… with no menu while matching, Couldn't match with a Retry action and an Empty and Unidentified menu when the match failed, and Unidentified with an Empty and Unidentified menu when there is no good candidate; failed and no-candidate cells still default to Unidentified at confirm, and Confirm still waits until no cell is loading
+- [x] A cell that differs from the Page's current Slot has a ring around its image, and the pill's accessible name says it changes the Slot, replacing the visible "Changes this Slot" text
+- [x] The words "unsure" and "Unsure: choose the card" appear nowhere in the review grid
+- [x] The page-scan frontend tests (generated client mocked, frame source and flatten-and-cut faked) are updated for the pill and menu and cover the pill text, the menu groups, the one-candidate menu of a confident cell, changing a choice back and forth, the failed, no-candidate and loading pills, the ring, and confirm sending the chosen Slots
+- [x] The Playwright page-scan spec and the build, lint and unit tests still pass, or the spec is reported as unrun if Clerk sign-in times out in the sandbox as before
+
+## Answer
+
+Implemented on `feat/binder-scanning` (frontend): `components/scan/page-review.tsx` now renders each cell as its image with a dark translucent pill (name, then `SET · #localId`, with a chevron) that opens a single-choice menu, with the candidates in one group and Empty and Unidentified in the other (side by side from `sm`, stacked with candidates first on a phone). Picking an item closes the menu. `usePageMatches.choose` also clears a hand mark, so a candidate pick restores the Card while Empty and Unidentified keep the candidates. The ring is `ring-2` on the image with `data-changed`, and the pill's accessible name says "Changes this Slot". The page-scan tests cover the pill text, the menu groups, the one-candidate menu, changing a choice back and forth, the failed, no-candidate and loading pills, the ring, and confirm. Build, lint, format and all 579 unit tests pass. `e2e/page-scan.spec.ts` was not run (Clerk sign-in times out in the sandbox); its only review-grid assertion is the pill's visible card name.

@@ -16,6 +16,9 @@ packages:
       ObjectStore:
   github.com/itsLeonB/cardstack/backend/internal/domain/repository:
     interfaces:
+      BinderLayoutRepository:
+      BinderLeafRepository:
+      BinderSlotRepository:
       CardRepository:
       CatalogRepository:
       CollectionRepository:
@@ -26,6 +29,9 @@ packages:
       UserRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
+      BinderService:
+      BinderSlotService:
+      CardLookup:
       CatalogService:
       CollectionService:
       InventoryService:

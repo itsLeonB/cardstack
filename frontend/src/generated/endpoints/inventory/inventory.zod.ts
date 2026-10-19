@@ -68,6 +68,11 @@ export const ListCollectionEntriesResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 }),
+  "positions": zod.array(zod.object({
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.')
+})).nullish().describe('Where the Card sits in a binder: one position per Slot holding it, in Page order. Absent in a plain Collection.'),
   "quantity": zod.int()
 })).nullable(),
   "meta": zod.object({
@@ -277,6 +282,11 @@ export const ListMasterInventoryResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 }),
+  "positions": zod.array(zod.object({
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.')
+})).nullish().describe('Where the Card sits in a binder: one position per Slot holding it, in Page order. Absent in a plain Collection.'),
   "quantity": zod.int()
 })).nullable(),
   "meta": zod.object({

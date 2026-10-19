@@ -53,7 +53,7 @@ A Card or Expansion Set that an Admin last updated. Exists because some real Exp
 _Avoid_: calling a Card "custom" or "manual" — those say how it was typed, not whose row it is.
 
 **Collection**:
-A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit. May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Strictly private to its owner in MVP; sharing is a post-MVP concern.
+A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit (a Collection with a Layout has none: its capacity is its Slot count). May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Strictly private to its owner in MVP; sharing is a post-MVP concern.
 
 **Layout**:
 The physical shape of a binder-style Collection: how many rows and columns each Page has, and how many Leaves there are. Uniform across the whole Collection. A Collection without a Layout (a box, a deck) has no Leaves, Pages or Slots and tracks quantity only.
@@ -77,12 +77,16 @@ The atomic record of how many of one Card a user holds within one Collection. Th
 _Avoid_: "Inventory" alone — ambiguous between this (atomic, per-Collection) and Master Inventory (aggregate, per-user). Always say which one.
 
 **Draft Addition**:
-An unsaved, transient list of Scans that a user builds by photographing cards, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals, and the Scans that chose the same Card add together.
+An unsaved, transient list of Scans that a user builds by photographing cards, aimed at one chosen Collection. Nothing in it is owned yet: it becomes Inventory Entries (or, in a Collection with a Layout, copies placed in empty Slots, which keep the Inventory Entries in step) only when the user reviews it and confirms, and abandoning it leaves the Collection untouched. Quantities are additions to what the Collection already holds, not new totals, and the Scans that chose the same Card add together.
 _Avoid_: "inventory" or "collection" for the draft — it is neither; it is a pending change to one Collection's Inventory Entries.
 
 **Scan**:
 One photographed card in a Draft Addition, with the Card chosen for it and a quantity to add. A Scan shows the matcher's top candidate until the user picks another; when the matcher was not confident it also keeps the other candidates it ranked, so the user can change the choice, and when the matcher was confident it keeps only the top one. A Scan is pending while its photo is still being matched. Photographing the same Card twice makes two Scans; they are never merged, and the user may raise a Scan's quantity by hand.
 _Avoid_: "match" or "candidate" for the Scan itself — a candidate is one Card the matcher offered for a Scan, and the Scan is the row that holds the choice among them.
+
+**Page Review**:
+The result of photographing one Page of a binder-style Collection: one cell per Slot, each with the Card the matcher chose, the other candidates it ranked, and any choice the user made by hand (a different Card, Empty, or Unidentified). Aimed at exactly one Page, and nothing in it is placed in the binder until the user confirms, which replaces that whole Page. A Page Review is pending from the moment its cells are cut until it is confirmed or discarded, and the user can leave and come back to a pending one. A Page has at most one pending Page Review per user.
+_Avoid_: "Scan" or "Draft Addition" for it — a Scan is one photographed card in a Draft Addition, and a Draft Addition adds to a Collection's quantities, while a Page Review rewrites the Slots of one Page.
 
 **Master Inventory**:
 Not a stored entity. The aggregate of a user's Inventory Entries across *all* their Collections, grouped by Card — "how many of this card do I own in total, anywhere." Computed on read, not written to.

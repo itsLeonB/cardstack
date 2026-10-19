@@ -12,6 +12,12 @@ import * as zod from 'zod';
  */
 export const ListCollectionsResponse = zod.object({
   "data": zod.array(zod.object({
+  "binder": zod.union([zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
@@ -37,6 +43,12 @@ export const CreateCollectionBody = zod.object({
 
 export const CreateCollectionResponse = zod.object({
   "data": zod.object({
+  "binder": zod.union([zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
@@ -63,6 +75,12 @@ export const GetCollectionParams = zod.object({
 
 export const GetCollectionResponse = zod.object({
   "data": zod.object({
+  "binder": zod.union([zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),
@@ -92,6 +110,12 @@ export const UpdateCollectionBody = zod.object({
 
 export const UpdateCollectionResponse = zod.object({
   "data": zod.object({
+  "binder": zod.union([zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
   "cardCount": zod.int(),
   "description": zod.string(),
   "id": zod.string(),

@@ -23,6 +23,8 @@ type inventoryFixture struct {
 	profileID   uuid.UUID
 	collection  entity.Collection
 	collections *mocks.MockCollectionRepository
+	layouts     *mocks.MockBinderLayoutRepository
+	slots       *mocks.MockBinderSlotRepository
 	entries     *mocks.MockInventoryRepository
 	catalog     *mocks.MockCatalogRepository
 	cards       *mocks.MockCardRepository
@@ -37,18 +39,21 @@ func newInventoryFixture(t *testing.T, limit int) inventoryFixture {
 	f := inventoryFixture{ctx: context.Background(), profileID: uuid.New()}
 	f.collection = entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: f.profileID, Title: "Binder", MaxCardCount: limit}
 	f.collections = mocks.NewMockCollectionRepository(t)
+	f.layouts = mocks.NewMockBinderLayoutRepository(t)
+	f.slots = mocks.NewMockBinderSlotRepository(t)
 	f.entries = mocks.NewMockInventoryRepository(t)
 	f.catalog = mocks.NewMockCatalogRepository(t)
 	f.cards = mocks.NewMockCardRepository(t)
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewInventoryService(transactor, f.collections, f.entries, f.catalog, f.cards, testImages)
+	f.svc = NewInventoryService(transactor, f.collections, f.layouts, f.slots, f.entries, f.catalog, NewCardLookup(f.cards), testImages)
 	return f
 }
 
 func (f inventoryFixture) lockedCollection() {
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, true).Return(f.collection, nil).Once()
+	f.layouts.EXPECT().IsBinder(f.ctx, f.collection.ID).Return(false, nil).Maybe()
 }
 
 func (f inventoryFixture) entryReq(cardID uuid.UUID, quantity int) dto.InventoryEntryRequest {
@@ -110,6 +115,7 @@ func TestInventoryService_List(t *testing.T) {
 	f.catalog.EXPECT().SearchCards(f.ctx, repository.CardFilter{
 		CollectionID: f.collection.ID, Name: "a", ExpansionSetIDs: []uuid.UUID{setID}, Limit: 24, Offset: 24,
 	}).Return([]repository.CardResult{card}, int64(30), nil).Once()
+	f.slots.EXPECT().ListOccupiedSlots(f.ctx, f.collection.ID, mock.Anything).Return(nil, nil).Once()
 
 	got, meta, err := f.svc.List(f.ctx, dto.InventoryListRequest{
 		ProfileID: f.profileID, CollectionID: f.collection.ID,

@@ -6,12 +6,16 @@ Spec: `.scratch/binder-scanning/spec.md` (Slot reads and writes: move and swap).
 
 **Blocked by:** 03 (place, clear, replace and mark Unidentified)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Moving a card to an empty Slot on the same Page and on another Page leaves the source empty and the target holding the card
-- [ ] Moving onto a filled Slot swaps the two Slots, including when one of them is Unidentified
-- [ ] Moving a Slot onto itself changes nothing
-- [ ] A move whose source is empty, or whose target is outside the Layout or in another Collection, is rejected and changes nothing
-- [ ] Every Card's Inventory Entry quantity is unchanged by a move or swap
-- [ ] The binder view lets the user pick a source, swipe to another Page, and pick the target
-- [ ] Covered by HTTP-boundary tests against real Postgres and frontend feature tests with the API client mocked
+- [x] Moving a card to an empty Slot on the same Page and on another Page leaves the source empty and the target holding the card
+- [x] Moving onto a filled Slot swaps the two Slots, including when one of them is Unidentified
+- [x] Moving a Slot onto itself changes nothing
+- [x] A move whose source is empty, or whose target is outside the Layout or in another Collection, is rejected and changes nothing
+- [x] Every Card's Inventory Entry quantity is unchanged by a move or swap
+- [x] The binder view lets the user pick a source, swipe to another Page, and pick the target
+- [x] Covered by HTTP-boundary tests against real Postgres and frontend feature tests with the API client mocked
+
+## Answer
+
+Implemented on `feat/binder-scanning` (backend and frontend). The backend move/swap route is in `backend/openapi.json` (grep "move"); it runs in one transaction with the Collection locked and never changes quantities. The Slot panel has a Move action: pick a source, turn to any Page, tap the target; Escape or tapping the source cancels, taps are ignored while a move is in flight, and a pending move resets when the Collection changes or a Leaf is added or removed.
