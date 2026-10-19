@@ -1,0 +1,21 @@
+backend/internal/adapters/http/routes/admin_routes_test.go
+  s_f5c11345c5d42a::t_f473668fdfb2e2 8,11,50,54,57-114
+backend/internal/adapters/http/routes/catalog_published_routes_test.go
+  s_f5c11345c5d42a::t_6b96edb051d465 86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8e7229fefa6954a0e3d707c21e17d7322cf23745",
+  "prompts": {},
+  "sessions": {
+    "s_f5c11345c5d42a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f5c11345c5d42a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
