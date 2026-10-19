@@ -17,3 +17,10 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 - [ ] Component tests of the gate (Admin, Guest, unlisted, failed check) run with the generated client mocked
 - [ ] A CI workflow for the package runs typecheck, lint, tests and build, and is listed as a required check
 - [ ] The package's local settings example lists the Clerk key and the API address, and the local Admin origin is the one in the API's `ADMIN_CLIENT_URLS` example
+
+## Comments
+
+- For the human: make the `Admin CI` jobs (`Lint`, `Format`, `Typecheck`, `Test`, `Build` of `.github/workflows/admin-ci.yml`) required checks in GitHub. The agent cannot set it, and `main` has no branch protection or ruleset today. The workflow is path-filtered to `admin/**`, so a required check on it stays pending for PRs that do not touch `admin/`, unless the ruleset allows skipped checks.
+- For the human: set the repository variables `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL` if the CI build should bake them in (outside a Vercel production build they only warn).
+- The Admin app has no sign-in page: a Guest sees not-found, so an Admin signs in through the user app (`http://localhost:3000`) and the session must carry over to `http://localhost:3001`. Not checked in a browser; verify it once with a listed email. If the dev instance does not share the session across ports, the ticket needs a sign-in route.
+- `frontend/` tests `collection-card-results.pages.test.tsx` failed twice under load once while `scripts/verification/frontend.sh` ran next to other work, and passed on rerun; unrelated to this ticket.
