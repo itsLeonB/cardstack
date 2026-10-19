@@ -1,0 +1,31 @@
+admin/orval.config.ts
+  s_fef1ad3bdf0a4c::t_044eea09d507b8 36-38,43-65,104
+admin/package.json
+  s_fef1ad3bdf0a4c::t_90d1d7cf5657aa 6
+admin/src/components/layout/page-container.tsx
+  s_fef1ad3bdf0a4c::t_f2dc9a211cdeab 9-10
+admin/src/lib/clerk-auth.ts
+  s_fef1ad3bdf0a4c::t_9d05fb5b6c508b 3-7
+admin/src/lib/http.ts
+  s_fef1ad3bdf0a4c::t_f8039bdb5304f8 2-8,47-49,61,68,113,139,143
+admin/src/routes/__root.tsx
+  s_fef1ad3bdf0a4c::t_07e3beb7dbea1a 42
+admin/src/test-clerk.tsx
+  s_fef1ad3bdf0a4c::t_2224fba35177fd 1,4-5,8-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1d216b025c32e15b84542020e648a58f9258f3ce",
+  "prompts": {},
+  "sessions": {
+    "s_fef1ad3bdf0a4c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fef1ad3bdf0a4c",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
