@@ -45,7 +45,7 @@ Who writes Card and Expansion Set rows: the Pokémon Asia site, TCG Collector, o
 _Avoid_: treating the Pokémon Asia site as always winning — it is the main Source in that it is run first and fills most of the catalog, but a row another Source wrote is not replaced by it.
 
 **Published**:
-Whether an Expansion Set, with all its Cards, is visible to anyone but an Admin. An unpublished Expansion Set is in the catalog but absent from every user-facing view: browsing, search, filters, counts, inventory pickers and card scanning. Existing Expansion Sets are published. A set that TCG Collector adds because no other Source had its code starts unpublished, so an operator can check its Cards before anyone can record holdings against them; the operator publishes it by hand. A Card has no Published state of its own: a Card added to an already published Expansion Set is visible at once.
+Whether an Expansion Set, with all its Cards, is visible to anyone but an Admin working in the Admin app. An unpublished Expansion Set is in the catalog but absent from every user-facing view, including to an Admin who signs in to the user app: browsing, search, filters, counts, inventory pickers and card scanning. Existing Expansion Sets are published. A set that TCG Collector adds because no other Source had its code starts unpublished, so an operator can check its Cards before anyone can record holdings against them; the operator publishes it by hand. A Card has no Published state of its own: a Card added to an already published Expansion Set is visible at once.
 _Avoid_: using "published" for a Card, or for Series — it is a property of the Expansion Set only.
 
 **Curated**:
@@ -111,8 +111,12 @@ A caller with no `Authorization` header. A Guest gets a deliberate catalog previ
 _Avoid_: calling an expired-token caller a Guest.
 
 **Admin**:
-A signed-in caller the operator has named as allowed to write catalog content by hand (Expansion Sets and Cards, with their images). An Admin is an ordinary Auth Identity that the operator has listed; it is not a role stored in Cardstack, and nothing in the product shows a signed-in user that Admin exists. Whatever an Admin writes becomes Curated.
+A signed-in caller the operator has named as allowed to write catalog content by hand (Expansion Sets and Cards, with their images). An Admin is an ordinary Auth Identity that the operator has listed; it is not a role stored in Cardstack, and nothing in the user app shows a signed-in user that Admin exists: an Admin who signs in to the user app is an ordinary user there. An Admin does the catalog work in the Admin app. Whatever an Admin writes becomes Curated.
 _Avoid_: "admin user" or "admin account" — there is no separate account type, only an Auth Identity that happens to be listed.
+
+**Admin app**:
+The separate web app where an Admin writes catalog content, on its own host and apart from the app users sign in to (the user app). It uses the same API and the same sign-in as the user app, but the API accepts its admin routes only from this app. It is not linked from the user app and is not indexed.
+_Avoid_: calling it the "admin page" or "admin area" — those named the old `/admin` inside the user app, which no longer exists.
 
 **Wishlist**:
 Not modeled in MVP. A future concept for cards a user wants but doesn't own; do not conflate with Inventory Entry (owned quantity) until it's actually built.

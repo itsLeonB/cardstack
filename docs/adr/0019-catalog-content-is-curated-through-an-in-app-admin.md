@@ -1,4 +1,4 @@
-Status: the `curated` boolean is superseded by `created_by` and `updated_by` in [ADR-0021](0021-catalog-rows-record-who-created-and-last-updated-them.md); the rest stands.
+Status: the `curated` boolean is superseded by `created_by` and `updated_by` in [ADR-0021](0021-catalog-rows-record-who-created-and-last-updated-them.md), and the admin area inside the user app by the Admin app in [ADR-0024](0024-the-admin-is-its-own-app-and-its-routes-accept-only-its-origin.md); the rest stands.
 
 # Catalog content with no upstream source is curated by hand through an in-app admin, and curated rows beat ingestion
 
