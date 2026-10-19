@@ -39,7 +39,7 @@ export const Route = createRootRouteWithContext<{
 function RootLayout() {
   return (
     <div className="flex min-h-svh flex-col">
-      <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+      <main className="flex-1">
         <Outlet />
       </main>
     </div>

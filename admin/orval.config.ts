@@ -33,11 +33,36 @@ type PathItem = Record<string, Operation | undefined>
 interface OpenApiSpec {
   // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type
   paths?: Record<string, object>
+  // A 3.1 schema may be a boolean, so the value type is `object | boolean`.
+  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type
+  components?: { schemas?: Record<string, object | boolean> }
 }
 
 const METHODS = ["get", "put", "post", "delete", "patch"]
 
-// orval's input filters select by tag only, so the operations are cut here.
+// The spec references schemas only as `#/components/schemas/<name>`.
+const SCHEMA_REF = /"\$ref":"#\/components\/schemas\/([^"]+)"/g
+
+// Keeps the schemas the kept operations reach, directly or through other
+// schemas, so orval writes models for those alone.
+function pruneSchemas(spec: OpenApiSpec) {
+  const schemas = spec.components?.schemas ?? {}
+  const reached = new Set<string>()
+  const pending = [JSON.stringify(spec.paths)]
+  for (let text = pending.pop(); text !== undefined; text = pending.pop()) {
+    for (const [, name] of text.matchAll(SCHEMA_REF)) {
+      if (reached.has(name)) continue
+      reached.add(name)
+      pending.push(JSON.stringify(schemas[name]))
+    }
+  }
+  for (const name of Object.keys(schemas)) {
+    if (!reached.has(name)) delete schemas[name]
+  }
+}
+
+// orval's input filters select by tag only, so the operations and the schemas
+// they reach are cut here.
 const input = {
   target: "../backend/openapi.json",
   override: {
@@ -76,6 +101,7 @@ const input = {
           `orval config names operations the spec does not have: ${unknown.join(", ")}`
         )
       }
+      pruneSchemas(spec)
       return spec
     },
   },

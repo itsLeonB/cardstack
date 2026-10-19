@@ -1,13 +1,10 @@
 // The Clerk-facing surface for code outside React: the session token (for
 // `http.ts`), whether anyone is signed in (for the route guards, which run in
-// `beforeLoad`), ending a session, and session changes. A React component
-// (`ClerkBridge`) publishes the loaded Clerk instance here; everything waits
-// for it, but only up to LOAD_TIMEOUT_MS. If clerk-js never loads (a content
-// blocker, being offline) that is remembered, so every later call answers
-// "nobody is signed in" at once instead of stalling, and public pages keep
-// working as a guest. A Clerk that loads after all is picked up: its session
-// then counts as a change, because everything cached meanwhile was fetched
-// as a guest.
+// `beforeLoad`), and ending a session. A React component (`ClerkBridge`)
+// publishes the loaded Clerk instance here; everything waits for it, but only
+// up to LOAD_TIMEOUT_MS. If clerk-js never loads (a content blocker, being
+// offline) that is remembered, so every later call answers "nobody is signed
+// in" at once instead of stalling. A Clerk that loads after all is picked up.
 import type { SessionToken, TokenOptions } from "./http"
 
 export interface ClerkSession {
@@ -15,14 +12,9 @@ export interface ClerkSession {
   getToken: (options?: TokenOptions) => Promise<string | null>
 }
 
-interface SessionEmission {
-  session?: { id: string } | null
-}
-
 /** The part of the loaded Clerk instance this module uses. */
 export interface ClerkLike {
   session?: ClerkSession | null
-  addListener: (callback: (emission: SessionEmission) => void) => () => void
   signOut: () => Promise<void>
 }
 
@@ -32,21 +24,13 @@ export interface AuthGate {
   isSignedIn: () => Promise<boolean>
 }
 
-export type SessionChangeHandler = (
-  current: string | null,
-  previous: string | null
-) => void
-
 const LOAD_TIMEOUT_MS = 5000
 
 export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
   let clerk: ClerkLike | null = null
   let loadFailed = false
-  let loadedLate = false
   let waiters: Array<(loaded: ClerkLike | null) => void> = []
   let timer: ReturnType<typeof setTimeout> | undefined
-  let handler: SessionChangeHandler | null = null
-  let stopListening: (() => void) | null = null
 
   function settle(loaded: ClerkLike | null) {
     clearTimeout(timer)
@@ -54,25 +38,6 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
     const pending = waiters
     waiters = []
     for (const resolve of pending) resolve(loaded)
-  }
-
-  // Clerk reports the current state when a listener attaches, which only
-  // records the baseline; later reports that differ are the changes. They fire
-  // inside Clerk's own state update, before it navigates anywhere (so a
-  // cache reset cannot wipe what the next page loads).
-  function listen() {
-    stopListening?.()
-    stopListening = null
-    if (!clerk || !handler) return
-    let known: string | null | undefined = loadedLate ? null : undefined
-    stopListening = clerk.addListener(({ session }) => {
-      const current = session?.id ?? null
-      const previous = known
-      known = current
-      if (previous !== undefined && previous !== current) {
-        handler?.(current, previous)
-      }
-    })
   }
 
   function whenLoaded(): Promise<ClerkLike | null> {
@@ -92,20 +57,9 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
     publish(next: ClerkLike | null) {
       clerk = next
       if (next) {
-        loadedLate = loadFailed
         loadFailed = false
         settle(next)
       }
-      listen()
-    },
-
-    /**
-     * Browser-only, like `setOnAuthLost` (a server render must not leave one
-     * request's state in this singleton). One handler; a new one replaces it.
-     */
-    onSessionChange(callback: SessionChangeHandler | null) {
-      handler = "document" in globalThis ? callback : null
-      listen()
     },
 
     /**
