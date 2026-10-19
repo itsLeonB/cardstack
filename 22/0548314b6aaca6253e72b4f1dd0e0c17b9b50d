@@ -1,0 +1,25 @@
+.claude/agents/frontend-agent.md
+  s_b09308414e1afb::t_cc1a4abaae90c2 3,12
+.scratch/admin-app-extraction/issues/01-agents-and-conventions-cover-admin-package.md
+  s_b09308414e1afb::t_e608e767b3399b 11-18
+docs/agents/conventions/frontend.md
+  s_b09308414e1afb::t_3d3dc62ad6773b 3
+docs/agents/orchestration.md
+  s_b09308414e1afb::t_752d5a647ff503 11,38,48,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "220548314b6aaca6253e72b4f1dd0e0c17b9b50d",
+  "prompts": {},
+  "sessions": {
+    "s_b09308414e1afb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b09308414e1afb",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
