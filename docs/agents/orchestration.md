@@ -8,7 +8,7 @@ All work starts in a T3 thread. That thread is the orchestrator, runs on the mai
 
 A task is **big** if either is true:
 
-- It touches more than one component (`backend`, `frontend`).
+- It touches more than one component (`backend`, `frontend`). The `frontend` component covers both frontend packages, `frontend/` (user app) and `admin/` (Admin app, ADR-0024).
 - It touches one component, but the change is large (new subsystem, cross-cutting refactor, several files and symbols, schema + API + UI surface).
 
 Otherwise it is **small, one component**: the orchestrator thread does it directly, with no child threads and no worktree.
@@ -35,7 +35,7 @@ The orchestrator stays on the main checkout and the feature branch, launches one
    - `message`: the [launch message](#launch-message).
 5. **Find the worktree path.** T3 chooses it after the launch call, so the launch message carries the branch and no path. Read the absolute path with `t3_worktree_list` (pass the child's `threadId`) before the first git command against it, then run `git -C <path> ...` for diffs and logs.
 6. **Wait and collect.** Wait on each child with `t3_thread_wait` and a 30-minute `timeoutMs` (1800000) per child turn, in addition to its own report: T3 sends no completion signal for launched threads, and a child can end failed without any message. A report arrives as a queued message and starts a new orchestrator turn when you are idle. Treat the [report](#report-protocol) as the signal that work is ready. A failed run starts [recovery](#failure-recovery). An expired wait does not interrupt the child, so it starts only the read-first check there.
-7. **Check scope.** `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under the child's component directory. Run it only on a clean worktree: `git -C <worktree path> status --porcelain` must print nothing, because uncommitted edits (staged, unstaged or untracked) are invisible to the diff. If it prints anything, send the child back to commit or discard it before the review. Tool restrictions do not enforce scope, so this check does.
+7. **Check scope.** `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under the child's component directories. Run it only on a clean worktree: `git -C <worktree path> status --porcelain` must print nothing, because uncommitted edits (staged, unstaged or untracked) are invisible to the diff. If it prints anything, send the child back to commit or discard it before the review. Tool restrictions do not enforce scope, so this check does.
 8. **Review.** Run the [review loop](#review-loop) until the child's diff has no finding left to fix.
 9. **Merge and clean up**, per child once it is done, in this order, because T3 has no tool for removing worktrees or branches:
    1. Merge the child's branch into the feature branch.
@@ -45,7 +45,7 @@ The orchestrator stays on the main checkout and the feature branch, launches one
 10. **Architecture review.** Once every child is merged, the orchestrator runs the `code-review` skill scoped to the full feature branch diff, focused on cross-component integration and architecture, not on re-litigating what the component-level reviews checked. Every child is archived and its branch deleted by then, so findings in component code go to a fresh child launched as in step 4 on a new branch from the feature branch and merged as in step 9; the orchestrator fixes only what lies outside the component directories, then reruns the relevant [verification](#verification).
 11. Commit the merge on the feature branch (never on a protected branch) and push, confirming with the maintainer before pushing.
 
-The orchestrator owns every edit outside the component directories (`docs/`, `GLOSSARY.md`, ADRs, the ticket's `Status:` line under `.scratch/`), because each component agent is scoped to its own directory. It uses context7 for any library question it resolves itself, and Serena for any code read.
+The orchestrator owns every edit outside the component directories (`docs/`, `GLOSSARY.md`, ADRs, the ticket's `Status:` line under `.scratch/`), because each component agent is scoped to its own directories. It uses context7 for any library question it resolves itself, and Serena for any code read.
 
 ### Review loop
 
@@ -75,7 +75,7 @@ Every child gets the same message, in this order:
 2. **Task.** The ticket path under `.scratch/`, or the task text.
 3. **Orchestrator.** Your thread ID, for reports and questions.
 4. **Workspace.** Your branch. Your worktree is the repository root you start in: confirm it with `git rev-parse --show-toplevel`.
-5. **Scope.** The component directory you may edit, and the read-only files the role file lists.
+5. **Scope.** The component directories you may edit (`backend/`, or `frontend/` and `admin/` for the frontend component), and the read-only files the role file lists.
 6. **Verification.** `scripts/bootstrap-worktree/<component>.sh` once, then `scripts/verification/<component>.sh`.
 7. **Commit.** The [commit naming convention](#commit-naming-conventions), on your own branch.
 8. **Never.** Never push, and never archive your own thread.
