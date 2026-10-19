@@ -1,0 +1,19 @@
+.github/workflows/admin-ci.yml
+  s_42d505b28dc0e0::t_f36fdd69b529c4 1-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7d0b1c87bf4601dbdd9bc476855cef12fa978175",
+  "prompts": {},
+  "sessions": {
+    "s_42d505b28dc0e0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_42d505b28dc0e0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
