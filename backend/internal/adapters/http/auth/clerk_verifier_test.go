@@ -26,7 +26,9 @@ import (
 const (
 	testIssuer = "https://cardstack.clerk.accounts.dev"
 	testOrigin = "https://cardstack.example"
-	testKeyID  = "ins_test"
+	// testAdminOrigin is the Admin app's origin (ADMIN_CLIENT_URLS).
+	testAdminOrigin = "http://localhost:3001"
+	testKeyID       = "ins_test"
 )
 
 func newRSAKey(t *testing.T) *rsa.PrivateKey {
@@ -72,7 +74,7 @@ func newTestVerifier(t *testing.T, key *rsa.PrivateKey) *ClerkVerifier {
 	t.Helper()
 	keys := mocks.NewMockKeySource(t)
 	keys.EXPECT().FindKey(mock.Anything, testKeyID).Return(publicKey(key), nil).Maybe()
-	return NewClerkVerifier(testIssuer, []string{testOrigin, "http://localhost:3000"}, keys)
+	return NewClerkVerifier(testIssuer, []string{testOrigin, "http://localhost:3000"}, []string{testAdminOrigin}, keys)
 }
 
 func requireUnauthorized(t *testing.T, err error) {
@@ -102,6 +104,20 @@ func TestClerkVerifier_AcceptsAnyConfiguredOriginAndAMissingName(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, identity.Name)
+}
+
+func TestClerkVerifier_MarksTheAdminAppOrigin(t *testing.T) {
+	key := newRSAKey(t)
+
+	for azp, wantAdmin := range map[string]bool{testOrigin: false, testAdminOrigin: true} {
+		claims := validClaims()
+		claims["azp"] = azp
+
+		identity, err := newTestVerifier(t, key).Verify(context.Background(), signToken(t, key, jose.RS256, claims))
+
+		require.NoError(t, err, azp)
+		assert.Equal(t, wantAdmin, identity.AdminOrigin, azp)
+	}
 }
 
 func TestClerkVerifier_RejectsBadTokens(t *testing.T) {
@@ -182,7 +198,7 @@ func TestClerkVerifier_RejectsAnUnknownKeyID(t *testing.T) {
 	key := newRSAKey(t)
 	keys := mocks.NewMockKeySource(t)
 	keys.EXPECT().FindKey(mock.Anything, testKeyID).Return(nil, nil)
-	verifier := NewClerkVerifier(testIssuer, []string{testOrigin}, keys)
+	verifier := NewClerkVerifier(testIssuer, []string{testOrigin}, nil, keys)
 
 	_, err := verifier.Verify(context.Background(), signToken(t, key, jose.RS256, validClaims()))
 
@@ -194,7 +210,7 @@ func TestClerkVerifier_FailedKeyFetchIsNotAnInvalidToken(t *testing.T) {
 	fetchErr := errors.New("clerk unreachable")
 	keys := mocks.NewMockKeySource(t)
 	keys.EXPECT().FindKey(mock.Anything, testKeyID).Return(nil, fetchErr)
-	verifier := NewClerkVerifier(testIssuer, []string{testOrigin}, keys)
+	verifier := NewClerkVerifier(testIssuer, []string{testOrigin}, nil, keys)
 
 	_, err := verifier.Verify(context.Background(), signToken(t, key, jose.RS256, validClaims()))
 

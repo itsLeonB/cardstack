@@ -75,6 +75,114 @@ func TestGuard_ValidTokenIsAuthenticated(t *testing.T) {
 	}
 }
 
+// gateOutput reports the IsAdmin flag the handler saw behind AdminFlag.
+type gateOutput struct {
+	Body struct {
+		Admin bool `json:"admin"`
+	}
+}
+
+// newGateAPI runs the gate on a caller already on the context, the way Guard
+// leaves it, so the gate is tested without a token or a user lookup.
+func newGateAPI(t *testing.T, caller Caller, gate func(huma.API) func(huma.Context, func(huma.Context))) humatest.TestAPI {
+	t.Helper()
+	_, api := humatest.New(t, httpapi.NewConfig())
+	mw := gate(api)
+	huma.Register(api, huma.Operation{
+		OperationID: "gate",
+		Method:      http.MethodGet,
+		Path:        "/gate",
+		Middlewares: huma.Middlewares{func(ctx huma.Context, next func(huma.Context)) {
+			mw(WithCaller(ctx, caller), next)
+		}},
+	}, func(ctx context.Context, _ *struct{}) (*gateOutput, error) {
+		out := &gateOutput{}
+		out.Body.Admin = CallerFrom(ctx).IsAdmin
+		return out, nil
+	})
+	return api
+}
+
+func TestAdminOnly_NotFoundUnlessAListedEmailOnTheAdminAppOrigin(t *testing.T) {
+	emails := []string{"owner@example.com"}
+	gate := func(api huma.API) func(huma.Context, func(huma.Context)) { return AdminOnly(api, emails) }
+
+	for name, tc := range map[string]struct {
+		caller Caller
+		want   int
+	}{
+		"listed email on the Admin app origin":   {Caller{ProfileID: uuid.New(), Email: "Owner@Example.com", AdminOrigin: true}, http.StatusOK},
+		"listed email on the user app origin":    {Caller{ProfileID: uuid.New(), Email: "owner@example.com"}, http.StatusNotFound},
+		"unlisted email on the Admin app origin": {Caller{ProfileID: uuid.New(), Email: "other@example.com", AdminOrigin: true}, http.StatusNotFound},
+		"guest":                                  {Caller{}, http.StatusNotFound},
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp := newGateAPI(t, tc.caller, gate).Get("/gate")
+
+			assert.Equal(t, tc.want, resp.Code, resp.Body.String())
+		})
+	}
+}
+
+func TestAdminFlag_MarksOnlyAListedEmailOnTheAdminAppOrigin(t *testing.T) {
+	emails := []string{"owner@example.com"}
+	gate := func(huma.API) func(huma.Context, func(huma.Context)) { return AdminFlag(emails) }
+
+	for name, tc := range map[string]struct {
+		caller Caller
+		want   bool
+	}{
+		"listed email on the Admin app origin":   {Caller{ProfileID: uuid.New(), Email: "Owner@Example.com", AdminOrigin: true}, true},
+		"listed email on the user app origin":    {Caller{ProfileID: uuid.New(), Email: "owner@example.com"}, false},
+		"unlisted email on the Admin app origin": {Caller{ProfileID: uuid.New(), Email: "other@example.com", AdminOrigin: true}, false},
+		"guest":                                  {Caller{}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp := newGateAPI(t, tc.caller, gate).Get("/gate")
+
+			require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+			expected := `{"admin":false}`
+			if tc.want {
+				expected = `{"admin":true}`
+			}
+			assert.JSONEq(t, expected, resp.Body.String())
+		})
+	}
+}
+
+func TestGuard_PassesTheAdminOriginOnToAdminOnly(t *testing.T) {
+	emails := []string{"owner@example.com"}
+
+	for name, tc := range map[string]struct {
+		adminOrigin bool
+		want        int
+	}{
+		"token minted for the Admin app": {adminOrigin: true, want: http.StatusNoContent},
+		"token minted for the user app":  {adminOrigin: false, want: http.StatusNotFound},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, api := humatest.New(t, httpapi.NewConfig())
+			verifier := mocks.NewMockTokenVerifier(t)
+			users := mocks.NewMockUserService(t)
+			identity := dto.AuthIdentity{Provider: "clerk", Subject: "user_1", Email: "owner@example.com", AdminOrigin: tc.adminOrigin}
+			verifier.EXPECT().Verify(mock.Anything, "good-token").Return(identity, nil).Once()
+			users.EXPECT().ResolveCaller(mock.Anything, identity).Return(dto.CallerIdentity{UserID: uuid.New(), ProfileID: uuid.New()}, nil).Once()
+			huma.Register(api, huma.Operation{
+				OperationID: "admin",
+				Method:      http.MethodGet,
+				Path:        "/admin",
+				Middlewares: huma.Middlewares{Guard(api, verifier, users, false), AdminOnly(api, emails)},
+			}, func(context.Context, *struct{}) (*struct{}, error) {
+				return &struct{}{}, nil
+			})
+
+			resp := api.Get("/admin", "Authorization: Bearer good-token")
+
+			assert.Equal(t, tc.want, resp.Code, resp.Body.String())
+		})
+	}
+}
+
 func TestGuard_BearerSchemeIsCaseInsensitive(t *testing.T) {
 	api, verifier, users := newGuardedAPI(t, false)
 	verifier.EXPECT().Verify(mock.Anything, "good-token").Return(dto.AuthIdentity{}, nil).Once()

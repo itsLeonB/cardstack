@@ -173,3 +173,36 @@ func TestAdmin_ValidateAdminEmails_NamesTheBadEntry(t *testing.T) {
 		assert.ErrorContains(t, Admin{Emails: entries}.ValidateAdminEmails(), fmt.Sprintf("%q", bad))
 	}
 }
+
+func TestAdminClientUrlsEnvVarName(t *testing.T) {
+	t.Setenv("ADMIN_CLIENT_URLS", "https://admin.example.com,http://localhost:3001")
+
+	var admin Admin
+	require.NoError(t, envconfig.Process(admin.Prefix(), &admin))
+
+	assert.Equal(t, []string{"https://admin.example.com", "http://localhost:3001"}, admin.AdminClientUrls)
+}
+
+func TestAdmin_ValidateAdminClientUrls_RejectsEntriesThatAreNotBareOrigins(t *testing.T) {
+	for _, ok := range [][]string{nil, {"http://localhost:3001"}, {"https://admin.example.com"}} {
+		assert.NoError(t, Admin{AdminClientUrls: ok}.ValidateAdminClientUrls(), "%q", ok)
+	}
+
+	for bad, entries := range map[string][]string{
+		"https://admin.example.com/": {"https://admin.example.com/"},
+		"admin.example.com":          {"https://www.example.com", "admin.example.com"},
+		"https://admin.example.com ": {"https://admin.example.com "},
+	} {
+		assert.ErrorContains(t, Admin{AdminClientUrls: entries}.ValidateAdminClientUrls(), fmt.Sprintf("%q", bad))
+	}
+}
+
+func TestConfig_ValidateAdminOrigins_NeedsAnAdminOriginWhenThereAreAdmins(t *testing.T) {
+	app := App{ClientUrls: []string{"https://www.example.com"}}
+	admin := Admin{Emails: []string{"owner@example.com"}}
+
+	assert.NoError(t, Config{}.ValidateAdminOrigins(), "no admins and no Admin app: the admin routes stay off")
+	assert.NoError(t, Config{App: app, Admin: Admin{AdminClientUrls: []string{"https://admin.example.com"}}}.ValidateAdminOrigins())
+	assert.ErrorContains(t, Config{App: app, Admin: admin}.ValidateAdminOrigins(), "ADMIN_CLIENT_URLS")
+	assert.ErrorContains(t, Config{App: app, Admin: Admin{AdminClientUrls: []string{"https://www.example.com"}}}.ValidateAdminOrigins(), "https://www.example.com", "an origin in both lists, even with no admins")
+}

@@ -15,5 +15,5 @@ var AuthSet = wire.NewSet(ProvideTokenVerifier)
 func ProvideTokenVerifier() auth.TokenVerifier {
 	cfg := config.Global
 
-	return auth.NewClerkVerifier(cfg.Issuer, cfg.ClientUrls, auth.NewClerkKeys(cfg.SecretKey))
+	return auth.NewClerkVerifier(cfg.Issuer, cfg.ClientUrls, cfg.AdminClientUrls, auth.NewClerkKeys(cfg.SecretKey))
 }

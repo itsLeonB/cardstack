@@ -16,6 +16,9 @@ type Caller struct {
 	ProfileID uuid.UUID
 	// Email is the verified email claim of the token; empty for a Guest.
 	Email string
+	// AdminOrigin is set when the token was minted for the Admin app. Both
+	// AdminOnly and AdminFlag need it on top of an Admin email (docs/adr/0024).
+	AdminOrigin bool
 	// IsAdmin is set by AdminFlag on routes that serve Admins and non-Admins
 	// alike; AdminOnly routes do not need it.
 	IsAdmin bool

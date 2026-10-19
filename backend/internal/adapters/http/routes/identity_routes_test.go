@@ -37,6 +37,11 @@ func TestRequestClassification(t *testing.T) {
 	assert.Equal(t, http.StatusOK, api.Get(privatePath, bearer(valid)).Code)
 	assert.Equal(t, http.StatusOK, api.Get(guestOKPath, bearer(valid)).Code)
 
+	// A token from the Admin app reads the ordinary routes too (docs/adr/0024).
+	adminToken := api.sign(t, with(validClaims(), "azp", testAdminOrigin))
+	assert.Equal(t, http.StatusOK, api.Get(privatePath, bearer(adminToken)).Code, "an Admin app token on a private route")
+	assert.Equal(t, http.StatusOK, api.Get(guestOKPath, bearer(adminToken)).Code, "an Admin app token on a guest-allowed route")
+
 	badTokens := map[string]string{
 		"garbage":                    "garbage",
 		"expired":                    api.sign(t, with(validClaims(), "exp", time.Now().Add(-time.Hour).Unix())),

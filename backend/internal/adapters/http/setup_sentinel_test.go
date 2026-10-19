@@ -4,8 +4,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/itsLeonB/cardstack/backend/internal/core/config"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,5 +35,29 @@ func TestSecurityHeadersAreOnEveryResponse(t *testing.T) {
 		for header, value := range want {
 			assert.Equal(t, value, w.Header().Get(header), path+" "+header)
 		}
+	}
+}
+
+func TestSetupSentinel_AllowsTheOriginsOfBothLists(t *testing.T) {
+	previous := config.Global
+	t.Cleanup(func() { config.Global = previous })
+	config.Global = &config.Config{
+		App:   config.App{ClientUrls: []string{"https://www.example.com"}, Timeout: time.Second},
+		Admin: config.Admin{AdminClientUrls: []string{"https://admin.example.com"}},
+	}
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	require.NoError(t, setupSentinel(r, nil, zerolog.Nop()))
+	r.GET("/ok", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	for _, origin := range []string{"https://www.example.com", "https://admin.example.com"} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodOptions, "/ok", nil)
+		req.Header.Set("Origin", origin)
+		req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, origin, w.Header().Get("Access-Control-Allow-Origin"), origin)
 	}
 }
