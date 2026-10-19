@@ -13,3 +13,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 - [ ] `docs/agents/deployment/images.md` lists the Admin app's origin among the origins R2 CORS must allow for PUT
 - [ ] The local setup for the Admin app (port, Clerk dev instance, origin in `ADMIN_CLIENT_URLS`) is written down in the environment doc
 - [ ] No markdown line is hand-wrapped and `yamllint` passes on any YAML touched
+
+## Comments
+
+- Carry-over from ticket 02: `docs/agents/deployment/clerk.md` still says "Unset, the admin routes do not exist" and does not mention `ADMIN_CLIENT_URLS`; anyone with `ADMIN_EMAILS` set in a local `backend/.env` must now also set `ADMIN_CLIENT_URLS` (example: `http://localhost:3001`) or the API refuses to boot.
