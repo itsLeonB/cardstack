@@ -83,6 +83,7 @@ func TestCatalogUnpublishedSets(t *testing.T) {
 		{name: "signed-in non-admin", token: api.newUserToken(t), seen: false},
 		{name: "admin", token: api.tokenFor(t, adminEmail), seen: true},
 		{name: "admin on the user app origin", token: api.userTokenFor(t, adminEmail), seen: false},
+		{name: "unlisted email on the Admin app origin", token: api.tokenFor(t, "unlisted@example.com"), seen: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			want := 0
