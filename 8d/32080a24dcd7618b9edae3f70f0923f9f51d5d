@@ -1,0 +1,19 @@
+.scratch/admin-app-extraction/issues/07-deployment-docs-and-runbook.md
+  s_f734ded788bf95::t_51b6cad5a513c5 16-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8d32080a24dcd7618b9edae3f70f0923f9f51d5d",
+  "prompts": {},
+  "sessions": {
+    "s_f734ded788bf95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f734ded788bf95",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
