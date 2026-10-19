@@ -1,0 +1,19 @@
+.scratch/admin-app-extraction/issues/03-admin-app-sign-in-and-access-gate.md
+  s_79be4e436fda67::t_97425a6bd2ea67 20-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "0c4ff60a2826d442973a5e5444e0128b70a8272b",
+  "prompts": {},
+  "sessions": {
+    "s_79be4e436fda67": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_79be4e436fda67",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
