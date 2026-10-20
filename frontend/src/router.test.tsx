@@ -98,6 +98,14 @@ describe("a lost session, wired through the real router", () => {
 
   it("does nothing special when the session drops on a public page", async () => {
     const error = vi.spyOn(toast, "error")
+    // /catalog loads data; without a stub a local API on VITE_API_BASE_URL
+    // answers the fake token with 401 and auth-lost sends the test to sign-in.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch")
+      })
+    )
     window.history.pushState({}, "", "/catalog")
     const router = getRouter()
     const fake = signedInClerk()
@@ -109,5 +117,15 @@ describe("a lost session, wired through the real router", () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(router.state.location.pathname).toBe("/catalog")
     expect(error).not.toHaveBeenCalled()
+  })
+})
+
+describe("the removed /admin address", () => {
+  it("matches no route, so the root's not-found page answers it as any unknown address", () => {
+    const router = getRouter()
+
+    expect(router.matchRoutes("/admin").map((m) => m.routeId)).toEqual([
+      "__root__",
+    ])
   })
 })

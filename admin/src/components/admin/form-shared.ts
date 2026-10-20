@@ -12,9 +12,8 @@ import type {
 // Same look as `Input`; a native select keeps the keyboard and screen-reader
 // behaviour for free.
 export const SELECT_CLASS =
-  "h-9 w-full min-w-0 rounded-3xl border border-transparent bg-input/50 px-3 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50 md:text-sm"
+  "h-9 w-full min-w-0 rounded-3xl border border-transparent bg-input/50 px-3 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50 md:text-sm [&_option]:bg-popover [&_option]:text-popover-foreground"
 
-/** Every Expansion Set of the browse result, those under a Series first. */
 export function flattenSets(
   browse: SeriesBrowseResult | null | undefined
 ): ExpansionSetSummary[] {
@@ -37,11 +36,6 @@ export interface CardLookup {
   refresh: () => void
 }
 
-/**
- * Looks the Card up by its set and collector number through the admin API,
- * which also finds a Card with no image yet. Nothing is cached once the entry
- * is unused, so entering a number again always asks again.
- */
 export function useCardLookup(setId: string, number: string): CardLookup {
   const queryClient = useQueryClient()
   const params = { expansionSetId: setId, localId: number }

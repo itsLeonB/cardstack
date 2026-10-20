@@ -1,0 +1,93 @@
+name: Admin CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "admin/**"
+      - ".github/workflows/admin-ci.yml"
+      - ".github/actions/setup-bun/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "admin/**"
+      - ".github/workflows/admin-ci.yml"
+      - ".github/actions/setup-bun/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: admin
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup-bun
+        with:
+          working-directory: admin
+      - run: bun run lint
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup-bun
+        with:
+          working-directory: admin
+      - run: bun run check
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup-bun
+        with:
+          working-directory: admin
+      - run: bun run typecheck
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup-bun
+        with:
+          working-directory: admin
+      - run: bun run test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup-bun
+        with:
+          working-directory: admin
+      - run: bun run build
+        env:
+          # Public. Outside a Vercel production build the app builds without
+          # them (it then renders a configuration error or calls localhost).
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}

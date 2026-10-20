@@ -39,11 +39,12 @@ type customClaims struct {
 type ClerkVerifier struct {
 	issuer            string
 	authorizedParties []string
+	adminParties      []string
 	keys              KeySource
 }
 
-func NewClerkVerifier(issuer string, authorizedParties []string, keys KeySource) *ClerkVerifier {
-	return &ClerkVerifier{issuer: issuer, authorizedParties: authorizedParties, keys: keys}
+func NewClerkVerifier(issuer string, authorizedParties, adminParties []string, keys KeySource) *ClerkVerifier {
+	return &ClerkVerifier{issuer: issuer, authorizedParties: authorizedParties, adminParties: adminParties, keys: keys}
 }
 
 func (v *ClerkVerifier) Verify(ctx context.Context, token string) (dto.AuthIdentity, error) {
@@ -96,7 +97,8 @@ func (v *ClerkVerifier) verify(ctx context.Context, token string) (dto.AuthIdent
 	}
 	// A token without azp was not minted for any origin, so it is rejected
 	// rather than skipped.
-	if !slices.Contains(v.authorizedParties, claims.AuthorizedParty) {
+	adminOrigin := slices.Contains(v.adminParties, claims.AuthorizedParty)
+	if !adminOrigin && !slices.Contains(v.authorizedParties, claims.AuthorizedParty) {
 		return dto.AuthIdentity{}, fmt.Errorf("%w: authorized party %q", errInvalidToken, claims.AuthorizedParty)
 	}
 
@@ -106,9 +108,10 @@ func (v *ClerkVerifier) verify(ctx context.Context, token string) (dto.AuthIdent
 	}
 
 	return dto.AuthIdentity{
-		Provider: dto.AuthProviderClerk,
-		Subject:  claims.Subject,
-		Email:    custom.Email,
-		Name:     custom.Name,
+		Provider:    dto.AuthProviderClerk,
+		Subject:     claims.Subject,
+		Email:       custom.Email,
+		Name:        custom.Name,
+		AdminOrigin: adminOrigin,
 	}, nil
 }

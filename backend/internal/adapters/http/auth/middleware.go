@@ -47,19 +47,20 @@ func Guard(api huma.API, verifier TokenVerifier, users service.UserService, allo
 			return
 		}
 
-		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID, Email: identity.Email}))
+		next(WithCaller(ctx, Caller{UserID: caller.UserID, ProfileID: caller.ProfileID, Email: identity.Email, AdminOrigin: identity.AdminOrigin}))
 	}
 }
 
 // AdminOnly lets through only a caller whose email is in emails, compared
-// case-insensitively, and answers everyone else, Guest or signed in, with the
-// same 404 so an admin route does not reveal itself. It must run after Guard.
+// case-insensitively, and who holds an admin-origin token (docs/adr/0024).
+// Everyone else, Guest or signed in, gets the same 404 so an admin route does
+// not reveal itself. It must run after Guard.
 func AdminOnly(api huma.API, emails []string) func(huma.Context, func(huma.Context)) {
 	allowed := adminEmailSet(emails)
 
 	return func(ctx huma.Context, next func(huma.Context)) {
 		caller := CallerFrom(ctx.Context())
-		if _, ok := allowed[strings.ToLower(caller.Email)]; caller.IsGuest() || !ok {
+		if !isAdmin(allowed, caller) {
 			writeErr(api, ctx, ungerr.NotFoundError("not found"))
 			return
 		}
@@ -67,16 +68,16 @@ func AdminOnly(api huma.API, emails []string) func(huma.Context, func(huma.Conte
 	}
 }
 
-// AdminFlag marks the caller IsAdmin when its email is in emails, and lets
-// everyone through: it is for routes that serve Admins and non-Admins alike,
-// which then narrow what they return. It must run after Guard.
+// AdminFlag marks the caller IsAdmin only when its email is in emails and its
+// token is admin-origin (docs/adr/0024). It lets everyone through: it is for
+// routes that serve Admins and non-Admins alike, which then narrow what they
+// return. It must run after Guard.
 func AdminFlag(emails []string) func(huma.Context, func(huma.Context)) {
 	allowed := adminEmailSet(emails)
 
 	return func(ctx huma.Context, next func(huma.Context)) {
 		caller := CallerFrom(ctx.Context())
-		_, ok := allowed[strings.ToLower(caller.Email)]
-		caller.IsAdmin = ok && !caller.IsGuest()
+		caller.IsAdmin = isAdmin(allowed, caller)
 		next(WithCaller(ctx, caller))
 	}
 }
@@ -89,6 +90,12 @@ func adminEmailSet(emails []string) map[string]struct{} {
 		allowed[strings.ToLower(email)] = struct{}{}
 	}
 	return allowed
+}
+
+// isAdmin is the Admin rule both gates share, so a new condition goes here once.
+func isAdmin(allowed map[string]struct{}, caller Caller) bool {
+	_, ok := allowed[strings.ToLower(caller.Email)]
+	return ok && !caller.IsGuest() && caller.AdminOrigin
 }
 
 // writeErr answers through the Huma error seam (ADR-0013): an AppError keeps

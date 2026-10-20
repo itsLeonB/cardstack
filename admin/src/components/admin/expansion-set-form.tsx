@@ -55,13 +55,16 @@ export function ExpansionSetForm() {
   const browse =
     seriesQuery.data?.status === 200 ? seriesQuery.data.data.data : undefined
   const series = browse?.series ?? []
-  const toOption = (set: ExpansionSetSummary, seriesId: string): SetOption => ({
+  const toOption = (
+    set: ExpansionSetSummary,
+    parentSeriesId: string
+  ): SetOption => ({
     id: set.id,
     code: set.code,
     name: set.name,
     // The API sends a timestamp; the date input and the API want YYYY-MM-DD.
     releaseDate: set.releaseDate?.slice(0, 10) ?? "",
-    seriesId,
+    seriesId: parentSeriesId,
   })
   // A set with no Series loads with an empty Series, so validate() makes the
   // Admin pick one before the PUT, which requires it.

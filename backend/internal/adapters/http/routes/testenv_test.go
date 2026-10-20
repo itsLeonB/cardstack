@@ -39,7 +39,9 @@ const testImageBase = "https://img.example.test"
 const (
 	testIssuer = "https://cardstack.clerk.accounts.dev"
 	testOrigin = "https://cardstack.example"
-	testKeyID  = "ins_test"
+	// testAdminOrigin is the Admin app's origin (ADMIN_CLIENT_URLS).
+	testAdminOrigin = "http://localhost:3001"
+	testKeyID       = "ins_test"
 )
 
 // testAPI is the whole API over a real local Postgres (docs/adr/0005: feature
@@ -106,7 +108,7 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string)
 	store := mocks.NewMockObjectStore(t)
 	binder := provider.ProvideBinderService(ds, images)
 	services := provider.ProvideServices(
-		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, keys),
+		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, []string{testAdminOrigin}, keys),
 		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
@@ -192,6 +194,15 @@ func (a testAPI) sign(t *testing.T, claims map[string]any) string {
 func (a testAPI) newUserToken(t *testing.T) string {
 	t.Helper()
 	return a.sign(t, validClaims())
+}
+
+// userTokenFor is a token for email minted for the user app, which is the
+// origin of every ordinary sign-in.
+func (a testAPI) userTokenFor(t *testing.T, email string) string {
+	t.Helper()
+	claims := validClaims()
+	claims["email"] = email
+	return a.sign(t, claims)
 }
 
 // bearer is the Authorization header carrying token.
