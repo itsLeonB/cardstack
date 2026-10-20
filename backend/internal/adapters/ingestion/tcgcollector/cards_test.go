@@ -115,11 +115,35 @@ func TestCardNumber_ReducesPrintedNumbersToIntegers(t *testing.T) {
 		"promo code":          {"001/SM-P", 1, true},
 		"number word":         {"No. 201", 201, true},
 		"code with no digits": {"SM-P", 0, false},
+		"text before slash":   {"R/RGB", 0, false},
 		"empty":               {"", 0, false},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, ok := cardNumber(c.printed)
+			assert.Equal(t, c.ok, ok)
+			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
+func TestTextCardID_KeepsWholeANumberWhoseTextBeforeTheSlashHasNoDigits(t *testing.T) {
+	cases := map[string]struct {
+		printed string
+		want    string
+		ok      bool
+	}{
+		"letter and set code": {"R/RGB", "R/RGB", true},
+		"trimmed":             {" G/RGB ", "G/RGB", true},
+		"digits before slash": {"119/126", "", false},
+		"number word":         {"No. 201", "", false},
+		"no slash":            {"SM-P", "", false},
+		"empty before slash":  {"/RGB", "", false},
+		"empty":               {"", "", false},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, ok := textCardID(c.printed)
 			assert.Equal(t, c.ok, ok)
 			assert.Equal(t, c.want, got)
 		})
