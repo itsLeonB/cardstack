@@ -1,0 +1,29 @@
+.scratch/tcgcollector-ingestion/issues/06-ingest-missing-cards.md
+  s_da0a2e0546d35d::t_9131c40067073f 15,19
+.scratch/tcgcollector-ingestion/spec.md
+  s_da0a2e0546d35d::t_c7bad4855ad1c7 25,51,80,88
+backend/internal/adapters/ingestion/tcgcollector/cards.go
+  s_da0a2e0546d35d::t_de46c9307bae33 333-334,350-370,468,515,525
+backend/internal/adapters/ingestion/tcgcollector/cards_ingest_test.go
+  s_da0a2e0546d35d::t_63393e9aba7dc9 239-248,254,265-266,269-293
+backend/internal/adapters/ingestion/tcgcollector/cards_test.go
+  s_da0a2e0546d35d::t_6669823925c5d6 175
+docs/adr/0021-catalog-rows-record-who-created-and-last-updated-them.md
+  s_da0a2e0546d35d::t_c8a8df3778a6b8 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f185328f1244f78e9aaa7b97c4eb62fae0e97f26",
+  "prompts": {},
+  "sessions": {
+    "s_da0a2e0546d35d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_da0a2e0546d35d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
