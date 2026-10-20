@@ -1,0 +1,19 @@
+frontend/src/router.test.tsx
+  s_65d38bd95dcb46::t_c8d78bc37f4ea1 101-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "fddbafbd63a6f2a94471bd1573cac3f660d11837",
+  "prompts": {},
+  "sessions": {
+    "s_65d38bd95dcb46": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_65d38bd95dcb46",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
