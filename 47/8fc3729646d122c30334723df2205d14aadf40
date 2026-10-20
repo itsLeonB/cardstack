@@ -1,0 +1,21 @@
+backend/internal/adapters/ingestion/tcgcollector/cards.go
+  s_f47c454ffd6692::t_927c8d8f567666 468-471
+backend/internal/adapters/ingestion/tcgcollector/cards_ingest_test.go
+  s_f47c454ffd6692::t_1d21bb441b16f6 558-581
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "478fc3729646d122c30334723df2205d14aadf40",
+  "prompts": {},
+  "sessions": {
+    "s_f47c454ffd6692": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f47c454ffd6692",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
