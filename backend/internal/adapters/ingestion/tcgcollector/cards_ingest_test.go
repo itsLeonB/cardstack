@@ -554,3 +554,103 @@ func TestIngester_Apply_FailsASecondCardWhoseTextNumberRepeatsInTheList(t *testi
 	set := setsByCode(t, db, game.ID)["SM-P"]
 	assert.Len(t, cardsOfSet(t, db, set.ID), 1)
 }
+
+func TestIngester_Apply_FailsACardWhoseNumberHasNoDigitsAndNoTextHead(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+
+	// "/RGB" has no text before the "/", so it is not a text ID. No card page is
+	// expected: it fails before any fetch.
+	list := bytes.ReplaceAll(fixtureBytes(t, "card-list-mew-rgb.html"), []byte("R/RGB"), []byte("/RGB"))
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(list, nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.Empty(t, cards.Added)
+	assert.Equal(t, []string{`Mew: number "/RGB" has no digits`}, cards.Failed)
+}
+
+func TestIngester_Apply_PadsANumericCardToTheSetsWidthAndStoresATextIDWhole(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedSet(t, db, game.ID, locale.ID, "SM-P")
+	seedCard(t, db, game.ID, set.ID, "100", "")
+
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-oddish-and-mew-rgb.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, oddishURL).Return(fixtureBytes(t, "card-pokemon-mega-venusaur.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, mewRGBURL).Return(fixtureBytes(t, "card-pokemon-mega-venusaur.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.Equal(t, []string{"001 Oddish", "R/RGB Mew"}, cards.Added)
+	assert.Empty(t, cards.Failed)
+
+	byID := cardsOfSet(t, db, set.ID)
+	assert.Contains(t, byID, "001", "the numeric card is padded to the set's width of 3")
+	assert.Contains(t, byID, "R/RGB", "the text ID is stored unpadded")
+	assert.Len(t, byID, 3)
+}
+
+func TestIngester_Apply_AddsATextIDWhoseCaseDiffersFromAHeldOne(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedSet(t, db, game.ID, locale.ID, "SM-P")
+	seedCard(t, db, game.ID, set.ID, "r/rgb", "")
+
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-mew-rgb.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, mewRGBURL).Return(fixtureBytes(t, "card-pokemon-mega-venusaur.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.Equal(t, []string{"R/RGB Mew"}, cards.Added, "the match is exact, so r/rgb does not hold R/RGB")
+	assert.Equal(t, 0, cards.Held)
+	assert.Empty(t, cards.Failed)
+
+	byID := cardsOfSet(t, db, set.ID)
+	assert.Contains(t, byID, "r/rgb")
+	assert.Contains(t, byID, "R/RGB")
+}
+
+func TestIngester_DryRun_ListsACardWhoseNumberHasNoDigitsInAnExistingSetAndWritesNoRow(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedSet(t, db, game.ID, locale.ID, "SM-P")
+
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-mew-rgb.html"), nil)
+	pages.EXPECT().Fetch(mock.Anything, mewRGBURL).Return(fixtureBytes(t, "card-pokemon-mega-venusaur.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"R/RGB Mew"}, report.Cards[0].Added)
+	assert.NotContains(t, cardsOfSet(t, db, set.ID), "R/RGB", "a dry run writes no Card into the existing set")
+}
