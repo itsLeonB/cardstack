@@ -1,0 +1,21 @@
+backend/internal/adapters/ingestion/tcgcollector/cards_ingest_test.go
+  s_f4f61085d50c2a::t_bbc582ebc53d95 557-656
+backend/internal/adapters/ingestion/tcgcollector/testdata/card-list-oddish-and-mew-rgb.html
+  s_f4f61085d50c2a::t_b50a1e4074cca3 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "25c742a87b8895d4a19bbd84a8efd8e9691a6563",
+  "prompts": {},
+  "sessions": {
+    "s_f4f61085d50c2a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f4f61085d50c2a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
