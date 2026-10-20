@@ -460,15 +460,15 @@ func (in *Ingester) setCards(
 		// The integer held map cannot hold a text ID, so it is matched against the
 		// set's local IDs instead.
 		if isText {
-			if localIDs[text] {
-				result.Held++
-				continue
-			}
 			if seenText[text] {
 				result.Failed = append(result.Failed, fmt.Sprintf("%s: number %q is listed more than once in this card list", card.Name, card.Number))
 				continue
 			}
 			seenText[text] = true
+			if localIDs[text] {
+				result.Held++
+				continue
+			}
 			todo = append(todo, wanted{listing: card, localID: text})
 			continue
 		}

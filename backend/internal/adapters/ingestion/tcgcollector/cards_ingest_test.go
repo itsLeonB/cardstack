@@ -555,6 +555,30 @@ func TestIngester_Apply_FailsASecondCardWhoseTextNumberRepeatsInTheList(t *testi
 	assert.Len(t, cardsOfSet(t, db, set.ID), 1)
 }
 
+func TestIngester_Apply_FailsASecondCardWhoseTextNumberRepeatsAHeldOne(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedCardGame(t, db)
+	locale := seedLocale(t, db)
+	set := seedSet(t, db, game.ID, locale.ID, "SM-P")
+	seedCard(t, db, game.ID, set.ID, "R/RGB", "")
+
+	// The first entry is held and the second fails, so no card page is fetched.
+	pages := mocks.NewMockPageSource(t)
+	pages.EXPECT().Fetch(mock.Anything, setsPageURL).Return(setsPage(pageSet{code: "SM-P"}), nil)
+	pages.EXPECT().Fetch(mock.Anything, cardListURL).Return(fixtureBytes(t, "card-list-mew-rgb-twice.html"), nil)
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{Apply: true})
+	require.NoError(t, err)
+
+	cards := report.Cards[0]
+	assert.Equal(t, 1, cards.Held)
+	assert.Equal(t, []string{`Mew: number "R/RGB" is listed more than once in this card list`}, cards.Failed)
+	assert.Empty(t, cards.Added)
+}
+
 func TestIngester_Apply_FailsACardWhoseNumberHasNoDigitsAndNoTextHead(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
