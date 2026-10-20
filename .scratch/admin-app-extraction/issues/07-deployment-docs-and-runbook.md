@@ -6,7 +6,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `docs/agents/deployment.md` routes to the new setting and gives the cutover order, the unreachable window and rollback
 - [ ] `docs/agents/deployment/clerk.md` documents `ADMIN_CLIENT_URLS`, what a 404 on an admin route now means for a user-origin token, and the session sharing across subdomains with the satellite-domain caveat

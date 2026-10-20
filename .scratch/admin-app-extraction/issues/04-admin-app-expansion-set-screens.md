@@ -6,7 +6,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] An Admin can create an Expansion Set and gets a clear message on a duplicate code
 - [ ] An Admin can open an existing Expansion Set (published or not), edit it, and the request carries every field

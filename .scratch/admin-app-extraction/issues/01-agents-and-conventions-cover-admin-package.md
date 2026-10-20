@@ -6,7 +6,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The `frontend-agent` definition and `docs/agents/orchestration.md` name `admin/` as part of the frontend scope, with the same restrictions as `frontend/`
 - [x] `docs/agents/conventions/frontend.md` says it applies to `frontend/` and `admin/`

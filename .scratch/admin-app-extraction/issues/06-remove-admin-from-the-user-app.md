@@ -6,7 +6,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 
 **Blocked by:** 04, 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `/admin` in the user app answers the not-found page, tested
 - [ ] No file under the user app imports an admin component, helper or generated admin operation

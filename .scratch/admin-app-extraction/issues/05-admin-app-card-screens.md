@@ -6,7 +6,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] An Admin can add a Card with an image, and a failed upload or confirm says what failed
 - [ ] An Admin can find an existing Card by set and number, edit it with every field sent back, and delete it only after a confirmation that names it; nothing is sent before it

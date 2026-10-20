@@ -6,7 +6,7 @@ Spec: `.scratch/admin-app-extraction/spec.md`. Decision: `docs/adr/0024-the-admi
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `bun run dev` in the package serves the app on its own port; with the local API and a listed email an Admin signs in and sees the shell
 - [ ] A Guest and an unlisted signed-in user see the same not-found page, and a 429 or 5xx from the access check shows an error
