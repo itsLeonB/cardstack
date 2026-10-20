@@ -168,3 +168,71 @@ func TestScanMatchFlow(t *testing.T) {
 		assert.Equal(t, http.StatusRequestEntityTooLarge, api.Post(matchPath, jpeg, bearer(api.newUserToken(t)), bytes.NewReader(big)).Code)
 	})
 }
+
+// TestScanMatchEmptyRule covers the empty flag at the HTTP boundary: a top
+// score below the setting is empty, one at or above it is matched as before,
+// and a setting of 0 leaves the response as it was before the flag existed.
+func TestScanMatchEmptyRule(t *testing.T) {
+	jpeg := "Content-Type: image/jpeg"
+
+	t.Run("with the rule off the flag is false and the candidates are as before", func(t *testing.T) {
+		api := newTestAPI(t)
+		cards := newTestCards(t, 1)
+		api.storeEmbedding(t, cards[0], api.model, similarTo(0.30))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		resp := api.Post(matchPath, jpeg, bearer(api.newUserToken(t)), bytes.NewReader(testJPEG))
+
+		require.Equal(t, http.StatusOK, resp.Code)
+		assert.Contains(t, resp.Body.String(), `"empty":false`)
+		var body matchEnvelope
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
+		assert.False(t, body.Data.Empty)
+		assert.Equal(t, cards, matchedIDs(body.Data))
+	})
+
+	t.Run("a top score below the setting is empty with no candidates", func(t *testing.T) {
+		api := newTestAPIWithEmptyThreshold(t, 0.5)
+		cards := newTestCards(t, 1)
+		api.storeEmbedding(t, cards[0], api.model, similarTo(0.40))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		resp := api.Post(matchPath, jpeg, bearer(api.newUserToken(t)), bytes.NewReader(testJPEG))
+
+		require.Equal(t, http.StatusOK, resp.Code)
+		assert.Contains(t, resp.Body.String(), `"candidates":[]`)
+		var body matchEnvelope
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
+		assert.True(t, body.Data.Empty)
+		assert.False(t, body.Data.Confident)
+		assert.Empty(t, body.Data.Candidates)
+	})
+
+	t.Run("a top score equal to the setting is not empty", func(t *testing.T) {
+		api := newTestAPIWithEmptyThreshold(t, 0.5)
+		cards := newTestCards(t, 1)
+		api.storeEmbedding(t, cards[0], api.model, similarTo(0.5))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		code, got := api.scan(t, api.newUserToken(t))
+
+		require.Equal(t, http.StatusOK, code)
+		assert.False(t, got.Empty)
+		assert.Equal(t, cards, matchedIDs(got))
+	})
+
+	t.Run("a top score above the setting is matched as before", func(t *testing.T) {
+		api := newTestAPIWithEmptyThreshold(t, 0.5)
+		cards := newTestCards(t, 2)
+		api.storeEmbedding(t, cards[0], api.model, similarTo(0.95))
+		api.storeEmbedding(t, cards[1], api.model, similarTo(0.70))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		code, got := api.scan(t, api.newUserToken(t))
+
+		require.Equal(t, http.StatusOK, code)
+		assert.False(t, got.Empty)
+		assert.True(t, got.Confident)
+		assert.Equal(t, cards[:1], matchedIDs(got))
+	})
+}
