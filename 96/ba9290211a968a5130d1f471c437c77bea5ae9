@@ -1,0 +1,25 @@
+.scratch/tcgcollector-ingestion/issues/06-ingest-missing-cards.md
+  s_a48d0394b88e0f::t_332daecb8e5bf1 11
+.scratch/tcgcollector-ingestion/spec.md
+  s_a48d0394b88e0f::t_ea2d17c50fc6cd 46-47
+GLOSSARY.md
+  s_a48d0394b88e0f::t_6333ee1bded20b 44
+docs/adr/0021-catalog-rows-record-who-created-and-last-updated-them.md
+  s_a48d0394b88e0f::t_3aeb944af5150a 9,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "96ba9290211a968a5130d1f471c437c77bea5ae9",
+  "prompts": {},
+  "sessions": {
+    "s_a48d0394b88e0f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a48d0394b88e0f",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
