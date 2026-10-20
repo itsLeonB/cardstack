@@ -24,8 +24,10 @@ const infinitePage = {
   query: { useInfinite: true, useInfiniteQueryParam: "page" },
 }
 
+// The Admin app owns the `admin` tag (ADR-0024): this app generates none of it.
 const input = {
   target: "../backend/openapi.json",
+  filters: { mode: "exclude" as const, tags: ["admin"] },
   override: {
     transformer: (spec: OpenApiSpec) => {
       const rewritten = new Set<string>()
