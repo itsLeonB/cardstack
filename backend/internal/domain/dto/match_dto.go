@@ -19,6 +19,7 @@ type MatchCandidate struct {
 // asking; otherwise it holds the Cards to choose from, and none may be
 // picked automatically.
 type MatchResult struct {
+	Empty      bool             `json:"empty" doc:"True when the photo shows no card: its top Card scored below the server's empty threshold. Candidates is then empty and Confident false."`
 	Confident  bool             `json:"confident" doc:"True only when the server is sure of the first candidate. The server owns the threshold."`
 	Candidates []MatchCandidate `json:"candidates"`
 }

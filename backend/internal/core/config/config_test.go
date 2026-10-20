@@ -86,30 +86,36 @@ func TestMatchDefaultsAndEnvVarNames(t *testing.T) {
 
 	t.Setenv("MATCH_THRESHOLD", "0.9")
 	t.Setenv("MATCH_MARGIN", "0.05")
+	t.Setenv("MATCH_EMPTY_THRESHOLD", "0.4")
 	t.Setenv("MATCH_REPRINT_DELTA", "0.08")
 
 	var set Match
 	require.NoError(t, envconfig.Process(set.Prefix(), &set))
-	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05, ReprintDelta: 0.08}, set)
+	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05, EmptyThreshold: 0.4, ReprintDelta: 0.08}, set)
 }
 
 func TestMatch_ValidateMatch(t *testing.T) {
 	assert.NoError(t, Match{Threshold: 1, Margin: 0}.ValidateMatch())
 	assert.NoError(t, Match{Threshold: 0.01, Margin: 0.99}.ValidateMatch())
+	assert.NoError(t, Match{Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.84, ReprintDelta: 0.05}.ValidateMatch())
 	assert.NoError(t, Match{Threshold: 1, Margin: 0, ReprintDelta: 0}.ValidateMatch())
 	assert.NoError(t, Match{Threshold: 1, Margin: 0, ReprintDelta: 1}.ValidateMatch())
 
 	for name, m := range map[string]Match{
-		"zero threshold":     {Threshold: 0, Margin: 0.03, ReprintDelta: 0.05},
-		"negative threshold": {Threshold: -0.1, Margin: 0.03, ReprintDelta: 0.05},
-		"threshold over one": {Threshold: 1.1, Margin: 0.03, ReprintDelta: 0.05},
-		"negative margin":    {Threshold: 0.85, Margin: -0.01, ReprintDelta: 0.05},
-		"margin of one":      {Threshold: 0.85, Margin: 1, ReprintDelta: 0.05},
-		"negative delta":     {Threshold: 0.85, Margin: 0.03, ReprintDelta: -0.01},
-		"delta over one":     {Threshold: 0.85, Margin: 0.03, ReprintDelta: 1.01},
+		"zero threshold":       {Threshold: 0, Margin: 0.03, ReprintDelta: 0.05},
+		"negative threshold":   {Threshold: -0.1, Margin: 0.03, ReprintDelta: 0.05},
+		"threshold over one":   {Threshold: 1.1, Margin: 0.03, ReprintDelta: 0.05},
+		"negative margin":      {Threshold: 0.85, Margin: -0.01, ReprintDelta: 0.05},
+		"margin of one":        {Threshold: 0.85, Margin: 1, ReprintDelta: 0.05},
+		"negative empty":       {Threshold: 0.85, Margin: 0.03, EmptyThreshold: -0.01, ReprintDelta: 0.05},
+		"empty at threshold":   {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.85, ReprintDelta: 0.05},
+		"empty over threshold": {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.9, ReprintDelta: 0.05},
+		"negative delta":       {Threshold: 0.85, Margin: 0.03, ReprintDelta: -0.01},
+		"delta over one":       {Threshold: 0.85, Margin: 0.03, ReprintDelta: 1.01},
 	} {
 		assert.Error(t, m.ValidateMatch(), name)
 	}
+	assert.ErrorContains(t, Match{Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.85}.ValidateMatch(), "MATCH_EMPTY_THRESHOLD")
 }
 
 func TestRateLimit_ValidateRateLimit_NeedsEveryLimitPositive(t *testing.T) {

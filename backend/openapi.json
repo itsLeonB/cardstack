@@ -1478,9 +1478,14 @@
           "confident": {
             "description": "True only when the server is sure of the first candidate. The server owns the threshold.",
             "type": "boolean"
+          },
+          "empty": {
+            "description": "True when the photo shows no card: its top Card scored below the server's empty threshold. Candidates is then empty and Confident false.",
+            "type": "boolean"
           }
         },
         "required": [
+          "empty",
           "confident",
           "candidates"
         ],

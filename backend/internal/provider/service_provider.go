@@ -135,13 +135,15 @@ func ProvideAdminSetService(ds *DataSources, images mapper.ImageHost) service.Ad
 	)
 }
 
-// ProvideMatchSettings reads the model and the confident rule from config.
+// ProvideMatchSettings reads the model, the confident rule and the empty rule
+// from config.
 func ProvideMatchSettings() service.MatchSettings {
 	return service.MatchSettings{
-		Model:        config.Global.Model,
-		Threshold:    config.Global.Threshold,
-		Margin:       config.Global.Margin,
-		ReprintDelta: config.Global.ReprintDelta,
+		Model:          config.Global.Model,
+		Threshold:      config.Global.Threshold,
+		Margin:         config.Global.Margin,
+		EmptyThreshold: config.Global.EmptyThreshold,
+		ReprintDelta:   config.Global.ReprintDelta,
 	}
 }
 
