@@ -236,13 +236,22 @@ func TestIngester_Apply_AddsIntoAPublishedSetWithItsOwnNumberWidth(t *testing.T)
 	assert.Contains(t, out.String(), "added to a published set: 1")
 }
 
-func TestIngester_Apply_FailsOnlyTheCardWhoseRarityIsUnknown(t *testing.T) {
+func raritiesOf(t *testing.T, db *gorm.DB, gameID uuid.UUID) []entity.Rarity {
+	t.Helper()
+	rows, err := crud.NewRepository[entity.Rarity](db).FindAll(context.Background(), crud.Specification[entity.Rarity]{
+		Model: entity.Rarity{GameID: gameID},
+	})
+	require.NoError(t, err)
+	return rows
+}
+
+func TestIngester_Apply_CreatesTheRarityOfACardWhoseCodeIsNew(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
 	game := seedGame(t, db)
 	seedRarity(t, db, game.ID, "RR", "Double Rare")
 	seedRarity(t, db, game.ID, uniqueCode(t), tanpaTanda)
-	// No U: the Victory Symbol's page is Uncommon, and it fails alone.
+	// No U: the Victory Symbol's page is Uncommon, so its code is new.
 
 	pages := mocks.NewMockPageSource(t)
 	expectNewSetFetches(t, pages, "card-trainer-caitlin.html")
@@ -253,12 +262,35 @@ func TestIngester_Apply_FailsOnlyTheCardWhoseRarityIsUnknown(t *testing.T) {
 	require.NoError(t, err)
 
 	cards := report.Cards[0]
-	assert.Equal(t, []string{"001 Oddish", "191 Basic Fire Energy"}, cards.Added)
-	require.Len(t, cards.Failed, 1)
-	assert.Contains(t, cards.Failed[0], "192 Victory Symbol: rarity U is not in rarities")
+	assert.Equal(t, []string{"001 Oddish", "191 Basic Fire Energy", "192 Victory Symbol"}, cards.Added)
+	assert.Empty(t, cards.Failed)
 
 	set := setsByCode(t, db, game.ID)["SM-P"]
-	assert.Len(t, cardsOfSet(t, db, set.ID), 2, "the failed card is not inserted, and no rarity is created")
+	byID := cardsOfSet(t, db, set.ID)
+	require.Len(t, byID, 3)
+	assert.Equal(t, "U", byID["192"].Rarity.Code)
+	assert.Equal(t, "U", byID["192"].Rarity.Name, "a new rarity is named by its code, as the Asia ingester does")
+	assert.Len(t, raritiesOf(t, db, game.ID), 3)
+}
+
+func TestIngester_DryRun_CreatesNoRarity(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	game := seedGame(t, db)
+	seedRarity(t, db, game.ID, "RR", "Double Rare")
+	seedRarity(t, db, game.ID, uniqueCode(t), tanpaTanda)
+
+	pages := mocks.NewMockPageSource(t)
+	expectNewSetFetches(t, pages, "card-trainer-caitlin.html")
+
+	in := NewIngester(db, pages)
+	in.gameSlug = game.Slug
+	report, err := in.Run(ctx, Options{})
+	require.NoError(t, err)
+
+	assert.Contains(t, report.Cards[0].Added, "192 Victory Symbol")
+	assert.Empty(t, report.Cards[0].Failed)
+	assert.Len(t, raritiesOf(t, db, game.ID), 2)
 }
 
 // seedTCGCollectorSet inserts an unpublished set that TCG Collector created,

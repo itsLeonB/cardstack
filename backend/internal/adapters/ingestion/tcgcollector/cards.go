@@ -330,8 +330,8 @@ func (in *Ingester) loadRarities(ctx context.Context, gameID uuid.UUID) (rarityL
 	return lookup, nil
 }
 
-// resolve returns the Rarity of a card page's code. A rarity that is not in
-// the catalog fails its Card: it is never created here.
+// resolve returns the Rarity of a card page's code, or an error for one that
+// is not in the lookup. Creating it is rarityFor's job.
 func (r rarityLookup) resolve(code string) (uuid.UUID, error) {
 	if code == noMark {
 		if r.tanpaTanda == uuid.Nil {
@@ -345,6 +345,27 @@ func (r rarityLookup) resolve(code string) (uuid.UUID, error) {
 		return uuid.Nil, ungerr.Unknownf("rarity %s is not in rarities", code)
 	}
 	return id, nil
+}
+
+// rarityFor returns the Rarity of a card page's code, creating it on an apply
+// run when the Game has none, named by its code as the Asia ingester does. A
+// dry run creates nothing and returns uuid.Nil for a new code: that Card is
+// only reported, never inserted. The lookup's map is shared by every set of
+// the run, so a code is created once.
+func (in *Ingester) rarityFor(ctx context.Context, run setRun, code string) (uuid.UUID, error) {
+	if _, known := run.rarities.codes[code]; known || code == noMark {
+		return run.rarities.resolve(code)
+	}
+	if !run.apply {
+		return uuid.Nil, nil
+	}
+
+	created, err := in.rarities.Insert(ctx, entity.Rarity{GameID: run.gameID, Code: code, Name: code})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	run.rarities.codes[code] = created.ID
+	return created.ID, nil
 }
 
 // setRun is what the sets of one run share: whether to write, the Game and
@@ -444,7 +465,7 @@ func (in *Ingester) setCards(
 
 		localID := fmt.Sprintf("%0*d", width, item.number)
 		label := fmt.Sprintf("%s %s", localID, item.listing.Name)
-		card, err := in.newCard(ctx, localID, item.listing, run.rarities)
+		card, err := in.newCard(ctx, localID, item.listing, run)
 		if err != nil {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", label, err))
 			continue
@@ -491,7 +512,7 @@ func (in *Ingester) setCards(
 // newCard fetches a listed card's page and builds the Card to insert. Errors
 // here are the card's own and only fail that card.
 func (in *Ingester) newCard(
-	ctx context.Context, localID string, listing cardListing, rarities rarityLookup,
+	ctx context.Context, localID string, listing cardListing, run setRun,
 ) (entity.Card, error) {
 	page, err := in.pages.Fetch(ctx, listing.PageURL)
 	if err != nil {
@@ -501,7 +522,7 @@ func (in *Ingester) newCard(
 	if err != nil {
 		return entity.Card{}, err
 	}
-	rarityID, err := rarities.resolve(detail.Rarity)
+	rarityID, err := in.rarityFor(ctx, run, detail.Rarity)
 	if err != nil {
 		return entity.Card{}, err
 	}

@@ -12,9 +12,9 @@
 - [ ] In a set that already exists, Basic Energy Cards are skipped, and a Card named Victory Symbol is skipped when the set has a Card whose local ID equals the set code; both are ingested normally in a newly created set; skips are counted in the report
 - [ ] A card page is fetched only for a Card that would be inserted
 - [ ] A new Card gets `created_by` and `updated_by` set to `tcgcollector`, `attributes` with only `regulationMark`, `source_image_url` set, `raw` holding the page's `<main>` HTML with scripts, styles, svg and extra whitespace removed, and is never inserted over an existing one
-- [ ] A rarity code not in `rarities` fails that Card into the report without creating a rarity; a Card that fails does not abort its set
+- [ ] A rarity code not in `rarities` is created on an apply run (named by its code) and not on a dry run; a Card that fails does not abort its set
 - [ ] A cache-backed page source stores fetched HTML on disk, an apply after a dry run reads only from it, and `-refresh` (optionally with `-set`) refetches
 - [ ] The report lists, per set, Cards added, Cards added to an already published set, skips, failures and Cards without an image
 - [ ] A test fails if any query behind a user-facing card endpoint selects `raw`
-- [ ] Run tests (real Postgres, fake page source) cover the parsers, matching with `1` versus `001`, padding, the Basic Energy and Victory Symbol skips, rarity and category and tag mapping, an unknown rarity, rerun safety and the cache
+- [ ] Run tests (real Postgres, fake page source) cover the parsers, matching with `1` versus `001`, padding, the Basic Energy and Victory Symbol skips, rarity and category and tag mapping, a new rarity code, rerun safety and the cache
 - [ ] Backend verification script passes
