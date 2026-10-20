@@ -38,9 +38,9 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	if err := configs.ValidateAdminOrigins(); err != nil {
 		return nil, nil, err
 	}
-	if len(configs.ClientUrls) == 0 {
+	if noClientOrigins(configs) {
 		// A preview has none until its frontend is deployed.
-		logger.Error("APP_CLIENT_URLS is empty: every token will be rejected, since none can come from a configured frontend origin")
+		logger.Error("APP_CLIENT_URLS and ADMIN_CLIENT_URLS are both empty: every token will be rejected, since none can come from a configured frontend origin")
 	}
 
 	providers, cleanup, err := provider.InitializeProviders()
@@ -95,4 +95,8 @@ func adminEmails(configs config.Config) []string {
 		return nil
 	}
 	return configs.Emails
+}
+
+func noClientOrigins(configs config.Config) bool {
+	return len(configs.ClientUrls) == 0 && len(configs.AdminClientUrls) == 0
 }
