@@ -1,0 +1,27 @@
+backend/internal/adapters/ingestion/tcgcollector/cards.go
+  s_b58ca43227532d::t_4426c6c65bd949 167-177,439,442,445-446,460-474,481,494-495
+backend/internal/adapters/ingestion/tcgcollector/cards_ingest_test.go
+  s_b58ca43227532d::t_9dd9862eb7723d 427-556
+backend/internal/adapters/ingestion/tcgcollector/cards_test.go
+  s_b58ca43227532d::t_6f9480594bca88 118,130-152
+backend/internal/adapters/ingestion/tcgcollector/testdata/card-list-mew-rgb-twice.html
+  s_b58ca43227532d::t_d969a278dc5d1d 1-35
+backend/internal/adapters/ingestion/tcgcollector/testdata/card-list-mew-rgb.html
+  s_b58ca43227532d::t_301eea2a3e2f8c 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "66395dd1c6a933bb8e70f3cbface5ab1bf0a08bb",
+  "prompts": {},
+  "sessions": {
+    "s_b58ca43227532d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b58ca43227532d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
