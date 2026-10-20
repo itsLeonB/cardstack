@@ -30,6 +30,28 @@ test.describe("Not-found page", () => {
     )
   })
 
+  test("the removed /admin address shows the not-found page inside the shell", async ({
+    page,
+  }) => {
+    await page.goto("/admin")
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Page not found" })
+    ).toBeVisible()
+    await expect(page.getByRole("banner")).toBeVisible()
+    await expect(page.getByRole("contentinfo")).toBeVisible()
+    const main = page.getByRole("main")
+    await expect(main).toHaveCount(1)
+    await expect(main.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/"
+    )
+    await expect(main.getByRole("link", { name: "Catalog" })).toHaveAttribute(
+      "href",
+      "/catalog"
+    )
+  })
+
   test("passes axe", async ({ page }) => {
     await page.goto("/this/does/not/exist")
     await expect(
