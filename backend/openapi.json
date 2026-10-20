@@ -4671,7 +4671,7 @@
             "description": "The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result.",
             "explode": true,
             "in": "query",
-            "name": "cardId",
+            "name": "cardIds",
             "schema": {
               "description": "The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result.",
               "items": {

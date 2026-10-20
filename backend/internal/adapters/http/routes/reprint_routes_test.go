@@ -84,7 +84,7 @@ func (a testAPI) reprints(t *testing.T, token, query string) (int, dto.ReprintRe
 func reprintQuery(offset int, ids ...uuid.UUID) string {
 	q := url.Values{"offset": {strconv.Itoa(offset)}}
 	for _, id := range ids {
-		q.Add("cardId", id.String())
+		q.Add("cardIds", id.String())
 	}
 	return q.Encode()
 }
@@ -292,7 +292,7 @@ func TestScanReprints(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, api.getCode(reprintsPath+"?"+reprintQuery(0, ids...), bearer(token)), "more than five ids")
 		assert.Equal(t, http.StatusUnprocessableEntity, api.getCode(reprintsPath+"?"+reprintQuery(-1, ids[0]), bearer(token)), "negative offset")
-		assert.Equal(t, http.StatusBadRequest, api.getCode(reprintsPath+"?cardId=not-a-uuid", bearer(token)), "malformed id")
+		assert.Equal(t, http.StatusBadRequest, api.getCode(reprintsPath+"?cardIds=not-a-uuid", bearer(token)), "malformed id")
 
 		code, got := api.reprints(t, token, reprintQuery(0, uuid.New()))
 		require.Equal(t, http.StatusOK, code)

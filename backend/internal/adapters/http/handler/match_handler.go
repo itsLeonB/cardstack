@@ -36,12 +36,12 @@ func (h *MatchHandler) match(ctx context.Context, in matchInput) (dto.MatchResul
 // reprintsInput is GET /scan/reprints' query: the Card ids the client holds, in
 // the order the matcher offered them, and the page to start at.
 type reprintsInput struct {
-	CardIDs []string `query:"cardId,explode" maxItems:"5" doc:"The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result."`
+	CardIDs []string `query:"cardIds,explode" maxItems:"5" doc:"The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result."`
 	Offset  int      `query:"offset" minimum:"0" doc:"How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page."`
 }
 
 func (h *MatchHandler) reprints(ctx context.Context, in reprintsInput) (dto.ReprintResult, error) {
-	ids, err := parseUUIDs("cardId", in.CardIDs)
+	ids, err := parseUUIDs("cardIds", in.CardIDs)
 	if err != nil {
 		return dto.ReprintResult{}, err
 	}
