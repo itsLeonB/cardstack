@@ -11,6 +11,8 @@ run() {
 }
 
 for pkg in frontend admin; do
+  # admin/ is absent in worktrees cut before the Admin app existed, so skip it there.
+  [ -d "$root/$pkg" ] || continue
   cd "$root/$pkg"
   run bun run lint
   run bun run check
