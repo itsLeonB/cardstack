@@ -86,25 +86,31 @@ func TestMatchDefaultsAndEnvVarNames(t *testing.T) {
 
 	t.Setenv("MATCH_THRESHOLD", "0.9")
 	t.Setenv("MATCH_MARGIN", "0.05")
+	t.Setenv("MATCH_EMPTY_THRESHOLD", "0.4")
 
 	var set Match
 	require.NoError(t, envconfig.Process(set.Prefix(), &set))
-	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05}, set)
+	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05, EmptyThreshold: 0.4}, set)
 }
 
 func TestMatch_ValidateMatch(t *testing.T) {
 	assert.NoError(t, Match{Threshold: 1, Margin: 0}.ValidateMatch())
 	assert.NoError(t, Match{Threshold: 0.01, Margin: 0.99}.ValidateMatch())
+	assert.NoError(t, Match{Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.84}.ValidateMatch())
 
 	for name, m := range map[string]Match{
-		"zero threshold":     {Threshold: 0, Margin: 0.03},
-		"negative threshold": {Threshold: -0.1, Margin: 0.03},
-		"threshold over one": {Threshold: 1.1, Margin: 0.03},
-		"negative margin":    {Threshold: 0.85, Margin: -0.01},
-		"margin of one":      {Threshold: 0.85, Margin: 1},
+		"zero threshold":       {Threshold: 0, Margin: 0.03},
+		"negative threshold":   {Threshold: -0.1, Margin: 0.03},
+		"threshold over one":   {Threshold: 1.1, Margin: 0.03},
+		"negative margin":      {Threshold: 0.85, Margin: -0.01},
+		"margin of one":        {Threshold: 0.85, Margin: 1},
+		"negative empty":       {Threshold: 0.85, Margin: 0.03, EmptyThreshold: -0.01},
+		"empty at threshold":   {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.85},
+		"empty over threshold": {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.9},
 	} {
 		assert.Error(t, m.ValidateMatch(), name)
 	}
+	assert.ErrorContains(t, Match{Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.85}.ValidateMatch(), "MATCH_EMPTY_THRESHOLD")
 }
 
 func TestRateLimit_ValidateRateLimit_NeedsEveryLimitPositive(t *testing.T) {

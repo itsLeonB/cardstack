@@ -75,7 +75,16 @@ func newTestAPI(t *testing.T) testAPI {
 
 func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
 	t.Helper()
-	return newTestAPIWith(t, limits, nil)
+	return newTestAPIWith(t, limits, nil, 0)
+}
+
+// newTestAPIWithEmptyThreshold is the API with the match empty rule set to
+// emptyThreshold; every other test runs with the rule off.
+func newTestAPIWithEmptyThreshold(t *testing.T, emptyThreshold float64) testAPI {
+	t.Helper()
+
+	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
+	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), nil, emptyThreshold)
 }
 
 // newTestAPIWithAdmins is the API as booted with ADMIN_EMAILS set to emails
@@ -84,10 +93,10 @@ func newTestAPIWithAdmins(t *testing.T, emails []string) testAPI {
 	t.Helper()
 
 	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
-	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), emails)
+	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), emails, 0)
 }
 
-func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string) testAPI {
+func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64) testAPI {
 	t.Helper()
 
 	db, sqlDB := openTestDB(t)
@@ -104,7 +113,7 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string)
 	embedder := mocks.NewMockImageEmbedder(t)
 	// A model name of its own keeps this API's search to the embeddings its
 	// test stores, whatever other tests leave in the shared table.
-	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03}
+	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03, EmptyThreshold: emptyThreshold}
 	store := mocks.NewMockObjectStore(t)
 	binder := provider.ProvideBinderService(ds, images)
 	services := provider.ProvideServices(
