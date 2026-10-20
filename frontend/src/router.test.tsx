@@ -98,6 +98,14 @@ describe("a lost session, wired through the real router", () => {
 
   it("does nothing special when the session drops on a public page", async () => {
     const error = vi.spyOn(toast, "error")
+    // /catalog loads data; without a stub a local API on VITE_API_BASE_URL
+    // answers the fake token with 401 and auth-lost sends the test to sign-in.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch")
+      })
+    )
     window.history.pushState({}, "", "/catalog")
     const router = getRouter()
     const fake = signedInClerk()
