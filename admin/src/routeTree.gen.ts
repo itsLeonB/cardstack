@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as AdminIndexRouteImport } from './routes/_admin/index'
+import { Route as AdminExpansionSetsRouteImport } from './routes/_admin/expansion-sets'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/_admin',
@@ -21,24 +22,32 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminExpansionSetsRoute = AdminExpansionSetsRouteImport.update({
+  id: '/expansion-sets',
+  path: '/expansion-sets',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
+  '/expansion-sets': typeof AdminExpansionSetsRoute
 }
 export interface FileRoutesByTo {
+  '/expansion-sets': typeof AdminExpansionSetsRoute
   '/': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_admin': typeof AdminRouteWithChildren
+  '/_admin/expansion-sets': typeof AdminExpansionSetsRoute
   '/_admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/expansion-sets'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/_admin' | '/_admin/'
+  to: '/expansion-sets' | '/'
+  id: '__root__' | '/_admin' | '/_admin/expansion-sets' | '/_admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -61,14 +70,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_admin/expansion-sets': {
+      id: '/_admin/expansion-sets'
+      path: '/expansion-sets'
+      fullPath: '/expansion-sets'
+      preLoaderRoute: typeof AdminExpansionSetsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminExpansionSetsRoute: typeof AdminExpansionSetsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminExpansionSetsRoute: AdminExpansionSetsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
