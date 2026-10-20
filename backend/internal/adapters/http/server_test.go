@@ -62,3 +62,9 @@ func TestAdminEmails_NeedsTheR2Settings(t *testing.T) {
 	assert.Empty(t, adminEmails(config.Config{Admin: admin}), "no R2 settings, no admin routes")
 	assert.Empty(t, adminEmails(config.Config{R2: r2}), "no allowlist, no admin routes")
 }
+
+func TestNoClientOrigins_OnlyWhenBothListsAreEmpty(t *testing.T) {
+	assert.True(t, noClientOrigins(config.Config{}), "neither list set")
+	assert.False(t, noClientOrigins(config.Config{App: config.App{ClientUrls: []string{"https://www.example.com"}}}), "only the user app origin")
+	assert.False(t, noClientOrigins(config.Config{Admin: config.Admin{AdminClientUrls: []string{"https://admin.example.com"}}}), "only the Admin app origin")
+}
