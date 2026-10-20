@@ -29,6 +29,9 @@ function AdminHome() {
       <Link to="/expansion-sets" className="text-foreground underline">
         Expansion Sets
       </Link>
+      <Link to="/cards" className="text-foreground underline">
+        Cards
+      </Link>
     </PageContainer>
   )
 }
