@@ -43,8 +43,8 @@ The operator runs a second ingestion command that reads TCG Collector's Indonesi
 27. As a user, I want a Card added to a published Expansion Set to appear in search straight away, so that the gap is closed without waiting.
 28. As an Admin, I want to see unpublished Expansion Sets and their Cards, so that I can check them.
 29. As the operator, I want the Card number on TCG Collector (`119/126`, `177/126`, `001/SM-P`, `No. 201`) reduced to its digits, so that it matches our local IDs.
-30. As the operator, I want numeric Card numbers compared as integers within an Expansion Set, so that `1` and `001` are the same Card and are not inserted twice.
-31. As the operator, I want a new Card's local ID zero-padded to the set's existing numeric width (3 when the set is empty), so that it sorts like the others.
+30. As the operator, I want numeric Card numbers compared as integers within an Expansion Set, so that `1` and `001` are the same Card and are not inserted twice. A number with no digits before the `/` (`R/RGB`) is not an integer: see ticket 10.
+31. As the operator, I want a new Card's local ID zero-padded to the set's existing numeric width (3 when the set is empty), so that it sorts like the others. Text IDs are stored whole and unpadded (ticket 10).
 32. As the operator, I want one Card per number, with the other variants ignored, so that the catalog stays one row per printed design (ADR-0006).
 33. As the operator, I want a Card's name, number, image, category, tags, rarity, illustrator and regulation mark read from its page, so that the new Card is as complete as an Asia one.
 34. As the operator, I want rarity taken from the code in parentheses (`Double Rare (RR)` is `RR`) and `—` mapped to `Tanpa Tanda`, so that rarities match the existing vocabulary.
