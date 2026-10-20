@@ -58,8 +58,10 @@ type testAPI struct {
 	// is the embedding model that API searches.
 	embedder *mocks.MockImageEmbedder
 	model    string
-	// store fakes the image bucket behind the admin card image routes.
-	store *mocks.MockObjectStore
+	// store fakes the image bucket behind the admin card image routes, and
+	// photos the private photo bucket behind the scan photo upload addresses.
+	store  *mocks.MockObjectStore
+	photos *mocks.MockObjectStore
 }
 
 // newTestAPI deliberately truncates no tables: this database is shared with
@@ -96,7 +98,21 @@ func newTestAPIWithAdmins(t *testing.T, emails []string) testAPI {
 	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), emails, 0)
 }
 
+// newTestAPIWithoutPhotoBucket is the API as booted with no SCAN_PHOTO_R2_*
+// settings, so the scan photo upload call is refused.
+func newTestAPIWithoutPhotoBucket(t *testing.T) testAPI {
+	t.Helper()
+
+	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
+	return newTestAPIWithPhotoBucket(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), nil, 0, false)
+}
+
 func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64) testAPI {
+	t.Helper()
+	return newTestAPIWithPhotoBucket(t, limits, adminEmails, emptyThreshold, true)
+}
+
+func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64, photoBucket bool) testAPI {
 	t.Helper()
 
 	db, sqlDB := openTestDB(t)
@@ -115,6 +131,11 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string,
 	// test stores, whatever other tests leave in the shared table.
 	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03, EmptyThreshold: emptyThreshold}
 	store := mocks.NewMockObjectStore(t)
+	photos := mocks.NewMockObjectStore(t)
+	var photoStore provider.ScanPhotoStore
+	if photoBucket {
+		photoStore = photos
+	}
 	binder := provider.ProvideBinderService(ds, images)
 	services := provider.ProvideServices(
 		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, []string{testAdminOrigin}, keys),
@@ -127,12 +148,13 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string,
 		provider.ProvideMatchService(ds, images, embedder, settings),
 		provider.ProvideAdminSetService(ds, images),
 		provider.ProvideCardAdminService(ds, images, store),
+		provider.ProvideScanPhotoService(photoStore),
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())
 	require.NoError(t, RegisterRoutes(api, services, limits, adminEmails))
 
-	return testAPI{TestAPI: api, db: db, key: key, embedder: embedder, model: settings.Model, store: store}
+	return testAPI{TestAPI: api, db: db, key: key, embedder: embedder, model: settings.Model, store: store, photos: photos}
 }
 
 func openTestDB(t *testing.T) (*gorm.DB, *sql.DB) {

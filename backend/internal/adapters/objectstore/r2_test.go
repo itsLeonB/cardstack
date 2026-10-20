@@ -149,3 +149,31 @@ func TestR2Store_Get_RejectsObjectOverSizeCap(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "larger than")
 }
+
+func TestR2Store_Size_ReportsTheObjectLength(t *testing.T) {
+	var gotMethod, gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath = r.Method, r.URL.Path
+		w.Header().Set("Content-Length", "1234")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	size, err := NewR2Store(r2TestConfig(server.URL)).Size(context.Background(), "scan/abc")
+
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodHead, gotMethod)
+	assert.Equal(t, "/images/scan/abc", gotPath)
+	assert.Equal(t, int64(1234), size)
+}
+
+func TestR2Store_Size_ReportsAMissingObject(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := NewR2Store(r2TestConfig(server.URL)).Size(context.Background(), "scan/abc")
+
+	assert.ErrorIs(t, err, corestore.ErrNotFound)
+}

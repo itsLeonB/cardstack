@@ -212,3 +212,29 @@ func TestConfig_ValidateAdminOrigins_NeedsAnAdminOriginWhenThereAreAdmins(t *tes
 	assert.ErrorContains(t, Config{App: app, Admin: admin}.ValidateAdminOrigins(), "ADMIN_CLIENT_URLS")
 	assert.ErrorContains(t, Config{App: app, Admin: Admin{AdminClientUrls: []string{"https://www.example.com"}}}.ValidateAdminOrigins(), "https://www.example.com", "an origin in both lists, even with no admins")
 }
+
+func TestScanPhotoR2EnvVarNames(t *testing.T) {
+	t.Setenv("SCAN_PHOTO_R2_ACCOUNT_ID", "acct")
+	t.Setenv("SCAN_PHOTO_R2_ACCESS_KEY_ID", "key")
+	t.Setenv("SCAN_PHOTO_R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("SCAN_PHOTO_R2_BUCKET", "photos")
+
+	var photos ScanPhotoR2
+	require.NoError(t, envconfig.Process(photos.Prefix(), &photos))
+
+	assert.Equal(t, ScanPhotoR2{AccountID: "acct", AccessKeyID: "key", SecretAccessKey: "secret", Bucket: "photos"}, photos)
+	assert.True(t, R2(photos).Configured())
+}
+
+func TestConfig_ValidateScanPhotoR2_OnlyWhenConfigured(t *testing.T) {
+	public := R2{AccountID: "acct", AccessKeyID: "key", SecretAccessKey: "secret", Bucket: "images"}
+	photos := ScanPhotoR2{AccountID: "acct", AccessKeyID: "pkey", SecretAccessKey: "psecret", Bucket: "photos"}
+
+	assert.NoError(t, Config{R2: public}.ValidateScanPhotoR2(), "unset: nothing to check")
+	assert.NoError(t, Config{R2: public, ScanPhotoR2: photos}.ValidateScanPhotoR2())
+	assert.Error(t, Config{ScanPhotoR2: ScanPhotoR2{Bucket: "photos"}}.ValidateScanPhotoR2(), "a partial set is refused")
+
+	samePublic := photos
+	samePublic.Bucket = public.Bucket
+	assert.Error(t, Config{R2: public, ScanPhotoR2: samePublic}.ValidateScanPhotoR2(), "the photo bucket must not be the public image bucket")
+}

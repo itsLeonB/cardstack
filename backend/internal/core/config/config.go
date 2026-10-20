@@ -15,6 +15,7 @@ type Config struct {
 	Clerk
 	Image
 	R2
+	ScanPhotoR2
 	Admin
 	Gemini
 	Embedding
@@ -72,6 +73,11 @@ func Load() error {
 		errs = errors.Join(errs, err)
 	}
 
+	var scanPhoto ScanPhotoR2
+	if err := envconfig.Process(scanPhoto.Prefix(), &scanPhoto); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
 	var admin Admin
 	if err := envconfig.Process(admin.Prefix(), &admin); err != nil {
 		errs = errors.Join(errs, err)
@@ -101,7 +107,7 @@ func Load() error {
 		return fmt.Errorf("error loading config: %w", errs)
 	}
 
-	Global = &Config{app, db, otel, clerk, image, r2, admin, gemini, embedding, match, rateLimit}
+	Global = &Config{app, db, otel, clerk, image, r2, scanPhoto, admin, gemini, embedding, match, rateLimit}
 
 	return nil
 }
