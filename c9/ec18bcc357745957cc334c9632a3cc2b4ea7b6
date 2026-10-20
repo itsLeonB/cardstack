@@ -1,0 +1,19 @@
+.scratch/tcgcollector-ingestion/issues/10-ingest-cards-whose-number-has-no-digits.md
+  s_3778c617517e9f::t_55e075768dc7c6 7,17-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c9ec18bcc357745957cc334c9632a3cc2b4ea7b6",
+  "prompts": {},
+  "sessions": {
+    "s_3778c617517e9f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3778c617517e9f",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
