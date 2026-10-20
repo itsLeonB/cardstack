@@ -1,0 +1,21 @@
+admin/src/components/admin/form-shared.ts
+  s_ea12fde976bf4b::t_372943a04cb00a 15
+frontend/src/components/collections/binder-layout-form.tsx
+  s_ea12fde976bf4b::t_99b0ff43f66548 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2319a792b112dce25096203af25be13830759b6f",
+  "prompts": {},
+  "sessions": {
+    "s_ea12fde976bf4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ea12fde976bf4b",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
