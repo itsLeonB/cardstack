@@ -1,0 +1,21 @@
+frontend/src/generated/endpoints/scan/scan.zod.ts
+  s_3d150a6bb143d1::t_e178995c582f62 44-45
+frontend/src/generated/models/matchResult.ts
+  s_3d150a6bb143d1::t_7d12bcbb19a105 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "4fd5c8a479016790a1992f7066c20b591e3c2fdd",
+  "prompts": {},
+  "sessions": {
+    "s_3d150a6bb143d1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3d150a6bb143d1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
