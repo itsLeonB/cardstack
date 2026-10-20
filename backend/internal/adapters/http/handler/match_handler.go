@@ -33,6 +33,21 @@ func (h *MatchHandler) match(ctx context.Context, in matchInput) (dto.MatchResul
 	return h.matchSvc.Match(ctx, dto.MatchRequest{Image: in.RawBody})
 }
 
+// reprintsInput is GET /scan/reprints' query: the Card ids the client holds, in
+// the order the matcher offered them, and the page to start at.
+type reprintsInput struct {
+	CardIDs []string `query:"cardId,explode" maxItems:"5" doc:"The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result."`
+	Offset  int      `query:"offset" minimum:"0" doc:"How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page."`
+}
+
+func (h *MatchHandler) reprints(ctx context.Context, in reprintsInput) (dto.ReprintResult, error) {
+	ids, err := parseUUIDs("cardId", in.CardIDs)
+	if err != nil {
+		return dto.ReprintResult{}, err
+	}
+	return h.matchSvc.Reprints(ctx, dto.ReprintRequest{CardIDs: ids, Offset: in.Offset})
+}
+
 // Routes returns every route MatchHandler exposes, for registration via
 // endpoint.RegisterAll.
 func (h *MatchHandler) Routes() []endpoint.Registrable {
@@ -47,6 +62,16 @@ func (h *MatchHandler) Routes() []endpoint.Registrable {
 			Secured:      true,
 			MaxBodyBytes: maxMatchImageBytes,
 			HandlerFunc:  h.match,
+		}),
+		endpoint.New(endpoint.Endpoint[reprintsInput, dto.ReprintResult]{
+			OperationID: "list-scan-reprints",
+			Method:      http.MethodGet,
+			Path:        "/scan/reprints",
+			Summary:     "List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
+			Tags:        []string{"scan"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.reprints,
 		}),
 	}
 }

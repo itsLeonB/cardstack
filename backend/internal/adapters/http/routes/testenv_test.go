@@ -104,7 +104,7 @@ func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string)
 	embedder := mocks.NewMockImageEmbedder(t)
 	// A model name of its own keeps this API's search to the embeddings its
 	// test stores, whatever other tests leave in the shared table.
-	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03}
+	settings := service.MatchSettings{Model: "test-" + uuid.NewString(), Threshold: 0.85, Margin: 0.03, ReprintDelta: 0.05}
 	store := mocks.NewMockObjectStore(t)
 	binder := provider.ProvideBinderService(ds, images)
 	services := provider.ProvideServices(

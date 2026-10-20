@@ -22,21 +22,30 @@ const (
 // choose from.
 const matchCandidates = 5
 
+// reprintPageSize is how many Reprints one page holds.
+const reprintPageSize = 5
+
 // MatchSettings is what the matcher needs from configuration: the embedding
 // model whose stored vectors it searches (rows of any other model are never
 // compared), and the rule for Confident. Threshold is the lowest similarity the
 // top candidate may have; Margin is how far the runner-up must trail it.
+// ReprintDelta is the largest cosine distance at which two catalog images count
+// as the same artwork for a Reprint.
 type MatchSettings struct {
-	Model     string
-	Threshold float64
-	Margin    float64
+	Model        string
+	Threshold    float64
+	Margin       float64
+	ReprintDelta float64
 }
 
-// MatchService matches an uploaded card photo to catalog Cards.
+// MatchService matches an uploaded card photo to catalog Cards, and finds the
+// Reprints of Cards the client already holds.
 type MatchService interface {
 	// Match validates the upload and returns ranked candidates. It writes
 	// nothing and never keeps the image.
 	Match(ctx context.Context, req dto.MatchRequest) (dto.MatchResult, error)
+	// Reprints returns one page of the Reprints of req's Cards (docs/adr/0023).
+	Reprints(ctx context.Context, req dto.ReprintRequest) (dto.ReprintResult, error)
 }
 
 type matchService struct {
@@ -136,6 +145,47 @@ func similarity(distance float64) float64 {
 }
 
 // isAcceptedImage sniffs the bytes rather than trusting the declared type.
+// Reprints returns one page of the Reprints of req's Cards. Each source, in the
+// order given, contributes its Reprints nearest first, and a Card reachable from
+// two sources keeps its first place. The list is rebuilt on every call from the
+// same ids, so an offset is stable without any server state.
+func (s *matchService) Reprints(ctx context.Context, req dto.ReprintRequest) (dto.ReprintResult, error) {
+	var ordered []uuid.UUID
+	seen := make(map[uuid.UUID]bool)
+	for _, source := range req.CardIDs {
+		found, err := s.cards.ReprintsOf(ctx, s.settings.Model, source, req.CardIDs, s.settings.ReprintDelta)
+		if err != nil {
+			return dto.ReprintResult{}, err
+		}
+		for _, r := range found {
+			if !seen[r.CardID] {
+				seen[r.CardID] = true
+				ordered = append(ordered, r.CardID)
+			}
+		}
+	}
+
+	start := min(max(req.Offset, 0), len(ordered))
+	end := min(start+reprintPageSize, len(ordered))
+	page := ordered[start:end]
+	rows, err := s.cards.CardsByIDs(ctx, page)
+	if err != nil {
+		return dto.ReprintResult{}, err
+	}
+	byID := make(map[uuid.UUID]repository.CardResult, len(rows))
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+
+	cards := make([]dto.CardSummary, 0, len(page))
+	for _, id := range page {
+		if row, ok := byID[id]; ok {
+			cards = append(cards, mapper.ToCardSummary(s.images, row))
+		}
+	}
+	return dto.ReprintResult{Cards: cards, HasMore: end < len(ordered)}, nil
+}
+
 func isAcceptedImage(data []byte) bool {
 	return http.DetectContentType(data) == jpegMIME
 }
