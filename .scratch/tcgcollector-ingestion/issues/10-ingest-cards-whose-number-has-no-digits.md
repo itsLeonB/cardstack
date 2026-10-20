@@ -4,7 +4,7 @@
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** done — on `fix/ingest-tcgcollector-textual-numbers`, commits `66395dd`, `25c742a`
 
 **Decided (grilling, 2026-10-20):**
 
@@ -14,13 +14,13 @@
 - The same text ID twice in one card list fails the second one with a named message; it is not silently skipped.
 - Rarity, category and the other card-page fields come from the card page as for any Card. Nothing changes there.
 
-- [ ] Tests first, red before green: a card list with an `R/RGB` Card, run with apply, adds it with `local_id` `R/RGB` and its rarity from the card page; the same list in a dry run reports it under added and writes nothing; a rerun adds nothing and counts it held; a set that already holds `R/RGB` counts it held and fetches no card page for it; two `R/RGB` entries in one list add one and fail the other with a message naming the card and number
-- [ ] `TestCardNumber_ReducesPrintedNumbersToIntegers` still passes unchanged for every existing case, and a new case shows `R/RGB` is not an integer number (the text-ID branch is chosen by the caller, not folded into `cardNumber`'s integer result)
-- [ ] `setCards` no longer reports `has no digits` for a number such as `R/RGB`; an empty number still fails as before
-- [ ] A numeric Card in the same set still pads to the set's numeric width, and `numberWidth` ignores text IDs as it does now
-- [ ] ADR-0021's identity paragraph and the Sources paragraph in `GLOSSARY.md` say that a number with no digits before the `/` is stored whole, unpadded and matched exactly, and ADR-0021's Consequences records that Asia would store such a card under the text before the `/`, so a later Asia publish would add a second row
-- [ ] Spec story 30/31 in `.scratch/tcgcollector-ingestion/spec.md` and ticket 06's number bullet point at this ticket for the non-numeric case
-- [ ] Backend verification script passes
+- [x] Tests first, red before green: a card list with an `R/RGB` Card, run with apply, adds it with `local_id` `R/RGB` and its rarity from the card page; the same list in a dry run reports it under added and writes nothing; a rerun adds nothing and counts it held; a set that already holds `R/RGB` counts it held and fetches no card page for it; two `R/RGB` entries in one list add one and fail the other with a message naming the card and number
+- [x] `TestCardNumber_ReducesPrintedNumbersToIntegers` still passes unchanged for every existing case, and a new case shows `R/RGB` is not an integer number (the text-ID branch is chosen by the caller, not folded into `cardNumber`'s integer result)
+- [x] `setCards` no longer reports `has no digits` for a number such as `R/RGB`; an empty number still fails as before
+- [x] A numeric Card in the same set still pads to the set's numeric width, and `numberWidth` ignores text IDs as it does now
+- [x] ADR-0021's identity paragraph and the Sources paragraph in `GLOSSARY.md` say that a number with no digits before the `/` is stored whole, unpadded and matched exactly, and ADR-0021's Consequences records that Asia would store such a card under the text before the `/`, so a later Asia publish would add a second row
+- [x] Spec story 30/31 in `.scratch/tcgcollector-ingestion/spec.md` and ticket 06's number bullet point at this ticket for the non-numeric case
+- [x] Backend verification script passes
 
 ## Comments
 
