@@ -1,0 +1,45 @@
+backend/.env.example
+  s_bbd75d3c678c24::t_ab3076d5ed0ed1 79-84
+backend/internal/adapters/db/postgres/migrations/20261020000000_cards_normalized_name_index.sql
+  s_bbd75d3c678c24::t_3b0cc26f11e047 1-9
+backend/internal/adapters/http/handler/match_handler.go
+  s_bbd75d3c678c24::t_04ce54fd64d111 36-50,66-75
+backend/internal/adapters/http/routes/reprint_routes_test.go
+  s_bbd75d3c678c24::t_e9f41b973af728 1-329
+backend/internal/adapters/http/routes/testenv_test.go
+  s_bbd75d3c678c24::t_f5b9c343dae66d 107
+backend/internal/core/config/config_test.go
+  s_bbd75d3c678c24::t_02d621f1d4ed80 84,89,93,99-100,103-109
+backend/internal/core/config/match_config.go
+  s_bbd75d3c678c24::t_dde9973b7ee11c 13-15,17-19,24-25,36-38
+backend/internal/domain/dto/match_dto.go
+  s_bbd75d3c678c24::t_21f1c3e8534298 3-4,25-38
+backend/internal/domain/repository/match_repository.go
+  s_bbd75d3c678c24::t_8f982efcb22f80 17-22,55-90
+backend/internal/domain/service/match_service.go
+  s_bbd75d3c678c24::t_b574c359bd9589 25-27,32-33,35-38,41-42,47-48,148-188
+backend/internal/mocks/MatchRepository.go
+  s_bbd75d3c678c24::t_8d9fd3cd8c92aa 86-147
+backend/internal/mocks/MatchService.go
+  s_bbd75d3c678c24::t_e40b56cf262cae 82-138
+backend/internal/provider/service_provider.go
+  s_bbd75d3c678c24::t_51ad5427fb374a 141-144
+backend/openapi.json
+  s_bbd75d3c678c24::t_85133e32dd340a 1125-1136,1598-1621,4665-4731
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "de06ec7fac3d982c093eab83862aca93f28c1acd",
+  "prompts": {},
+  "sessions": {
+    "s_bbd75d3c678c24": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_bbd75d3c678c24",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
