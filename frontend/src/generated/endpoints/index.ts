@@ -1,10 +1,9 @@
-export type { HTTPStatusCode1xx } from './admin/admin.ts';
-export type { HTTPStatusCode2xx } from './admin/admin.ts';
-export type { HTTPStatusCode3xx } from './admin/admin.ts';
-export type { HTTPStatusCode4xx } from './admin/admin.ts';
-export type { HTTPStatusCode5xx } from './admin/admin.ts';
-export type { HTTPStatusCodes } from './admin/admin.ts';
-export * from './admin/admin.ts';
+export type { HTTPStatusCode1xx } from './binder/binder.ts';
+export type { HTTPStatusCode2xx } from './binder/binder.ts';
+export type { HTTPStatusCode3xx } from './binder/binder.ts';
+export type { HTTPStatusCode4xx } from './binder/binder.ts';
+export type { HTTPStatusCode5xx } from './binder/binder.ts';
+export type { HTTPStatusCodes } from './binder/binder.ts';
 export * from './binder/binder.ts';
 export * from './catalog/catalog.ts';
 export * from './collections/collections.ts';

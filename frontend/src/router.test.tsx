@@ -111,3 +111,13 @@ describe("a lost session, wired through the real router", () => {
     expect(error).not.toHaveBeenCalled()
   })
 })
+
+describe("the removed /admin address", () => {
+  it("matches no route, so the root's not-found page answers it as any unknown address", () => {
+    const router = getRouter()
+
+    expect(router.matchRoutes("/admin").map((m) => m.routeId)).toEqual([
+      "__root__",
+    ])
+  })
+})
