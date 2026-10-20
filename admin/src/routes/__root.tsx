@@ -4,6 +4,7 @@ import {
   Scripts,
   createRootRouteWithContext,
 } from "@tanstack/react-router"
+import { QueryClientProvider } from "@tanstack/react-query"
 import type { QueryClient } from "@tanstack/react-query"
 
 import { AppClerkProvider } from "@/components/auth/clerk-provider"
@@ -37,12 +38,17 @@ export const Route = createRootRouteWithContext<{
 })
 
 function RootLayout() {
+  // The screens' forms read the query client through React; the router's
+  // context carries the same client into the loaders.
+  const { queryClient } = Route.useRouteContext()
   return (
-    <div className="flex min-h-svh flex-col">
-      <main className="flex-1">
-        <Outlet />
-      </main>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div className="flex min-h-svh flex-col">
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+    </QueryClientProvider>
   )
 }
 

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,9 @@ function AdminHome() {
           </Button>
         }
       />
+      <Link to="/expansion-sets" className="text-foreground underline">
+        Expansion Sets
+      </Link>
     </PageContainer>
   )
 }
