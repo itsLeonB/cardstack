@@ -1,0 +1,37 @@
+backend/internal/adapters/http/routes/admin_routes_test.go
+  s_ba0c76f19783d0::t_893a9cf5506b2f 138
+backend/internal/adapters/http/routes/match_routes_test.go
+  s_ba0c76f19783d0::t_50a8826530a330 171-238
+backend/internal/adapters/http/routes/testenv_test.go
+  s_ba0c76f19783d0::t_1b51dfe374ec20 78-87,96,99,116
+backend/internal/core/config/config_test.go
+  s_ba0c76f19783d0::t_ddd15bc2faacf1 89,93,99,102-109,113
+backend/internal/core/config/match_config.go
+  s_ba0c76f19783d0::t_38ca5d7de449f8 13-16,18-20,25-26,37-39
+backend/internal/domain/dto/match_dto.go
+  s_ba0c76f19783d0::t_14c788145c4c55 20
+backend/internal/domain/service/match_service.go
+  s_ba0c76f19783d0::t_2ad29db38b3d30 29-30,32-35,101-103,122-128
+backend/internal/domain/service/match_service_test.go
+  s_ba0c76f19783d0::t_2aa4e7780e4767 255-282
+backend/internal/provider/service_provider.go
+  s_ba0c76f19783d0::t_9744fcb907fc89 138-139,142-145
+backend/openapi.json
+  s_ba0c76f19783d0::t_7ca9e9e46feb88 1469-1472,1476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "3816a596dbf1e47708550fd2724d164d4c910103",
+  "prompts": {},
+  "sessions": {
+    "s_ba0c76f19783d0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ba0c76f19783d0",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
