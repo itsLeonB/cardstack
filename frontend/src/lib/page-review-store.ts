@@ -16,7 +16,7 @@
  * quota). Callers then fall back to a memory-only review.
  */
 import type { PageCell } from "@/lib/use-page-scan"
-import type { Grid } from "@/lib/page-cut"
+import type { Corners, Grid } from "@/lib/page-cut"
 
 const DB_NAME = "cardstack-page-reviews"
 const STORE = "reviews"
@@ -32,6 +32,10 @@ export interface PageReviewKey {
 export interface PendingPageReview extends PageReviewKey {
   grid: Grid
   cells: PageCell[]
+  /** The downscaled Page photo the cells were cut from. Absent on a review saved before it was kept. */
+  photo?: Blob
+  /** The corners the photo was cut with. Absent on a review saved before the photo was kept. */
+  corners?: Corners
 }
 
 function transact<T>(

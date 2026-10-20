@@ -95,6 +95,11 @@ export function ScanPageFlow({
   const longSide = frameLongSide(grid)
   const [frame, setFrame] = useState<Blob>()
   const [corners, setCorners] = useState<Corners>(CENTRED)
+  // The photo and corners the cells were cut from. Only a successful cut sets them, so they always match the cells, even when a new photo is taken before cutting.
+  const [cutFrom, setCutFrom] = useState<{ photo?: Blob; corners?: Corners }>({
+    photo: resume?.photo,
+    corners: resume?.corners,
+  })
   const [reviewing, setReviewing] = useState(resume !== undefined)
   // Set once a save fails (no IndexedDB): the review is then kept in memory only.
   const [memoryOnly, setMemoryOnly] = useState(false)
@@ -126,6 +131,8 @@ export function ScanPageFlow({
       page: page.page,
       grid,
       cells: matches.cells,
+      photo: cutFrom.photo,
+      corners: cutFrom.corners,
     })
       .then(() => invalidatePendingReviews(queryClient))
       .catch(() => setMemoryOnly(true))
@@ -158,7 +165,9 @@ export function ScanPageFlow({
     setError(null)
     setCutting(true)
     try {
-      matches.start(await cut(frame, corners, grid))
+      const cells = await cut(frame, corners, grid)
+      setCutFrom({ photo: frame, corners })
+      matches.start(cells)
       setEdited(false)
       setReviewing(true)
     } catch {
