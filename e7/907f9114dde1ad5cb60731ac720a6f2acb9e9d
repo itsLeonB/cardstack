@@ -1,0 +1,63 @@
+backend/.env.example
+  s_bbe0ad695c40c9::t_9cbad9352ed962 49-60
+backend/cmd/genspec/main.go
+  s_bbe0ad695c40c9::t_76f2a61912a092 33
+backend/internal/adapters/http/handler/scan_photo_handler.go
+  s_bbe0ad695c40c9::t_e57c0a274b0d9d 1-47
+backend/internal/adapters/http/huma/errors.go
+  s_bbe0ad695c40c9::t_157169fe1c8b16 27
+backend/internal/adapters/http/routes/register_routes.go
+  s_bbe0ad695c40c9::t_14f64582bd65fd 29,56
+backend/internal/adapters/http/routes/scan_photo_routes_test.go
+  s_bbe0ad695c40c9::t_5ae8936693acb5 1-111
+backend/internal/adapters/http/routes/testenv_test.go
+  s_bbe0ad695c40c9::t_69789d7dcdbc52 61-64,92-100,103-107,125-129,142,148
+backend/internal/adapters/http/server.go
+  s_bbe0ad695c40c9::t_09ac0c640f2645 41-43
+backend/internal/adapters/objectstore/r2.go
+  s_bbe0ad695c40c9::t_21fe3730d7e3fa 111-121
+backend/internal/adapters/objectstore/r2_test.go
+  s_bbe0ad695c40c9::t_61a72306682d7e 152-179
+backend/internal/core/apperr/apperr.go
+  s_bbe0ad695c40c9::t_c78b19b71be015 35-38
+backend/internal/core/apperr/unavailable.go
+  s_bbe0ad695c40c9::t_fbc62fb9ac88a9 1-34
+backend/internal/core/config/config.go
+  s_bbe0ad695c40c9::t_70902fe96ab5b3 18,76-80,110
+backend/internal/core/config/config_test.go
+  s_bbe0ad695c40c9::t_c8590654f06303 209-234
+backend/internal/core/config/scan_photo_config.go
+  s_bbe0ad695c40c9::t_532944e62e8e4c 1-29
+backend/internal/core/objectstore/objectstore.go
+  s_bbe0ad695c40c9::t_73bff3d7ff6b6f 31-33
+backend/internal/domain/dto/scan_photo_dto.go
+  s_bbe0ad695c40c9::t_20e25c6b13029c 1-27
+backend/internal/domain/service/scan_photo_service.go
+  s_bbe0ad695c40c9::t_2eb3bde603d805 1-60
+backend/internal/mocks/ObjectStore.go
+  s_bbe0ad695c40c9::t_c051c4d7c103e6 307-363
+backend/internal/provider/scan_photo_provider.go
+  s_bbe0ad695c40c9::t_9879884c645b5a 1-27
+backend/internal/provider/service_provider.go
+  s_bbe0ad695c40c9::t_2fbab566e0736c 22,36,170,183
+backend/internal/provider/wire_gen.go
+  s_bbe0ad695c40c9::t_bfeeafc2594d8e 40-42
+backend/openapi.json
+  s_bbe0ad695c40c9::t_bdf943f7059846 1125-1136,1214,1598-1652,4696-4741
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e7907f9114dde1ad5cb60731ac720a6f2acb9e9d",
+  "prompts": {},
+  "sessions": {
+    "s_bbe0ad695c40c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_bbe0ad695c40c9",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
