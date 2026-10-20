@@ -172,5 +172,5 @@ func TestRarityLookup_ResolvesCodesAndTheTanpaTandaMark(t *testing.T) {
 	assert.Equal(t, tanpa, got)
 
 	_, err = lookup.resolve("SAR")
-	assert.ErrorContains(t, err, "rarity SAR is not in rarities", "an unknown code fails, it is never created")
+	assert.ErrorContains(t, err, "rarity SAR is not in rarities", "an unknown code is an error here, rarityFor creates it")
 }
