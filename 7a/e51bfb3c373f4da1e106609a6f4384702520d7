@@ -1,0 +1,19 @@
+backend/.env.example
+  s_c9baba9492e79d::t_b53f5bc7ad437d 79-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7ae51bfb3c373f4da1e106609a6f4384702520d7",
+  "prompts": {},
+  "sessions": {
+    "s_c9baba9492e79d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c9baba9492e79d",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
