@@ -1,0 +1,19 @@
+docs/agents/deployment/embeddings.md
+  s_1e0812305076ad::t_0063f5a61454b0 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "11c2881bfc90d45e23284f2bdd1daa37ca3762ad",
+  "prompts": {},
+  "sessions": {
+    "s_1e0812305076ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1e0812305076ad",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
