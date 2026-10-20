@@ -26,10 +26,13 @@ const matchCandidates = 5
 // model whose stored vectors it searches (rows of any other model are never
 // compared), and the rule for Confident. Threshold is the lowest similarity the
 // top candidate may have; Margin is how far the runner-up must trail it.
+// EmptyThreshold is the similarity below which the top candidate means no card
+// is in the photo at all; zero disables that rule.
 type MatchSettings struct {
-	Model     string
-	Threshold float64
-	Margin    float64
+	Model          string
+	Threshold      float64
+	Margin         float64
+	EmptyThreshold float64
 }
 
 // MatchService matches an uploaded card photo to catalog Cards.
@@ -95,6 +98,9 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 		}
 	}
 
+	if s.settings.empty(candidates) {
+		return dto.MatchResult{Empty: true, Candidates: candidates[:0]}, nil
+	}
 	confident := s.settings.confident(candidates)
 	if confident {
 		candidates = candidates[:1]
@@ -111,6 +117,13 @@ func (m MatchSettings) confident(candidates []dto.MatchCandidate) bool {
 		return false
 	}
 	return len(candidates) == 1 || candidates[0].Score-candidates[1].Score >= m.Margin
+}
+
+// empty reports whether the top candidate scores below the empty threshold, so
+// the photo shows no card. A threshold of 0 turns the rule off, and a result
+// with no candidates is not empty: there is no top score to judge.
+func (m MatchSettings) empty(candidates []dto.MatchCandidate) bool {
+	return m.EmptyThreshold > 0 && len(candidates) > 0 && candidates[0].Score < m.EmptyThreshold
 }
 
 // bestRowPerCard keeps the nearest row of each Card, since a Card may hold

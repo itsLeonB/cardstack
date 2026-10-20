@@ -252,3 +252,31 @@ func TestMatchSettings_confident(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchSettings_empty(t *testing.T) {
+	scores := func(s ...float64) []dto.MatchCandidate {
+		out := make([]dto.MatchCandidate, len(s))
+		for i, v := range s {
+			out[i].Score = v
+		}
+		return out
+	}
+
+	tests := map[string]struct {
+		emptyThreshold float64
+		candidates     []dto.MatchCandidate
+		want           bool
+	}{
+		"rule off at zero":      {0, scores(0.10), false},
+		"no candidates":         {0.5, nil, false},
+		"top below the setting": {0.5, scores(0.40, 0.10), true},
+		"top at the setting":    {0.5, scores(0.50), false},
+		"top above the setting": {0.5, scores(0.60), false},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := MatchSettings{Threshold: 0.8, Margin: 0.1, EmptyThreshold: tt.emptyThreshold}
+			assert.Equal(t, tt.want, m.empty(tt.candidates))
+		})
+	}
+}
