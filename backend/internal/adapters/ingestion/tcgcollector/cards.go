@@ -164,6 +164,17 @@ func cardNumber(printed string) (int, bool) {
 	return numericID(digits)
 }
 
+// textCardID returns a printed number whose text before the "/" has no digits,
+// such as "R/RGB", whole and trimmed as its local ID. The Asia ingester cuts it
+// at the "/" instead; see ADR-0021.
+func textCardID(printed string) (string, bool) {
+	head, _, found := strings.Cut(printed, "/")
+	if !found || strings.TrimSpace(head) == "" || strings.ContainsAny(head, "0123456789") {
+		return "", false
+	}
+	return strings.TrimSpace(printed), true
+}
+
 // numericID reads a local ID as an integer. ok is false for an empty ID or one
 // with anything but digits, such as "SM-P".
 func numericID(id string) (int, bool) {
@@ -425,12 +436,14 @@ func (in *Ingester) setCards(
 
 	type wanted struct {
 		listing cardListing
-		number  int
+		localID string
 	}
 	var todo []wanted
+	seenText := map[string]bool{}
 	for _, card := range listed {
 		number, ok := cardNumber(card.Number)
-		if !ok {
+		text, isText := textCardID(card.Number)
+		if !ok && !isText {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: number %q has no digits", card.Name, card.Number))
 			continue
 		}
@@ -444,13 +457,28 @@ func (in *Ingester) setCards(
 			result.Skipped = append(result.Skipped, fmt.Sprintf("%s: the set already has a card with ID %s", card.Name, listing.Code))
 			continue
 		}
+		// The integer held map cannot hold a text ID, so it is matched against the
+		// set's local IDs instead.
+		if isText {
+			if seenText[text] {
+				result.Failed = append(result.Failed, fmt.Sprintf("%s: number %q is listed more than once in this card list", card.Name, card.Number))
+				continue
+			}
+			seenText[text] = true
+			if localIDs[text] {
+				result.Held++
+				continue
+			}
+			todo = append(todo, wanted{listing: card, localID: text})
+			continue
+		}
 		if held[number] {
 			result.Held++
 			continue
 		}
 		held[number] = true
 
-		todo = append(todo, wanted{listing: card, number: number})
+		todo = append(todo, wanted{listing: card, localID: fmt.Sprintf("%0*d", width, number)})
 	}
 
 	type pendingCard struct {
@@ -463,9 +491,8 @@ func (in *Ingester) setCards(
 			logger.Infof("%s processed %d/%d cards", listing.Code, i, len(todo))
 		}
 
-		localID := fmt.Sprintf("%0*d", width, item.number)
-		label := fmt.Sprintf("%s %s", localID, item.listing.Name)
-		card, err := in.newCard(ctx, localID, item.listing, run)
+		label := fmt.Sprintf("%s %s", item.localID, item.listing.Name)
+		card, err := in.newCard(ctx, item.localID, item.listing, run)
 		if err != nil {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", label, err))
 			continue
