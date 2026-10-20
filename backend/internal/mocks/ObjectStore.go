@@ -304,6 +304,63 @@ func (_c *MockObjectStore_ReadHead_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// Size provides a mock function with given fields: ctx, key
+func (_m *MockObjectStore) Size(ctx context.Context, key string) (int64, error) {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Size")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return rf(ctx, key)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = rf(ctx, key)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockObjectStore_Size_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Size'
+type MockObjectStore_Size_Call struct {
+	*mock.Call
+}
+
+// Size is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockObjectStore_Expecter) Size(ctx interface{}, key interface{}) *MockObjectStore_Size_Call {
+	return &MockObjectStore_Size_Call{Call: _e.mock.On("Size", ctx, key)}
+}
+
+func (_c *MockObjectStore_Size_Call) Run(run func(ctx context.Context, key string)) *MockObjectStore_Size_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_Size_Call) Return(_a0 int64, _a1 error) *MockObjectStore_Size_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockObjectStore_Size_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockObjectStore_Size_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockObjectStore creates a new instance of MockObjectStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockObjectStore(t interface {

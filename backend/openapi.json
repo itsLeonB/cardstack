@@ -1122,6 +1122,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeScanPhotoUploads": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ScanPhotoUploads"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeSeriesBrowseResult": {
         "additionalProperties": false,
         "properties": {
@@ -1199,7 +1211,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0.",
+            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed.",
             "examples": [
               "login_required"
             ],
@@ -1580,6 +1592,61 @@
           "id",
           "code",
           "name"
+        ],
+        "type": "object"
+      },
+      "RequestScanPhotoUploadsInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "description": "How many photos are to be uploaded. One address comes back per photo.",
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
+      "ScanPhotoUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "url",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "ScanPhotoUploads": {
+        "additionalProperties": false,
+        "properties": {
+          "uploads": {
+            "items": {
+              "$ref": "#/components/schemas/ScanPhotoUpload"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "uploads"
         ],
         "type": "object"
       },
@@ -4622,6 +4689,52 @@
           }
         ],
         "summary": "Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
+        "tags": [
+          "scan"
+        ]
+      }
+    },
+    "/scan/photo-uploads": {
+      "post": {
+        "operationId": "request-scan-photo-uploads",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestScanPhotoUploadsInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeScanPhotoUploads"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign one PUT address per scan photo, up to 100 in a request, each to a JPEG in the private photo bucket that expires in five minutes. 503 with code photo_storage_not_configured when that bucket is not configured",
         "tags": [
           "scan"
         ]
