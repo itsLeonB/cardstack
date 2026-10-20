@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as AdminIndexRouteImport } from './routes/_admin/index'
+import { Route as AdminCardsRouteImport } from './routes/_admin/cards'
 import { Route as AdminExpansionSetsRouteImport } from './routes/_admin/expansion-sets'
 
 const AdminRoute = AdminRouteImport.update({
@@ -22,6 +23,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCardsRoute = AdminCardsRouteImport.update({
+  id: '/cards',
+  path: '/cards',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminExpansionSetsRoute = AdminExpansionSetsRouteImport.update({
   id: '/expansion-sets',
   path: '/expansion-sets',
@@ -30,24 +36,32 @@ const AdminExpansionSetsRoute = AdminExpansionSetsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
+  '/cards': typeof AdminCardsRoute
   '/expansion-sets': typeof AdminExpansionSetsRoute
 }
 export interface FileRoutesByTo {
+  '/cards': typeof AdminCardsRoute
   '/expansion-sets': typeof AdminExpansionSetsRoute
   '/': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_admin': typeof AdminRouteWithChildren
+  '/_admin/cards': typeof AdminCardsRoute
   '/_admin/expansion-sets': typeof AdminExpansionSetsRoute
   '/_admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/expansion-sets'
+  fullPaths: '/' | '/cards' | '/expansion-sets'
   fileRoutesByTo: FileRoutesByTo
-  to: '/expansion-sets' | '/'
-  id: '__root__' | '/_admin' | '/_admin/expansion-sets' | '/_admin/'
+  to: '/cards' | '/expansion-sets' | '/'
+  id:
+    | '__root__'
+    | '/_admin'
+    | '/_admin/cards'
+    | '/_admin/expansion-sets'
+    | '/_admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -70,6 +84,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_admin/cards': {
+      id: '/_admin/cards'
+      path: '/cards'
+      fullPath: '/cards'
+      preLoaderRoute: typeof AdminCardsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/_admin/expansion-sets': {
       id: '/_admin/expansion-sets'
       path: '/expansion-sets'
@@ -81,11 +102,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminCardsRoute: typeof AdminCardsRoute
   AdminExpansionSetsRoute: typeof AdminExpansionSetsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCardsRoute: AdminCardsRoute,
   AdminExpansionSetsRoute: AdminExpansionSetsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
