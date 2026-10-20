@@ -1,0 +1,23 @@
+backend/internal/adapters/http/handler/match_handler.go
+  s_b9f10d86e26352::t_9f446765b54f34 39,44
+backend/internal/adapters/http/routes/reprint_routes_test.go
+  s_b9f10d86e26352::t_28629559af2682 87,295
+backend/openapi.json
+  s_b9f10d86e26352::t_9569a0a1c5286f 4674
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f4fccd8165d8d6a65ed5c3ef463b5020bca1c6d1",
+  "prompts": {},
+  "sessions": {
+    "s_b9f10d86e26352": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b9f10d86e26352",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
