@@ -3,19 +3,28 @@ import { RiArrowDownSLine } from "@remixicon/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { CardThumb } from "./card-thumb"
 import { MISSING_NAME, useDraftCards } from "./use-draft-cards"
+import type { Mark } from "@/lib/draft-addition"
 import type { Scan } from "@/lib/use-draft-addition"
 import type { CardSummary } from "@/generated/models"
 
+/** The marks, worded for a photo. A marked Scan's row says the lowercased wording. */
+export const MARKS = {
+  empty: "No card in the photo",
+  unidentified: "A card, but none of these",
+} satisfies Record<Mark, string>
+
 /**
- * The card of an unsure Scan, opening a dropdown of its candidates with the
- * current choice marked. The candidates are fetched only once it opens, since
- * the menu's content mounts on open.
+ * The card of a resolved Scan, opening a menu of its candidates with the
+ * current choice marked, and the marks. The candidates are fetched only once it
+ * opens, since the menu's content mounts on open.
  */
 export function CandidatePicker({
   scan,
@@ -23,6 +32,7 @@ export function CandidatePicker({
   label,
   children,
   onChoose,
+  onMark,
 }: {
   scan: Scan
   seen: Map<string, CardSummary>
@@ -30,7 +40,15 @@ export function CandidatePicker({
   /** The card face the user taps to open the menu. */
   children: ReactNode
   onChoose: (cardId: string) => void
+  onMark: (mark: Mark) => void
 }) {
+  // A confident Scan keeps no candidates, only its one Card, which is still a choice.
+  const options =
+    scan.candidateIds.length > 0
+      ? scan.candidateIds
+      : scan.cardId
+        ? [scan.cardId]
+        : []
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -46,12 +64,23 @@ export function CandidatePicker({
         <RiArrowDownSLine className="shrink-0" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72">
-        <CandidateList
-          candidateIds={scan.candidateIds}
-          chosen={scan.cardId}
-          seen={seen}
-          onChoose={onChoose}
-        />
+        {options.length > 0 && (
+          <>
+            <CandidateList
+              candidateIds={options}
+              chosen={scan.cardId}
+              seen={seen}
+              onChoose={onChoose}
+            />
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem onClick={() => onMark("empty")}>
+          {MARKS.empty}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onMark("unidentified")}>
+          {MARKS.unidentified}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -387,6 +387,85 @@ describe("adding to the Collection", () => {
   })
 })
 
+describe("marked Scans", () => {
+  it("sets marked Scans aside: they add nothing, and the summary says how many", async () => {
+    await seed([
+      scan(1),
+      { cardId: "card-2", quantity: 3, candidateIds: [], mark: "unidentified" },
+      { quantity: 1, candidateIds: [], mark: "empty" },
+    ])
+    await openReview()
+
+    expect(screen.getByText(/2 Scans are set aside/)).toBeTruthy()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(bulks).toEqual([[{ cardId: "card-1", quantity: 1 }]])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+  })
+
+  it("confirms a draft of only marked Scans without writing any quantity", async () => {
+    await seed([{ quantity: 1, candidateIds: [], mark: "empty" }])
+    await openReview()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(bulks).toEqual([])
+    expect(placements).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+  })
+
+  it("clears a draft of only marked Scans from the expanded sheet", async () => {
+    await seed([{ quantity: 1, candidateIds: [], mark: "empty" }])
+    renderScreen()
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Draft \(/ })
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard draft" }))
+
+    await waitFor(() =>
+      expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+    )
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+  })
+
+  it("keeps the marked Scans when the commit fails", async () => {
+    await seed([scan(1), { quantity: 1, candidateIds: [], mark: "empty" }])
+    await openReview()
+    bulkMode = "error"
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await screen.findByRole("alert")
+    expect(added).not.toHaveBeenCalled()
+    const saved = await loadDraft("user-1", "col-1")
+    expect(saved.map((s) => s.mark)).toEqual([undefined, "empty"])
+  })
+
+  it("shows a marked Scan's mark after a reload", async () => {
+    await seed([
+      { cardId: "card-2", quantity: 1, candidateIds: [], mark: "unidentified" },
+    ])
+    renderScreen()
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Draft \(/ })
+    )
+
+    const row = await reviewRow("Card 2")
+    expect(
+      within(row).getByText("Marked: a card, but none of these")
+    ).toBeTruthy()
+  })
+})
+
 describe("adding to a binder", () => {
   beforeEach(() => {
     binder = { cardTotal: 0 }

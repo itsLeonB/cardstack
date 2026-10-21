@@ -34,7 +34,8 @@ const candidate = (n: number): MatchCandidate => ({
   score: 0.9,
 })
 
-type Reply = { confident: boolean; candidates: MatchCandidate[] } | "fail"
+type Reply =
+  { confident: boolean; candidates: MatchCandidate[]; empty?: boolean } | "fail"
 
 // Replies come in order. In hold mode a match waits until the test answers it,
 // and an aborted one is dropped from the queue of waiting answers.
@@ -212,14 +213,22 @@ describe("capturing", () => {
     expect(matchCalls).toBe(4)
   })
 
-  it("shows a confident match as its card, with no dropdown", async () => {
+  it("shows a confident match as its card, and its menu offers the card and the marks", async () => {
     replies = [{ confident: true, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
 
     const row = await rowOf("Card 1")
     expect(within(row).getByText(/Starter Set · No\. 1/)).toBeTruthy()
-    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    expect(
+      await screen.findByRole("menuitemradio", { name: /Card 1/ })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("menuitem", { name: "No card in the photo" })
+    ).toBeTruthy()
   })
 
   it("shows an unsure match on its top candidate and lets the user pick another, keeping the quantity", async () => {
@@ -409,6 +418,29 @@ describe("persistence", () => {
     expect(await loadDraft("user-1", "col-1")).toEqual([])
   })
 
+  it("keeps a Scan's mark across a reload", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    const first = renderScreen()
+    await capture()
+    const row = await rowOf("Card 1")
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "No card in the photo" })
+    )
+    await waitFor(async () =>
+      expect((await loadDraft("user-1", "col-1"))[0]?.mark).toBe("empty")
+    )
+
+    first.unmount()
+    renderScreen()
+    await expandSheet()
+    expect(
+      within(await rowOf("Card 1")).getByText("Marked: no card in the photo")
+    ).toBeTruthy()
+  })
+
   it("keeps each Collection's draft separate", async () => {
     await saveDraft("user-1", "col-2", [
       { cardId: "card-9", quantity: 1, candidateIds: [] },
@@ -516,13 +548,19 @@ describe("removing a Scan from the saved draft", () => {
 })
 
 describe("the candidates", () => {
-  it("shows no dropdown when the matcher offers a single candidate", async () => {
+  it("offers only the one candidate, with the marks, when the matcher offers a single candidate", async () => {
     replies = [{ confident: false, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
 
-    await rowOf("Card 1")
-    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
+    const row = await rowOf("Card 1")
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    expect(await screen.findAllByRole("menuitemradio")).toHaveLength(1)
+    expect(
+      screen.getByRole("menuitem", { name: "No card in the photo" })
+    ).toBeTruthy()
   })
 
   it("shows the picked card at once, before the sheet's own lookup of it answers", async () => {
@@ -561,6 +599,79 @@ describe("a Card that will not load", () => {
     )
 
     expect(await rowOf("Card 2")).toBeTruthy()
+  })
+})
+
+describe("marking a Scan", () => {
+  it("says no card was found for a server-flagged empty, with Retry, Remove and no card to pick", async () => {
+    replies = [{ confident: false, candidates: [], empty: true }]
+    renderScreen()
+    await capture()
+
+    // The sheet is collapsed, so its one row is the Scan. The status line says the same words.
+    const row = await screen.findByRole("listitem")
+    await waitFor(() =>
+      expect(within(row).getByText("No card found.")).toBeTruthy()
+    )
+    expect(within(row).getByRole("button", { name: "Retry" })).toBeTruthy()
+    expect(
+      within(row).getByRole("button", { name: "Remove scan" })
+    ).toBeTruthy()
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for scan" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: "No card in the photo" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("menuitemradio")).toBeNull()
+  })
+
+  it("marks a confident Scan Unidentified from the picker, worded for the photo, and keeps its card", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+
+    const row = await rowOf("Card 1")
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "A card, but none of these" })
+    )
+
+    await waitFor(() =>
+      expect(
+        within(row).getByText("Marked: a card, but none of these")
+      ).toBeTruthy()
+    )
+    expect(within(row).getByText("Card 1")).toBeTruthy()
+    expect(screen.queryByText(/slot/i)).toBeNull()
+  })
+
+  it("changes a marked Scan back to one of its candidates from the picker", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    renderScreen()
+    await capture()
+
+    const row = await rowOf("Card 1")
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "No card in the photo" })
+    )
+    await waitFor(() =>
+      expect(within(row).getByText("Marked: no card in the photo")).toBeTruthy()
+    )
+
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: /Card 2/ })
+    )
+    await waitFor(() => expect(within(row).queryByText(/Marked:/)).toBeNull())
+    expect(within(row).getByText("Card 2")).toBeTruthy()
   })
 })
 
