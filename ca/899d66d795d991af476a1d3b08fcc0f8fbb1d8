@@ -1,0 +1,21 @@
+frontend/src/lib/draft-addition.test.ts
+  s_cfea4dbf5e7490::t_6018932440dbb4 58,67,69
+frontend/src/lib/draft-addition.ts
+  s_cfea4dbf5e7490::t_464160f233ffc2 28,52,56-57,66,68,70-76,80,105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ca899d66d795d991af476a1d3b08fcc0f8fbb1d8",
+  "prompts": {},
+  "sessions": {
+    "s_cfea4dbf5e7490": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_cfea4dbf5e7490",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
