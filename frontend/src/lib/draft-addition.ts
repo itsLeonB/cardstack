@@ -33,6 +33,8 @@ export interface ResolvedScan {
   photo?: Blob
   /** The match response as the API sent it, so a field the API adds later is kept. */
   detection?: EnvelopeMatchResult
+  /** Where the chosen Card sits in the Reprints list, when the user picked it from "Other prints". */
+  reprintPosition?: number
 }
 
 interface DraftRecord {

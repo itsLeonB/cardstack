@@ -47,6 +47,9 @@ let uploads: Blob[] = []
 let catalogRequests: string[] = []
 let failLookup = new Set<string>()
 let holdLookup = new Set<string>()
+let reprintPool: CardSummary[] = []
+let reprintCalls: string[] = []
+let reprintFailures = 0
 
 interface JsonBody {
   data?: unknown
@@ -98,6 +101,25 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
     const data = ids.map((id) => cardOf(Number(id.replace("card-", ""))))
     return Promise.resolve(
       json({ data, meta: { total: data.length, page: 1, limit: 100 } })
+    )
+  }
+  if (url.pathname === "/scan/reprints") {
+    reprintCalls.push(url.search)
+    if (reprintFailures > 0) {
+      reprintFailures--
+      return Promise.resolve(json({ title: "boom" }, 500))
+    }
+    // Like the API: the sent ids are left out, then five a page from the offset.
+    const sent = new Set(url.searchParams.getAll("cardIds"))
+    const offset = Number(url.searchParams.get("offset") ?? 0)
+    const pool = reprintPool.filter((card) => !sent.has(card.id))
+    return Promise.resolve(
+      json({
+        data: {
+          cards: pool.slice(offset, offset + 5),
+          hasMore: offset + 5 < pool.length,
+        },
+      })
     )
   }
   return Promise.resolve(json({ title: "unexpected" }, 500))
@@ -153,6 +175,9 @@ beforeEach(() => {
   catalogRequests = []
   failLookup = new Set()
   holdLookup = new Set()
+  reprintPool = []
+  reprintCalls = []
+  reprintFailures = 0
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   vi.stubGlobal("indexedDB", new IDBFactory())
   vi.stubGlobal("IDBKeyRange", IDBKeyRange)
@@ -212,14 +237,16 @@ describe("capturing", () => {
     expect(matchCalls).toBe(4)
   })
 
-  it("shows a confident match as its card, with no dropdown", async () => {
+  it("shows a confident match as its card, its menu offering only Other prints", async () => {
     replies = [{ confident: true, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
 
     const row = await rowOf("Card 1")
     expect(within(row).getByText(/Starter Set · No\. 1/)).toBeTruthy()
-    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
+    expect(
+      within(row).getByRole("button", { name: "Change card for Card 1" })
+    ).toBeTruthy()
   })
 
   it("shows an unsure match on its top candidate and lets the user pick another, keeping the quantity", async () => {
@@ -516,13 +543,16 @@ describe("removing a Scan from the saved draft", () => {
 })
 
 describe("the candidates", () => {
-  it("shows no dropdown when the matcher offers a single candidate", async () => {
-    replies = [{ confident: false, candidates: [candidate(1)] }]
+  it("lists the one Card of a confident match as the only choice", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
 
     await rowOf("Card 1")
-    expect(screen.queryByRole("button", { name: /Change card for/ })).toBeNull()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Change card for Card 1" })
+    )
+    expect(await screen.findAllByRole("menuitemradio")).toHaveLength(1)
   })
 
   it("shows the picked card at once, before the sheet's own lookup of it answers", async () => {
@@ -542,6 +572,162 @@ describe("the candidates", () => {
     const row = screen.getByRole("listitem")
     expect(within(row).getByText("Card 4")).toBeTruthy()
     expect(within(row).queryByText("Loading…")).toBeNull()
+  })
+})
+
+describe("other prints", () => {
+  const openOtherPrints = async (name: string) => {
+    await userEvent.click(
+      screen.getByRole("button", { name: `Change card for ${name}` })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
+  }
+  // A row's name runs into its set code ("Card 11SCE"), so a digit after the name means another Card.
+  const printed = (name: string) => new RegExp(`^${name}(?!\\d)`)
+  const printNamed = (name: string) =>
+    screen.queryByRole("menuitem", { name: printed(name) })
+
+  it("offers Other prints on a confident Scan, sending its one Card and fetching only once opened", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    reprintPool = [cardOf(11)]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    expect(reprintCalls).toEqual([])
+
+    await openOtherPrints("Card 1")
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 11") })
+    ).toBeTruthy()
+    expect(reprintCalls).toEqual(["?cardIds=card-1&offset=0"])
+  })
+
+  it("loads five at a time and drops Load more once no Reprints remain", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    reprintPool = [11, 12, 13, 14, 15, 16, 17].map(cardOf)
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await openOtherPrints("Card 1")
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 15") })
+    ).toBeTruthy()
+    expect(printNamed("Card 16")).toBeNull()
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Load more" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 17") })
+    ).toBeTruthy()
+    expect(reprintCalls.at(-1)).toContain("offset=5")
+    expect(screen.queryByRole("menuitem", { name: "Load more" })).toBeNull()
+  })
+
+  it("never offers a Card already among the Scan's candidates, nor one twice across pages", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    reprintPool = [11, 12, 13, 14, 15, 15, 16].map(cardOf)
+    reprintPool.push(cardOf(2))
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await openOtherPrints("Card 1")
+
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Load more" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 16") })
+    ).toBeTruthy()
+    expect(
+      screen.getAllByRole("menuitem", { name: printed("Card 15") })
+    ).toHaveLength(1)
+    expect(printNamed("Card 2")).toBeNull()
+  })
+
+  it("says there are no other prints and offers nothing to pick", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await openOtherPrints("Card 1")
+
+    expect(await screen.findByText("No other prints")).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: "Load more" })).toBeNull()
+  })
+
+  it("makes a picked Reprint the chosen Card, which can be changed again", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    reprintPool = [cardOf(11)]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await openOtherPrints("Card 1")
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: printed("Card 11") })
+    )
+
+    let row = await rowOf("Card 11")
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Change card for Card 11" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: printed("Card 1") })
+    )
+
+    // The menu may stay mounted while it closes, so the row is read by its list item.
+    row = screen.getByRole("listitem")
+    expect(within(row).getByText("Card 1")).toBeTruthy()
+  })
+
+  it("keeps a picked Reprint and its position across a reload", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    reprintPool = [11, 12, 13, 14, 15, 16, 17].map(cardOf)
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await openOtherPrints("Card 1")
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Load more" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: printed("Card 16") })
+    )
+    await waitFor(async () =>
+      expect(await loadDraft("user-1", "col-1")).toHaveLength(1)
+    )
+
+    expect(await loadDraft("user-1", "col-1")).toEqual([
+      expect.objectContaining({ cardId: "card-16", reprintPosition: 5 }),
+    ])
+    cleanup()
+    renderScreen()
+    await expandSheet()
+    const row = await rowOf("Card 16")
+    expect(within(row).getByText("Card 16")).toBeTruthy()
+  })
+
+  it("shows a retry when the list fails, and leaves the Scan as it was", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    reprintPool = [cardOf(11)]
+    reprintFailures = 1
+    renderScreen()
+    await capture()
+    const row = await rowOf("Card 1")
+    await openOtherPrints("Card 1")
+
+    expect(await screen.findByRole("alert")).toBeTruthy()
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Retry" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 11") })
+    ).toBeTruthy()
+    expect(within(row).getByText("Card 1")).toBeTruthy()
   })
 })
 
