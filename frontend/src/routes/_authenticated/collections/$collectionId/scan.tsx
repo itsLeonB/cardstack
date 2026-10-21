@@ -43,7 +43,7 @@ function ScanPage() {
         />
       </div>
       <ScanScreen
-        key={collectionId}
+        key={`${user.id}:${collectionId}`}
         userId={user.id}
         collectionId={collectionId}
         source={source}

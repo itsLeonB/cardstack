@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
@@ -90,6 +90,7 @@ async function renderScan() {
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+  return router
 }
 
 describe("the scan route", () => {
@@ -98,6 +99,24 @@ describe("the scan route", () => {
     await screen.findByRole("heading", { level: 1, name: "Scan cards" })
     expect(screen.getByText("Adding to Binder")).toBeTruthy()
     expect(screen.getByLabelText("Choose a photo")).toBeTruthy()
+  })
+
+  it("shows none of one Collection's Scans after moving to another, and leaves the first saved", async () => {
+    await saveDraft("user-1", "col-1", [
+      { cardId: "card-1", quantity: 1, candidateIds: [] },
+    ])
+    const router = await renderScan()
+    await screen.findByRole("button", { name: /^Draft \(/ })
+    const savedFirst = await loadDraft("user-1", "col-1")
+
+    router.history.push("/collections/col-2/scan")
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/collections/col-2/scan")
+    )
+
+    await screen.findByText("Scanned cards will appear here.")
+    expect(await loadDraft("user-1", "col-2")).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual(savedFirst)
   })
 
   it("leaves the saved Draft Addition of another user alone", async () => {
