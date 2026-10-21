@@ -19,9 +19,9 @@ import (
 	"gorm.io/datatypes"
 )
 
-// MaxScanPhotoBytes caps a kept photo at the size /scan/match accepts, so a
-// photo kept for a Correction is one the matcher could read (docs/adr/0022).
-const MaxScanPhotoBytes = 2 << 20
+// MaxFeedbackPhotoBytes caps a kept photo. A whole binder Page photo is often
+// over the 2 MiB /scan/match accepts, so a feedback photo gets a larger cap.
+const MaxFeedbackPhotoBytes = 8 << 20
 
 // MaxScanJSONBytes caps a Detection's JSON and a Page's corners.
 const MaxScanJSONBytes = 64 << 10
@@ -202,8 +202,9 @@ func (s *scanFeedbackService) checkPhotos(ctx context.Context, profileID uuid.UU
 		if err != nil {
 			return err
 		}
-		if size > MaxScanPhotoBytes {
-			return s.refusePhoto(ctx, key, feedbackPhotoTooLargeMsg)
+		if size > MaxFeedbackPhotoBytes {
+			s.refusePhoto(ctx, key)
+			return ungerr.BadRequestError(feedbackPhotoTooLargeMsg)
 		}
 		head, err := s.photos.ReadHead(ctx, key, len(jpegSignature))
 		if errors.Is(err, objectstore.ErrNotFound) {
@@ -213,7 +214,8 @@ func (s *scanFeedbackService) checkPhotos(ctx context.Context, profileID uuid.UU
 			return err
 		}
 		if !bytes.HasPrefix(head, jpegSignature) {
-			return s.refusePhoto(ctx, key, feedbackPhotoNotJPEGMsg)
+			s.refusePhoto(ctx, key)
+			return ungerr.BadRequestError(feedbackPhotoNotJPEGMsg)
 		}
 	}
 	return nil
@@ -222,9 +224,8 @@ func (s *scanFeedbackService) checkPhotos(ctx context.Context, profileID uuid.UU
 // refusePhoto deletes a photo that failed its check and refuses the batch. A
 // failed delete is logged rather than returned: the refusal stands, and the
 // object is an orphan the operator accepts (docs/adr/0022).
-func (s *scanFeedbackService) refusePhoto(ctx context.Context, key, msg string) error {
+func (s *scanFeedbackService) refusePhoto(ctx context.Context, key string) {
 	if err := s.photos.Delete(ctx, key); err != nil {
 		logger.Errorf("deleting refused scan photo %q: %v", key, err)
 	}
-	return ungerr.BadRequestError(msg)
 }

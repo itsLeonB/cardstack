@@ -27,7 +27,7 @@ func pairDistance(t *testing.T, pairs []CardPair, x, y uuid.UUID) float64 {
 			return p.Distance
 		}
 	}
-	t.Fatalf("no pair for %s and %s in %v", x, y, pairs)
+	require.Failf(t, "no pair", "no pair for %s and %s in %v", x, y, pairs)
 	return 0
 }
 
@@ -84,6 +84,14 @@ func TestTuningRepository_NameGroupsLargestFirstAndOnlyEmbeddedCards(t *testing.
 	newNamedCard("Tune Twin "+suffix, true)
 	newNamedCard("Tune Twin "+suffix, false)
 
+	// Cards in an unpublished set are not Reprints, so they are not counted: two of them make no group.
+	hidden := f.newExpansionSet(t, db, nil, nil)
+	require.NoError(t, db.Model(&hidden).Update("published", false).Error)
+	for range 2 {
+		card := f.newCard(t, db, hidden.ID, func(c *entity.Card) { c.Name = "Tune Hidden " + suffix; c.LocalID = uuid.NewString() })
+		insertTuningEmbedding(t, db, card.ID, model, unitVector(0))
+	}
+
 	groups, err := repo.NameGroups(ctx, model)
 
 	require.NoError(t, err)
@@ -111,6 +119,12 @@ func TestTuningRepository_GroupCardsOfOneNameWithTheirSetAndNumber(t *testing.T)
 	f.newCard(t, db, set.ID, func(c *entity.Card) { c.Name = name; c.LocalID = "003" })
 	other := f.newCard(t, db, set.ID, func(c *entity.Card) { c.Name = name + " ex"; c.LocalID = "004" })
 	insertTuningEmbedding(t, db, other.ID, model, unitVector(2))
+
+	// A Card in an unpublished set is not a Reprint, so it is not listed.
+	hidden := f.newExpansionSet(t, db, nil, nil)
+	require.NoError(t, db.Model(&hidden).Update("published", false).Error)
+	unpublished := f.newCard(t, db, hidden.ID, func(c *entity.Card) { c.Name = name; c.LocalID = "005" })
+	insertTuningEmbedding(t, db, unpublished.ID, model, unitVector(3))
 
 	got, err := repo.GroupCards(ctx, model, name)
 

@@ -52,7 +52,7 @@ func TestCells_PrintsTheTopSimilarityOfEachCellAndSummarisesEachPhoto(t *testing
 		"row 1 col 2 1.000 Pikachu (" + f.set.Code + ")",
 		"lowest 1.000, highest 1.000, 0 of 2 below 0.850",
 	}, lines(h.stdout.String()), "photos come out in name order, cells in grid order")
-	assert.Equal(t, 4, h.embedder.calls, "one embedding per cell")
+	h.embedder.AssertNumberOfCalls(t, "Embed", 4) // one embedding per cell
 }
 
 func TestCells_WithoutThresholdPrintsOnlyTheLowestAndHighest(t *testing.T) {
@@ -105,7 +105,7 @@ func TestCells_NoEmbeddingsForTheModelFailsBeforeAnyCellIsEmbedded(t *testing.T)
 	assert.Equal(t, 1, code)
 	assert.Contains(t, h.stderr.String(), `the catalog has no embeddings for model "`+model+`"`)
 	assert.Equal(t, 0, h.cuts, "no photo is cut")
-	assert.Equal(t, 0, h.embedder.calls, "no Gemini call is made")
+	h.embedder.AssertNumberOfCalls(t, "Embed", 0) // no Gemini call is made
 	assert.Empty(t, h.stdout.String())
 }
 

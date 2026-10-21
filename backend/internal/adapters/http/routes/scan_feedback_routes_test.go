@@ -163,6 +163,22 @@ func TestScanFeedback_StoresEveryFieldOfAValidBatch(t *testing.T) {
 	assert.JSONEq(t, mustJSON(t, feedbackCorners()), string(s.Corners))
 }
 
+// A 3x3 Page photo is often over /scan/match's 2 MiB, so a feedback photo has its own, larger cap.
+func TestScanFeedback_KeepsAPhotoUpTo8MiB(t *testing.T) {
+	api := newTestAPI(t)
+	token, profileID := feedbackCaller(t, api)
+	collection := feedbackCollection(t, api, token)
+	card := seedFeedbackCard(t, api)
+	key := profileID + "/" + uuid.NewString()
+	api.photos.EXPECT().Size(mock.Anything, key).Return(int64(3<<20), nil).Once()
+	api.photos.EXPECT().ReadHead(mock.Anything, key, mock.Anything).Return(jpegHead, nil).Once()
+
+	resp := api.Post(scanFeedbackPath, bearer(token), feedbackBatch(withKey(withCard(binderRow(collection, "switched"), card, 4, "top"), key)))
+
+	require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
+	assert.Len(t, rowsOf(t, api, collection), 1)
+}
+
 func TestScanFeedback_StoresEmptyAndUnidentifiedWithoutACard(t *testing.T) {
 	api := newTestAPI(t)
 	token, profileID := feedbackCaller(t, api)
@@ -270,7 +286,7 @@ func TestScanFeedback_RefusesAKeyThatFailsAndDeletesTheObject(t *testing.T) {
 		token, profileID := feedbackCaller(t, api)
 		collection := feedbackCollection(t, api, token)
 		key := profileID + "/" + uuid.NewString()
-		api.photos.EXPECT().Size(mock.Anything, key).Return(int64(service.MaxScanPhotoBytes+1), nil).Once()
+		api.photos.EXPECT().Size(mock.Anything, key).Return(int64(8<<20+1), nil).Once()
 		api.photos.EXPECT().Delete(mock.Anything, key).Return(nil).Once()
 
 		resp := api.Post(scanFeedbackPath, bearer(token), feedbackBatch(withKey(cardScanRow(collection, "unidentified"), key)))

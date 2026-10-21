@@ -301,6 +301,16 @@ func TestScanReprints(t *testing.T) {
 	})
 }
 
+func TestScanReprints_CountsAgainstThePerUserLimit(t *testing.T) {
+	api, _ := newRateLimitedAPI(t)
+	auth := bearer(api.newUserToken(t))
+
+	for i := range tightLimits.User.Burst {
+		require.Equal(t, http.StatusOK, api.Get(reprintsPath+"?"+reprintQuery(0), auth).Code, "request %d is under the limit", i+1)
+	}
+	assertRateLimited(t, api.Get(reprintsPath+"?"+reprintQuery(0), auth), "1", "over the limit")
+}
+
 // getCode is the status code of a GET.
 func (a testAPI) getCode(url string, headers ...any) int {
 	return a.Get(url, headers...).Code
