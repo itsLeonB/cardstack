@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Frontend). Decision: `docs/adr/0023-
 
 **Blocked by:** 02 (reprint lookup route), 06 (Draft Addition keeps resolved Scans with their photos)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `d73aef2`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] The picker of every resolved Scan, confident or not, has an "Other prints" entry
 - [ ] Opening it fetches one page of five with the Scan's candidate ids; the match flow makes no extra request

@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Frontend, Persistence). Decision: `d
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `0465cf9`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] A saved Page Review includes the Page photo, the grid and the four corners
 - [ ] After leaving and resuming a review, the photo, grid and corners are still there

@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Recording, Frontend). Decision: `doc
 
 **Blocked by:** 04 (record scan feedback), 06 (Draft Addition keeps resolved Scans with their photos), 08 (empty and unidentified marks on card scan), 10 (other prints in the card-scan picker)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `3b98ae4`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] Confirming sends one row per resolved Scan with the right kind for each of the cases above
 - [ ] The rank is the position in the list the matcher offered, or in the Reprints list counted across pages, and the source says which list

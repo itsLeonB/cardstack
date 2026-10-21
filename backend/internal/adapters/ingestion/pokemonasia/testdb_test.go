@@ -9,7 +9,6 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/pressly/goose/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -65,11 +64,7 @@ func testDB(t *testing.T) *gorm.DB {
 	// Unclosed per-test pools exhaust Postgres's connection limit.
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
-	goose.SetBaseFS(migrations.Migrations)
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("setting goose dialect: %v", err)
-	}
-	if err := goose.Up(sqlDB, "."); err != nil {
+	if err := migrations.Up(t.Context(), sqlDB); err != nil {
 		t.Fatalf("running migrations: %v", err)
 	}
 

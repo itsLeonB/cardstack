@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Recording, Frontend). Decision: `doc
 
 **Blocked by:** 04 (record scan feedback), 07 (Page Review keeps the Page photo), 09 (empty default on binder cells), 11 (other prints in the Page Review menu), 12 (record card-scan feedback)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `d32de84`), review fixes in `294165a`, not yet merged to `main`. Every binder row carries the grid and corners, confirmations included, because `POST /scan/feedback` requires them on a `binder_page` row; only Corrections carry the photo key.
 
 - [ ] Confirming sends one row per cell with the right kind, using the rules and the shared recorder of ticket 12
 - [ ] A cell the matcher called Empty and the user left Empty is a confirmation; changed to a Card or Unidentified it is a Correction

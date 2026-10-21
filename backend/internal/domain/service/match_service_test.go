@@ -58,7 +58,7 @@ func (f matchFixture) search(distances ...float64) []uuid.UUID {
 		rows[i] = repository.CardResult{ID: ids[i], Name: "Card", LocalID: "001", ExpansionSetName: "Set", ImageKey: "cards/x"}
 	}
 	f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, matchCandidates).Return(nearest, nil)
+	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).Return(nearest, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, ids).Return(rows, nil)
 	return ids
 }
@@ -146,7 +146,7 @@ func TestMatchService_Match_ASingleCandidateIsConfidentWhenItClearsTheThreshold(
 func TestMatchService_Match_NothingEmbeddedYetIsAnEmptyNonConfidentResult(t *testing.T) {
 	f := newMatchFixture(t)
 	f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, matchCandidates).Return(nil, nil)
+	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).Return(nil, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{}).Return(nil, nil)
 
 	got := f.match(t)
@@ -159,7 +159,7 @@ func TestMatchService_Match_ACardWithTwoEmbeddingsCountsOnceAtItsBestRow(t *test
 	f := newMatchFixture(t)
 	a, b := uuid.New(), uuid.New()
 	f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, matchCandidates).
+	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).
 		Return([]repository.CardDistance{{CardID: a, Distance: 0.05}, {CardID: a, Distance: 0.06}, {CardID: b, Distance: 0.30}}, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{a, b}).
 		Return([]repository.CardResult{{ID: b, ImageKey: "cards/b"}, {ID: a, ImageKey: "cards/a"}}, nil)
@@ -203,7 +203,7 @@ func TestMatchService_Match_ReturnsSearchAndLookupErrors(t *testing.T) {
 	t.Run("search", func(t *testing.T) {
 		f := newMatchFixture(t)
 		f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, matchCandidates).Return(nil, boom)
+		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).Return(nil, boom)
 
 		_, err := f.svc.Match(context.Background(), dto.MatchRequest{Image: jpegBytes})
 
@@ -214,7 +214,7 @@ func TestMatchService_Match_ReturnsSearchAndLookupErrors(t *testing.T) {
 		f := newMatchFixture(t)
 		id := uuid.New()
 		f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, matchCandidates).
+		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).
 			Return([]repository.CardDistance{{CardID: id, Distance: 0.1}}, nil)
 		f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{id}).Return(nil, boom)
 
@@ -251,4 +251,59 @@ func TestMatchSettings_confident(t *testing.T) {
 			assert.Equal(t, tt.want, m.confident(tt.candidates))
 		})
 	}
+}
+
+func TestMatchSettings_empty(t *testing.T) {
+	scores := func(s ...float64) []dto.MatchCandidate {
+		out := make([]dto.MatchCandidate, len(s))
+		for i, v := range s {
+			out[i].Score = v
+		}
+		return out
+	}
+
+	tests := map[string]struct {
+		emptyThreshold float64
+		candidates     []dto.MatchCandidate
+		want           bool
+	}{
+		"rule off at zero":      {0, scores(0.10), false},
+		"no candidates":         {0.5, nil, false},
+		"top below the setting": {0.5, scores(0.40, 0.10), true},
+		"top at the setting":    {0.5, scores(0.50), false},
+		"top above the setting": {0.5, scores(0.60), false},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := MatchSettings{Threshold: 0.8, Margin: 0.1, EmptyThreshold: tt.emptyThreshold}
+			assert.Equal(t, tt.want, m.empty(tt.candidates))
+		})
+	}
+}
+
+func TestScoreNearest_KeepsTheNearestRowOfEachCardWithItsSimilarity(t *testing.T) {
+	a, b := uuid.New(), uuid.New()
+
+	// Nearest first, as NearestCards returns them; a Card's second row is dropped.
+	got := ScoreNearest([]repository.CardDistance{
+		{CardID: a, Distance: 0.1},
+		{CardID: b, Distance: 0.2},
+		{CardID: a, Distance: 0.3},
+	})
+
+	require.Len(t, got, 2)
+	assert.Equal(t, a, got[0].CardID)
+	assert.InDelta(t, 0.9, got[0].Similarity, 1e-9)
+	assert.Equal(t, b, got[1].CardID)
+	assert.InDelta(t, 0.8, got[1].Similarity, 1e-9)
+}
+
+func TestScoreNearest_SimilarityStaysInsideZeroToOne(t *testing.T) {
+	got := ScoreNearest([]repository.CardDistance{
+		{CardID: uuid.New(), Distance: -0.5},
+		{CardID: uuid.New(), Distance: 1.5},
+	})
+
+	assert.Equal(t, 1.0, got[0].Similarity)
+	assert.Equal(t, 0.0, got[1].Similarity)
 }

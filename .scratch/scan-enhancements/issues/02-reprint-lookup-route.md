@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Reprints). Decision: `docs/adr/0023-
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `119528e`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] Cards with the same name and near-identical catalog art in other Expansion Sets are returned; the same name with different art is not
 - [ ] Name matching folds case and whitespace and is otherwise exact, so "Pikachu ex" is not "Pikachu"

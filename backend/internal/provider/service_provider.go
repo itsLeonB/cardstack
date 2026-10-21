@@ -19,20 +19,22 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideServices)
 
 type Services struct {
-	Health     service.HealthService
-	Verifier   auth.TokenVerifier
-	Users      service.UserService
-	Catalog    service.CatalogService
-	Collection service.CollectionService
-	Inventory  service.InventoryService
-	Binder     service.BinderService
-	BinderSlot service.BinderSlotService
-	Match      service.MatchService
-	AdminSets  service.AdminSetService
-	CardAdmin  service.CardAdminService
+	Health       service.HealthService
+	Verifier     auth.TokenVerifier
+	Users        service.UserService
+	Catalog      service.CatalogService
+	Collection   service.CollectionService
+	Inventory    service.InventoryService
+	Binder       service.BinderService
+	BinderSlot   service.BinderSlotService
+	Match        service.MatchService
+	AdminSets    service.AdminSetService
+	CardAdmin    service.CardAdminService
+	ScanPhoto    service.ScanPhotoService
+	ScanFeedback service.ScanFeedbackService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -135,12 +137,15 @@ func ProvideAdminSetService(ds *DataSources, images mapper.ImageHost) service.Ad
 	)
 }
 
-// ProvideMatchSettings reads the model and the confident rule from config.
+// ProvideMatchSettings reads the model, the confident rule and the empty rule
+// from config.
 func ProvideMatchSettings() service.MatchSettings {
 	return service.MatchSettings{
-		Model:     config.Global.Model,
-		Threshold: config.Global.Threshold,
-		Margin:    config.Global.Margin,
+		Model:          config.Global.Model,
+		Threshold:      config.Global.Threshold,
+		Margin:         config.Global.Margin,
+		EmptyThreshold: config.Global.EmptyThreshold,
+		ReprintDelta:   config.Global.ReprintDelta,
 	}
 }
 
@@ -166,18 +171,20 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService) *Services {
 	return &Services{
-		Health:     coreservice.NewHealthService(),
-		Verifier:   verifier,
-		Users:      users,
-		Catalog:    catalog,
-		Collection: collection,
-		Inventory:  inventory,
-		Binder:     binder,
-		BinderSlot: binderSlot,
-		Match:      match,
-		AdminSets:  adminSets,
-		CardAdmin:  cardAdmin,
+		Health:       coreservice.NewHealthService(),
+		Verifier:     verifier,
+		Users:        users,
+		Catalog:      catalog,
+		Collection:   collection,
+		Inventory:    inventory,
+		Binder:       binder,
+		BinderSlot:   binderSlot,
+		Match:        match,
+		AdminSets:    adminSets,
+		CardAdmin:    cardAdmin,
+		ScanPhoto:    scanPhoto,
+		ScanFeedback: scanFeedback,
 	}
 }

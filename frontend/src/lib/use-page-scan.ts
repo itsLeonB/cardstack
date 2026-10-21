@@ -4,6 +4,7 @@ import type {
   BinderPageSlotBody,
   BinderSlot,
   CardSummary,
+  EnvelopeMatchResult,
 } from "@/generated/models"
 import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
 import { MAX_CANDIDATES } from "./use-draft-addition"
@@ -15,8 +16,13 @@ export type CellMatch =
   | { status: "queued" }
   | { status: "loading" }
   | { status: "failed" }
-  /** No candidates at all is a no-good-candidate cell; `confident` says whether the top one is sure. */
-  | { status: "matched"; confident: boolean; candidates: CardSummary[] }
+  /** No candidates at all is a no-good-candidate cell; `confident` says whether the top one is sure. `empty` is the matcher's no-card answer, and is absent in reviews saved before it existed. */
+  | {
+      status: "matched"
+      confident: boolean
+      candidates: CardSummary[]
+      empty?: boolean
+    }
 
 interface Job {
   photo: Blob
@@ -31,6 +37,12 @@ export interface PageCell {
   cardId?: string
   /** Empty or Unidentified, picked by hand in the cell's menu, which overrides the chosen Card. */
   mark?: "empty" | "unidentified"
+  /** The Reprint the user picked from "Other prints", kept whole so the pill shows it on resume. Set with reprintPosition, cleared by any other pick. */
+  reprintCard?: CardSummary
+  /** Where that Reprint sat in the Reprints list when picked, in the order the list showed them. */
+  reprintPosition?: number
+  /** The Detection the cell's match returned, kept as is so the feedback can judge the cell. Absent until a match succeeds. */
+  detection?: EnvelopeMatchResult
 }
 
 // A cell that has no result yet, so it still has to match.
@@ -62,14 +74,20 @@ export function usePageMatches(resumed: PageCell[] = []) {
           try {
             const response = await matchScannedCard(photo, { signal })
             if (response.status !== 200) throw new Error("match failed")
-            const { confident, candidates } = response.data.data
+            const { confident, candidates, empty } = response.data.data
             const cards = (candidates ?? [])
               .slice(0, MAX_CANDIDATES)
               .map((c) => c.card)
             if (!stale())
               patch(index, {
-                match: { status: "matched", confident, candidates: cards },
+                match: {
+                  status: "matched",
+                  confident,
+                  candidates: cards,
+                  empty,
+                },
                 cardId: cards[0]?.id,
+                detection: response.data,
               })
           } catch {
             if (!stale()) patch(index, { match: { status: "failed" } })
@@ -117,19 +135,42 @@ export function usePageMatches(resumed: PageCell[] = []) {
         generation: generation.current,
       })
     },
-    /** Picks a candidate, which also clears a hand mark; the other candidates stay for a later pick. */
+    /** Picks a candidate, which also clears a hand mark and a Reprint; the other candidates stay for a later pick. */
     choose(index: number, cardId: string) {
-      patch(index, { cardId, mark: undefined })
+      patch(index, {
+        cardId,
+        mark: undefined,
+        reprintCard: undefined,
+        reprintPosition: undefined,
+      })
     },
     mark(index: number, mark: PageCell["mark"]) {
-      patch(index, { mark })
+      patch(index, { mark, reprintCard: undefined, reprintPosition: undefined })
+    },
+    /** Picks a Reprint from "Other prints", which becomes the cell's Card and remembers where it sat in the list. */
+    reprint(index: number, card: CardSummary, position: number) {
+      patch(index, {
+        cardId: card.id,
+        mark: undefined,
+        reprintCard: card,
+        reprintPosition: position,
+      })
     },
   }
 }
 
 /** The state a cell is saved as, or null while its match is still running. */
+/** The mark a cell is shown and saved with: the hand mark, else Empty when the matcher saw no card. */
+export function cellMark(cell: PageCell): PageCell["mark"] {
+  if (cell.mark) return cell.mark
+  return cell.match.status === "matched" && cell.match.empty
+    ? "empty"
+    : undefined
+}
+
 export function slotTarget(cell: PageCell): BinderPageSlotBody | null {
-  if (cell.mark) return { state: cell.mark }
+  const mark = cellMark(cell)
+  if (mark) return { state: mark }
   const { match } = cell
   if (match.status === "queued" || match.status === "loading") return null
   // A failed match and a cell with no candidates both end as Unidentified.

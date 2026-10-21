@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Recording). Decision: `docs/adr/0022
 
 **Blocked by:** 03 (private photo storage and upload addresses)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `61b2ef5`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] A valid batch is stored and each row reads back with every field above
 - [ ] A confirmation with an image key is refused; a Correction may carry a key or none (its photo may be gone)

@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Tuning). The operator runs it on the
 
 **Blocked by:** 01 (empty detection in the match response), 02 (reprint lookup route)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `d1c2e60`), review fixes in `294165a`, not yet merged to `main`. `tune-scan cells` is not yet run on real Page photos: it needs a valid Gemini Developer API key in `backend/.env`.
 
 - [ ] Given a folder of Page photos and a grid, it prints the top similarity of each cell, with the photo and the cell position
 - [ ] It prints a summary per photo (lowest, highest, and how many cells fall below a threshold the operator passes in)

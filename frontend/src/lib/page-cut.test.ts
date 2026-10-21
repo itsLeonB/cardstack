@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { CELL_MARGIN, cellRegions, cellSize, gridToPhoto } from "./page-cut"
+import {
+  CELL_MARGIN,
+  cellRegions,
+  cellSize,
+  cutCellPixels,
+  gridToPhoto,
+} from "./page-cut"
 import type { Corners } from "./page-cut"
 
 const whole: Corners = [
@@ -68,5 +74,41 @@ describe("cellSize", () => {
     const size = cellSize(whole, grid, cellRegions(grid)[0], 4000, 3000, 1024)
 
     expect(Math.max(size.w, size.h)).toBe(1024)
+  })
+})
+
+describe("cutCellPixels", () => {
+  // Left half black, right half white: a cell only samples its own half, the margin keeps it off the seam.
+  const width = 40
+  const height = 20
+  const halves = new Uint8ClampedArray(width * height * 4)
+  for (let at = 0; at < halves.length; at += 4) {
+    const x = (at / 4) % width
+    halves.set([x < width / 2 ? 0 : 255, 0, 0, 255], at)
+  }
+  const grid = { rows: 1, columns: 2 }
+
+  it("returns the cell's size, the same one the app computes", () => {
+    const cell = cellRegions(grid)[0]
+    const cut = cutCellPixels(halves, width, height, whole, grid, cell)
+
+    expect(cut.width).toBe(cellSize(whole, grid, cell, width, height).w)
+    expect(cut.height).toBe(cellSize(whole, grid, cell, width, height).h)
+    expect(cut.pixels).toHaveLength(cut.width * cut.height * 4)
+  })
+
+  it("cuts each cell from its own region of an axis-aligned photo", () => {
+    const [left, right] = cellRegions(grid)
+
+    const leftCut = cutCellPixels(halves, width, height, whole, grid, left)
+    const rightCut = cutCellPixels(halves, width, height, whole, grid, right)
+
+    expect(leftCut.width).toBe(19)
+    expect(leftCut.height).toBe(19)
+    for (let at = 0; at < leftCut.pixels.length; at += 4) {
+      expect(leftCut.pixels[at]).toBe(0)
+      expect(rightCut.pixels[at]).toBe(255)
+      expect(rightCut.pixels[at + 3]).toBe(255)
+    }
   })
 })

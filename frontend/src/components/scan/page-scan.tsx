@@ -23,6 +23,7 @@ import type {
   BinderPage,
   BinderPageSlotBody,
   BinderSlotResult,
+  CardSummary,
 } from "@/generated/models"
 import { refreshAfterSlotWrite } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
@@ -41,11 +42,14 @@ import type { Corners, Grid } from "@/lib/page-cut"
 import { useSession } from "@/lib/session"
 import type { PageCell } from "@/lib/use-page-scan"
 import {
+  cellMark,
   changesSlot,
   slotTarget,
   useObjectUrl,
   usePageMatches,
 } from "@/lib/use-page-scan"
+import { feedbackChoice, sendScanFeedback } from "@/lib/scan-feedback"
+import type { Choice, PendingFeedbackRow } from "@/lib/scan-feedback"
 
 // Corners start as a centred rectangle, a little inside the photo's edges.
 const CENTRED: Corners = [
@@ -74,6 +78,56 @@ export function PageScanScreen(props: ScanPageProps) {
   return <ScanPageFlow {...props} userId={user.id} source={source} />
 }
 
+// The Page photo is one upload shared by every Correction on the Page (ADR-0022).
+const PAGE_PHOTO = "page"
+
+// The choice a cell stands at, as slotTarget saves it: its mark, its Reprint or its Card. A cell with neither is Unidentified.
+function cellChoice(cell: PageCell): Choice {
+  const mark = cellMark(cell)
+  if (mark) return { mark }
+  if (cell.cardId === undefined) return { mark: "unidentified" }
+  return { cardId: cell.cardId, reprintPosition: cell.reprintPosition }
+}
+
+/**
+ * The feedback rows of a confirmed Page Review, built from the review as it
+ * stood at Confirm. The API refuses a binder row without its grid and
+ * corners, so a review saved before they were kept records nothing.
+ */
+function pageFeedbackRows(
+  collectionId: string,
+  page: number,
+  grid: Grid,
+  cells: PageCell[],
+  cut: { photo?: Blob; corners?: Corners }
+) {
+  const rows: PendingFeedbackRow[] = []
+  const photos = new Map<string, Blob>()
+  if (!cut.corners) return { rows, photos }
+  cells.forEach((cell, index) => {
+    const pick = feedbackChoice(cell.detection, cellChoice(cell))
+    if (!pick) return
+    const { row, column } = cellPosition(index, grid.columns)
+    const correction = pick.kind !== "confirmed"
+    rows.push({
+      source: "binder_page",
+      collectionId,
+      detection: cell.detection,
+      page,
+      slotRow: row,
+      slotColumn: column,
+      gridRows: grid.rows,
+      gridColumns: grid.columns,
+      corners: cut.corners,
+      ...pick,
+      photoId: correction && cut.photo ? PAGE_PHOTO : undefined,
+    })
+  })
+  if (cut.photo && rows.some((row) => row.photoId))
+    photos.set(PAGE_PHOTO, cut.photo)
+  return { rows, photos }
+}
+
 /**
  * Photo, then corners, then the matched cells of the Page. The frame source
  * and the cut are passed in, so a test can fake the camera and the canvas.
@@ -95,6 +149,11 @@ export function ScanPageFlow({
   const longSide = frameLongSide(grid)
   const [frame, setFrame] = useState<Blob>()
   const [corners, setCorners] = useState<Corners>(CENTRED)
+  // The photo and corners the cells were cut from. Only a successful cut sets them, so they always match the cells, even when a new photo is taken before cutting.
+  const [cutFrom, setCutFrom] = useState<{ photo?: Blob; corners?: Corners }>({
+    photo: resume?.photo,
+    corners: resume?.corners,
+  })
   const [reviewing, setReviewing] = useState(resume !== undefined)
   // Set once a save fails (no IndexedDB): the review is then kept in memory only.
   const [memoryOnly, setMemoryOnly] = useState(false)
@@ -126,6 +185,8 @@ export function ScanPageFlow({
       page: page.page,
       grid,
       cells: matches.cells,
+      photo: cutFrom.photo,
+      corners: cutFrom.corners,
     })
       .then(() => invalidatePendingReviews(queryClient))
       .catch(() => setMemoryOnly(true))
@@ -158,7 +219,9 @@ export function ScanPageFlow({
     setError(null)
     setCutting(true)
     try {
-      matches.start(await cut(frame, corners, grid))
+      const cells = await cut(frame, corners, grid)
+      setCutFrom({ photo: frame, corners })
+      matches.start(cells)
       setEdited(false)
       setReviewing(true)
     } catch {
@@ -184,6 +247,11 @@ export function ScanPageFlow({
     matches.choose(index, cardId)
   }
 
+  function reprintCell(index: number, card: CardSummary, position: number) {
+    setEdited(true)
+    matches.reprint(index, card, position)
+  }
+
   function confirm() {
     // A cell still queued or loading holds the Confirm, marked or not.
     if (matches.pending) return
@@ -200,6 +268,15 @@ export function ScanPageFlow({
             return
           }
           setEdited(false)
+          // Built before the review is removed, and not awaited: the save never waits for it.
+          const { rows, photos } = pageFeedbackRows(
+            collectionId,
+            page.page,
+            grid,
+            matches.cells,
+            cutFrom
+          )
+          void sendScanFeedback(rows, photos)
           // A review that cannot be cleared stays listed, where it can be discarded.
           void removePageReview({
             userId,
@@ -281,6 +358,7 @@ export function ScanPageFlow({
               changed={changed}
               onRetry={matches.retry}
               onChoose={chooseCard}
+              onReprint={reprintCell}
               onMark={markCell}
             />
             <div className="flex flex-wrap gap-2">

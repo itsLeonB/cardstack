@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -36,12 +35,10 @@ func TestHostedImagesMigration_BackfillsSourceAndLeavesKeyEmpty(t *testing.T) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	require.NoError(t, err)
 
-	// Down below needs the migration applied; goose.Up is a no-op once it is.
+	// Down below needs the migration applied; Up is a no-op once it is.
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
-	goose.SetBaseFS(Migrations)
-	require.NoError(t, goose.SetDialect("postgres"))
-	require.NoError(t, goose.Up(sqlDB, "."))
+	require.NoError(t, Up(t.Context(), sqlDB))
 
 	raw, err := Migrations.ReadFile(hostedImagesMigration)
 	require.NoError(t, err)

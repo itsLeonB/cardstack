@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Frontend). Vocabulary: Scan, Unident
 
 **Blocked by:** 01 (empty detection in the match response), 06 (Draft Addition keeps resolved Scans with their photos)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `3092aab, 563c7fa`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] A Scan whose Detection is empty shows "no card found", offers Retry and Remove, and has no candidate to pick
 - [ ] Any resolved Scan can be marked Empty or Unidentified from the picker, and changed back to a candidate
