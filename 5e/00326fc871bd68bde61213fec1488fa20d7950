@@ -1,0 +1,37 @@
+backend/cmd/tune-scan/testdb_test.go
+  s_c60bfa73295d9f::t_16b9481e86f0f8 40
+backend/internal/adapters/db/postgres/migrations/card_embeddings_test.go
+  s_c60bfa73295d9f::t_49ecabbb42f36b 29
+backend/internal/adapters/db/postgres/migrations/created_by_updated_by_test.go
+  s_c60bfa73295d9f::t_751931891fec02 28,31
+backend/internal/adapters/db/postgres/migrations/embed.go
+  s_c60bfa73295d9f::t_ff1d14ecdf393f 7-14,18-36
+backend/internal/adapters/db/postgres/migrations/hosted_images_test.go
+  s_c60bfa73295d9f::t_a2f72857815d63 38,41
+backend/internal/adapters/http/routes/testenv_test.go
+  s_c60bfa73295d9f::t_9225c39e6a2e3e 184
+backend/internal/adapters/ingestion/pokemonasia/testdb_test.go
+  s_c60bfa73295d9f::t_79164023be09ce 67
+backend/internal/adapters/ingestion/tcgcollector/testdb_test.go
+  s_c60bfa73295d9f::t_f31598d3707fa4 67
+backend/internal/adapters/job/migrate/migrate.go
+  s_c60bfa73295d9f::t_124e421311ecbe 4,23
+backend/internal/domain/repository/repository_test_helper_test.go
+  s_c60bfa73295d9f::t_22d02ca98b6b05 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5e00326fc871bd68bde61213fec1488fa20d7950",
+  "prompts": {},
+  "sessions": {
+    "s_c60bfa73295d9f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c60bfa73295d9f",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
