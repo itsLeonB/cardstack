@@ -15,11 +15,14 @@ import { summedRows, useScanDraft } from "@/lib/use-draft-addition"
  * wait for a match, so each one lands in the sheet at once.
  */
 export function ScanScreen({
+  userId,
   collectionId,
   source,
   backLink,
   onAdded,
 }: {
+  /** Owns the saved Draft Addition, so another user never sees it. */
+  userId: string
   collectionId: string
   source: FrameSource
   /** A visible link back to the Collection, kept over the viewfinder. */
@@ -33,7 +36,7 @@ export function ScanScreen({
     text: string
   }>()
   const announcementId = useRef(0)
-  const draft = useScanDraft(collectionId, (text) =>
+  const draft = useScanDraft(userId, collectionId, (text) =>
     setAnnouncement({ id: ++announcementId.current, text })
   )
   const [error, setError] = useState<string | null>(null)
@@ -62,7 +65,7 @@ export function ScanScreen({
   }
 
   function finishCommit({ placed, declined: next, failed }: CommitResult) {
-    const left = draft.removeCopies(placed)
+    const left = draft.removeCopies(placed, !failed)
     setDeclined(next)
     if (left === 0) onAdded()
     else if (!failed && Object.keys(next).length === 0) setReviewing(false)
@@ -88,6 +91,7 @@ export function ScanScreen({
           <ReviewStep
             collectionId={collectionId}
             rows={summedRows(draft.scans)}
+            setAside={draft.scans.filter((s) => s.mark).length}
             seen={draft.seen}
             declined={declined}
             onCommitted={finishCommit}
@@ -171,9 +175,13 @@ export function ScanScreen({
             forget(cardOf(key))
             draft.lower(key)
           }}
-          onChoose={(key, cardId) => {
+          onChoose={(key, cardId, reprintPosition) => {
             forget(cardOf(key), cardId)
-            draft.choose(key, cardId)
+            draft.choose(key, cardId, reprintPosition)
+          }}
+          onMark={(key, mark) => {
+            forget(cardOf(key))
+            draft.mark(key, mark)
           }}
           onRetry={draft.retry}
           onRemove={(key) => {

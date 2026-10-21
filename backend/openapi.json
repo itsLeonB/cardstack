@@ -1652,6 +1652,114 @@
         ],
         "type": "object"
       },
+      "ScanFeedbackInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "description": "One row per confirmed Scan or Page Review cell. Up to 100 in a batch.",
+            "items": {
+              "$ref": "#/components/schemas/ScanFeedbackRowInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "ScanFeedbackRowInput": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "description": "The Card chosen. Absent for empty and unidentified, and for a confirmation of either.",
+            "type": "string"
+          },
+          "collectionId": {
+            "description": "The Collection the Scan or cell was aimed at.",
+            "type": "string"
+          },
+          "corners": {
+            "description": "The four corners of the Page's grid in the photo, as the client cut it. Up to 64 KiB of JSON."
+          },
+          "detection": {
+            "description": "The Detection as /scan/match returned it, kept as is. Up to 64 KiB of JSON."
+          },
+          "gridColumns": {
+            "description": "Columns in the Page's grid, from 1, used to cut the photo.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "gridRows": {
+            "description": "Rows in the Page's grid, from 1, used to cut the photo.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "imageKey": {
+            "description": "The photo's key from /scan/photo-uploads. Only a Correction may carry one.",
+            "type": "string"
+          },
+          "kind": {
+            "description": "What the user did with the Detection.",
+            "enum": [
+              "confirmed",
+              "switched",
+              "reprint",
+              "empty",
+              "unidentified",
+              "placed"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "description": "A binder cell's Page number, from 1. Required for a binder_page row and refused otherwise.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "rank": {
+            "description": "The chosen Card's position in the list the matcher offered, or its position in the Reprints list counted across pages. Required with cardId.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "rankSource": {
+            "description": "Whether the rank counts the top list or the Reprints list. Required with cardId.",
+            "enum": [
+              "top",
+              "reprint"
+            ],
+            "type": "string"
+          },
+          "slotColumn": {
+            "description": "A binder cell's column on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "slotRow": {
+            "description": "A binder cell's row on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "source": {
+            "description": "Where the photo came from: a single card scan, or a binder Page Review cell.",
+            "enum": [
+              "card_scan",
+              "binder_page"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "collectionId",
+          "kind"
+        ],
+        "type": "object"
+      },
       "ScanPhotoUpload": {
         "additionalProperties": false,
         "properties": {
@@ -4684,6 +4792,45 @@
         "summary": "List the current user's own Collections that hold a Card, with the quantity in each (empty when none)",
         "tags": [
           "inventory"
+        ]
+      }
+    },
+    "/scan/feedback": {
+      "post": {
+        "operationId": "record-scan-feedback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanFeedbackInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Record one batch of confirmed scan choices, up to 100 rows, with the photos of its Corrections, which are checked first (a JPEG under the caller's prefix, under the size cap) and deleted when they fail. 503 with code photo_storage_not_configured when the private photo bucket is not configured",
+        "tags": [
+          "scan"
         ]
       }
     },

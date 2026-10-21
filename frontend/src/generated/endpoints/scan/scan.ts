@@ -5,18 +5,32 @@
  * OpenAPI spec version: 1.0
  */
 import {
-  useMutation
+  useMutation,
+  useQuery
 } from '@tanstack/react-query';
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
-  UseMutationResult
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
   EnvelopeMatchResult,
-  ErrorModel
+  EnvelopeReprintResult,
+  EnvelopeScanPhotoUploads,
+  ErrorModel,
+  ListScanReprintsParams,
+  RequestScanPhotoUploadsInputBody,
+  ScanFeedbackInputBody
 } from '../../models';
 
 import { customFetch } from '../../../lib/http.ts';
@@ -33,7 +47,128 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 
-export type matchScannedCardResponse200 = {
+const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
+  const result = { queryKey } as T & { queryKey: K };
+  for (const key of Object.keys(query)) {
+    // The explicit queryKey always wins, matching the previous
+    // `{ ...query, queryKey }` spread where it was set last.
+    if (key === 'queryKey') continue;
+    Object.defineProperty(result, key, {
+      enumerable: true,
+      configurable: true,
+      get: () => (query as Record<string, unknown>)[key],
+    });
+  }
+  return result;
+};
+
+export type recordScanFeedbackResponse204 = {
+  data: void
+  status: 204
+}
+
+export type recordScanFeedbackResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type recordScanFeedbackResponseSuccess = (recordScanFeedbackResponse204) & {
+  headers: Headers;
+};
+export type recordScanFeedbackResponseError = (recordScanFeedbackResponseDefault) & {
+  headers: Headers;
+};
+
+export type recordScanFeedbackResponse = (recordScanFeedbackResponseSuccess | recordScanFeedbackResponseError)
+
+export const getRecordScanFeedbackUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/feedback`
+}
+
+/**
+ * @summary Record one batch of confirmed scan choices, up to 100 rows, with the photos of its Corrections, which are checked first (a JPEG under the caller's prefix, under the size cap) and deleted when they fail. 503 with code photo_storage_not_configured when the private photo bucket is not configured
+ */
+export const recordScanFeedback = async (scanFeedbackInputBody: ScanFeedbackInputBody, options?: Parameters<typeof customFetch>[1]): Promise<recordScanFeedbackResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<recordScanFeedbackResponse>(getRecordScanFeedbackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scanFeedbackInputBody)
+  }
+);}
+
+
+
+
+
+export const getRecordScanFeedbackMutationKey = () => ['recordScanFeedback'] as const;
+
+export const getRecordScanFeedbackMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordScanFeedback>>, TError,RecordScanFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordScanFeedback>>, TError,RecordScanFeedbackMutationVariables, TContext> => {
+
+const mutationKey = getRecordScanFeedbackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordScanFeedback>>, RecordScanFeedbackMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordScanFeedback(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordScanFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof recordScanFeedback>>>
+    export type RecordScanFeedbackMutationBody = ScanFeedbackInputBody
+    export type RecordScanFeedbackMutationError = ErrorModel
+    export type RecordScanFeedbackMutationVariables = {data: ScanFeedbackInputBody}
+
+    /**
+ * @summary Record one batch of confirmed scan choices, up to 100 rows, with the photos of its Corrections, which are checked first (a JPEG under the caller's prefix, under the size cap) and deleted when they fail. 503 with code photo_storage_not_configured when the private photo bucket is not configured
+ */
+export const useRecordScanFeedback = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordScanFeedback>>, TError,RecordScanFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordScanFeedback>>,
+        TError,
+        RecordScanFeedbackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordScanFeedbackMutationOptions(options), queryClient);
+    }
+    export type matchScannedCardResponse200 = {
   data: EnvelopeMatchResult
   status: 200
 }
@@ -139,3 +274,243 @@ export const useMatchScannedCard = <TError = ErrorModel,
       > => {
       return useMutation(getMatchScannedCardMutationOptions(options), queryClient);
     }
+    export type requestScanPhotoUploadsResponse200 = {
+  data: EnvelopeScanPhotoUploads
+  status: 200
+}
+
+export type requestScanPhotoUploadsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type requestScanPhotoUploadsResponseSuccess = (requestScanPhotoUploadsResponse200) & {
+  headers: Headers;
+};
+export type requestScanPhotoUploadsResponseError = (requestScanPhotoUploadsResponseDefault) & {
+  headers: Headers;
+};
+
+export type requestScanPhotoUploadsResponse = (requestScanPhotoUploadsResponseSuccess | requestScanPhotoUploadsResponseError)
+
+export const getRequestScanPhotoUploadsUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/photo-uploads`
+}
+
+/**
+ * @summary Sign one PUT address per scan photo, up to 100 in a request, each to a JPEG in the private photo bucket that expires in five minutes. 503 with code photo_storage_not_configured when that bucket is not configured
+ */
+export const requestScanPhotoUploads = async (requestScanPhotoUploadsInputBody: RequestScanPhotoUploadsInputBody, options?: Parameters<typeof customFetch>[1]): Promise<requestScanPhotoUploadsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<requestScanPhotoUploadsResponse>(getRequestScanPhotoUploadsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(requestScanPhotoUploadsInputBody)
+  }
+);}
+
+
+
+
+
+export const getRequestScanPhotoUploadsMutationKey = () => ['requestScanPhotoUploads'] as const;
+
+export const getRequestScanPhotoUploadsMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestScanPhotoUploads>>, TError,RequestScanPhotoUploadsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestScanPhotoUploads>>, TError,RequestScanPhotoUploadsMutationVariables, TContext> => {
+
+const mutationKey = getRequestScanPhotoUploadsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestScanPhotoUploads>>, RequestScanPhotoUploadsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestScanPhotoUploads(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestScanPhotoUploadsMutationResult = NonNullable<Awaited<ReturnType<typeof requestScanPhotoUploads>>>
+    export type RequestScanPhotoUploadsMutationBody = RequestScanPhotoUploadsInputBody
+    export type RequestScanPhotoUploadsMutationError = ErrorModel
+    export type RequestScanPhotoUploadsMutationVariables = {data: RequestScanPhotoUploadsInputBody}
+
+    /**
+ * @summary Sign one PUT address per scan photo, up to 100 in a request, each to a JPEG in the private photo bucket that expires in five minutes. 503 with code photo_storage_not_configured when that bucket is not configured
+ */
+export const useRequestScanPhotoUploads = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestScanPhotoUploads>>, TError,RequestScanPhotoUploadsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof requestScanPhotoUploads>>,
+        TError,
+        RequestScanPhotoUploadsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestScanPhotoUploadsMutationOptions(options), queryClient);
+    }
+    export type listScanReprintsResponse200 = {
+  data: EnvelopeReprintResult
+  status: 200
+}
+
+export type listScanReprintsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listScanReprintsResponseSuccess = (listScanReprintsResponse200) & {
+  headers: Headers;
+};
+export type listScanReprintsResponseError = (listScanReprintsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listScanReprintsResponse = (listScanReprintsResponseSuccess | listScanReprintsResponseError)
+
+export const getListScanReprintsUrl = (params?: ListScanReprintsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["cardIds"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/reprints?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/reprints`
+}
+
+/**
+ * @summary List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
+ */
+export const listScanReprints = async (params?: ListScanReprintsParams, options?: Parameters<typeof customFetch>[1]): Promise<listScanReprintsResponse> => {
+
+  return customFetch<listScanReprintsResponse>(getListScanReprintsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListScanReprintsQueryKey = (params?: ListScanReprintsParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/reprints`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListScanReprintsQueryOptions = <TData = Awaited<ReturnType<typeof listScanReprints>>, TError = ErrorModel>(params?: ListScanReprintsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScanReprints>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListScanReprintsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listScanReprints>>> = ({ signal }) => listScanReprints(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listScanReprints>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListScanReprintsQueryResult = NonNullable<Awaited<ReturnType<typeof listScanReprints>>>
+export type ListScanReprintsQueryError = ErrorModel
+
+
+export function useListScanReprints<TData = Awaited<ReturnType<typeof listScanReprints>>, TError = ErrorModel>(
+ params: undefined |  ListScanReprintsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScanReprints>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listScanReprints>>,
+          TError,
+          Awaited<ReturnType<typeof listScanReprints>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListScanReprints<TData = Awaited<ReturnType<typeof listScanReprints>>, TError = ErrorModel>(
+ params?: ListScanReprintsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScanReprints>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listScanReprints>>,
+          TError,
+          Awaited<ReturnType<typeof listScanReprints>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListScanReprints<TData = Awaited<ReturnType<typeof listScanReprints>>, TError = ErrorModel>(
+ params?: ListScanReprintsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScanReprints>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
+ */
+
+export function useListScanReprints<TData = Awaited<ReturnType<typeof listScanReprints>>, TError = ErrorModel>(
+ params?: ListScanReprintsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScanReprints>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListScanReprintsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+

@@ -17,11 +17,17 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
+import { Blob as NodeBlob } from "node:buffer"
 import { ScanPageFlow } from "./page-scan"
-import { loadPageReview, savePageReview } from "@/lib/page-review-store"
+import {
+  loadPageReview,
+  renamePageReview,
+  savePageReview,
+} from "@/lib/page-review-store"
 import type { PendingPageReview } from "@/lib/page-review-store"
 import type { PageCell } from "@/lib/use-page-scan"
 import type { FrameSource } from "@/lib/frame-source"
+import { frameLongSide } from "@/lib/page-cut"
 import type { Corners, Grid } from "@/lib/page-cut"
 import type {
   BinderPage,
@@ -51,7 +57,8 @@ const candidate = (n: number): MatchCandidate => ({
   score: 0.9,
 })
 
-type Reply = { confident: boolean; candidates: MatchCandidate[] } | "fail"
+type Reply =
+  { confident: boolean; candidates: MatchCandidate[]; empty?: boolean } | "fail"
 
 // Every match waits until the test answers it, oldest first.
 let held: ((response: Response) => void)[] = []
@@ -102,7 +109,9 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
 function answerAt(index: number, reply: Reply) {
   const [resolve] = held.splice(index, 1)
   resolve(
-    reply === "fail" ? json({ title: "boom" }, 503) : json({ data: reply })
+    reply === "fail"
+      ? json({ title: "boom" }, 503)
+      : json({ data: { empty: false, ...reply } })
   )
 }
 
@@ -517,6 +526,81 @@ describe("ScanPageFlow", () => {
     expect(document.body.textContent).not.toContain("Changes this Slot")
   })
 
+  it("defaults a cell the matcher found empty to Empty, with its menu listing the marks and no candidates", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+
+    expect(await within(cell(1, 1)).findByText("Empty")).toBeTruthy()
+    expect(pill(1, 1)?.getAttribute("aria-label")).toBe(
+      "Row 1, column 1: Empty"
+    )
+    const menu = await openMenu(user, 1, 1)
+    const rows = within(menu)
+      .getAllByRole("menuitemradio")
+      .map((item) => [item.textContent, item.getAttribute("aria-checked")])
+    expect(rows).toEqual([
+      ["Empty", "true"],
+      ["Unidentified", "false"],
+    ])
+    expect(within(menu).queryByText("Candidates")).toBeNull()
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+
+    await user.click(confirmButton())
+    await waitFor(() => expect(saves).toHaveLength(1))
+    expect(saves[0].slots?.[0]).toEqual({ state: "empty" })
+  })
+
+  it("changes an Empty default to Unidentified and back to Empty", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+    await waitFor(() => expect(pill(1, 1)?.textContent).toBe("Empty"))
+
+    await pick(user, 1, 1, "Unidentified")
+    expect(pill(1, 1)?.textContent).toBe("Unidentified")
+    await pick(user, 1, 1, "Empty")
+    expect(pill(1, 1)?.textContent).toBe("Empty")
+  })
+
+  it("rings an Empty cell over a Slot that holds a Card as a change", async () => {
+    const user = userEvent.setup()
+    const holding: BinderPage = {
+      ...page,
+      cardTotal: 1,
+      slots: [
+        { row: 1, column: 1, state: "card", card: cardOf(1) },
+        emptySlot(1, 2),
+        emptySlot(2, 1),
+        emptySlot(2, 2),
+      ],
+    }
+    renderFlow(source(), cut, vi.fn(), holding)
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+
+    await waitFor(() =>
+      expect(pill(1, 1)?.getAttribute("aria-label")).toBe(
+        "Row 1, column 1: Empty. Changes this Slot"
+      )
+    )
+    expect(
+      within(cell(1, 1)).getByRole("img").getAttribute("data-changed")
+    ).toBe("true")
+  })
+
   it("names a Slot the server stored as Unidentified for an unknown Card, then returns", async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
@@ -793,6 +877,27 @@ describe("ScanPageFlow, pending Page Review", () => {
     expect(matchCalls).toBe(2)
   })
 
+  it("keeps an Empty default, and a changed mark, through leaving and resuming", async () => {
+    const user = userEvent.setup()
+    const view = renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+    await pick(user, 1, 2, "Unidentified")
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells[1].mark).toBe("unidentified")
+    )
+    view.unmount()
+
+    resumeFlow((await loadPageReview(key))!)
+    await screen.findByRole("group", { name: "Row 1, column 1" })
+    expect(pill(1, 1)?.textContent).toBe("Empty")
+    expect(pill(1, 2)?.textContent).toBe("Unidentified")
+    expect(matchCalls).toBe(4)
+  })
+
   it("offers Scan again in place of Adjust corners, which starts from the photo step", async () => {
     const user = userEvent.setup()
     resumeFlow(fourMatched)
@@ -855,5 +960,221 @@ describe("ScanPageFlow, pending Page Review", () => {
     await user.click(await screen.findByRole("button", { name: "Confirm" }))
     await waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(await loadPageReview(key)).toBeUndefined()
+  })
+})
+
+describe("ScanPageFlow, Page photo in a pending review", () => {
+  const key = { userId: "user-1", collectionId: "col-1", page: 1 }
+  const grid = { rows: 2, columns: 2 }
+  const corners: Corners = [
+    { x: 0.15, y: 0.1 },
+    { x: 0.85, y: 0.1 },
+    { x: 0.85, y: 0.9 },
+    { x: 0.15, y: 0.9 },
+  ]
+  // The frame source hands back the downscaled photo; the raw file it came from is larger.
+  // SAFETY: Node's Blob reads the same as the DOM Blob a cell's photo is typed as, and is what IndexedDB clones here (see page-review-store.test.ts).
+  const photoOf = (text: string) => new NodeBlob([text]) as Blob
+  const rawFile = () =>
+    new File(["raw camera file, much larger than the photo"], "page.jpg", {
+      type: "image/jpeg",
+    })
+  const photoText = async (review: PendingPageReview | undefined) =>
+    review?.photo?.text()
+  const matched = (n: number): PageCell => ({
+    photo: jpeg(),
+    match: { status: "matched", confident: true, candidates: [cardOf(n)] },
+    cardId: `card-${n}`,
+  })
+  const savedWithPhoto = (text: string): PendingPageReview => ({
+    userId: "user-1",
+    collectionId: "col-1",
+    page: 1,
+    grid,
+    cells: [1, 2, 3, 4].map(matched),
+    photo: photoOf(text),
+    corners,
+  })
+  const resumeWith = (
+    saved: PendingPageReview | undefined,
+    onClose = vi.fn()
+  ) =>
+    renderFlow(
+      source(),
+      cut,
+      onClose,
+      page,
+      createMemoryHistory({ initialEntries: ["/"] }),
+      saved
+    )
+
+  it("saves the downscaled Page photo, the grid and the corners with the cells", async () => {
+    const user = userEvent.setup()
+    const frameFromFile = vi.fn<FrameSource["frameFromFile"]>(async () =>
+      photoOf("downscaled")
+    )
+    const file = rawFile()
+    renderFlow(source({ frameFromFile }))
+    await user.upload(await screen.findByLabelText("Choose a photo"), file)
+    await user.click(
+      await screen.findByRole("button", { name: "Cut and match" })
+    )
+
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells).toHaveLength(4)
+    )
+    const saved = await loadPageReview(key)
+    expect(frameFromFile.mock.calls[0][0]).toBe(file)
+    expect(frameFromFile.mock.calls[0][1]).toBe(frameLongSide(grid))
+    expect(await photoText(saved)).toBe("downscaled")
+    expect(saved?.grid).toEqual(grid)
+    expect(saved?.corners).toEqual(cut.mock.calls[0][1])
+  })
+
+  it("keeps the photo, grid and corners through leaving and resuming", async () => {
+    const user = userEvent.setup()
+    const view = renderFlow(
+      source({ frameFromFile: async () => photoOf("downscaled") })
+    )
+    await user.upload(await screen.findByLabelText("Choose a photo"), rawFile())
+    const topLeft = await screen.findByRole("button", {
+      name: "Top left corner",
+    })
+    topLeft.focus()
+    await user.keyboard("{ArrowLeft}")
+    await user.click(screen.getByRole("button", { name: "Cut and match" }))
+    await answerAll(fourConfident)
+    await waitFor(async () =>
+      expect(
+        (await loadPageReview(key))?.cells.every(
+          (c) => c.match.status === "matched"
+        )
+      ).toBe(true)
+    )
+    const cornersCut = cut.mock.calls[0][1]
+    view.unmount()
+
+    resumeWith(await loadPageReview(key))
+    expect(await screen.findByText("Check each cell.")).toBeTruthy()
+    await pick(user, 1, 1, "Empty")
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells[0].mark).toBe("empty")
+    )
+
+    const saved = await loadPageReview(key)
+    expect(await photoText(saved)).toBe("downscaled")
+    expect(saved?.grid).toEqual(grid)
+    expect(saved?.corners).toEqual(cornersCut)
+    expect(saved?.corners?.[0].x).toBeCloseTo(0.14)
+  })
+
+  it("resumes a review saved before the photo was kept, with no photo and no error", async () => {
+    await savePageReview({
+      userId: "user-1",
+      collectionId: "col-1",
+      page: 1,
+      grid,
+      cells: [1, 2, 3, 4].map(matched),
+    })
+    resumeWith(await loadPageReview(key))
+
+    expect(await screen.findByText("Check each cell.")).toBeTruthy()
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(screen.getByRole("button", { name: "Scan again" })).toBeTruthy()
+  })
+
+  it("replaces the saved photo when Scan again cuts a new one", async () => {
+    const user = userEvent.setup()
+    await savePageReview(savedWithPhoto("old"))
+    renderFlow(
+      source({ frameFromFile: async () => photoOf("new") }),
+      cut,
+      vi.fn(),
+      page,
+      createMemoryHistory({ initialEntries: ["/"] }),
+      await loadPageReview(key)
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Scan again" }))
+    await user.upload(await screen.findByLabelText("Choose a photo"), rawFile())
+    await user.click(
+      await screen.findByRole("button", { name: "Cut and match" })
+    )
+
+    await waitFor(async () =>
+      expect(await photoText(await loadPageReview(key))).toBe("new")
+    )
+  })
+
+  it("keeps the photo when Scan again is started but no new photo is cut", async () => {
+    const user = userEvent.setup()
+    await savePageReview(savedWithPhoto("old"))
+    resumeWith(await loadPageReview(key))
+
+    await user.click(await screen.findByRole("button", { name: "Scan again" }))
+    await user.upload(await screen.findByLabelText("Choose a photo"), rawFile())
+    await screen.findByRole("button", { name: "Cut and match" })
+    await user.click(screen.getByRole("button", { name: "Back to binder" }))
+
+    expect(await photoText(await loadPageReview(key))).toBe("old")
+  })
+
+  it("removes the photo with the record when Confirm succeeds", async () => {
+    const user = userEvent.setup()
+    await savePageReview(savedWithPhoto("photo"))
+    const onClose = vi.fn()
+    resumeWith(await loadPageReview(key), onClose)
+
+    await user.click(await screen.findByRole("button", { name: "Confirm" }))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(await loadPageReview(key)).toBeUndefined()
+  })
+
+  it("keeps the photo when the review is moved to another Page", async () => {
+    const user = userEvent.setup()
+    await savePageReview(savedWithPhoto("moved"))
+    await renamePageReview(key, 3)
+    const moved = { ...key, page: 3 }
+    renderFlow(
+      source(),
+      cut,
+      vi.fn(),
+      { ...page, page: 3 },
+      createMemoryHistory({ initialEntries: ["/"] }),
+      await loadPageReview(moved)
+    )
+
+    await screen.findByText("Check each cell.")
+    await pick(user, 1, 1, "Empty")
+    await waitFor(async () =>
+      expect((await loadPageReview(moved))?.cells[0].mark).toBe("empty")
+    )
+    expect(await photoText(await loadPageReview(moved))).toBe("moved")
+    expect(await loadPageReview(key)).toBeUndefined()
+  })
+
+  it("works from memory with its photo when IndexedDB is missing, and nothing throws", async () => {
+    vi.stubGlobal("indexedDB", undefined)
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    renderFlow(
+      source({ frameFromFile: async () => photoOf("memory") }),
+      cut,
+      onClose
+    )
+    await user.upload(await screen.findByLabelText("Choose a photo"), rawFile())
+    await user.click(
+      await screen.findByRole("button", { name: "Cut and match" })
+    )
+    expect(
+      await screen.findByText(/This review is not being saved/)
+    ).toBeTruthy()
+
+    await answerAll(fourConfident)
+    await waitFor(() =>
+      expect(confirmButton().hasAttribute("disabled")).toBe(false)
+    )
+    await user.click(confirmButton())
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
   })
 })

@@ -15,8 +15,13 @@ export type CellMatch =
   | { status: "queued" }
   | { status: "loading" }
   | { status: "failed" }
-  /** No candidates at all is a no-good-candidate cell; `confident` says whether the top one is sure. */
-  | { status: "matched"; confident: boolean; candidates: CardSummary[] }
+  /** No candidates at all is a no-good-candidate cell; `confident` says whether the top one is sure. `empty` is the matcher's no-card answer, and is absent in reviews saved before it existed. */
+  | {
+      status: "matched"
+      confident: boolean
+      candidates: CardSummary[]
+      empty?: boolean
+    }
 
 interface Job {
   photo: Blob
@@ -62,13 +67,18 @@ export function usePageMatches(resumed: PageCell[] = []) {
           try {
             const response = await matchScannedCard(photo, { signal })
             if (response.status !== 200) throw new Error("match failed")
-            const { confident, candidates } = response.data.data
+            const { confident, candidates, empty } = response.data.data
             const cards = (candidates ?? [])
               .slice(0, MAX_CANDIDATES)
               .map((c) => c.card)
             if (!stale())
               patch(index, {
-                match: { status: "matched", confident, candidates: cards },
+                match: {
+                  status: "matched",
+                  confident,
+                  candidates: cards,
+                  empty,
+                },
                 cardId: cards[0]?.id,
               })
           } catch {
@@ -128,8 +138,17 @@ export function usePageMatches(resumed: PageCell[] = []) {
 }
 
 /** The state a cell is saved as, or null while its match is still running. */
+/** The mark a cell is shown and saved with: the hand mark, else Empty when the matcher saw no card. */
+export function cellMark(cell: PageCell): PageCell["mark"] {
+  if (cell.mark) return cell.mark
+  return cell.match.status === "matched" && cell.match.empty
+    ? "empty"
+    : undefined
+}
+
 export function slotTarget(cell: PageCell): BinderPageSlotBody | null {
-  if (cell.mark) return { state: cell.mark }
+  const mark = cellMark(cell)
+  if (mark) return { state: mark }
   const { match } = cell
   if (match.status === "queued" || match.status === "loading") return null
   // A failed match and a cell with no candidates both end as Unidentified.

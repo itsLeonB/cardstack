@@ -11,4 +11,6 @@ export interface MatchResult {
   candidates: MatchCandidate[] | null;
   /** True only when the server is sure of the first candidate. The server owns the threshold. */
   confident: boolean;
+  /** True when the photo shows no card: its top Card scored below the server's empty threshold. Candidates is then empty and Confident false. */
+  empty: boolean;
 }

@@ -12,7 +12,7 @@ import {
 import { cardCode } from "@/lib/binder"
 import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
-import { useObjectUrl } from "@/lib/use-page-scan"
+import { cellMark, useObjectUrl } from "@/lib/use-page-scan"
 import type { PageCell } from "@/lib/use-page-scan"
 import type { CardSummary } from "@/generated/models"
 
@@ -33,7 +33,8 @@ const isMark = (value: string): value is Mark =>
 
 /** What a cell is set to: a hand mark, else the chosen candidate; no candidate is Unidentified. */
 function choiceOf(cell: PageCell): Choice {
-  if (cell.mark) return { value: cell.mark }
+  const mark = cellMark(cell)
+  if (mark) return { value: mark }
   const { match } = cell
   if (match.status === "matched") {
     const card =

@@ -12,6 +12,7 @@ import { ScanScreen } from "./scan-screen"
 import { getListMasterInventoryQueryKey } from "@/generated/endpoints/inventory/inventory"
 import type { FrameSource } from "@/lib/frame-source"
 import type { CardSummary } from "@/generated/models"
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
 import type { ResolvedScan } from "@/lib/draft-addition"
 import type * as TanStackRouter from "@tanstack/react-router"
@@ -182,7 +183,7 @@ const frames: FrameSource = {
   frameFromFile: async () => new Blob(),
 }
 
-const seed = (scans: ResolvedScan[]) => saveDraft("col-1", scans)
+const seed = (scans: ResolvedScan[]) => saveDraft("user-1", "col-1", scans)
 const scan = (n: number, quantity = 1): ResolvedScan => ({
   cardId: `card-${n}`,
   quantity,
@@ -198,17 +199,27 @@ function renderScreen(
 ) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <ScanScreen collectionId="col-1" source={frames} onAdded={added} />
+      <ScanScreen
+        userId="user-1"
+        collectionId="col-1"
+        source={frames}
+        onAdded={added}
+      />
     </QueryClientProvider>
   )
 }
 
-// Opens the Review step from the sheet, once the seeded Scans have resolved.
+// Opens the Review step from the sheet, once the seeded Scans have restored.
 async function openReview(queryClient?: QueryClient) {
   renderScreen(queryClient)
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Review and add" })
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("button", { name: "Review and add" })
+        .hasAttribute("disabled")
+    ).toBe(false)
   )
+  await userEvent.click(screen.getByRole("button", { name: "Review and add" }))
   return screen.findByRole("heading", { name: "Review and add" })
 }
 
@@ -237,6 +248,8 @@ beforeEach(() => {
   placementMode = "ok"
   added.mockClear()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
+  vi.stubGlobal("indexedDB", new IDBFactory())
+  vi.stubGlobal("IDBKeyRange", IDBKeyRange)
   URL.createObjectURL = vi.fn(() => "blob:photo")
   URL.revokeObjectURL = vi.fn()
 })
@@ -248,7 +261,7 @@ afterEach(() => {
 
 describe("the review rows", () => {
   it("shows one row per Card, with its Scans' quantities added together", async () => {
-    seed([scan(1), scan(1), scan(2, 3)])
+    await seed([scan(1), scan(1), scan(2, 3)])
     held.set("card-1", 4)
     await openReview()
 
@@ -259,7 +272,7 @@ describe("the review rows", () => {
   })
 
   it("does not let the quantities or the rows change here", async () => {
-    seed([scan(1)])
+    await seed([scan(1)])
     await openReview()
 
     expect(screen.queryByRole("button", { name: /Raise quantity/ })).toBeNull()
@@ -269,7 +282,7 @@ describe("the review rows", () => {
 
 describe("a decline reason that is out of date", () => {
   it("goes once the declined Card's Scan is edited", async () => {
-    seed([scan(1), scan(2)])
+    await seed([scan(1), scan(2)])
     declines.set("card-2", "capacity_exceeded")
     await openReview()
     await userEvent.click(
@@ -300,7 +313,7 @@ describe("a decline reason that is out of date", () => {
 
 describe("adding to the Collection", () => {
   it("sends absolute targets, held plus added, and returns to the Collection when all is applied", async () => {
-    seed([scan(1), scan(1), scan(2, 3)])
+    await seed([scan(1), scan(1), scan(2, 3)])
     held.set("card-1", 4)
     await openReview()
 
@@ -315,11 +328,11 @@ describe("adding to the Collection", () => {
         { cardId: "card-2", quantity: 3 },
       ])
     )
-    expect(loadDraft("col-1")).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
   })
 
   it("keeps a declined Card's Scans with the reason, and stays on the Review step", async () => {
-    seed([scan(1), scan(2)])
+    await seed([scan(1), scan(2)])
     declines.set("card-2", "capacity_exceeded")
     await openReview()
 
@@ -335,11 +348,11 @@ describe("adding to the Collection", () => {
     ).toBeTruthy()
     expect(screen.queryByText("Card 1")).toBeNull()
     expect(added).not.toHaveBeenCalled()
-    expect(loadDraft("col-1")).toEqual([scan(2)])
+    expect(await loadDraft("user-1", "col-1")).toEqual([scan(2)])
   })
 
   it("keeps the draft and says so when the request fails", async () => {
-    seed([scan(1)])
+    await seed([scan(1)])
     bulkMode = "error"
     await openReview()
 
@@ -350,11 +363,11 @@ describe("adding to the Collection", () => {
     expect(await screen.findByRole("alert")).toBeTruthy()
     expect(screen.getByText(/Your draft is unchanged/)).toBeTruthy()
     expect(added).not.toHaveBeenCalled()
-    expect(loadDraft("col-1")).toEqual([scan(1)])
+    expect(await loadDraft("user-1", "col-1")).toEqual([scan(1)])
   })
 
   it("does not add twice when the answer to a commit is lost", async () => {
-    seed([scan(1, 2)])
+    await seed([scan(1, 2)])
     bulkMode = "lost"
     await openReview()
 
@@ -374,13 +387,92 @@ describe("adding to the Collection", () => {
   })
 })
 
+describe("marked Scans", () => {
+  it("sets marked Scans aside: they add nothing, and the summary says how many", async () => {
+    await seed([
+      scan(1),
+      { cardId: "card-2", quantity: 3, candidateIds: [], mark: "unidentified" },
+      { quantity: 1, candidateIds: [], mark: "empty" },
+    ])
+    await openReview()
+
+    expect(screen.getByText(/2 Scans are set aside/)).toBeTruthy()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(bulks).toEqual([[{ cardId: "card-1", quantity: 1 }]])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+  })
+
+  it("confirms a draft of only marked Scans without writing any quantity", async () => {
+    await seed([{ quantity: 1, candidateIds: [], mark: "empty" }])
+    await openReview()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await waitFor(() => expect(added).toHaveBeenCalledOnce())
+    expect(bulks).toEqual([])
+    expect(placements).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+  })
+
+  it("clears a draft of only marked Scans from the expanded sheet", async () => {
+    await seed([{ quantity: 1, candidateIds: [], mark: "empty" }])
+    renderScreen()
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Draft \(/ })
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard draft" }))
+
+    await waitFor(() =>
+      expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+    )
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+  })
+
+  it("keeps the marked Scans when the commit fails", async () => {
+    await seed([scan(1), { quantity: 1, candidateIds: [], mark: "empty" }])
+    await openReview()
+    bulkMode = "error"
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add to Collection" })
+    )
+
+    await screen.findByRole("alert")
+    expect(added).not.toHaveBeenCalled()
+    const saved = await loadDraft("user-1", "col-1")
+    expect(saved.map((s) => s.mark)).toEqual([undefined, "empty"])
+  })
+
+  it("shows a marked Scan's mark after a reload", async () => {
+    await seed([
+      { cardId: "card-2", quantity: 1, candidateIds: [], mark: "unidentified" },
+    ])
+    renderScreen()
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Draft \(/ })
+    )
+
+    const row = await reviewRow("Card 2")
+    expect(
+      within(row).getByText("Marked: a card, but none of these")
+    ).toBeTruthy()
+  })
+})
+
 describe("adding to a binder", () => {
   beforeEach(() => {
     binder = { cardTotal: 0 }
   })
 
   it("places each copy in an empty Slot, one line per Card, and returns to the Collection", async () => {
-    seed([scan(1), scan(1), scan(2, 3)])
+    await seed([scan(1), scan(1), scan(2, 3)])
     await openReview()
 
     await userEvent.click(
@@ -395,12 +487,12 @@ describe("adding to a binder", () => {
       ],
     ])
     expect(bulks).toEqual([])
-    expect(loadDraft("col-1")).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
   })
 
   it("keeps the copies that found no empty Slot, with the reason, and removes the placed ones", async () => {
     binder = { cardTotal: 8 }
-    seed([scan(1), scan(2, 2)])
+    await seed([scan(1), scan(2, 2)])
     await openReview()
 
     await userEvent.click(
@@ -415,12 +507,12 @@ describe("adding to a binder", () => {
     expect(within(declined).getByText("binder view")).toBeTruthy()
     expect(screen.queryByText("Card 1")).toBeNull()
     expect(added).not.toHaveBeenCalled()
-    expect(loadDraft("col-1")).toEqual([scan(2, 1)])
+    expect(await loadDraft("user-1", "col-1")).toEqual([scan(2, 1)])
   })
 
   it("shows the binder's empty Slots instead of the Collection's limit", async () => {
     binder = { cardTotal: 8 }
-    seed([scan(1)])
+    await seed([scan(1)])
     await openReview()
 
     expect(await screen.findByText("Empty Slots: 2 of 10")).toBeTruthy()
@@ -433,7 +525,7 @@ describe("adding to a binder", () => {
     })
     const inventory = getListMasterInventoryQueryKey()
     queryClient.setQueryData(inventory, { status: 200, data: { data: [] } })
-    seed([scan(1)])
+    await seed([scan(1)])
     await openReview(queryClient)
     const before = {
       page: readsOf("/binder/pages/1"),
@@ -455,7 +547,7 @@ describe("adding to a binder", () => {
   })
 
   it("says the add could not be confirmed when the answer is lost, keeps the draft, and shows the Slots the binder now has", async () => {
-    seed([scan(1, 2)])
+    await seed([scan(1, 2)])
     placementMode = "lost"
     await openReview()
 
@@ -470,11 +562,11 @@ describe("adding to a binder", () => {
     ).toBeTruthy()
     expect(await screen.findByText("Empty Slots: 8 of 10")).toBeTruthy()
     expect(added).not.toHaveBeenCalled()
-    expect(loadDraft("col-1")).toEqual([scan(1, 2)])
+    expect(await loadDraft("user-1", "col-1")).toEqual([scan(1, 2)])
   })
 
   it("says nothing was added when the server refuses the placement", async () => {
-    seed([scan(1, 2)])
+    await seed([scan(1, 2)])
     placementMode = "error"
     await openReview()
 
@@ -487,6 +579,6 @@ describe("adding to a binder", () => {
     expect(screen.queryByText(/could not be confirmed/)).toBeNull()
     expect(await screen.findByText("Empty Slots: 10 of 10")).toBeTruthy()
     expect(added).not.toHaveBeenCalled()
-    expect(loadDraft("col-1")).toEqual([scan(1, 2)])
+    expect(await loadDraft("user-1", "col-1")).toEqual([scan(1, 2)])
   })
 })
