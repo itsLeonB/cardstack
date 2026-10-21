@@ -1,0 +1,45 @@
+.scratch/scan-enhancements/issues/01-empty-detection-in-the-match-response.md
+  s_d23aa8aa49da0a::t_05b28ba21283af 9
+.scratch/scan-enhancements/issues/02-reprint-lookup-route.md
+  s_d23aa8aa49da0a::t_8d2d657e7e7957 9
+.scratch/scan-enhancements/issues/03-private-photo-storage-and-upload-addresses.md
+  s_d23aa8aa49da0a::t_0985a53eec0f2d 9
+.scratch/scan-enhancements/issues/04-record-scan-feedback.md
+  s_d23aa8aa49da0a::t_c9f7985106132c 9
+.scratch/scan-enhancements/issues/05-tuning-script.md
+  s_d23aa8aa49da0a::t_2d1492993bdb5f 9
+.scratch/scan-enhancements/issues/06-draft-addition-keeps-resolved-scans-with-photos.md
+  s_d23aa8aa49da0a::t_73d4fd289fde07 9
+.scratch/scan-enhancements/issues/07-page-review-keeps-the-page-photo.md
+  s_d23aa8aa49da0a::t_0f305d49863c84 9
+.scratch/scan-enhancements/issues/08-empty-and-unidentified-marks-on-card-scan.md
+  s_d23aa8aa49da0a::t_644c35804100eb 9
+.scratch/scan-enhancements/issues/09-empty-default-on-binder-cells.md
+  s_d23aa8aa49da0a::t_571a18d57da35d 9
+.scratch/scan-enhancements/issues/10-other-prints-in-the-card-scan-picker.md
+  s_d23aa8aa49da0a::t_a594fe2a8bbed8 9
+.scratch/scan-enhancements/issues/11-other-prints-in-the-page-review-menu.md
+  s_d23aa8aa49da0a::t_76b00c14bc5667 9
+.scratch/scan-enhancements/issues/12-record-card-scan-feedback.md
+  s_d23aa8aa49da0a::t_4a35917d9436a8 9
+.scratch/scan-enhancements/issues/13-record-page-review-feedback.md
+  s_d23aa8aa49da0a::t_4f3d518511678f 9
+.scratch/scan-enhancements/spec.md
+  s_d23aa8aa49da0a::t_03d1f7a73ab36c 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e4c0437b70935ca154a9d662c23da73e4c0521dc",
+  "prompts": {},
+  "sessions": {
+    "s_d23aa8aa49da0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_d23aa8aa49da0a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
