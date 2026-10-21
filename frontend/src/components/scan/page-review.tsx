@@ -7,12 +7,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cardCode } from "@/lib/binder"
 import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
 import { cellMark, useObjectUrl } from "@/lib/use-page-scan"
+import { OtherPrints } from "./other-prints"
 import type { PageCell } from "@/lib/use-page-scan"
 import type { CardSummary } from "@/generated/models"
 
@@ -35,6 +40,8 @@ const isMark = (value: string): value is Mark =>
 function choiceOf(cell: PageCell): Choice {
   const mark = cellMark(cell)
   if (mark) return { value: mark }
+  if (cell.reprintCard)
+    return { value: cell.reprintCard.id, card: cell.reprintCard }
   const { match } = cell
   if (match.status === "matched") {
     const card =
@@ -51,6 +58,7 @@ export function PageReview({
   changed,
   onRetry,
   onChoose,
+  onReprint,
   onMark,
 }: {
   cells: PageCell[]
@@ -59,6 +67,7 @@ export function PageReview({
   changed: boolean[]
   onRetry: (index: number) => void
   onChoose: (index: number, cardId: string) => void
+  onReprint: (index: number, card: CardSummary, position: number) => void
   onMark: (index: number, mark: PageCell["mark"]) => void
 }) {
   return (
@@ -76,6 +85,7 @@ export function PageReview({
             changed={changed[index]}
             onRetry={() => onRetry(index)}
             onChoose={(cardId) => onChoose(index, cardId)}
+            onReprint={(card, position) => onReprint(index, card, position)}
             onMark={(mark) => onMark(index, mark)}
           />
         )
@@ -95,6 +105,7 @@ function CellReview({
   changed,
   onRetry,
   onChoose,
+  onReprint,
   onMark,
 }: {
   label: string
@@ -102,6 +113,7 @@ function CellReview({
   changed: boolean
   onRetry: () => void
   onChoose: (cardId: string) => void
+  onReprint: (card: CardSummary, position: number) => void
   onMark: (mark: PageCell["mark"]) => void
 }) {
   const url = useObjectUrl(cell.photo)
@@ -110,6 +122,9 @@ function CellReview({
   const failed = match.status === "failed"
   const choice = choiceOf(cell)
   const candidates = match.status === "matched" ? match.candidates : []
+  // A Detection the matcher found empty has no Cards to find Reprints of.
+  const offersReprints =
+    candidates.length > 0 && match.status === "matched" && !match.empty
   const pill =
     failed && !cell.mark
       ? { first: "Couldn't match", second: "" }
@@ -186,6 +201,22 @@ function CellReview({
                   ))}
                 </DropdownMenuGroup>
               </DropdownMenuRadioGroup>
+              {offersReprints && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      Other prints
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-72">
+                      <OtherPrints
+                        cardIds={candidates.map((card) => card.id)}
+                        onPick={onReprint}
+                      />
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

@@ -23,6 +23,7 @@ import type {
   BinderPage,
   BinderPageSlotBody,
   BinderSlotResult,
+  CardSummary,
 } from "@/generated/models"
 import { refreshAfterSlotWrite } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
@@ -193,6 +194,11 @@ export function ScanPageFlow({
     matches.choose(index, cardId)
   }
 
+  function reprintCell(index: number, card: CardSummary, position: number) {
+    setEdited(true)
+    matches.reprint(index, card, position)
+  }
+
   function confirm() {
     // A cell still queued or loading holds the Confirm, marked or not.
     if (matches.pending) return
@@ -290,6 +296,7 @@ export function ScanPageFlow({
               changed={changed}
               onRetry={matches.retry}
               onChoose={chooseCard}
+              onReprint={reprintCell}
               onMark={markCell}
             />
             <div className="flex flex-wrap gap-2">

@@ -36,6 +36,10 @@ export interface PageCell {
   cardId?: string
   /** Empty or Unidentified, picked by hand in the cell's menu, which overrides the chosen Card. */
   mark?: "empty" | "unidentified"
+  /** The Reprint the user picked from "Other prints", kept whole so the pill shows it on resume. Set with reprintPosition, cleared by any other pick. */
+  reprintCard?: CardSummary
+  /** Where that Reprint sat in the Reprints list when picked, in the order the list showed them. */
+  reprintPosition?: number
 }
 
 // A cell that has no result yet, so it still has to match.
@@ -127,12 +131,26 @@ export function usePageMatches(resumed: PageCell[] = []) {
         generation: generation.current,
       })
     },
-    /** Picks a candidate, which also clears a hand mark; the other candidates stay for a later pick. */
+    /** Picks a candidate, which also clears a hand mark and a Reprint; the other candidates stay for a later pick. */
     choose(index: number, cardId: string) {
-      patch(index, { cardId, mark: undefined })
+      patch(index, {
+        cardId,
+        mark: undefined,
+        reprintCard: undefined,
+        reprintPosition: undefined,
+      })
     },
     mark(index: number, mark: PageCell["mark"]) {
-      patch(index, { mark })
+      patch(index, { mark, reprintCard: undefined, reprintPosition: undefined })
+    },
+    /** Picks a Reprint from "Other prints", which becomes the cell's Card and remembers where it sat in the list. */
+    reprint(index: number, card: CardSummary, position: number) {
+      patch(index, {
+        cardId: card.id,
+        mark: undefined,
+        reprintCard: card,
+        reprintPosition: position,
+      })
     },
   }
 }
