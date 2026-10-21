@@ -9,8 +9,13 @@ import {
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
+import { Blob as NodeBlob } from "node:buffer"
 import { PendingReviewBanner } from "./pending-review-banner"
-import { loadPageReview, savePageReview } from "@/lib/page-review-store"
+import {
+  listPageReviews,
+  loadPageReview,
+  savePageReview,
+} from "@/lib/page-review-store"
 import type { PendingPageReview } from "@/lib/page-review-store"
 import { useSession } from "@/lib/session"
 
@@ -93,5 +98,34 @@ describe("PendingReviewBanner", () => {
     expect(
       await loadPageReview({ userId: "user-1", collectionId: "col-1", page: 1 })
     ).toBeUndefined()
+  })
+
+  it("removes the review with its Page photo after the user confirms Discard", async () => {
+    const user = userEvent.setup()
+    signedInAs("user-1")
+    const key = { userId: "user-1", collectionId: "col-1", page: 1 }
+    await savePageReview({
+      ...reviewFor("user-1"),
+      // SAFETY: Node's Blob reads the same as the DOM Blob that a Page photo is typed as.
+      photo: new NodeBlob(["page photo"]) as Blob,
+      corners: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.9, y: 0.1 },
+        { x: 0.9, y: 0.9 },
+        { x: 0.1, y: 0.9 },
+      ],
+    })
+    expect((await loadPageReview(key))?.photo).toBeDefined()
+    renderBanner(vi.fn())
+
+    await user.click(await screen.findByRole("button", { name: "Discard" }))
+    const dialog = await screen.findByRole("alertdialog")
+    await user.click(within(dialog).getByRole("button", { name: "Discard" }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Resume" })).toBeNull()
+    )
+    expect(await loadPageReview(key)).toBeUndefined()
+    expect(await listPageReviews("user-1", "col-1")).toEqual([])
   })
 })

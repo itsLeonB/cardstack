@@ -37,6 +37,7 @@ The app answers every response with `X-Robots-Tag: noindex` (`admin/vercel.json`
 - `docs/agents/deployment/clerk.md`: sign-in fails or every request gets a 401, `CLERK_SECRET_KEY`, `CLERK_ISSUER`, `APP_CLIENT_URLS`, `ADMIN_EMAILS` (the catalog admin allowlist), `ADMIN_CLIENT_URLS` (the Admin app's origins and what a 404 on an admin route means), session sharing between the two apps, the rollout order of the Clerk migration.
 - `docs/agents/deployment/images.md`: card or Expansion Set images missing or empty, `IMAGE_BASE_URL`, `VITE_IMAGE_HOST`, the R2 settings (also needed by the API for admin uploads), the R2 CORS entries for the user app and the Admin app, `make host-images`.
 - `docs/agents/deployment/embeddings.md`: `card_embeddings` empty, `GEMINI_API_KEY`, `EMBEDDING_MODEL`, `MATCH_THRESHOLD`, `MATCH_MARGIN`, scans answering 500, `make embed-catalog`, `make collect-embeddings`, enabling pgvector.
+- `docs/agents/deployment/scan-photos.md`: scan feedback records nothing, `POST /scan/photo-uploads` answers 503, `SCAN_PHOTO_R2_*`, the private scan-photo bucket, its credential and its CORS rule.
 - `docs/agents/deployment/api-protection.md`: the API answers 403 or 429, `APP_EDGE_SECRET`, the Cloudflare rule, `RATE_LIMIT_*`.
 
 ## Catalog admin rollout order
