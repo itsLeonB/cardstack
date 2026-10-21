@@ -13,7 +13,7 @@ const photo = () => new NodeBlob(["scan"]) as Blob
 // A field a later API version adds: the Detection must keep it.
 const later = { modelVersion: "v2" }
 const detection: EnvelopeMatchResult = {
-  data: { confident: true, candidates: [], ...later },
+  data: { confident: true, candidates: [], empty: false, ...later },
 }
 
 const scan = (cardId: string, extra: Partial<ResolvedScan> = {}) => ({
