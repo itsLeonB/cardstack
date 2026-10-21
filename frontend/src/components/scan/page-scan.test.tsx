@@ -57,7 +57,8 @@ const candidate = (n: number): MatchCandidate => ({
   score: 0.9,
 })
 
-type Reply = { confident: boolean; candidates: MatchCandidate[] } | "fail"
+type Reply =
+  { confident: boolean; candidates: MatchCandidate[]; empty?: boolean } | "fail"
 
 // Every match waits until the test answers it, oldest first.
 let held: ((response: Response) => void)[] = []
@@ -108,7 +109,9 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
 function answerAt(index: number, reply: Reply) {
   const [resolve] = held.splice(index, 1)
   resolve(
-    reply === "fail" ? json({ title: "boom" }, 503) : json({ data: reply })
+    reply === "fail"
+      ? json({ title: "boom" }, 503)
+      : json({ data: { empty: false, ...reply } })
   )
 }
 
@@ -523,6 +526,81 @@ describe("ScanPageFlow", () => {
     expect(document.body.textContent).not.toContain("Changes this Slot")
   })
 
+  it("defaults a cell the matcher found empty to Empty, with its menu listing the marks and no candidates", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+
+    expect(await within(cell(1, 1)).findByText("Empty")).toBeTruthy()
+    expect(pill(1, 1)?.getAttribute("aria-label")).toBe(
+      "Row 1, column 1: Empty"
+    )
+    const menu = await openMenu(user, 1, 1)
+    const rows = within(menu)
+      .getAllByRole("menuitemradio")
+      .map((item) => [item.textContent, item.getAttribute("aria-checked")])
+    expect(rows).toEqual([
+      ["Empty", "true"],
+      ["Unidentified", "false"],
+    ])
+    expect(within(menu).queryByText("Candidates")).toBeNull()
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+
+    await user.click(confirmButton())
+    await waitFor(() => expect(saves).toHaveLength(1))
+    expect(saves[0].slots?.[0]).toEqual({ state: "empty" })
+  })
+
+  it("changes an Empty default to Unidentified and back to Empty", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+    await waitFor(() => expect(pill(1, 1)?.textContent).toBe("Empty"))
+
+    await pick(user, 1, 1, "Unidentified")
+    expect(pill(1, 1)?.textContent).toBe("Unidentified")
+    await pick(user, 1, 1, "Empty")
+    expect(pill(1, 1)?.textContent).toBe("Empty")
+  })
+
+  it("rings an Empty cell over a Slot that holds a Card as a change", async () => {
+    const user = userEvent.setup()
+    const holding: BinderPage = {
+      ...page,
+      cardTotal: 1,
+      slots: [
+        { row: 1, column: 1, state: "card", card: cardOf(1) },
+        emptySlot(1, 2),
+        emptySlot(2, 1),
+        emptySlot(2, 2),
+      ],
+    }
+    renderFlow(source(), cut, vi.fn(), holding)
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+
+    await waitFor(() =>
+      expect(pill(1, 1)?.getAttribute("aria-label")).toBe(
+        "Row 1, column 1: Empty. Changes this Slot"
+      )
+    )
+    expect(
+      within(cell(1, 1)).getByRole("img").getAttribute("data-changed")
+    ).toBe("true")
+  })
+
   it("names a Slot the server stored as Unidentified for an unknown Card, then returns", async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
@@ -797,6 +875,27 @@ describe("ScanPageFlow, pending Page Review", () => {
     await waitFor(() => expect(pill(1, 2)?.textContent).toContain("Card 2"))
     expect(pill(2, 1)?.textContent).toContain("Card 3")
     expect(matchCalls).toBe(2)
+  })
+
+  it("keeps an Empty default, and a changed mark, through leaving and resuming", async () => {
+    const user = userEvent.setup()
+    const view = renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      ...fourConfident.slice(1),
+    ])
+    await pick(user, 1, 2, "Unidentified")
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells[1].mark).toBe("unidentified")
+    )
+    view.unmount()
+
+    resumeFlow((await loadPageReview(key))!)
+    await screen.findByRole("group", { name: "Row 1, column 1" })
+    expect(pill(1, 1)?.textContent).toBe("Empty")
+    expect(pill(1, 2)?.textContent).toBe("Unidentified")
+    expect(matchCalls).toBe(4)
   })
 
   it("offers Scan again in place of Adjust corners, which starts from the photo step", async () => {

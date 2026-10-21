@@ -41,7 +41,8 @@ export const MatchScannedCardResponse = zod.object({
 }),
   "score": zod.number().min(matchScannedCardResponseDataCandidatesItemScoreMin).max(matchScannedCardResponseDataCandidatesItemScoreMax).describe('How closely the photo matches this Card; candidates are ordered by it, highest first.')
 })).nullable(),
-  "confident": zod.boolean().describe('True only when the server is sure of the first candidate. The server owns the threshold.')
+  "confident": zod.boolean().describe('True only when the server is sure of the first candidate. The server owns the threshold.'),
+  "empty": zod.boolean().describe('True when the photo shows no card: its top Card scored below the server\'s empty threshold. Candidates is then empty and Confident false.')
 })
 })
 
