@@ -20,16 +20,21 @@ const DB_NAME = "cardstack-draft-additions"
 const STORE = "drafts"
 const KEY_PATH = ["userId", "collectionId"]
 
+/** Why a Scan is set aside on confirm: no card in the photo, or a card none of its candidates fits. */
+export type Mark = "empty" | "unidentified"
+
 /**
  * A resolved Scan: the chosen Card, its quantity, the ids of the other
  * candidates when the matcher was not confident (empty otherwise), its photo,
  * and the Detection. A Scan moved from the old local storage draft has neither
- * photo nor Detection.
+ * photo nor Detection. A Scan with no Card (the matcher saw none) has only its
+ * mark.
  */
 export interface ResolvedScan {
-  cardId: string
+  cardId?: string
   quantity: number
   candidateIds: string[]
+  mark?: Mark
   photo?: Blob
   /** The match response as the API sent it, so a field the API adds later is kept. */
   detection?: EnvelopeMatchResult

@@ -2,6 +2,7 @@ import { RiArrowDownSLine, RiArrowUpSLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
 import { ScanRow } from "./scan-row"
 import { useDraftCards } from "./use-draft-cards"
+import type { Mark } from "@/lib/draft-addition"
 import type { Scan } from "@/lib/use-draft-addition"
 import type { CardSummary } from "@/generated/models"
 
@@ -20,6 +21,7 @@ export function ScanSheet({
   onRaise,
   onLower,
   onChoose,
+  onMark,
   onRetry,
   onRemove,
   onDiscard,
@@ -35,13 +37,14 @@ export function ScanSheet({
   onRaise: (key: string) => void
   onLower: (key: string) => void
   onChoose: (key: string, cardId: string, reprintPosition?: number) => void
+  onMark: (key: string, mark: Mark) => void
   onRetry: (key: string) => void
   onRemove: (key: string) => void
   onDiscard: () => void
   onReview: () => void
 }) {
   const cardIds = scans.flatMap((s) =>
-    s.status === "resolved" ? [s.cardId!] : []
+    s.status === "resolved" && s.cardId ? [s.cardId] : []
   )
   const { cards, missing, retry } = useDraftCards(cardIds, seen)
   const shown = open ? scans : scans.slice(0, 1)
@@ -99,6 +102,7 @@ export function ScanSheet({
               onChoose={(cardId, reprintPosition) =>
                 onChoose(scan.key, cardId, reprintPosition)
               }
+              onMark={(mark) => onMark(scan.key, mark)}
               onRetry={() => onRetry(scan.key)}
               onRetryLookup={retry}
               onRemove={() => onRemove(scan.key)}

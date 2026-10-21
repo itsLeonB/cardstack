@@ -73,6 +73,7 @@ interface CommitProgress {
 export function ReviewStep({
   collectionId,
   rows,
+  setAside,
   seen,
   declined,
   onCommitted,
@@ -80,6 +81,8 @@ export function ReviewStep({
 }: {
   collectionId: string
   rows: ReviewRowData[]
+  /** Marked Scans: not in the rows, counted here, and set aside on confirm. */
+  setAside: number
   seen: Map<string, CardSummary>
   /** Reasons from the last commit, by card id, shown on the rows they belong to. */
   declined: Record<string, Decline>
@@ -283,6 +286,12 @@ export function ReviewStep({
           )}
         </p>
       )}
+      {setAside > 0 && (
+        <p className="text-sm">
+          {setAside} {setAside === 1 ? "Scan is" : "Scans are"} set aside and
+          will not be added.
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -351,7 +360,7 @@ export function ReviewStep({
       )}
       <div className="flex flex-wrap gap-2">
         <Button
-          disabled={busy || rows.length === 0}
+          disabled={busy || (rows.length === 0 && setAside === 0)}
           onClick={() => void commit()}
         >
           {busy ? "Adding…" : "Add to Collection"}
