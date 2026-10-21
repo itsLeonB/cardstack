@@ -81,32 +81,37 @@ func TestRateLimitDefaultsAndEnvVarNames(t *testing.T) {
 func TestMatchDefaultsAndEnvVarNames(t *testing.T) {
 	var defaults Match
 	require.NoError(t, envconfig.Process(defaults.Prefix(), &defaults))
-	assert.Equal(t, Match{Threshold: 0.85, Margin: 0.03}, defaults)
+	assert.Equal(t, Match{Threshold: 0.85, Margin: 0.03, ReprintDelta: 0.05}, defaults)
 	assert.NoError(t, defaults.ValidateMatch())
 
 	t.Setenv("MATCH_THRESHOLD", "0.9")
 	t.Setenv("MATCH_MARGIN", "0.05")
 	t.Setenv("MATCH_EMPTY_THRESHOLD", "0.4")
+	t.Setenv("MATCH_REPRINT_DELTA", "0.08")
 
 	var set Match
 	require.NoError(t, envconfig.Process(set.Prefix(), &set))
-	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05, EmptyThreshold: 0.4}, set)
+	assert.Equal(t, Match{Threshold: 0.9, Margin: 0.05, EmptyThreshold: 0.4, ReprintDelta: 0.08}, set)
 }
 
 func TestMatch_ValidateMatch(t *testing.T) {
 	assert.NoError(t, Match{Threshold: 1, Margin: 0}.ValidateMatch())
 	assert.NoError(t, Match{Threshold: 0.01, Margin: 0.99}.ValidateMatch())
-	assert.NoError(t, Match{Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.84}.ValidateMatch())
+	assert.NoError(t, Match{Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.84, ReprintDelta: 0.05}.ValidateMatch())
+	assert.NoError(t, Match{Threshold: 1, Margin: 0, ReprintDelta: 0}.ValidateMatch())
+	assert.NoError(t, Match{Threshold: 1, Margin: 0, ReprintDelta: 1}.ValidateMatch())
 
 	for name, m := range map[string]Match{
-		"zero threshold":       {Threshold: 0, Margin: 0.03},
-		"negative threshold":   {Threshold: -0.1, Margin: 0.03},
-		"threshold over one":   {Threshold: 1.1, Margin: 0.03},
-		"negative margin":      {Threshold: 0.85, Margin: -0.01},
-		"margin of one":        {Threshold: 0.85, Margin: 1},
-		"negative empty":       {Threshold: 0.85, Margin: 0.03, EmptyThreshold: -0.01},
-		"empty at threshold":   {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.85},
-		"empty over threshold": {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.9},
+		"zero threshold":       {Threshold: 0, Margin: 0.03, ReprintDelta: 0.05},
+		"negative threshold":   {Threshold: -0.1, Margin: 0.03, ReprintDelta: 0.05},
+		"threshold over one":   {Threshold: 1.1, Margin: 0.03, ReprintDelta: 0.05},
+		"negative margin":      {Threshold: 0.85, Margin: -0.01, ReprintDelta: 0.05},
+		"margin of one":        {Threshold: 0.85, Margin: 1, ReprintDelta: 0.05},
+		"negative empty":       {Threshold: 0.85, Margin: 0.03, EmptyThreshold: -0.01, ReprintDelta: 0.05},
+		"empty at threshold":   {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.85, ReprintDelta: 0.05},
+		"empty over threshold": {Threshold: 0.85, Margin: 0.03, EmptyThreshold: 0.9, ReprintDelta: 0.05},
+		"negative delta":       {Threshold: 0.85, Margin: 0.03, ReprintDelta: -0.01},
+		"delta over one":       {Threshold: 0.85, Margin: 0.03, ReprintDelta: 1.01},
 	} {
 		assert.Error(t, m.ValidateMatch(), name)
 	}
@@ -211,4 +216,30 @@ func TestConfig_ValidateAdminOrigins_NeedsAnAdminOriginWhenThereAreAdmins(t *tes
 	assert.NoError(t, Config{App: app, Admin: Admin{AdminClientUrls: []string{"https://admin.example.com"}}}.ValidateAdminOrigins())
 	assert.ErrorContains(t, Config{App: app, Admin: admin}.ValidateAdminOrigins(), "ADMIN_CLIENT_URLS")
 	assert.ErrorContains(t, Config{App: app, Admin: Admin{AdminClientUrls: []string{"https://www.example.com"}}}.ValidateAdminOrigins(), "https://www.example.com", "an origin in both lists, even with no admins")
+}
+
+func TestScanPhotoR2EnvVarNames(t *testing.T) {
+	t.Setenv("SCAN_PHOTO_R2_ACCOUNT_ID", "acct")
+	t.Setenv("SCAN_PHOTO_R2_ACCESS_KEY_ID", "key")
+	t.Setenv("SCAN_PHOTO_R2_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("SCAN_PHOTO_R2_BUCKET", "photos")
+
+	var photos ScanPhotoR2
+	require.NoError(t, envconfig.Process(photos.Prefix(), &photos))
+
+	assert.Equal(t, ScanPhotoR2{AccountID: "acct", AccessKeyID: "key", SecretAccessKey: "secret", Bucket: "photos"}, photos)
+	assert.True(t, R2(photos).Configured())
+}
+
+func TestConfig_ValidateScanPhotoR2_OnlyWhenConfigured(t *testing.T) {
+	public := R2{AccountID: "acct", AccessKeyID: "key", SecretAccessKey: "secret", Bucket: "images"}
+	photos := ScanPhotoR2{AccountID: "acct", AccessKeyID: "pkey", SecretAccessKey: "psecret", Bucket: "photos"}
+
+	assert.NoError(t, Config{R2: public}.ValidateScanPhotoR2(), "unset: nothing to check")
+	assert.NoError(t, Config{R2: public, ScanPhotoR2: photos}.ValidateScanPhotoR2())
+	assert.Error(t, Config{ScanPhotoR2: ScanPhotoR2{Bucket: "photos"}}.ValidateScanPhotoR2(), "a partial set is refused")
+
+	samePublic := photos
+	samePublic.Bucket = public.Bucket
+	assert.Error(t, Config{R2: public, ScanPhotoR2: samePublic}.ValidateScanPhotoR2(), "the photo bucket must not be the public image bucket")
 }

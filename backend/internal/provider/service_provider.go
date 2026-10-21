@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideServices)
 
 type Services struct {
 	Health     service.HealthService
@@ -33,6 +33,7 @@ type Services struct {
 	Match      service.MatchService
 	AdminSets  service.AdminSetService
 	CardAdmin  service.CardAdminService
+	ScanPhoto  service.ScanPhotoService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -143,6 +144,7 @@ func ProvideMatchSettings() service.MatchSettings {
 		Threshold:      config.Global.Threshold,
 		Margin:         config.Global.Margin,
 		EmptyThreshold: config.Global.EmptyThreshold,
+		ReprintDelta:   config.Global.ReprintDelta,
 	}
 }
 
@@ -168,7 +170,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService) *Services {
 	return &Services{
 		Health:     coreservice.NewHealthService(),
 		Verifier:   verifier,
@@ -181,5 +183,6 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		Match:      match,
 		AdminSets:  adminSets,
 		CardAdmin:  cardAdmin,
+		ScanPhoto:  scanPhoto,
 	}
 }
