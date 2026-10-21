@@ -1,0 +1,19 @@
+backend/internal/adapters/http/routes/reprint_routes_test.go
+  s_32824332926db6::t_302b4374849b7a 304-313
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "206c31e13145d2d05b8e82a68da5dae2bcca89fc",
+  "prompts": {},
+  "sessions": {
+    "s_32824332926db6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_32824332926db6",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
