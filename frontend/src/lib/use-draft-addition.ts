@@ -219,22 +219,28 @@ export function useScanDraft(
     /**
      * Takes the copies the Collection has placed out of the draft. Once a commit
      * has not failed, its marked Scans are set aside too. Returns how many Scans
-     * are still in the draft.
+     * are still in the draft, and the Scans that left it: a Scan only partly
+     * placed stays, and is reported when its last copy goes.
      */
     removeCopies(placed: Record<string, number>, setAside: boolean) {
       const owed = { ...placed }
+      const removed: Scan[] = []
       const remaining = scans.flatMap((s) => {
         // A marked Scan is never placed, so it takes no copies, even of its own Card.
-        if (s.mark) return setAside ? [] : [s]
+        if (s.mark) {
+          if (!setAside) return [s]
+          removed.push(s)
+          return []
+        }
         if (s.status !== "resolved" || !s.cardId || !owed[s.cardId]) return [s]
         const taken = Math.min(owed[s.cardId], s.quantity)
         owed[s.cardId] -= taken
-        return s.quantity > taken
-          ? [{ ...s, quantity: s.quantity - taken }]
-          : []
+        if (s.quantity > taken) return [{ ...s, quantity: s.quantity - taken }]
+        removed.push(s)
+        return []
       })
       setScans(remaining)
-      return remaining.length
+      return { left: remaining.length, removed }
     },
   }
 }

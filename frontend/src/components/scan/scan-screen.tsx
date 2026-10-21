@@ -7,7 +7,10 @@ import type { CommitResult, Decline } from "./review-step"
 import { ScanSheet } from "./scan-sheet"
 import { CARD_ASPECT, GUIDE_HEIGHT, VIEW_ASPECT } from "@/lib/frame-crop"
 import type { FrameSource } from "@/lib/frame-source"
+import { feedbackChoice, sendScanFeedback } from "@/lib/scan-feedback"
+import type { PendingFeedbackRow } from "@/lib/scan-feedback"
 import { summedRows, useScanDraft } from "@/lib/use-draft-addition"
+import type { Scan } from "@/lib/use-draft-addition"
 
 /**
  * The scan screen: a full-screen viewfinder with the Draft Addition as a
@@ -65,7 +68,10 @@ export function ScanScreen({
   }
 
   function finishCommit({ placed, declined: next, failed }: CommitResult) {
-    const left = draft.removeCopies(placed, !failed)
+    const { left, removed } = draft.removeCopies(placed, !failed)
+    // Not awaited: the draft clears whether or not the feedback is recorded.
+    const { rows, photos } = feedbackRows(collectionId, removed)
+    void sendScanFeedback(rows, photos)
     setDeclined(next)
     if (left === 0) onAdded()
     else if (!failed && Object.keys(next).length === 0) setReviewing(false)
@@ -198,4 +204,28 @@ export function ScanScreen({
       </div>
     </div>
   )
+}
+
+/**
+ * The feedback rows of the Scans that left the Draft Addition, with the photo
+ * of each Correction. Only a Correction names a photo, so a confirmation
+ * uploads nothing.
+ */
+function feedbackRows(collectionId: string, scans: Scan[]) {
+  const rows: PendingFeedbackRow[] = []
+  const photos = new Map<string, Blob>()
+  for (const scan of scans) {
+    const pick = feedbackChoice(scan.detection, scan)
+    if (!pick) continue
+    const correction = pick.kind !== "confirmed"
+    if (correction && scan.photo) photos.set(scan.key, scan.photo)
+    rows.push({
+      source: "card_scan",
+      collectionId,
+      detection: scan.detection,
+      ...pick,
+      photoId: correction ? scan.key : undefined,
+    })
+  }
+  return { rows, photos }
 }
