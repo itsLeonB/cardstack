@@ -1037,9 +1037,12 @@ describe("recording card-scan feedback", () => {
   const printed = (name: string) => new RegExp(`^${name}(?!\\d)`)
 
   const addToCollection = async () => {
-    await userEvent.click(
-      screen.getByRole("button", { name: "Review and add" })
-    )
+    // A restored draft loads after mount, so the review opens only once it is in.
+    const review = await screen.findByRole("button", {
+      name: "Review and add",
+    })
+    await waitFor(() => expect(review).toHaveProperty("disabled", false))
+    await userEvent.click(review)
     await userEvent.click(
       await screen.findByRole("button", { name: "Add to Collection" })
     )
@@ -1058,7 +1061,9 @@ describe("recording card-scan feedback", () => {
     await userEvent.click(
       screen.getByRole("button", { name: `Change card for ${name}` })
     )
-    await userEvent.click(await screen.findByRole("menuitem", { name: label }))
+    await userEvent.click(
+      await screen.findByRole("menuitemcheckbox", { name: label })
+    )
   }
 
   it("records a confident match as a confirmation with its rank, and uploads no photo", async () => {
