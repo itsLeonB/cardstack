@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   Outlet,
@@ -12,12 +13,27 @@ import {
 import type { AuthGate } from "@/lib/clerk-auth"
 import { NotFound } from "@/components/layout/not-found"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
+import { useSession } from "@/lib/session"
 import { Route as ScanRoute } from "./scan"
+
+// The draft belongs to the signed-in user, so a test picks who that is.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@/lib/session", () => ({ useSession: vi.fn() }))
+
+const signInAs = (id: string) =>
+  vi.mocked(useSession).mockReturnValue({
+    user: { id, name: null, email: null },
+    isAuthenticated: true,
+    isLoading: false,
+  })
 
 // The real route options in a memory router, over a faked `fetch`. jsdom has no
 // camera, so the screen falls back to the file picker.
 let collectionStatus = 200
 beforeEach(() => {
+  signInAs("user-1")
+  vi.stubGlobal("indexedDB", new IDBFactory())
+  vi.stubGlobal("IDBKeyRange", IDBKeyRange)
   collectionStatus = 200
   vi.stubGlobal(
     "fetch",
@@ -74,6 +90,7 @@ async function renderScan() {
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+  return router
 }
 
 describe("the scan route", () => {
@@ -84,12 +101,39 @@ describe("the scan route", () => {
     expect(screen.getByLabelText("Choose a photo")).toBeTruthy()
   })
 
-  it("drops the draft quietly when the Collection is missing", async () => {
-    collectionStatus = 404
-    saveDraft("col-1", [{ cardId: "card-1", quantity: 1, candidateIds: [] }])
+  it("shows none of one Collection's Scans after moving to another, and leaves the first saved", async () => {
+    await saveDraft("user-1", "col-1", [
+      { cardId: "card-1", quantity: 1, candidateIds: [] },
+    ])
+    const router = await renderScan()
+    await screen.findByRole("button", { name: /^Draft \(/ })
+    const savedFirst = await loadDraft("user-1", "col-1")
+
+    router.history.push("/collections/col-2/scan")
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/collections/col-2/scan")
+    )
+
+    await screen.findByText("Scanned cards will appear here.")
+    expect(await loadDraft("user-1", "col-2")).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual(savedFirst)
+  })
+
+  it("leaves the saved Draft Addition of another user alone", async () => {
+    await saveDraft("user-2", "col-1", [
+      { cardId: "card-1", quantity: 1, candidateIds: [] },
+    ])
     await renderScan()
-    await screen.findByRole("heading", { name: "Collection not found" })
-    expect(loadDraft("col-1")).toEqual([])
+    await screen.findByRole("heading", { level: 1, name: "Scan cards" })
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
+    expect(await loadDraft("user-2", "col-1")).toHaveLength(1)
+  })
+
+  it("runs on in-memory drafts when IndexedDB is missing", async () => {
+    vi.stubGlobal("indexedDB", undefined)
+    await renderScan()
+    await screen.findByRole("heading", { level: 1, name: "Scan cards" })
+    expect(screen.getByLabelText("Choose a photo")).toBeTruthy()
   })
 })
 

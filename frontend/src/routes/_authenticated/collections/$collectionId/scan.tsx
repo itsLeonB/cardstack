@@ -5,8 +5,8 @@ import { PageHeader } from "@/components/layout/page-header"
 import { buttonVariants } from "@/components/ui/button"
 import { ScanScreen } from "@/components/scan/scan-screen"
 import { getGetCollectionQueryOptions } from "@/generated/endpoints/collections/collections"
-import { clearDraft } from "@/lib/draft-addition"
 import { useCameraFrameSource } from "@/lib/frame-source"
+import { useSession } from "@/lib/session"
 
 export const Route = createFileRoute(
   "/_authenticated/collections/$collectionId/scan"
@@ -16,8 +16,6 @@ export const Route = createFileRoute(
       getGetCollectionQueryOptions(params.collectionId)
     )
     if (response.status === 404) {
-      // An orphan draft is dropped quietly.
-      clearDraft(params.collectionId)
       throw notFoundResource("Collection")
     }
     return response.status === 200 ? response.data.data.title : undefined
@@ -31,6 +29,9 @@ function ScanPage() {
   const title = Route.useLoaderData()
   const source = useCameraFrameSource()
   const navigate = useNavigate()
+  const { user } = useSession()
+  // The route is signed in only, so the draft always has an owner.
+  if (!user) return null
 
   return (
     <>
@@ -42,7 +43,8 @@ function ScanPage() {
         />
       </div>
       <ScanScreen
-        key={collectionId}
+        key={`${user.id}:${collectionId}`}
+        userId={user.id}
         collectionId={collectionId}
         source={source}
         backLink={

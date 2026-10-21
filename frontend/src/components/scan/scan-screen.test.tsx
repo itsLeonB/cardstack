@@ -12,6 +12,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ScanScreen } from "./scan-screen"
 import type { FrameSource } from "@/lib/frame-source"
 import type { CardSummary, MatchCandidate } from "@/generated/models"
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
+import { Blob as NodeBlob } from "node:buffer"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
 
 // Only the network is faked (`fetch`): the generated client, the query cache
@@ -59,7 +61,10 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(String(input))
   if (url.pathname === "/scan/match") {
     matchCalls++
-    if (init?.body instanceof Blob) uploads.push(init.body)
+    if (init?.body) {
+      // SAFETY: the match route sends the photo itself as the request body, a Blob.
+      uploads.push(init.body as Blob)
+    }
     if (holding)
       return new Promise<Response>((resolve, reject) => {
         const entry = {
@@ -101,7 +106,10 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
 // Answers the oldest held match.
 const answer = (reply: Reply) => waiting.shift()!.answer(reply)
 
-const jpeg = () => new Blob(["jpeg"], { type: "image/jpeg" })
+// jsdom's Blob does not survive the in-memory IndexedDB's structured clone, so
+// photos here are Node's Blob, which the saved Draft Addition can hold.
+// SAFETY: Node's Blob reads the same as the DOM Blob a photo is typed as.
+const jpeg = () => new NodeBlob(["jpeg"], { type: "image/jpeg" }) as Blob
 function source(overrides: Partial<FrameSource> = {}): FrameSource {
   return {
     camera: "ready",
@@ -117,7 +125,8 @@ function source(overrides: Partial<FrameSource> = {}): FrameSource {
 function renderScreen(
   collectionId = "col-1",
   frames = source(),
-  onAdded = () => {}
+  onAdded = () => {},
+  userId = "user-1"
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -125,6 +134,7 @@ function renderScreen(
   return render(
     <QueryClientProvider client={queryClient}>
       <ScanScreen
+        userId={userId}
         collectionId={collectionId}
         source={frames}
         onAdded={onAdded}
@@ -144,6 +154,8 @@ beforeEach(() => {
   failLookup = new Set()
   holdLookup = new Set()
   vi.stubGlobal("fetch", vi.fn(fakeApi))
+  vi.stubGlobal("indexedDB", new IDBFactory())
+  vi.stubGlobal("IDBKeyRange", IDBKeyRange)
   URL.createObjectURL = vi.fn(() => "blob:photo")
   URL.revokeObjectURL = vi.fn()
 })
@@ -175,7 +187,7 @@ describe("capturing", () => {
 
     const row = await rowOf("Matching…")
     expect(within(row).getByText("Matching…")).toBeTruthy()
-    expect(uploads[0]).toBeInstanceOf(Blob)
+    expect(uploads[0].size).toBeGreaterThan(0)
     expect(uploads[0].type).toBe("image/jpeg")
     // Capture stays usable while the match is out.
     expect(screen.getByRole("button", { name: "Capture" })).toHaveProperty(
@@ -365,13 +377,13 @@ describe("the sheet", () => {
     await userEvent.click(screen.getByRole("button", { name: "Discard draft" }))
 
     expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
-    expect(localStorage.getItem("cardstack:draft-addition:col-1")).toBeNull()
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
   })
 })
 
 describe("persistence", () => {
   it("restores resolved Scans with their alternatives after a reload", async () => {
-    saveDraft("col-1", [
+    await saveDraft("user-1", "col-1", [
       { cardId: "card-2", quantity: 3, candidateIds: ["card-2", "card-4"] },
     ])
     renderScreen()
@@ -394,14 +406,56 @@ describe("persistence", () => {
     await capture()
     await rowOf("Matching…")
 
-    expect(loadDraft("col-1")).toEqual([])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
   })
 
-  it("keeps each Collection's draft separate", () => {
-    saveDraft("col-2", [{ cardId: "card-9", quantity: 1, candidateIds: [] }])
+  it("keeps each Collection's draft separate", async () => {
+    await saveDraft("user-1", "col-2", [
+      { cardId: "card-9", quantity: 1, candidateIds: [] },
+    ])
     renderScreen("col-1")
 
-    expect(screen.getByText("Scanned cards will appear here.")).toBeTruthy()
+    expect(
+      await screen.findByText("Scanned cards will appear here.")
+    ).toBeTruthy()
+  })
+
+  it("keeps another user's draft out of this screen", async () => {
+    await saveDraft("user-2", "col-1", [
+      { cardId: "card-9", quantity: 1, candidateIds: [] },
+    ])
+    renderScreen("col-1", source(), () => {}, "user-1")
+
+    expect(
+      await screen.findByText("Scanned cards will appear here.")
+    ).toBeTruthy()
+    expect(await loadDraft("user-2", "col-1")).toHaveLength(1)
+  })
+
+  it("keeps a resolved Scan's photo and Detection as the match returned them", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+
+    await waitFor(async () =>
+      expect(await loadDraft("user-1", "col-1")).toHaveLength(1)
+    )
+    const [saved] = await loadDraft("user-1", "col-1")
+    expect(saved.cardId).toBe("card-1")
+    expect(await saved.photo?.text()).toBe("jpeg")
+    expect(saved.detection).toEqual({
+      data: { confident: true, candidates: [candidate(1)] },
+    })
+  })
+
+  it("runs from memory, with nothing saved, when IndexedDB is missing", async () => {
+    vi.stubGlobal("indexedDB", undefined)
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+
+    expect(await rowOf("Card 1")).toBeTruthy()
   })
 })
 
@@ -436,6 +490,31 @@ describe("announcements", () => {
   })
 })
 
+describe("removing a Scan from the saved draft", () => {
+  it("forgets the removed Scan and keeps the rest", async () => {
+    replies = [
+      { confident: true, candidates: [candidate(1)] },
+      { confident: true, candidates: [candidate(2)] },
+    ]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await capture()
+    const row = await rowOf("Card 2")
+    await waitFor(async () =>
+      expect(await loadDraft("user-1", "col-1")).toHaveLength(2)
+    )
+
+    fireEvent.click(within(row).getByRole("button", { name: /^Remove/ }))
+
+    await waitFor(async () =>
+      expect((await loadDraft("user-1", "col-1")).map((s) => s.cardId)).toEqual(
+        ["card-1"]
+      )
+    )
+  })
+})
+
 describe("the candidates", () => {
   it("shows no dropdown when the matcher offers a single candidate", async () => {
     replies = [{ confident: false, candidates: [candidate(1)] }]
@@ -447,7 +526,7 @@ describe("the candidates", () => {
   })
 
   it("shows the picked card at once, before the sheet's own lookup of it answers", async () => {
-    saveDraft("col-1", [
+    await saveDraft("user-1", "col-1", [
       { cardId: "card-2", quantity: 1, candidateIds: ["card-2", "card-4"] },
     ])
     holdLookup = new Set(["card-4"])
@@ -468,7 +547,9 @@ describe("the candidates", () => {
 
 describe("a Card that will not load", () => {
   it("says so and retries the lookup", async () => {
-    saveDraft("col-1", [{ cardId: "card-2", quantity: 1, candidateIds: [] }])
+    await saveDraft("user-1", "col-1", [
+      { cardId: "card-2", quantity: 1, candidateIds: [] },
+    ])
     failLookup = new Set(["card-2"])
     renderScreen()
     await expandSheet()

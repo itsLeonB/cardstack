@@ -17,6 +17,7 @@
  */
 import type { PageCell } from "@/lib/use-page-scan"
 import type { Corners, Grid } from "@/lib/page-cut"
+import { transactStore } from "@/lib/indexed-db"
 
 const DB_NAME = "cardstack-page-reviews"
 const STORE = "reviews"
@@ -42,26 +43,7 @@ function transact<T>(
   mode: IDBTransactionMode,
   work: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const open = indexedDB.open(DB_NAME, 1)
-    open.onupgradeneeded = () => {
-      open.result.createObjectStore(STORE, { keyPath: KEY_PATH })
-    }
-    open.onerror = () => reject(open.error)
-    open.onsuccess = () => {
-      const db = open.result
-      const tx = db.transaction(STORE, mode)
-      const request = work(tx.objectStore(STORE))
-      tx.oncomplete = () => {
-        db.close()
-        resolve(request.result)
-      }
-      tx.onabort = () => {
-        db.close()
-        reject(tx.error)
-      }
-    }
-  })
+  return transactStore(DB_NAME, STORE, KEY_PATH, mode, work)
 }
 
 const keyOf = ({ userId, collectionId, page }: PageReviewKey) => [
