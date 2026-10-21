@@ -84,6 +84,7 @@ func (r *tuningRepository) NameGroups(ctx context.Context, model string) ([]Name
 	var groups []NameGroup
 	err = db.Table("cards").
 		Select(normalizedName("cards.name")+" AS name, COUNT(DISTINCT cards.id) AS size").
+		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
 		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ?", model).
 		Group(normalizedName("cards.name")).
 		Having("COUNT(DISTINCT cards.id) >= 2").
@@ -105,7 +106,7 @@ func (r *tuningRepository) GroupCards(ctx context.Context, model, name string) (
 	var cards []GroupCard
 	err = db.Table("cards").
 		Select("cards.id AS id, expansion_sets.code AS set_code, cards.local_id AS local_id").
-		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id").
+		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
 		Where(normalizedName("cards.name")+" = ?", name).
 		Where("EXISTS (SELECT 1 FROM card_embeddings ce WHERE ce.card_id = cards.id AND ce.model = ?)", model).
 		Order("expansion_sets.code, cards.local_id, cards.id").
