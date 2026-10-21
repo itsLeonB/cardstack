@@ -19,9 +19,9 @@ import (
 	"gorm.io/datatypes"
 )
 
-// MaxScanPhotoBytes caps a kept photo at the size /scan/match accepts, so a
-// photo kept for a Correction is one the matcher could read (docs/adr/0022).
-const MaxScanPhotoBytes = 2 << 20
+// MaxFeedbackPhotoBytes caps a kept photo. A whole binder Page photo is often
+// over the 2 MiB /scan/match accepts, so a feedback photo gets a larger cap.
+const MaxFeedbackPhotoBytes = 8 << 20
 
 // MaxScanJSONBytes caps a Detection's JSON and a Page's corners.
 const MaxScanJSONBytes = 64 << 10
@@ -202,7 +202,7 @@ func (s *scanFeedbackService) checkPhotos(ctx context.Context, profileID uuid.UU
 		if err != nil {
 			return err
 		}
-		if size > MaxScanPhotoBytes {
+		if size > MaxFeedbackPhotoBytes {
 			return s.refusePhoto(ctx, key, feedbackPhotoTooLargeMsg)
 		}
 		head, err := s.photos.ReadHead(ctx, key, len(jpegSignature))
