@@ -1283,4 +1283,64 @@ describe("recording card-scan feedback", () => {
     expect(collectionWrites).toEqual([[{ cardId: "card-1", quantity: 1 }]])
     expect(screen.queryByRole("alert")).toBeNull()
   })
+
+  it("posts a Correction whose photo is gone with no key, and uploads nothing for it", async () => {
+    // A restored Scan keeps its Detection, but its photo did not survive the reload.
+    await saveDraft("user-1", "col-1", [
+      {
+        cardId: "card-2",
+        quantity: 1,
+        candidateIds: ["card-1", "card-2"],
+        detection: {
+          data: {
+            candidates: [candidate(1), candidate(2)],
+            confident: false,
+            empty: false,
+          },
+        },
+      },
+    ])
+    renderScreen()
+    await expandSheet()
+    await rowOf("Card 2")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({
+        kind: "switched",
+        cardId: "card-2",
+        rank: 2,
+        rankSource: "top",
+      }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+    expect(uploadRequests).toEqual([])
+  })
+
+  it("records Unidentified kept on a Detection with no candidates as a confirmation, with no key", async () => {
+    await saveDraft("user-1", "col-1", [
+      {
+        quantity: 1,
+        candidateIds: [],
+        mark: "unidentified",
+        photo: jpeg(),
+        detection: {
+          data: { candidates: [], confident: false, empty: false },
+        },
+      },
+    ])
+    renderScreen()
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ source: "card_scan", kind: "confirmed" }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("cardId")
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+    expect(uploadRequests).toEqual([])
+  })
 })
