@@ -66,9 +66,16 @@ let matchCalls = 0
 // Each Replace Page the flow sends, and the grid indexes the server reports as unknown Cards.
 let saves: BinderPageReplaceBody[] = []
 let unknownIndexes: number[] = []
+// The Cards the Reprints lookup can offer, and the lookups the flow sends.
+let reprintPool: CardSummary[] = []
+let reprintCalls: string[] = []
+let reprintFailures = 0
 
 type Body =
-  { data: MatchResult } | EnvelopeBinderPageReplaceResult | { title: string }
+  | { data: MatchResult }
+  | EnvelopeBinderPageReplaceResult
+  | { data: { cards: CardSummary[]; hasMore: boolean } }
+  | { title: string }
 const json = (body: Body, status = 200) =>
   new Response(JSON.stringify(body), { status })
 
@@ -101,6 +108,25 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
     const body: BinderPageReplaceBody = JSON.parse(String(init.body))
     saves.push(body)
     return Promise.resolve(json(savedPage(body)))
+  }
+  if (url.pathname === "/scan/reprints") {
+    reprintCalls.push(url.search)
+    if (reprintFailures > 0) {
+      reprintFailures--
+      return Promise.resolve(json({ title: "boom" }, 500))
+    }
+    // Like the API: the sent ids are left out, then five a page from the offset.
+    const sent = new Set(url.searchParams.getAll("cardIds"))
+    const offset = Number(url.searchParams.get("offset") ?? 0)
+    const pool = reprintPool.filter((card) => !sent.has(card.id))
+    return Promise.resolve(
+      json({
+        data: {
+          cards: pool.slice(offset, offset + 5),
+          hasMore: offset + 5 < pool.length,
+        },
+      })
+    )
   }
   return Promise.resolve(json({ title: "unexpected" }, 500))
 }
@@ -265,6 +291,9 @@ beforeEach(() => {
   matchCalls = 0
   saves = []
   unknownIndexes = []
+  reprintPool = []
+  reprintCalls = []
+  reprintFailures = 0
   cut.mockClear()
   vi.stubGlobal("indexedDB", new IDBFactory())
   vi.stubGlobal("IDBKeyRange", IDBKeyRange)
@@ -1176,5 +1205,236 @@ describe("ScanPageFlow, Page photo in a pending review", () => {
     )
     await user.click(confirmButton())
     await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+})
+
+describe("ScanPageFlow, other prints", () => {
+  const key = { userId: "user-1", collectionId: "col-1", page: 1 }
+  // A Reprint's name runs into its set code ("Card 11SCE"), so a digit after the name means another Card.
+  const printed = (name: string) => new RegExp(`^${name}(?![0-9])`)
+
+  const openOtherPrints = async (
+    user: ReturnType<typeof userEvent.setup>,
+    row: number,
+    column: number
+  ) => {
+    await openMenu(user, row, column)
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
+  }
+
+  /** Opens a cell's Other prints and picks the Reprint whose name matches. */
+  async function pickReprint(
+    user: ReturnType<typeof userEvent.setup>,
+    row: number,
+    column: number,
+    name: string
+  ) {
+    await openOtherPrints(user, row, column)
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: printed(name) })
+    )
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+  }
+
+  const matchedAll = async (user: ReturnType<typeof userEvent.setup>) => {
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll(fourConfident)
+  }
+
+  it("offers Other prints on a confident cell, fetching only once it is opened", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    await matchedAll(user)
+
+    await openMenu(user, 1, 1)
+    expect(reprintCalls).toEqual([])
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 11") })
+    ).toBeTruthy()
+    expect(reprintCalls).toEqual(["?cardIds=card-1&offset=0"])
+  })
+
+  it("offers Other prints on a cell that is not confident, sending its candidates in matcher order", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [candidate(1), candidate(2)] },
+      ...fourConfident.slice(1),
+    ])
+
+    await openOtherPrints(user, 1, 1)
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 11") })
+    ).toBeTruthy()
+    expect(reprintCalls).toEqual(["?cardIds=card-1&cardIds=card-2&offset=0"])
+  })
+
+  it("lists the Reprints five at a time and drops Load more once none remain", async () => {
+    const user = userEvent.setup()
+    reprintPool = [11, 12, 13, 14, 15, 16, 17].map(cardOf)
+    await matchedAll(user)
+    await openOtherPrints(user, 1, 1)
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 15") })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("menuitem", { name: printed("Card 16") })
+    ).toBeNull()
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Load more" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 17") })
+    ).toBeTruthy()
+    expect(reprintCalls.at(-1)).toContain("offset=5")
+    expect(screen.queryByRole("menuitem", { name: "Load more" })).toBeNull()
+  })
+
+  it("says there are no other prints when none are found", async () => {
+    const user = userEvent.setup()
+    await matchedAll(user)
+    await openOtherPrints(user, 1, 1)
+
+    expect(await screen.findByText("No other prints")).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: "Load more" })).toBeNull()
+  })
+
+  it("shows a retry when the list fails, and leaves the cell as it was", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    reprintFailures = 1
+    await matchedAll(user)
+    await openOtherPrints(user, 1, 1)
+
+    expect(await screen.findByRole("alert")).toBeTruthy()
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Retry" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: printed("Card 11") })
+    ).toBeTruthy()
+    expect(pill(1, 1)?.textContent).toBe("Card 1SCE · #1")
+  })
+
+  it("is absent on a cell the matcher found empty and on a cell with no candidates", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll([
+      { confident: false, candidates: [], empty: true },
+      { confident: false, candidates: [] },
+      "fail",
+      fourConfident[3],
+    ])
+
+    for (const [row, column] of [
+      [1, 1],
+      [1, 2],
+      [2, 1],
+    ]) {
+      await openMenu(user, row, column)
+      expect(
+        screen.queryByRole("menuitem", { name: "Other prints" })
+      ).toBeNull()
+      await user.keyboard("{Escape}")
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+    }
+  })
+
+  it("makes a picked Reprint the cell's choice, on its pill and in the difference ring, and saves it", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    await matchedAll(user)
+
+    await pickReprint(user, 1, 1, "Card 11")
+
+    expect(pill(1, 1)?.textContent).toBe("Card 11SCE · #11")
+    expect(
+      within(cell(1, 1)).getByRole("img").getAttribute("data-changed")
+    ).toBe("true")
+    await user.click(confirmButton())
+    await waitFor(() => expect(saves).toHaveLength(1))
+    expect(saves[0].slots?.[0]).toEqual({ state: "card", cardId: "card-11" })
+  })
+
+  it("lets a picked Reprint be changed again from the candidates", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    await matchedAll(user)
+    await pickReprint(user, 1, 1, "Card 11")
+
+    await pick(user, 1, 1, printed("Card 1"))
+
+    expect(pill(1, 1)?.textContent).toBe("Card 1SCE · #1")
+  })
+
+  it("clears the Reprint source when a candidate, Empty or Unidentified is picked after it", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    await matchedAll(user)
+    const saved = () => loadPageReview(key).then((review) => review?.cells[0])
+
+    await pickReprint(user, 1, 1, "Card 11")
+    await waitFor(async () => expect((await saved())?.reprintPosition).toBe(0))
+    await pick(user, 1, 1, "Empty")
+    await waitFor(async () => {
+      const stored = await saved()
+      expect(stored?.mark).toBe("empty")
+      expect(stored?.reprintPosition).toBeUndefined()
+      expect(stored?.reprintCard).toBeUndefined()
+    })
+
+    await pickReprint(user, 1, 1, "Card 11")
+    await waitFor(async () => expect((await saved())?.reprintPosition).toBe(0))
+    await pick(user, 1, 1, printed("Card 1"))
+    await waitFor(async () => {
+      const stored = await saved()
+      expect(stored?.cardId).toBe("card-1")
+      expect(stored?.reprintPosition).toBeUndefined()
+      expect(stored?.reprintCard).toBeUndefined()
+    })
+  })
+
+  it("keeps a picked Reprint, its position and its Card through leaving and resuming", async () => {
+    const user = userEvent.setup()
+    reprintPool = [11, 12, 13, 14, 15, 16, 17].map(cardOf)
+    await matchedAll(user)
+    await openOtherPrints(user, 1, 1)
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Load more" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: printed("Card 16") })
+    )
+    await waitFor(async () =>
+      expect((await loadPageReview(key))?.cells[0].reprintPosition).toBe(5)
+    )
+    cleanup()
+
+    const saved = await loadPageReview(key)
+    renderFlow(
+      source(),
+      cut,
+      vi.fn(),
+      page,
+      createMemoryHistory({ initialEntries: ["/"] }),
+      saved
+    )
+
+    await waitFor(() =>
+      expect(pill(1, 1)?.textContent).toBe("Card 16SCE · #16")
+    )
   })
 })

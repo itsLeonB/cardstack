@@ -349,7 +349,7 @@ describe("capturing", () => {
     ).toBeTruthy()
     expect(screen.getByRole("menuitem", { name: "Other prints" })).toBeTruthy()
     expect(
-      screen.getByRole("menuitem", { name: "No card in the photo" })
+      screen.getByRole("menuitemcheckbox", { name: "No card in the photo" })
     ).toBeTruthy()
   })
 
@@ -549,7 +549,9 @@ describe("persistence", () => {
       within(row).getByRole("button", { name: "Change card for Card 1" })
     )
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "No card in the photo" })
+      await screen.findByRole("menuitemcheckbox", {
+        name: "No card in the photo",
+      })
     )
     await waitFor(async () =>
       expect((await loadDraft("user-1", "col-1"))[0]?.mark).toBe("empty")
@@ -578,7 +580,9 @@ describe("persistence", () => {
       await screen.findByRole("button", { name: "Change card for Card 2" })
     )
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "A card, but none of these" })
+      await screen.findByRole("menuitemcheckbox", {
+        name: "A card, but none of these",
+      })
     )
     await waitFor(async () => {
       const [saved] = await loadDraft("user-1", "col-1")
@@ -705,7 +709,7 @@ describe("the candidates", () => {
     )
     expect(await screen.findAllByRole("menuitemradio")).toHaveLength(1)
     expect(
-      screen.getByRole("menuitem", { name: "No card in the photo" })
+      screen.getByRole("menuitemcheckbox", { name: "No card in the photo" })
     ).toBeTruthy()
   })
 
@@ -935,9 +939,12 @@ describe("marking a Scan", () => {
       within(row).getByRole("button", { name: "Change card for scan" })
     )
     expect(
-      await screen.findByRole("menuitem", { name: "No card in the photo" })
+      await screen.findByRole("menuitemcheckbox", {
+        name: "No card in the photo",
+      })
     ).toBeTruthy()
     expect(screen.queryByRole("menuitemradio")).toBeNull()
+    expect(screen.queryByRole("menuitem", { name: "Other prints" })).toBeNull()
   })
 
   it("marks a confident Scan Unidentified from the picker, worded for the photo, and keeps its card", async () => {
@@ -950,7 +957,9 @@ describe("marking a Scan", () => {
       within(row).getByRole("button", { name: "Change card for Card 1" })
     )
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "A card, but none of these" })
+      await screen.findByRole("menuitemcheckbox", {
+        name: "A card, but none of these",
+      })
     )
 
     await waitFor(() =>
@@ -972,7 +981,9 @@ describe("marking a Scan", () => {
       within(row).getByRole("button", { name: "Change card for Card 1" })
     )
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "No card in the photo" })
+      await screen.findByRole("menuitemcheckbox", {
+        name: "No card in the photo",
+      })
     )
     await waitFor(() =>
       expect(within(row).getByText("Marked: no card in the photo")).toBeTruthy()
@@ -981,6 +992,16 @@ describe("marking a Scan", () => {
     await userEvent.click(
       within(row).getByRole("button", { name: "Change card for Card 1" })
     )
+    // The mark is the selected item, not the card it was on.
+    expect(
+      (
+        await screen.findByRole("menuitemcheckbox", {
+          name: "No card in the photo",
+        })
+      ).getAttribute("aria-checked")
+    ).toBe("true")
+    for (const radio of screen.getAllByRole("menuitemradio"))
+      expect(radio.getAttribute("aria-checked")).toBe("false")
     await userEvent.click(
       await screen.findByRole("menuitemradio", { name: /Card 2/ })
     )

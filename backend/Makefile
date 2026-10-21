@@ -19,7 +19,8 @@ test-coverage \
 test-coverage-html \
 test-clean \
 build \
-genspec
+genspec \
+tune-scan
 
 help:
 	@echo "Makefile commands:"
@@ -33,6 +34,7 @@ help:
 	@echo "  make presize-images          - Resize Expansion Set covers to 128px WebP in R2 and set expansion_sets.cover_key (manual, needs vips)"
 	@echo "  make embed-catalog           - Submit every card's hosted image without an embedding to Gemini's batch API (manual, rerunnable; ARGS=\"-set MA6\" for one set)"
 	@echo "  make collect-embeddings      - Store the vectors of finished embedding batch jobs in card_embeddings (manual, rerunnable; jobs can take up to 24 hours)"
+	@echo "  make tune-scan               - Offline report for MATCH_EMPTY_THRESHOLD and MATCH_REPRINT_DELTA; read-only, never in CI (needs bun for cells; ARGS=\"cells --photos DIR --grid 3x3 [--threshold X] [--cut-dir DIR]\" or ARGS=\"reprints [--limit N] [--min-size K]\")"
 	@echo "  make wire                    - Regenerate internal/provider/wire_gen.go"
 	@echo "  make lint                    - Run golangci-lint on the codebase"
 	@echo "  make vulncheck               - Run govulncheck for known vulnerabilities"
@@ -74,6 +76,9 @@ embed-catalog:
 
 collect-embeddings:
 	go run ./cmd/collect-embeddings
+
+tune-scan:
+	go run ./cmd/tune-scan $(ARGS)
 
 wire:
 	go generate ./internal/provider/...

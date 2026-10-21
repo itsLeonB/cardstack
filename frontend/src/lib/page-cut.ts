@@ -94,6 +94,37 @@ export function cellSize(
   return { w: Math.max(1, out.w), h: Math.max(1, out.h) }
 }
 
+/** One cell cut from an RGBA photo, the pure half of `cutPage`: an offline script calls it too, so its numbers match the app. */
+export function cutCellPixels(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  corners: Corners,
+  grid: Grid,
+  cell: CellRegion
+) {
+  const size = cellSize(corners, grid, cell, width, height)
+  const map = gridToPhoto(corners, grid)
+  const out = new Uint8ClampedArray(size.w * size.h * 4)
+  for (let j = 0; j < size.h; j++) {
+    for (let i = 0; i < size.w; i++) {
+      const u = cell.x0 + ((cell.x1 - cell.x0) * (i + 0.5)) / size.w
+      const v = cell.y0 + ((cell.y1 - cell.y0) * (j + 0.5)) / size.h
+      const p = map(u, v)
+      sampleInto(
+        pixels,
+        width,
+        height,
+        p.x * width - 0.5,
+        p.y * height - 0.5,
+        out,
+        (j * size.w + i) * 4
+      )
+    }
+  }
+  return { width: size.w, height: size.h, pixels: out }
+}
+
 /**
  * The longest side the whole photo needs, so that the largest cell of the
  * Layout can still reach the upload size after the margin is cropped.
@@ -139,29 +170,13 @@ export async function cutPage(
   source.context.drawImage(bitmap, 0, 0)
   bitmap.close()
   const pixels = source.context.getImageData(0, 0, width, height).data
-  const map = gridToPhoto(corners, grid)
 
   const jpegs: Blob[] = []
   for (const cell of cellRegions(grid)) {
-    const size = cellSize(corners, grid, cell, width, height)
-    const out = canvasOf(size.w, size.h)
-    const image = out.context.createImageData(size.w, size.h)
-    for (let j = 0; j < size.h; j++) {
-      for (let i = 0; i < size.w; i++) {
-        const u = cell.x0 + ((cell.x1 - cell.x0) * (i + 0.5)) / size.w
-        const v = cell.y0 + ((cell.y1 - cell.y0) * (j + 0.5)) / size.h
-        const p = map(u, v)
-        sampleInto(
-          pixels,
-          width,
-          height,
-          p.x * width - 0.5,
-          p.y * height - 0.5,
-          image.data,
-          (j * size.w + i) * 4
-        )
-      }
-    }
+    const cut = cutCellPixels(pixels, width, height, corners, grid, cell)
+    const out = canvasOf(cut.width, cut.height)
+    const image = out.context.createImageData(cut.width, cut.height)
+    image.data.set(cut.pixels)
     out.context.putImageData(image, 0, 0)
     jpegs.push(await encodeJpeg(out.canvas))
   }
