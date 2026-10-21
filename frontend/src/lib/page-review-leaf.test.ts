@@ -9,6 +9,7 @@ import {
 import type { PageReviewShift } from "./page-review-leaf"
 import { listPageReviews, savePageReview } from "./page-review-store"
 import type { PendingPageReview } from "./page-review-store"
+import type { Corners } from "./page-cut"
 
 // SAFETY: Node's Blob reads the same as the DOM Blob that a cell's photo is typed as.
 const photo = () => new NodeBlob(["cell"]) as Blob
@@ -134,5 +135,64 @@ describe("discardMismatchedReviews", () => {
     expect(
       (await listPageReviews("user-2", "col-1")).map((r) => r.page)
     ).toEqual([3])
+  })
+})
+
+describe("applyLeafChange keeps the Page photo with its review", () => {
+  const scope = { userId: "user-1", collectionId: "col-1" }
+  const corners: Corners = [
+    { x: 0.1, y: 0.1 },
+    { x: 0.9, y: 0.1 },
+    { x: 0.9, y: 0.9 },
+    { x: 0.1, y: 0.9 },
+  ]
+  // A review whose Page photo says which Page it was saved for, so a move can be checked.
+  const withPhoto = (page: number): PendingPageReview => ({
+    ...review(page),
+    // SAFETY: Node's Blob reads the same as the DOM Blob that a Page photo is typed as.
+    photo: new NodeBlob([`page-${page}`]) as Blob,
+    corners,
+  })
+  // The Pages left in this binder, with the text of each Page photo and its corners.
+  async function reviewsLeft() {
+    const reviews = await listPageReviews(scope.userId, scope.collectionId)
+    return Promise.all(
+      reviews.map(async (r) => ({
+        page: r.page,
+        photo: await r.photo?.text(),
+        corners: r.corners,
+      }))
+    )
+  }
+
+  it("moves the shifted reviews to their new Pages with their photos and corners", async () => {
+    await savePageReview(withPhoto(1))
+    await savePageReview(withPhoto(3))
+    await savePageReview(withPhoto(4))
+
+    const discarded = await applyLeafChange(scope, { kind: "add", leaf: 2 })
+
+    expect(discarded).toEqual([])
+    expect(await reviewsLeft()).toEqual([
+      { page: 1, photo: "page-1", corners },
+      { page: 5, photo: "page-3", corners },
+      { page: 6, photo: "page-4", corners },
+    ])
+  })
+
+  it("drops a removed Leaf's own Pages and moves the later reviews with their photos and corners", async () => {
+    for (const page of [1, 2, 3, 4, 5, 6]) {
+      await savePageReview(withPhoto(page))
+    }
+
+    const discarded = await applyLeafChange(scope, { kind: "remove", leaf: 2 })
+
+    expect(discarded).toEqual([3, 4])
+    expect(await reviewsLeft()).toEqual([
+      { page: 1, photo: "page-1", corners },
+      { page: 2, photo: "page-2", corners },
+      { page: 3, photo: "page-5", corners },
+      { page: 4, photo: "page-6", corners },
+    ])
   })
 })
