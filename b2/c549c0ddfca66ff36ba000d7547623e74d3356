@@ -1,0 +1,19 @@
+frontend/src/components/scan/scan-screen.test.tsx
+  s_3d6c540630955a::t_801c0f468201d7 1286-1345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "b2c549c0ddfca66ff36ba000d7547623e74d3356",
+  "prompts": {},
+  "sessions": {
+    "s_3d6c540630955a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3d6c540630955a",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
