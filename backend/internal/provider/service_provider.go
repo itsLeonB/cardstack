@@ -144,6 +144,7 @@ func ProvideMatchSettings() service.MatchSettings {
 		Threshold:      config.Global.Threshold,
 		Margin:         config.Global.Margin,
 		EmptyThreshold: config.Global.EmptyThreshold,
+		ReprintDelta:   config.Global.ReprintDelta,
 	}
 }
 

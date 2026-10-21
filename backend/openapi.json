@@ -1122,6 +1122,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeReprintResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReprintResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeScanPhotoUploads": {
         "additionalProperties": false,
         "properties": {
@@ -1597,6 +1609,30 @@
           "id",
           "code",
           "name"
+        ],
+        "type": "object"
+      },
+      "ReprintResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "description": "Up to five Reprints, in the order they are offered.",
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "hasMore": {
+            "description": "True while more Reprints remain after this page.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cards",
+          "hasMore"
         ],
         "type": "object"
       },
@@ -4740,6 +4776,73 @@
           }
         ],
         "summary": "Sign one PUT address per scan photo, up to 100 in a request, each to a JPEG in the private photo bucket that expires in five minutes. 503 with code photo_storage_not_configured when that bucket is not configured",
+        "tags": [
+          "scan"
+        ]
+      }
+    },
+    "/scan/reprints": {
+      "get": {
+        "operationId": "list-scan-reprints",
+        "parameters": [
+          {
+            "description": "The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result.",
+            "explode": true,
+            "in": "query",
+            "name": "cardIds",
+            "schema": {
+              "description": "The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 5,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page.",
+            "explode": false,
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "description": "How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page.",
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeReprintResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
         "tags": [
           "scan"
         ]
