@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,29 +12,12 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	crud "github.com/itsLeonB/go-crud"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
-
-// fakeEmbedder answers each cell, by its bytes, with the vector the test gave
-// it, and counts its calls. The real Gemini embedder is never reached.
-type fakeEmbedder struct {
-	vectors map[string][]float32
-	calls   int
-}
-
-func (f *fakeEmbedder) Embed(_ context.Context, mimeType string, data []byte) ([]float32, error) {
-	f.calls++
-	if mimeType != jpegMIME {
-		return nil, fmt.Errorf("fake embedder: got %s, want %s", mimeType, jpegMIME)
-	}
-	v, ok := f.vectors[string(data)]
-	if !ok {
-		return nil, errors.New("fake embedder: no vector for cell " + string(data))
-	}
-	return v, nil
-}
 
 // harness runs the command in-process over the test database, with the cutter,
 // the embedder and the tools faked. Every test starts from newHarness.
@@ -43,7 +25,7 @@ type harness struct {
 	env      env
 	stdout   *bytes.Buffer
 	stderr   *bytes.Buffer
-	embedder *fakeEmbedder
+	embedder *mocks.MockImageEmbedder
 	opens    int
 	cuts     int
 	cutDirs  []string
@@ -53,7 +35,11 @@ type harness struct {
 // embedding model. vectors is keyed by cell, as "<photo>/r<RR>c<CC>".
 func newHarness(t *testing.T, db *gorm.DB, model string, vectors map[string][]float32) *harness {
 	t.Helper()
-	h := &harness{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, embedder: &fakeEmbedder{vectors: vectors}}
+	h := &harness{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, embedder: mocks.NewMockImageEmbedder(t)}
+	// Each cell is answered with its vector; a cell with none is an unexpected call and fails the test.
+	for cell, v := range vectors {
+		h.embedder.EXPECT().Embed(mock.Anything, jpegMIME, []byte(cell)).Return(v, nil).Maybe()
+	}
 
 	frontend := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(frontend, "tools"), 0o755))
