@@ -9,7 +9,6 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/pgvector/pgvector-go"
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -38,9 +37,7 @@ func testDB(t *testing.T) *gorm.DB {
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, sqlDB.Close()) })
 
-	goose.SetBaseFS(migrations.Migrations)
-	require.NoError(t, goose.SetDialect("postgres"))
-	require.NoError(t, goose.Up(sqlDB, "."))
+	require.NoError(t, migrations.Up(t.Context(), sqlDB))
 	return db
 }
 

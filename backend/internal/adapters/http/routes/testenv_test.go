@@ -24,7 +24,6 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	"github.com/itsLeonB/cardstack/backend/internal/provider"
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -182,9 +181,7 @@ func openTestDB(t *testing.T) (*gorm.DB, *sql.DB) {
 func migrateTestDB(t *testing.T, sqlDB *sql.DB) {
 	t.Helper()
 
-	goose.SetBaseFS(migrations.Migrations)
-	require.NoError(t, goose.SetDialect("postgres"))
-	require.NoError(t, goose.Up(sqlDB, "."))
+	require.NoError(t, migrations.Up(t.Context(), sqlDB))
 }
 
 func envOr(key, fallback string) string {

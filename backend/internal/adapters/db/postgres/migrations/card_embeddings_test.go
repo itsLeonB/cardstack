@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -27,9 +26,7 @@ func TestCardEmbeddingsMigration_DownThenUpRestoresTheTables(t *testing.T) {
 
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
-	goose.SetBaseFS(Migrations)
-	require.NoError(t, goose.SetDialect("postgres"))
-	require.NoError(t, goose.Up(sqlDB, "."))
+	require.NoError(t, Up(t.Context(), sqlDB))
 
 	raw, err := Migrations.ReadFile(cardEmbeddingsMigration)
 	require.NoError(t, err)
