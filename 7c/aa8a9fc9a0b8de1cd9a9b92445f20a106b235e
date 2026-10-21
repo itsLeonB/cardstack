@@ -1,0 +1,23 @@
+frontend/src/components/scan/page-scan.test.tsx
+  s_1317e10e3cba16::t_dbfa1eae32860c 39,41,75-79,85,139-175,342-346,1491-1855
+frontend/src/components/scan/page-scan.tsx
+  s_1317e10e3cba16::t_1e07507917d6bb 45,51-52,81-130,271-279
+frontend/src/lib/use-page-scan.ts
+  s_1317e10e3cba16::t_a5964df03991b2 7,44-45,90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "7caa8a9fc9a0b8de1cd9a9b92445f20a106b235e",
+  "prompts": {},
+  "sessions": {
+    "s_1317e10e3cba16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1317e10e3cba16",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
