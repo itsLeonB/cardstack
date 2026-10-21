@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Frontend). Decision: `docs/adr/0023-
 
 **Blocked by:** 02 (reprint lookup route), 10 (other prints in the card-scan picker)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `8892f30`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] Every cell that holds at least one candidate, confident or not, offers "Other prints" in its menu
 - [ ] A cell with an empty Detection, or with no candidates, does not offer it

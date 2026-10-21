@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Frontend, Persistence). Decision: `d
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `9a2a294`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] After a refresh a resolved Scan shows its chosen Card, quantity and other candidates as before, and keeps its photo and Detection
 - [ ] Pending and failed Scans are not persisted and behave as today

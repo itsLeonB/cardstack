@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Recording). Decision: `docs/adr/0022
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `ebdd2cb`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] Each returned key sits under the caller's own prefix and is unguessable
 - [ ] The returned address accepts one PUT of a JPEG until it expires, and rejects another content type

@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Frontend). Vocabulary: Page Review, 
 
 **Blocked by:** 01 (empty detection in the match response)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `8ac7a7e`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] A cell with an empty Detection starts as Empty, and its pill shows Empty
 - [ ] That cell's menu still lists the marks and, as there are no candidates, no candidate group

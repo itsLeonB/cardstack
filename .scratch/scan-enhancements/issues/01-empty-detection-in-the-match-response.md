@@ -6,7 +6,7 @@ Spec: `.scratch/scan-enhancements/spec.md` (Match response). Vocabulary: Detecti
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/scan-enhancements` (merge `990a200`), review fixes in `294165a`, not yet merged to `main`.
 
 - [ ] With the setting at 0 the response is exactly what it is today, and carries `empty: false`
 - [ ] A photo whose top similarity is below the setting returns `empty: true`, `confident: false` and an empty candidate list

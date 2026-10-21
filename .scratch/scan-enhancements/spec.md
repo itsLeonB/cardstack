@@ -1,6 +1,6 @@
 # Scan enhancements
 
-Status: ready-for-agent
+Status: implemented on `feat/scan-enhancements` (tickets 01–13 done), not yet merged to `main`
 
 ## Problem Statement
 
