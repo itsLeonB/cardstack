@@ -55,7 +55,7 @@ describe("the stored Draft Addition", () => {
     expect(await loadDraft("user-2", "col-1")).toEqual([])
   })
 
-  it("moves a draft saved in local storage into the store without losing a Scan", async () => {
+  it("deletes a draft left in local storage, so no user inherits it", async () => {
     localStorage.setItem(
       "cardstack:draft-addition:col-1",
       JSON.stringify([
@@ -64,12 +64,9 @@ describe("the stored Draft Addition", () => {
       ])
     )
 
-    expect(await loadDraft("user-1", "col-1")).toEqual([
-      { cardId: "card-1", quantity: 1, candidateIds: [] },
-      { cardId: "card-2", quantity: 3, candidateIds: ["card-2"] },
-    ])
+    expect(await loadDraft("user-1", "col-1")).toEqual([])
     expect(localStorage.getItem("cardstack:draft-addition:col-1")).toBeNull()
-    expect(await loadDraft("user-1", "col-1")).toHaveLength(2)
+    expect(await loadDraft("user-2", "col-1")).toEqual([])
   })
 
   it("discards a draft stored in the old format, which had no alternatives", async () => {

@@ -1,4 +1,3 @@
-import { z } from "zod"
 import type { EnvelopeMatchResult } from "@/generated/models"
 import { transactStore } from "@/lib/indexed-db"
 
@@ -26,8 +25,7 @@ export type Mark = "empty" | "unidentified"
 /**
  * A resolved Scan: the chosen Card, its quantity, the ids of the other
  * candidates when the matcher was not confident (empty otherwise), its photo,
- * and the Detection. A Scan moved from the old local storage draft has neither
- * photo nor Detection. A Scan with no Card (the matcher saw none) has only its
+ * and the Detection. A Scan with no Card (the matcher saw none) has only its
  * mark.
  */
 export interface ResolvedScan {
@@ -48,29 +46,27 @@ interface DraftRecord {
   scans: ResolvedScan[]
 }
 
-// Old drafts (card id and quantity only) fail this schema and are dropped.
-const legacyScansSchema = z.array(
-  z.object({
-    cardId: z.string(),
-    quantity: z.number().int().min(1),
-    candidateIds: z.array(z.string()).max(5),
-  })
-)
-
 const legacyKey = (collectionId: string) =>
   `cardstack:draft-addition:${collectionId}`
 
-// Loads run one at a time, so a second load (a remounted screen) never moves
-// a legacy draft that the first is still moving.
-let queue: Promise<unknown> = Promise.resolve()
-
-export function loadDraft(
+export async function loadDraft(
   userId: string,
   collectionId: string
 ): Promise<ResolvedScan[]> {
-  const loaded = queue.then(() => readDraft(userId, collectionId))
-  queue = loaded
-  return loaded
+  // Old drafts had no owner: delete one rather than move it, so no user inherits it.
+  dropLegacyDraft(collectionId)
+  try {
+    const record = await transactStore<DraftRecord | undefined>(
+      DB_NAME,
+      STORE,
+      KEY_PATH,
+      "readonly",
+      (store) => store.get([userId, collectionId])
+    )
+    return record?.scans ?? []
+  } catch {
+    return []
+  }
 }
 
 export async function saveDraft(
@@ -83,39 +79,6 @@ export async function saveDraft(
   } catch {
     // Storage missing, full or blocked: the in-memory draft still works for this visit.
   }
-}
-
-async function readDraft(
-  userId: string,
-  collectionId: string
-): Promise<ResolvedScan[]> {
-  const legacy = readLegacyDraft(collectionId)
-  let saved: ResolvedScan[]
-  try {
-    const record = await transactStore<DraftRecord | undefined>(
-      DB_NAME,
-      STORE,
-      KEY_PATH,
-      "readonly",
-      (store) => store.get([userId, collectionId])
-    )
-    saved = record?.scans ?? []
-  } catch {
-    return legacy
-  }
-  if (legacy.length === 0) {
-    dropLegacyDraft(collectionId)
-    return saved
-  }
-  const scans = [...saved, ...legacy]
-  try {
-    // The legacy draft is removed only once its Scans are safely stored.
-    await writeDraft(userId, collectionId, scans)
-  } catch {
-    return scans
-  }
-  dropLegacyDraft(collectionId)
-  return scans
 }
 
 async function writeDraft(
@@ -135,22 +98,10 @@ async function writeDraft(
   )
 }
 
-function readLegacyDraft(collectionId: string): ResolvedScan[] {
-  try {
-    const raw = localStorage.getItem(legacyKey(collectionId))
-    const parsed = legacyScansSchema.safeParse(
-      raw === null ? [] : JSON.parse(raw)
-    )
-    return parsed.success ? parsed.data : []
-  } catch {
-    return []
-  }
-}
-
 function dropLegacyDraft(collectionId: string) {
   try {
     localStorage.removeItem(legacyKey(collectionId))
   } catch {
-    // Storage blocked: the next visit reads the same draft again.
+    // Storage blocked: the next load tries to delete it again.
   }
 }
