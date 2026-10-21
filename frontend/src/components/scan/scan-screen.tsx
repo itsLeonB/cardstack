@@ -65,7 +65,7 @@ export function ScanScreen({
   }
 
   function finishCommit({ placed, declined: next, failed }: CommitResult) {
-    const left = draft.removeCopies(placed)
+    const left = draft.removeCopies(placed, !failed)
     setDeclined(next)
     if (left === 0) onAdded()
     else if (!failed && Object.keys(next).length === 0) setReviewing(false)
@@ -91,6 +91,7 @@ export function ScanScreen({
           <ReviewStep
             collectionId={collectionId}
             rows={summedRows(draft.scans)}
+            setAside={draft.scans.filter((s) => s.mark).length}
             seen={draft.seen}
             declined={declined}
             onCommitted={finishCommit}
@@ -177,6 +178,10 @@ export function ScanScreen({
           onChoose={(key, cardId, reprintPosition) => {
             forget(cardOf(key), cardId)
             draft.choose(key, cardId, reprintPosition)
+          }}
+          onMark={(key, mark) => {
+            forget(cardOf(key))
+            draft.mark(key, mark)
           }}
           onRetry={draft.retry}
           onRemove={(key) => {
