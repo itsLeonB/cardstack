@@ -1,0 +1,35 @@
+backend/cmd/tune-scan/cells_test.go
+  s_3ab1ad18f3dac1::t_23c648ad683bc2 55,108
+backend/cmd/tune-scan/harness_test.go
+  s_3ab1ad18f3dac1::t_4754bd1377d554 15,17,28,38-42
+backend/internal/adapters/http/routes/reprint_routes_test.go
+  s_3ab1ad18f3dac1::t_e0d4e65a4f7cc5 304-313
+backend/internal/adapters/http/routes/scan_feedback_routes_test.go
+  s_3ab1ad18f3dac1::t_6d6ac9601d8fcb 166-181,289
+backend/internal/domain/repository/tuning_repository.go
+  s_3ab1ad18f3dac1::t_825ac7d7c9389d 87,109
+backend/internal/domain/repository/tuning_repository_test.go
+  s_3ab1ad18f3dac1::t_0ee8489b7b793b 30,87-94,123-128
+backend/internal/domain/service/scan_feedback_service.go
+  s_3ab1ad18f3dac1::t_927201f5a79b90 22-24,205-207,217-218,227
+frontend/src/lib/draft-addition.test.ts
+  s_3ab1ad18f3dac1::t_2cbc375e087a0f 58,67,69
+frontend/src/lib/draft-addition.ts
+  s_3ab1ad18f3dac1::t_9c2e6c1b288161 28,52,56-57,66,68,70-76,80,105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "294165aa34921610d3d9f1053da81d83bce13dee",
+  "prompts": {},
+  "sessions": {
+    "s_3ab1ad18f3dac1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3ab1ad18f3dac1",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
