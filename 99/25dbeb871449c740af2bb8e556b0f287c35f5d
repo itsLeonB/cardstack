@@ -1,0 +1,21 @@
+backend/internal/domain/repository/tuning_repository.go
+  s_487dad94466c2c::t_8ad68457e220f1 87,109
+backend/internal/domain/repository/tuning_repository_test.go
+  s_487dad94466c2c::t_c83d5542fc61ed 87-94,123-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9925dbeb871449c740af2bb8e556b0f287c35f5d",
+  "prompts": {},
+  "sessions": {
+    "s_487dad94466c2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0ab361e-1492-463e-a583-e87975f43860",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
