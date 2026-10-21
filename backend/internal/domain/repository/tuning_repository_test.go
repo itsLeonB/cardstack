@@ -27,7 +27,7 @@ func pairDistance(t *testing.T, pairs []CardPair, x, y uuid.UUID) float64 {
 			return p.Distance
 		}
 	}
-	t.Fatalf("no pair for %s and %s in %v", x, y, pairs)
+	require.Failf(t, "no pair", "no pair for %s and %s in %v", x, y, pairs)
 	return 0
 }
 
