@@ -1,0 +1,21 @@
+backend/cmd/tune-scan/cells_test.go
+  s_c633f9672b5132::t_b7d71a08722f8c 55,108
+backend/cmd/tune-scan/harness_test.go
+  s_c633f9672b5132::t_38caf62394904c 15,17,28,38-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "9b9117b97ad26ff1516acf4b254ea7b891eaa037",
+  "prompts": {},
+  "sessions": {
+    "s_c633f9672b5132": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c633f9672b5132",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
