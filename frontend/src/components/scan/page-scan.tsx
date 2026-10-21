@@ -42,11 +42,14 @@ import type { Corners, Grid } from "@/lib/page-cut"
 import { useSession } from "@/lib/session"
 import type { PageCell } from "@/lib/use-page-scan"
 import {
+  cellMark,
   changesSlot,
   slotTarget,
   useObjectUrl,
   usePageMatches,
 } from "@/lib/use-page-scan"
+import { feedbackChoice, sendScanFeedback } from "@/lib/scan-feedback"
+import type { Choice, PendingFeedbackRow } from "@/lib/scan-feedback"
 
 // Corners start as a centred rectangle, a little inside the photo's edges.
 const CENTRED: Corners = [
@@ -73,6 +76,56 @@ export function PageScanScreen(props: ScanPageProps) {
   // The binder is only reached signed in, so a review always has an owner.
   if (!user) return null
   return <ScanPageFlow {...props} userId={user.id} source={source} />
+}
+
+// The Page photo is one upload shared by every Correction on the Page (ADR-0022).
+const PAGE_PHOTO = "page"
+
+// The choice a cell stands at, as slotTarget saves it: its mark, its Reprint or its Card. A cell with neither is Unidentified.
+function cellChoice(cell: PageCell): Choice {
+  const mark = cellMark(cell)
+  if (mark) return { mark }
+  if (cell.cardId === undefined) return { mark: "unidentified" }
+  return { cardId: cell.cardId, reprintPosition: cell.reprintPosition }
+}
+
+/**
+ * The feedback rows of a confirmed Page Review, built from the review as it
+ * stood at Confirm. The API refuses a binder row without its grid and
+ * corners, so a review saved before they were kept records nothing.
+ */
+function pageFeedbackRows(
+  collectionId: string,
+  page: number,
+  grid: Grid,
+  cells: PageCell[],
+  cut: { photo?: Blob; corners?: Corners }
+) {
+  const rows: PendingFeedbackRow[] = []
+  const photos = new Map<string, Blob>()
+  if (!cut.corners) return { rows, photos }
+  cells.forEach((cell, index) => {
+    const pick = feedbackChoice(cell.detection, cellChoice(cell))
+    if (!pick) return
+    const { row, column } = cellPosition(index, grid.columns)
+    const correction = pick.kind !== "confirmed"
+    rows.push({
+      source: "binder_page",
+      collectionId,
+      detection: cell.detection,
+      page,
+      slotRow: row,
+      slotColumn: column,
+      gridRows: grid.rows,
+      gridColumns: grid.columns,
+      corners: cut.corners,
+      ...pick,
+      photoId: correction && cut.photo ? PAGE_PHOTO : undefined,
+    })
+  })
+  if (cut.photo && rows.some((row) => row.photoId))
+    photos.set(PAGE_PHOTO, cut.photo)
+  return { rows, photos }
 }
 
 /**
@@ -215,6 +268,15 @@ export function ScanPageFlow({
             return
           }
           setEdited(false)
+          // Built before the review is removed, and not awaited: the save never waits for it.
+          const { rows, photos } = pageFeedbackRows(
+            collectionId,
+            page.page,
+            grid,
+            matches.cells,
+            cutFrom
+          )
+          void sendScanFeedback(rows, photos)
           // A review that cannot be cleared stays listed, where it can be discarded.
           void removePageReview({
             userId,

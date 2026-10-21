@@ -4,6 +4,7 @@ import type {
   BinderPageSlotBody,
   BinderSlot,
   CardSummary,
+  EnvelopeMatchResult,
 } from "@/generated/models"
 import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
 import { MAX_CANDIDATES } from "./use-draft-addition"
@@ -40,6 +41,8 @@ export interface PageCell {
   reprintCard?: CardSummary
   /** Where that Reprint sat in the Reprints list when picked, in the order the list showed them. */
   reprintPosition?: number
+  /** The Detection the cell's match returned, kept as is so the feedback can judge the cell. Absent until a match succeeds. */
+  detection?: EnvelopeMatchResult
 }
 
 // A cell that has no result yet, so it still has to match.
@@ -84,6 +87,7 @@ export function usePageMatches(resumed: PageCell[] = []) {
                   empty,
                 },
                 cardId: cards[0]?.id,
+                detection: response.data,
               })
           } catch {
             if (!stale()) patch(index, { match: { status: "failed" } })
