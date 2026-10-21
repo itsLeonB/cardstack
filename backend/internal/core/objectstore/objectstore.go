@@ -28,6 +28,9 @@ type ObjectStore interface {
 	// ReadHead reads at most the first n bytes of the object under key. It
 	// returns ErrNotFound when there is no such object.
 	ReadHead(ctx context.Context, key string, n int) ([]byte, error)
+	// Size reports the length in bytes of the object under key. It returns
+	// ErrNotFound when there is no such object.
+	Size(ctx context.Context, key string) (int64, error)
 	// Delete removes the object under key; a missing object is not an error.
 	Delete(ctx context.Context, key string) error
 }

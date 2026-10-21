@@ -38,6 +38,9 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	if err := configs.ValidateAdminOrigins(); err != nil {
 		return nil, nil, err
 	}
+	if err := configs.ValidateScanPhotoR2(); err != nil {
+		return nil, nil, err
+	}
 	if noClientOrigins(configs) {
 		// A preview has none until its frontend is deployed.
 		logger.Error("APP_CLIENT_URLS and ADMIN_CLIENT_URLS are both empty: every token will be rejected, since none can come from a configured frontend origin")

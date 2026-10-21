@@ -37,7 +37,9 @@ func InitializeProviders() (*Providers, func(), error) {
 	adminSetService := ProvideAdminSetService(dataSources, imageHost)
 	objectStore := ProvideObjectStore()
 	cardAdminService := ProvideCardAdminService(dataSources, imageHost, objectStore)
-	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, binderService, binderSlotService, matchService, adminSetService, cardAdminService)
+	scanPhotoStore := ProvideScanPhotoStore()
+	scanPhotoService := ProvideScanPhotoService(scanPhotoStore)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, binderService, binderSlotService, matchService, adminSetService, cardAdminService, scanPhotoService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

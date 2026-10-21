@@ -135,7 +135,7 @@ func TestAdminRoutes_AbsentWhenNoAdminIsConfigured(t *testing.T) {
 
 func TestAdminRoutes_ShareTheRateLimitsOfTheRestOfTheAPI(t *testing.T) {
 	clock := &fakeClock{now: time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)}
-	api := newTestAPIWith(t, ratelimit.NewLimits(tightLimits, clock.Now), []string{adminEmail})
+	api := newTestAPIWith(t, ratelimit.NewLimits(tightLimits, clock.Now), []string{adminEmail}, 0)
 	auth := bearer(api.tokenFor(t, adminEmail))
 
 	for i := range tightLimits.User.Burst {

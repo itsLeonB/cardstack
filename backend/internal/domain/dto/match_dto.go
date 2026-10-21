@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/google/uuid"
+
 // MatchRequest is one uploaded card photo to match against the catalog.
 type MatchRequest struct {
 	Image []byte
@@ -17,6 +19,21 @@ type MatchCandidate struct {
 // asking; otherwise it holds the Cards to choose from, and none may be
 // picked automatically.
 type MatchResult struct {
+	Empty      bool             `json:"empty" doc:"True when the photo shows no card: its top Card scored below the server's empty threshold. Candidates is then empty and Confident false."`
 	Confident  bool             `json:"confident" doc:"True only when the server is sure of the first candidate. The server owns the threshold."`
 	Candidates []MatchCandidate `json:"candidates"`
+}
+
+// ReprintRequest asks for the Reprints of the Cards the client holds: up to
+// five ids in the order the matcher offered them, and the page to start at.
+type ReprintRequest struct {
+	CardIDs []uuid.UUID
+	Offset  int
+}
+
+// ReprintResult is GET /scan/reprints' response: one page of Reprints, and
+// whether more remain past it.
+type ReprintResult struct {
+	Cards   []CardSummary `json:"cards" doc:"Up to five Reprints, in the order they are offered."`
+	HasMore bool          `json:"hasMore" doc:"True while more Reprints remain after this page."`
 }

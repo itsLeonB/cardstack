@@ -83,6 +83,68 @@ func (_c *MockMatchRepository_CardsByIDs_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// ReprintsOf provides a mock function with given fields: ctx, model, source, exclude, maxDistance
+func (_m *MockMatchRepository) ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64) ([]repository.CardDistance, error) {
+	ret := _m.Called(ctx, model, source, exclude, maxDistance)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReprintsOf")
+	}
+
+	var r0 []repository.CardDistance
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, []uuid.UUID, float64) ([]repository.CardDistance, error)); ok {
+		return rf(ctx, model, source, exclude, maxDistance)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, []uuid.UUID, float64) []repository.CardDistance); ok {
+		r0 = rf(ctx, model, source, exclude, maxDistance)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]repository.CardDistance)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, []uuid.UUID, float64) error); ok {
+		r1 = rf(ctx, model, source, exclude, maxDistance)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockMatchRepository_ReprintsOf_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReprintsOf'
+type MockMatchRepository_ReprintsOf_Call struct {
+	*mock.Call
+}
+
+// ReprintsOf is a helper method to define mock.On call
+//   - ctx context.Context
+//   - model string
+//   - source uuid.UUID
+//   - exclude []uuid.UUID
+//   - maxDistance float64
+func (_e *MockMatchRepository_Expecter) ReprintsOf(ctx interface{}, model interface{}, source interface{}, exclude interface{}, maxDistance interface{}) *MockMatchRepository_ReprintsOf_Call {
+	return &MockMatchRepository_ReprintsOf_Call{Call: _e.mock.On("ReprintsOf", ctx, model, source, exclude, maxDistance)}
+}
+
+func (_c *MockMatchRepository_ReprintsOf_Call) Run(run func(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64)) *MockMatchRepository_ReprintsOf_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(uuid.UUID), args[3].([]uuid.UUID), args[4].(float64))
+	})
+	return _c
+}
+
+func (_c *MockMatchRepository_ReprintsOf_Call) Return(_a0 []repository.CardDistance, _a1 error) *MockMatchRepository_ReprintsOf_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockMatchRepository_ReprintsOf_Call) RunAndReturn(run func(context.Context, string, uuid.UUID, []uuid.UUID, float64) ([]repository.CardDistance, error)) *MockMatchRepository_ReprintsOf_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockMatchRepository creates a new instance of MockMatchRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockMatchRepository(t interface {

@@ -108,6 +108,17 @@ func (s *R2Store) ReadHead(ctx context.Context, key string, n int) ([]byte, erro
 	return head, nil
 }
 
+func (s *R2Store) Size(ctx context.Context, key string) (int64, error) {
+	out, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	if err != nil {
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok && (apiErr.ErrorCode() == "NoSuchKey" || apiErr.ErrorCode() == "NotFound") {
+			return 0, corestore.ErrNotFound
+		}
+		return 0, ungerr.Wrapf(err, "reading size of object %q", key)
+	}
+	return aws.ToInt64(out.ContentLength), nil
+}
+
 func (s *R2Store) Delete(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
 	if err != nil {
