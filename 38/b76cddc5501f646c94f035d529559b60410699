@@ -1,0 +1,21 @@
+backend/internal/adapters/http/routes/scan_feedback_routes_test.go
+  s_71dfd2ce24f118::t_154959f7f87bae 166-181,289
+backend/internal/domain/service/scan_feedback_service.go
+  s_71dfd2ce24f118::t_03f1ec276fc245 22-24,205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "38b76cddc5501f646c94f035d529559b60410699",
+  "prompts": {},
+  "sessions": {
+    "s_71dfd2ce24f118": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_71dfd2ce24f118",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
