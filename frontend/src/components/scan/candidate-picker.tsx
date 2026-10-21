@@ -24,6 +24,7 @@ export const MARKS = {
   empty: "No card in the photo",
   unidentified: "A card, but none of these",
 } satisfies Record<Mark, string>
+const MARK_ORDER: Mark[] = ["empty", "unidentified"]
 
 /**
  * The card of a resolved Scan, opening a menu of its candidates with the
@@ -86,7 +87,7 @@ export function CandidatePicker({
             <DropdownMenuSeparator />
           </>
         )}
-        {(Object.keys(MARKS) as Mark[]).map((mark) => (
+        {MARK_ORDER.map((mark) => (
           <DropdownMenuCheckboxItem
             key={mark}
             checked={scan.mark === mark}
