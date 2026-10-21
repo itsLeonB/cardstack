@@ -1,0 +1,19 @@
+backend/internal/domain/repository/tuning_repository_test.go
+  s_f4b2a0a0c71646::t_dec7b58f85a5bc 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c6027880956b2f50dd4f7d987f866e4bc19c3185",
+  "prompts": {},
+  "sessions": {
+    "s_f4b2a0a0c71646": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f4b2a0a0c71646",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
