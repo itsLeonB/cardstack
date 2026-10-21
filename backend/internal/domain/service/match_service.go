@@ -18,9 +18,9 @@ const (
 	jpegMIME        = "image/jpeg"
 )
 
-// matchCandidates is how many Cards a match that is not confident offers to
+// MatchCandidates is how many Cards a match that is not confident offers to
 // choose from.
-const matchCandidates = 5
+const MatchCandidates = 5
 
 // reprintPageSize is how many Reprints one page holds.
 const reprintPageSize = 5
@@ -82,14 +82,14 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 		return dto.MatchResult{}, err
 	}
 
-	nearest, err := s.embeddings.NearestCards(ctx, s.settings.Model, vector, matchCandidates)
+	nearest, err := s.embeddings.NearestCards(ctx, s.settings.Model, vector, MatchCandidates)
 	if err != nil {
 		return dto.MatchResult{}, err
 	}
-	nearest = bestRowPerCard(nearest)
+	scores := ScoreNearest(nearest)
 
-	ids := make([]uuid.UUID, len(nearest))
-	for i, n := range nearest {
+	ids := make([]uuid.UUID, len(scores))
+	for i, n := range scores {
 		ids[i] = n.CardID
 	}
 	rows, err := s.cards.CardsByIDs(ctx, ids)
@@ -101,10 +101,10 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 		byID[row.ID] = row
 	}
 
-	candidates := make([]dto.MatchCandidate, 0, len(nearest))
-	for _, n := range nearest {
+	candidates := make([]dto.MatchCandidate, 0, len(scores))
+	for _, n := range scores {
 		if row, ok := byID[n.CardID]; ok {
-			candidates = append(candidates, mapper.ToMatchCandidate(s.images, row, similarity(n.Distance)))
+			candidates = append(candidates, mapper.ToMatchCandidate(s.images, row, n.Similarity))
 		}
 	}
 
@@ -138,7 +138,7 @@ func (m MatchSettings) empty(candidates []dto.MatchCandidate) bool {
 
 // bestRowPerCard keeps the nearest row of each Card, since a Card may hold
 // several embeddings. The rows arrive nearest first. The search asks for
-// matchCandidates rows, so a Card with more than one row can leave fewer
+// MatchCandidates rows, so a Card with more than one row can leave fewer
 // candidates; every Card has one row today.
 func bestRowPerCard(nearest []repository.CardDistance) []repository.CardDistance {
 	seen := make(map[uuid.UUID]bool, len(nearest))
@@ -150,6 +150,25 @@ func bestRowPerCard(nearest []repository.CardDistance) []repository.CardDistance
 		}
 	}
 	return best
+}
+
+// CardScore is one Card of a query's nearest embeddings with the similarity
+// the matcher reports for it.
+type CardScore struct {
+	CardID     uuid.UUID
+	Similarity float64
+}
+
+// ScoreNearest is the matcher's scoring of a query's nearest embeddings: one
+// row per Card, nearest first, each with the similarity Match reports. The
+// tune-scan report scores through it as well, so its numbers are the matcher's.
+func ScoreNearest(nearest []repository.CardDistance) []CardScore {
+	best := bestRowPerCard(nearest)
+	scores := make([]CardScore, len(best))
+	for i, n := range best {
+		scores[i] = CardScore{CardID: n.CardID, Similarity: similarity(n.Distance)}
+	}
+	return scores
 }
 
 // similarity turns a cosine distance (0 to 2) into the 0 to 1 score the
