@@ -1,0 +1,25 @@
+frontend/src/components/scan/page-review.tsx
+  s_511b6a2c75d584::t_0ec0eb4b378d49 10-13,20,43-44,61,70,88,108,116,125-127,204-219
+frontend/src/components/scan/page-scan.test.tsx
+  s_511b6a2c75d584::t_59c0a1f4675ba5 69-72,75-78,112-130,294-296,1210-1440
+frontend/src/components/scan/page-scan.tsx
+  s_511b6a2c75d584::t_d12cb18d39da32 26,197-201,299
+frontend/src/lib/use-page-scan.ts
+  s_511b6a2c75d584::t_6e191980ed925e 39-42,134,136-141,144-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "76ac8f19d49e7b9a8441c78a32dcabeb7f51a718",
+  "prompts": {},
+  "sessions": {
+    "s_511b6a2c75d584": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_511b6a2c75d584",
+        "model": "unknown"
+      },
+      "human_author": "itsLeonB <ellionblessan@gmail.com>"
+    }
+  }
+}
