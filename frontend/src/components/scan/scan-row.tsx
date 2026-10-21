@@ -37,7 +37,7 @@ export function ScanRow({
   lookup: Missing
   onRaise: () => void
   onLower: () => void
-  onChoose: (cardId: string) => void
+  onChoose: (cardId: string, reprintPosition?: number) => void
   onRetry: () => void
   onRetryLookup: () => void
   onRemove: () => void
@@ -88,7 +88,7 @@ export function ScanRow({
 
   return (
     <li className="flex items-center gap-2 rounded-xl border p-2">
-      {resolved && scan.candidateIds.length > 1 ? (
+      {resolved ? (
         <CandidatePicker
           scan={scan}
           seen={seen}

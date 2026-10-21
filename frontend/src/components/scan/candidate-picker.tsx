@@ -5,9 +5,14 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { CardThumb } from "./card-thumb"
+import { OtherPrints } from "./other-prints"
 import { MISSING_NAME, useDraftCards } from "./use-draft-cards"
 import type { Scan } from "@/lib/use-draft-addition"
 import type { CardSummary } from "@/generated/models"
@@ -29,8 +34,9 @@ export function CandidatePicker({
   label: string
   /** The card face the user taps to open the menu. */
   children: ReactNode
-  onChoose: (cardId: string) => void
+  onChoose: (cardId: string, reprintPosition?: number) => void
 }) {
+  const ids = offeredIds(scan)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -47,14 +53,38 @@ export function CandidatePicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72">
         <CandidateList
-          candidateIds={scan.candidateIds}
+          candidateIds={ids}
           chosen={scan.cardId}
           seen={seen}
           onChoose={onChoose}
         />
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Other prints</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-72">
+            <OtherPrints
+              cardIds={ids}
+              onPick={(card, position) => {
+                seen.set(card.id, card)
+                onChoose(card.id, position)
+              }}
+            />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
       </DropdownMenuContent>
     </DropdownMenu>
   )
+}
+
+/**
+ * The Cards the matcher offered for a Scan, which stay the same when the user
+ * picks another. A confident Scan keeps no candidate ids, so its one Card is
+ * read from the Detection; the Scan's own choice may differ from it.
+ */
+function offeredIds(scan: Scan): string[] {
+  if (scan.candidateIds.length > 0) return scan.candidateIds
+  const top = scan.detection?.data.candidates?.[0]?.card.id
+  return [top ?? scan.cardId!]
 }
 
 function CandidateList({

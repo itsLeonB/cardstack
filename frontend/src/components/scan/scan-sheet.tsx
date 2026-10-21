@@ -34,7 +34,7 @@ export function ScanSheet({
   reviewable: boolean
   onRaise: (key: string) => void
   onLower: (key: string) => void
-  onChoose: (key: string, cardId: string) => void
+  onChoose: (key: string, cardId: string, reprintPosition?: number) => void
   onRetry: (key: string) => void
   onRemove: (key: string) => void
   onDiscard: () => void
@@ -96,7 +96,9 @@ export function ScanSheet({
               lookup={missing}
               onRaise={() => onRaise(scan.key)}
               onLower={() => onLower(scan.key)}
-              onChoose={(cardId) => onChoose(scan.key, cardId)}
+              onChoose={(cardId, reprintPosition) =>
+                onChoose(scan.key, cardId, reprintPosition)
+              }
               onRetry={() => onRetry(scan.key)}
               onRetryLookup={retry}
               onRemove={() => onRemove(scan.key)}

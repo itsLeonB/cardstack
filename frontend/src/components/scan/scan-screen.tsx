@@ -174,9 +174,9 @@ export function ScanScreen({
             forget(cardOf(key))
             draft.lower(key)
           }}
-          onChoose={(key, cardId) => {
+          onChoose={(key, cardId, reprintPosition) => {
             forget(cardOf(key), cardId)
-            draft.choose(key, cardId)
+            draft.choose(key, cardId, reprintPosition)
           }}
           onRetry={draft.retry}
           onRemove={(key) => {
