@@ -11,7 +11,11 @@ import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ScanScreen } from "./scan-screen"
 import type { FrameSource } from "@/lib/frame-source"
-import type { CardSummary, MatchCandidate } from "@/generated/models"
+import type {
+  CardSummary,
+  MatchCandidate,
+  ScanFeedbackRowInput,
+} from "@/generated/models"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { Blob as NodeBlob } from "node:buffer"
 import { loadDraft, saveDraft } from "@/lib/draft-addition"
@@ -51,6 +55,14 @@ let holdLookup = new Set<string>()
 let reprintPool: CardSummary[] = []
 let reprintCalls: string[] = []
 let reprintFailures = 0
+let feedbackBodies: { rows: ScanFeedbackRowInput[] }[] = []
+let feedbackMode: "ok" | "fail" = "ok"
+let uploadRequests: number[] = []
+let bucketMode: "ok" | "unconfigured" = "ok"
+let photoPuts: string[] = []
+let putMode: "ok" | "refused" = "ok"
+let collectionWrites: { cardId: string; quantity: number }[][] = []
+let placementFails = false
 
 interface JsonBody {
   data?: unknown
@@ -123,6 +135,82 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
       })
     )
   }
+  if (url.pathname === "/collections/col-1") {
+    return Promise.resolve(
+      json({
+        data: {
+          id: "col-1",
+          title: "Binder",
+          description: "",
+          cardCount: 0,
+          maxCardCount: 0,
+          binder: null,
+        },
+      })
+    )
+  }
+  if (url.pathname === "/collections/col-1/entries") {
+    if (init?.method !== "PATCH")
+      return Promise.resolve(
+        json({ data: [], meta: { total: 0, page: 1, limit: 100 } })
+      )
+    // SAFETY: the only PATCH this fake receives is the bulk update's.
+    const { items } = JSON.parse(String(init?.body)) as {
+      items: { cardId: string; quantity: number }[]
+    }
+    if (placementFails)
+      return Promise.resolve(json({ title: "boom", detail: "Try later." }, 503))
+    collectionWrites.push(items)
+    return Promise.resolve(
+      json({
+        data: items.map(({ cardId, quantity }) => ({
+          cardId,
+          quantity,
+          status: "applied",
+        })),
+      })
+    )
+  }
+  if (url.pathname === "/scan/photo-uploads") {
+    // SAFETY: the only POST to this path is the upload-address request, whose body is { count }.
+    const { count } = JSON.parse(String(init?.body)) as { count: number }
+    uploadRequests.push(count)
+    if (bucketMode === "unconfigured")
+      return Promise.resolve(
+        json(
+          {
+            title: "not configured",
+            detail: "photo storage is not configured",
+          },
+          503
+        )
+      )
+    const n = uploadRequests.length
+    const addresses = Array.from({ length: count }, (_, i) => ({
+      key: `profile-1/photo-${n}-${i}`,
+      url: `https://photos.test/${n}/${i}`,
+      expiresAt: "2026-10-21T00:05:00Z",
+    }))
+    return Promise.resolve(json({ data: { uploads: addresses } }))
+  }
+  if (url.pathname === "/scan/feedback") {
+    // SAFETY: the only POST to this path is a feedback batch.
+    feedbackBodies.push(
+      JSON.parse(String(init?.body)) as { rows: ScanFeedbackRowInput[] }
+    )
+    return Promise.resolve(
+      feedbackMode === "fail"
+        ? json({ title: "boom" }, 500)
+        : new Response(null, { status: 204 })
+    )
+  }
+  // The presigned PUT goes to the bucket, not the API.
+  if (url.host === "photos.test") {
+    photoPuts.push(new Headers(init?.headers).get("Content-Type") ?? "")
+    return Promise.resolve(
+      new Response(null, { status: putMode === "refused" ? 403 : 200 })
+    )
+  }
   return Promise.resolve(json({ title: "unexpected" }, 500))
 }
 
@@ -179,6 +267,14 @@ beforeEach(() => {
   reprintPool = []
   reprintCalls = []
   reprintFailures = 0
+  feedbackBodies = []
+  feedbackMode = "ok"
+  uploadRequests = []
+  bucketMode = "ok"
+  photoPuts = []
+  putMode = "ok"
+  collectionWrites = []
+  placementFails = false
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   vi.stubGlobal("indexedDB", new IDBFactory())
   vi.stubGlobal("IDBKeyRange", IDBKeyRange)
@@ -933,5 +1029,344 @@ describe("without a camera", () => {
     )
 
     expect(await rowOf("Card 1")).toBeTruthy()
+  })
+})
+
+describe("recording card-scan feedback", () => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20))
+  const printed = (name: string) => new RegExp(`^${name}(?!\\d)`)
+
+  const addToCollection = async () => {
+    // A restored draft loads after mount, so the review opens only once it is in.
+    const review = await screen.findByRole("button", {
+      name: "Review and add",
+    })
+    await waitFor(() => expect(review).toHaveProperty("disabled", false))
+    await userEvent.click(review)
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Add to Collection" })
+    )
+  }
+  const chooseCard = async (from: string, to: string) => {
+    const row = await rowOf(from)
+    await userEvent.click(
+      within(row).getByRole("button", { name: `Change card for ${from}` })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: printed(to) })
+    )
+  }
+  const markFrom = async (name: string, label: string) => {
+    await rowOf(name)
+    await userEvent.click(
+      screen.getByRole("button", { name: `Change card for ${name}` })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitemcheckbox", { name: label })
+    )
+  }
+
+  it("records a confident match as a confirmation with its rank, and uploads no photo", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({
+        source: "card_scan",
+        collectionId: "col-1",
+        kind: "confirmed",
+        cardId: "card-1",
+        rank: 1,
+        rankSource: "top",
+      }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+    expect(uploadRequests).toEqual([])
+    await waitFor(async () =>
+      expect(await loadDraft("user-1", "col-1")).toEqual([])
+    )
+  })
+
+  it("records a switch to another candidate, with its rank and its photo's key", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    renderScreen()
+    await capture()
+    await chooseCard("Card 1", "Card 2")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({
+        kind: "switched",
+        cardId: "card-2",
+        rank: 2,
+        rankSource: "top",
+        imageKey: expect.stringMatching(/^profile-1\//),
+      }),
+    ])
+    expect(uploadRequests).toEqual([1])
+    expect(photoPuts).toEqual(["image/jpeg"])
+  })
+
+  it("records a Reprint with its rank counted across the Reprints pages", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    reprintPool = [11, 12, 13, 14, 15, 16, 17].map(cardOf)
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await userEvent.click(
+      screen.getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Load more" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: printed("Card 16") })
+    )
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({
+        kind: "reprint",
+        cardId: "card-16",
+        rank: 6,
+        rankSource: "reprint",
+        imageKey: expect.stringMatching(/^profile-1\//),
+      }),
+    ])
+    expect(uploadRequests).toEqual([1])
+  })
+
+  it("records an Empty mark on a photo the matcher read as cards, with no Card and its photo", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    renderScreen()
+    await capture()
+    await markFrom("Card 1", "No card in the photo")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ source: "card_scan", kind: "empty" }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("cardId")
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("rank")
+    expect(uploadRequests).toEqual([1])
+  })
+
+  it("records an Unidentified mark on a confident match as a correction with its photo", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await markFrom("Card 1", "A card, but none of these")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ kind: "unidentified" }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("cardId")
+    expect(uploadRequests).toEqual([1])
+  })
+
+  it("records an empty photo the matcher flagged as a confirmation, with no photo", async () => {
+    replies = [{ confident: false, candidates: [], empty: true }]
+    renderScreen()
+    await capture()
+    await screen.findAllByText("No card found.")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ source: "card_scan", kind: "confirmed" }),
+    ])
+    expect(uploadRequests).toEqual([])
+  })
+
+  it("records only the Scans the add placed, not a Scan removed from the draft", async () => {
+    replies = [
+      { confident: true, candidates: [candidate(1)] },
+      { confident: true, candidates: [candidate(2)] },
+    ]
+    renderScreen()
+    await capture()
+    await capture()
+    const row = await rowOf("Card 2")
+    fireEvent.click(within(row).getByRole("button", { name: /^Remove/ }))
+    await rowOf("Card 1")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ kind: "confirmed", cardId: "card-1" }),
+    ])
+  })
+
+  it("records nothing for a failed match, which the add leaves in the draft", async () => {
+    replies = ["fail", { confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await capture()
+    await rowOf("Card 1")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ kind: "confirmed", cardId: "card-1" }),
+    ])
+  })
+
+  it("records nothing when the draft is discarded", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    await expandSheet()
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard draft" }))
+    await settle()
+
+    expect(feedbackBodies).toEqual([])
+  })
+
+  it("records nothing and keeps the draft when the placement fails", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    placementFails = true
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+
+    await addToCollection()
+    await screen.findByRole("alert")
+    await settle()
+
+    expect(feedbackBodies).toEqual([])
+    expect(uploadRequests).toEqual([])
+  })
+
+  it("leaves the add as it was when the photo bucket is not configured", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    bucketMode = "unconfigured"
+    const onAdded = vi.fn()
+    renderScreen("col-1", source(), onAdded)
+    await capture()
+    await chooseCard("Card 1", "Card 2")
+
+    await addToCollection()
+
+    await waitFor(() => expect(onAdded).toHaveBeenCalled())
+    await settle()
+    expect(collectionWrites).toEqual([[{ cardId: "card-2", quantity: 1 }]])
+    expect(feedbackBodies).toEqual([])
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
+  it("records a Correction without its key when its photo fails to upload", async () => {
+    replies = [{ confident: false, candidates: [candidate(1), candidate(2)] }]
+    putMode = "refused"
+    renderScreen()
+    await capture()
+    await chooseCard("Card 1", "Card 2")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ kind: "switched", cardId: "card-2" }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+  })
+
+  it("leaves the add as it was when the feedback call fails, and clears the draft", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    feedbackMode = "fail"
+    const onAdded = vi.fn()
+    renderScreen("col-1", source(), onAdded)
+    await capture()
+    await rowOf("Card 1")
+
+    await addToCollection()
+
+    await waitFor(() => expect(onAdded).toHaveBeenCalled())
+    await waitFor(async () =>
+      expect(await loadDraft("user-1", "col-1")).toEqual([])
+    )
+    expect(collectionWrites).toEqual([[{ cardId: "card-1", quantity: 1 }]])
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
+  it("posts a Correction whose photo is gone with no key, and uploads nothing for it", async () => {
+    // A restored Scan keeps its Detection, but its photo did not survive the reload.
+    await saveDraft("user-1", "col-1", [
+      {
+        cardId: "card-2",
+        quantity: 1,
+        candidateIds: ["card-1", "card-2"],
+        detection: {
+          data: {
+            candidates: [candidate(1), candidate(2)],
+            confident: false,
+            empty: false,
+          },
+        },
+      },
+    ])
+    renderScreen()
+    await expandSheet()
+    await rowOf("Card 2")
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({
+        kind: "switched",
+        cardId: "card-2",
+        rank: 2,
+        rankSource: "top",
+      }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+    expect(uploadRequests).toEqual([])
+  })
+
+  it("records Unidentified kept on a Detection with no candidates as a confirmation, with no key", async () => {
+    await saveDraft("user-1", "col-1", [
+      {
+        quantity: 1,
+        candidateIds: [],
+        mark: "unidentified",
+        photo: jpeg(),
+        detection: {
+          data: { candidates: [], confident: false, empty: false },
+        },
+      },
+    ])
+    renderScreen()
+
+    await addToCollection()
+
+    await waitFor(() => expect(feedbackBodies).toHaveLength(1))
+    expect(feedbackBodies[0].rows).toEqual([
+      expect.objectContaining({ source: "card_scan", kind: "confirmed" }),
+    ])
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("cardId")
+    expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+    expect(uploadRequests).toEqual([])
   })
 })
