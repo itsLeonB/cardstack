@@ -40,7 +40,7 @@ export function ScanRow({
   lookup: Missing
   onRaise: () => void
   onLower: () => void
-  onChoose: (cardId: string) => void
+  onChoose: (cardId: string, reprintPosition?: number) => void
   onMark: (mark: Mark) => void
   onRetry: () => void
   onRetryLookup: () => void

@@ -30,6 +30,8 @@ export interface Scan {
   reason?: string
   /** The match response as the API sent it, kept with a resolved Scan. */
   detection?: EnvelopeMatchResult
+  /** Where the chosen Card sits in the Reprints list, when the user picked it from "Other prints". */
+  reprintPosition?: number
 }
 
 let lastKey = 0
@@ -138,6 +140,7 @@ export function useScanDraft(
                 mark: s.mark,
                 photo: s.photo,
                 detection: s.detection,
+                reprintPosition: s.reprintPosition,
               },
             ]
           : []
@@ -203,9 +206,11 @@ export function useScanDraft(
             : s
         )
       ),
-    choose: (key: string, cardId: string) =>
-      patch(key, { cardId, mark: undefined }),
-    mark: (key: string, mark: Mark) => patch(key, { mark }),
+    choose: (key: string, cardId: string, reprintPosition?: number) =>
+      patch(key, { cardId, reprintPosition, mark: undefined }),
+    // A mark drops the Reprint choice: the Scan no longer holds a Card.
+    mark: (key: string, mark: Mark) =>
+      patch(key, { mark, reprintPosition: undefined }),
     discard() {
       for (const s of scans) cancelled.current.add(s.key)
       queue.cancelAll()

@@ -8,6 +8,34 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Record one batch of confirmed scan choices, up to 100 rows, with the photos of its Corrections, which are checked first (a JPEG under the caller's prefix, under the size cap) and deleted when they fail. 503 with code photo_storage_not_configured when the private photo bucket is not configured
+ */
+export const recordScanFeedbackBodyRowsMax = 100;
+
+
+
+export const RecordScanFeedbackBody = zod.object({
+  "rows": zod.array(zod.object({
+  "cardId": zod.string().optional().describe('The Card chosen. Absent for empty and unidentified, and for a confirmation of either.'),
+  "collectionId": zod.string().describe('The Collection the Scan or cell was aimed at.'),
+  "corners": zod.unknown().optional().describe('The four corners of the Page\'s grid in the photo, as the client cut it. Up to 64 KiB of JSON.'),
+  "detection": zod.unknown().optional().describe('The Detection as /scan/match returned it, kept as is. Up to 64 KiB of JSON.'),
+  "gridColumns": zod.int().optional().describe('Columns in the Page\'s grid, from 1, used to cut the photo.'),
+  "gridRows": zod.int().optional().describe('Rows in the Page\'s grid, from 1, used to cut the photo.'),
+  "imageKey": zod.string().optional().describe('The photo\'s key from /scan/photo-uploads. Only a Correction may carry one.'),
+  "kind": zod.enum(['confirmed', 'switched', 'reprint', 'empty', 'unidentified', 'placed']).describe('What the user did with the Detection.'),
+  "page": zod.int().optional().describe('A binder cell\'s Page number, from 1. Required for a binder_page row and refused otherwise.'),
+  "rank": zod.int().optional().describe('The chosen Card\'s position in the list the matcher offered, or its position in the Reprints list counted across pages. Required with cardId.'),
+  "rankSource": zod.enum(['top', 'reprint']).optional().describe('Whether the rank counts the top list or the Reprints list. Required with cardId.'),
+  "slotColumn": zod.int().optional().describe('A binder cell\'s column on its Page, from 1.'),
+  "slotRow": zod.int().optional().describe('A binder cell\'s row on its Page, from 1.'),
+  "source": zod.enum(['card_scan', 'binder_page']).describe('Where the photo came from: a single card scan, or a binder Page Review cell.')
+})).min(1).max(recordScanFeedbackBodyRowsMax).nullable().describe('One row per confirmed Scan or Page Review cell. Up to 100 in a batch.')
+})
+
+export const RecordScanFeedbackResponse = zod.void()
+
+/**
  * @summary Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
  */
 export const matchScannedCardResponseDataCandidatesItemScoreMin = 0;
@@ -43,6 +71,68 @@ export const MatchScannedCardResponse = zod.object({
 })).nullable(),
   "confident": zod.boolean().describe('True only when the server is sure of the first candidate. The server owns the threshold.'),
   "empty": zod.boolean().describe('True when the photo shows no card: its top Card scored below the server\'s empty threshold. Candidates is then empty and Confident false.')
+})
+})
+
+/**
+ * @summary Sign one PUT address per scan photo, up to 100 in a request, each to a JPEG in the private photo bucket that expires in five minutes. 503 with code photo_storage_not_configured when that bucket is not configured
+ */
+export const requestScanPhotoUploadsBodyCountMax = 100;
+
+
+
+export const RequestScanPhotoUploadsBody = zod.object({
+  "count": zod.int().min(1).max(requestScanPhotoUploadsBodyCountMax).describe('How many photos are to be uploaded. One address comes back per photo.')
+})
+
+export const RequestScanPhotoUploadsResponse = zod.object({
+  "data": zod.object({
+  "uploads": zod.array(zod.object({
+  "expiresAt": zod.iso.datetime({"offset":true}),
+  "key": zod.string(),
+  "url": zod.string()
+})).nullable()
+})
+})
+
+/**
+ * @summary List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
+ */
+export const listScanReprintsQueryCardIdsMax = 5;
+
+export const listScanReprintsQueryOffsetMin = 0;
+
+
+
+export const ListScanReprintsQueryParams = zod.object({
+  "cardIds": zod.array(zod.string()).max(listScanReprintsQueryCardIdsMax).optional().describe('The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one\'s Reprints are listed in that order, and every id sent is left out of the result.'),
+  "offset": zod.int().min(listScanReprintsQueryOffsetMin).optional().describe('How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page.')
+})
+
+export const ListScanReprintsResponse = zod.object({
+  "data": zod.object({
+  "cards": zod.array(zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+})).nullable().describe('Up to five Reprints, in the order they are offered.'),
+  "hasMore": zod.boolean().describe('True while more Reprints remain after this page.')
 })
 })
 
