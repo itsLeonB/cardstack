@@ -3,7 +3,7 @@ import { RiArrowDownSLine } from "@remixicon/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -24,6 +24,7 @@ export const MARKS = {
   empty: "No card in the photo",
   unidentified: "A card, but none of these",
 } satisfies Record<Mark, string>
+const MARK_ORDER: Mark[] = ["empty", "unidentified"]
 
 /**
  * The card of a resolved Scan, opening a menu of its candidates with the
@@ -66,7 +67,7 @@ export function CandidatePicker({
           <>
             <CandidateList
               candidateIds={ids}
-              chosen={scan.cardId}
+              chosen={scan.mark ? undefined : scan.cardId}
               seen={seen}
               onChoose={onChoose}
             />
@@ -86,12 +87,16 @@ export function CandidatePicker({
             <DropdownMenuSeparator />
           </>
         )}
-        <DropdownMenuItem onClick={() => onMark("empty")}>
-          {MARKS.empty}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onMark("unidentified")}>
-          {MARKS.unidentified}
-        </DropdownMenuItem>
+        {MARK_ORDER.map((mark) => (
+          <DropdownMenuCheckboxItem
+            key={mark}
+            checked={scan.mark === mark}
+            closeOnClick
+            onCheckedChange={() => onMark(mark)}
+          >
+            {MARKS[mark]}
+          </DropdownMenuCheckboxItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )
