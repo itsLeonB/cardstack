@@ -15,11 +15,14 @@ import { summedRows, useScanDraft } from "@/lib/use-draft-addition"
  * wait for a match, so each one lands in the sheet at once.
  */
 export function ScanScreen({
+  userId,
   collectionId,
   source,
   backLink,
   onAdded,
 }: {
+  /** Owns the saved Draft Addition, so another user never sees it. */
+  userId: string
   collectionId: string
   source: FrameSource
   /** A visible link back to the Collection, kept over the viewfinder. */
@@ -33,7 +36,7 @@ export function ScanScreen({
     text: string
   }>()
   const announcementId = useRef(0)
-  const draft = useScanDraft(collectionId, (text) =>
+  const draft = useScanDraft(userId, collectionId, (text) =>
     setAnnouncement({ id: ++announcementId.current, text })
   )
   const [error, setError] = useState<string | null>(null)

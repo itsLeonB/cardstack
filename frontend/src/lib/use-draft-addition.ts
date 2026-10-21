@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { matchScannedCard } from "@/generated/endpoints/scan/scan"
-import type { CardSummary } from "@/generated/models"
+import type { CardSummary, EnvelopeMatchResult } from "@/generated/models"
 import { loadDraft, saveDraft } from "./draft-addition"
 import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
 
@@ -24,6 +24,8 @@ export interface Scan {
   /** Up to MAX_CANDIDATES Cards when the matcher was not confident, top first; empty when it was. */
   candidateIds: string[]
   reason?: string
+  /** The match response as the API sent it, kept with a resolved Scan. */
+  detection?: EnvelopeMatchResult
 }
 
 let lastKey = 0
@@ -31,16 +33,13 @@ const newKey = () => `scan-${++lastKey}`
 
 /** The Draft Addition for one Collection (remount per Collection). Matches run through a queue of at most MAX_MATCHES_IN_FLIGHT. */
 export function useScanDraft(
+  userId: string,
   collectionId: string,
   announce: (message: string) => void
 ) {
-  const [scans, setScans] = useState<Scan[]>(() =>
-    loadDraft(collectionId).map((s) => ({
-      ...s,
-      key: newKey(),
-      status: "resolved",
-    }))
-  )
+  const [scans, setScans] = useState<Scan[]>([])
+  // Nothing is saved before the saved Scans are back, so the empty first render cannot overwrite them.
+  const [restored, setRestored] = useState(false)
   // Cards the matcher has returned this visit, so a row shows at once.
   const seen = useRef(new Map<string, CardSummary>())
   const cancelled = useRef(new Set<string>())
@@ -80,12 +79,14 @@ export function useScanDraft(
                 status: "resolved",
                 cardId: top.id,
                 candidateIds: [],
+                detection: response.data,
               })
               say(key, `Matched ${top.name}.`)
             } else {
               patch(key, {
                 status: "resolved",
                 cardId: top.id,
+                detection: response.data,
                 candidateIds: candidates!
                   .slice(0, MAX_CANDIDATES)
                   .map((c) => c.card.id),
@@ -109,24 +110,43 @@ export function useScanDraft(
   )
 
   useEffect(() => () => queue.cancelAll(), [queue])
-  useEffect(
-    () =>
-      saveDraft(
-        collectionId,
-        scans.flatMap((s) =>
-          s.status === "resolved"
-            ? [
-                {
-                  cardId: s.cardId!,
-                  quantity: s.quantity,
-                  candidateIds: s.candidateIds,
-                },
-              ]
-            : []
-        )
-      ),
-    [collectionId, scans]
-  )
+  useEffect(() => {
+    if (!restored) return
+    void saveDraft(
+      userId,
+      collectionId,
+      scans.flatMap((s) =>
+        s.status === "resolved"
+          ? [
+              {
+                cardId: s.cardId!,
+                quantity: s.quantity,
+                candidateIds: s.candidateIds,
+                photo: s.photo,
+                detection: s.detection,
+              },
+            ]
+          : []
+      )
+    )
+  }, [userId, collectionId, restored, scans])
+
+  useEffect(() => {
+    let live = true
+    void loadDraft(userId, collectionId).then((saved) => {
+      if (!live) return
+      const restoredScans = saved.map((s): Scan => ({
+        ...s,
+        key: newKey(),
+        status: "resolved",
+      }))
+      setScans((list) => [...list, ...restoredScans])
+      setRestored(true)
+    })
+    return () => {
+      live = false
+    }
+  }, [userId, collectionId])
 
   return {
     scans,
