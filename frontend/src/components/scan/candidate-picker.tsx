@@ -3,7 +3,7 @@ import { RiArrowDownSLine } from "@remixicon/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -66,7 +66,7 @@ export function CandidatePicker({
           <>
             <CandidateList
               candidateIds={ids}
-              chosen={scan.cardId}
+              chosen={scan.mark ? undefined : scan.cardId}
               seen={seen}
               onChoose={onChoose}
             />
@@ -86,12 +86,16 @@ export function CandidatePicker({
             <DropdownMenuSeparator />
           </>
         )}
-        <DropdownMenuItem onClick={() => onMark("empty")}>
-          {MARKS.empty}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onMark("unidentified")}>
-          {MARKS.unidentified}
-        </DropdownMenuItem>
+        {(Object.keys(MARKS) as Mark[]).map((mark) => (
+          <DropdownMenuCheckboxItem
+            key={mark}
+            checked={scan.mark === mark}
+            closeOnClick
+            onCheckedChange={() => onMark(mark)}
+          >
+            {MARKS[mark]}
+          </DropdownMenuCheckboxItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )
