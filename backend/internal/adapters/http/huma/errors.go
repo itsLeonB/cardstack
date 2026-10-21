@@ -24,7 +24,7 @@ var logRedacted = func(err error) {
 // OpenAPI schema of every error response.
 type ErrorModel struct {
 	huma.ErrorModel
-	Code string `json:"code,omitempty" example:"login_required" doc:"A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0."`
+	Code string `json:"code,omitempty" example:"login_required" doc:"A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed."`
 }
 
 // installErrorClassifier makes huma.NewError the single seam that decides

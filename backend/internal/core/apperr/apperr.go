@@ -32,6 +32,10 @@ const CodeBinderLeafInUse = "binder_leaf_in_use"
 // whose capacity is its Slot count.
 const CodeBinderMaxCardCount = "binder_max_card_count"
 
+// CodePhotoStorageNotConfigured refuses a scan photo upload address on a server
+// whose private photo bucket has no SCAN_PHOTO_R2_* settings (docs/adr/0022).
+const CodePhotoStorageNotConfigured = "photo_storage_not_configured"
+
 // coded deliberately embeds the AppError interface rather than the concrete
 // ungerr error, so it is not a huma.StatusError: Huma then routes it through
 // the classifier in the httpapi package instead of marshalling it directly,

@@ -26,6 +26,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	binderHandler := handler.NewBinderHandler(services.Binder, services.BinderSlot)
 	binderPlacementHandler := handler.NewBinderPlacementHandler(services.BinderSlot)
 	matchHandler := handler.NewMatchHandler(services.Match)
+	scanPhotoHandler := handler.NewScanPhotoHandler(services.ScanPhoto)
 
 	// Secured:true only sets OpenAPI metadata. The guard is what decides: a
 	// route group either allows Guests or rejects them with 401, and a bad token
@@ -52,6 +53,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, binderHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderPlacementHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)
+	endpoint.RegisterAll(api, scanPhotoHandler.Routes(), private, perUser)
 	if err := markBinderNullable(api); err != nil {
 		return err
 	}
