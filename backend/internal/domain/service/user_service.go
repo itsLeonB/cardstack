@@ -21,6 +21,8 @@ type UserService interface {
 	// name, falling back to the local part of its email, and is never changed
 	// afterwards; the stored email is updated only when it differs.
 	ResolveCaller(ctx context.Context, identity dto.AuthIdentity) (dto.CallerIdentity, error)
+	// Profile returns a profile's name and Slug, for the caller's own profile.
+	Profile(ctx context.Context, lookup dto.ProfileLookup) (dto.ProfileSummary, error)
 }
 
 // IdentityCache lets most requests skip the database. A hit must be for the
@@ -66,6 +68,26 @@ func (s *userService) ResolveCaller(ctx context.Context, identity dto.AuthIdenti
 	s.cache.Set(identity, caller)
 
 	return caller, nil
+}
+
+func (s *userService) Profile(ctx context.Context, lookup dto.ProfileLookup) (dto.ProfileSummary, error) {
+	// A nil ID would drop its condition from the lookup (see crud.WhereBySpec)
+	// and match any profile.
+	if lookup.ProfileID == uuid.Nil {
+		return dto.ProfileSummary{}, ungerr.NotFoundError("profile not found")
+	}
+
+	profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
+		Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: lookup.ProfileID}},
+	})
+	if err != nil {
+		return dto.ProfileSummary{}, err
+	}
+	if profile.IsZero() {
+		return dto.ProfileSummary{}, ungerr.NotFoundError("profile not found")
+	}
+
+	return dto.ProfileSummary{Name: profile.Name, Slug: profile.Slug}, nil
 }
 
 func (s *userService) provision(ctx context.Context, identity dto.AuthIdentity) (dto.CallerIdentity, error) {
