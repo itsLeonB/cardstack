@@ -28,6 +28,45 @@ const API = "/shared/profile-ash/holiday-binder-3f9a2"
 const PAGE = "/s/profile-ash/holiday-binder-3f9a2"
 const pikachu = catalogCard("pikachu", "Pikachu", "025")
 
+// A binder of one Leaf: Page 1 is its front, Page 2 its back, 2 by 2 Slots each.
+const binderLayout = { rows: 2, columns: 2, leafCount: 1, capacity: 4 }
+const binderHeader = {
+  data: {
+    ownerName: "Ash Ketchum",
+    title: "Holiday Binder",
+    description: "",
+    binder: { layout: binderLayout, unidentifiedCount: 2 },
+  },
+}
+const frontPage = {
+  page: 1,
+  leaf: 1,
+  side: "front",
+  layout: binderLayout,
+  cardTotal: 1,
+  unidentifiedCount: 1,
+  slots: [
+    { row: 1, column: 1, state: "card", card: pikachu },
+    { row: 1, column: 2, state: "empty", card: null },
+    { row: 2, column: 1, state: "unidentified", card: null },
+    { row: 2, column: 2, state: "empty", card: null },
+  ],
+}
+const backPage = {
+  page: 2,
+  leaf: 1,
+  side: "back",
+  layout: binderLayout,
+  cardTotal: 0,
+  unidentifiedCount: 1,
+  slots: [
+    { row: 1, column: 1, state: "empty", card: null },
+    { row: 1, column: 2, state: "empty", card: null },
+    { row: 2, column: 1, state: "empty", card: null },
+    { row: 2, column: 2, state: "unidentified", card: null },
+  ],
+}
+
 // The JSON bodies the API answers with: an envelope, or an error detail.
 interface ApiBody {
   data?: unknown
@@ -38,6 +77,8 @@ interface ApiBody {
 interface SharedStub {
   header?: { status: number; body: ApiBody }
   entries?: { status: number; body: ApiBody }
+  // A binder's Pages in order, from Page 1; any other Page is a not-found.
+  pages?: unknown[]
 }
 
 // Each request is answered by path; the requests made are kept for asserts.
@@ -67,6 +108,13 @@ function stubSharedApi(stub: SharedStub = {}) {
     }
     if (url.pathname === "/catalog/series") {
       return reply(200, { data: { series: [], ungroupedExpansionSets: [] } })
+    }
+    const pageNumber = url.pathname.match(new RegExp(`^${API}/pages/(\\d+)$`))
+    if (pageNumber) {
+      const page = stub.pages?.[Number(pageNumber[1]) - 1]
+      return page
+        ? reply(200, { data: page })
+        : reply(404, { detail: "not found" })
     }
     if (url.pathname === API) {
       return reply(
@@ -272,6 +320,120 @@ describe("Shared Collection page", () => {
       (m) => m.routeId === "/s/$profileSlug/$collectionSlug"
     )
     expect(match?.meta).toContainEqual({ name: "robots", content: "noindex" })
+  })
+
+  it("shows a binder's Pages of Slots read-only, with its Unidentified count", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    await renderSharedPage()
+
+    const binder = await screen.findByRole("region", { name: "Binder page" })
+    expect(within(binder).getByText("Leaf 1, front")).toBeTruthy()
+    expect(screen.getByText("Unidentified: 2")).toBeTruthy()
+    expect(
+      within(binder).getByRole("group", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
+    ).toBeTruthy()
+    expect(
+      within(binder).getByRole("group", { name: "Row 1, column 2: empty" })
+    ).toBeTruthy()
+  })
+
+  it("shows an Unidentified Slot as text, never as a Card", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    await renderSharedPage()
+
+    const binder = await screen.findByRole("region", { name: "Binder page" })
+    const unidentified = within(binder).getByRole("group", {
+      name: "Row 2, column 1: Unidentified",
+    })
+    expect(unidentified.textContent).toBe("Unidentified")
+    expect(unidentified.querySelector("img")).toBeNull()
+  })
+
+  it("turns through the binder's Pages one at a time", async () => {
+    const requests = stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage, backPage],
+    })
+    await renderSharedPage()
+    await screen.findByText("Page 1 of 2")
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }))
+
+    const binder = await screen.findByRole("region", { name: "Binder page" })
+    expect(await within(binder).findByText("Leaf 1, back")).toBeTruthy()
+    expect(
+      within(binder).getByRole("group", {
+        name: "Row 2, column 2: Unidentified",
+      })
+    ).toBeTruthy()
+    expect(screen.getByText("Page 2 of 2")).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Next page" }).hasAttribute("disabled")
+    ).toBe(true)
+    expect(requests).toContain(`${API}/pages/2`)
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }))
+
+    expect(await screen.findByText("Page 1 of 2")).toBeTruthy()
+    expect(
+      screen
+        .getByRole("button", { name: "Previous page" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+  })
+
+  it("offers no edit controls on the binder", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    await renderSharedPage()
+
+    const binder = await screen.findByRole("region", { name: "Binder page" })
+    expect(within(binder).queryAllByRole("button")).toHaveLength(0)
+    for (const name of [
+      "Add Leaf before",
+      "Add Leaf after",
+      "Remove Leaf",
+      "Change layout",
+      "Remove binder",
+      "Go to page",
+    ]) {
+      expect(screen.queryByRole("button", { name })).toBeNull()
+    }
+    expect(screen.queryByRole("spinbutton")).toBeNull()
+  })
+
+  it("shows the not-found page for a Page the binder does not have", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    await renderSharedPage()
+    await screen.findByText("Page 1 of 2")
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Page not found", level: 1 })
+    ).toBeTruthy()
+  })
+
+  it("shows no binder and asks for no Page for a plain Collection", async () => {
+    const requests = stubSharedApi()
+    await renderSharedPage()
+    await screen.findByText("Pikachu")
+
+    expect(screen.queryByRole("region", { name: "Binder page" })).toBeNull()
+    expect(requests.some((r) => r.includes("/pages/"))).toBe(false)
   })
 
   it("is kept out of search engines", async () => {
