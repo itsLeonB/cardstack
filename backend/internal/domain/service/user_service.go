@@ -56,11 +56,19 @@ func (s *userService) ResolveCaller(ctx context.Context, identity dto.AuthIdenti
 	}
 
 	var caller dto.CallerIdentity
-	err := s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		var err error
-		caller, err = s.provision(ctx, identity)
-		return err
-	})
+	var err error
+	for range maxProvisionAttempts {
+		// A failed insert aborts the Postgres transaction, so a retry has to
+		// rerun the whole transaction, not just the insert.
+		err = s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+			var err error
+			caller, err = s.provision(ctx, identity)
+			return err
+		})
+		if !isUniqueViolation(err) {
+			break
+		}
+	}
 	if err != nil {
 		return dto.CallerIdentity{}, err
 	}
@@ -149,4 +157,23 @@ func profileName(identity dto.AuthIdentity) string {
 	}
 	local, _, _ := strings.Cut(identity.Email, "@")
 	return local
+}
+
+// maxProvisionAttempts bounds the retries after a unique violation. A profile's
+// slug can clash with another's; each attempt makes a fresh id and slug.
+const maxProvisionAttempts = 3
+
+// isUniqueViolation reports whether err carries SQLSTATE 23505, the only unique
+// violation provision's insert can raise besides its id, which a retry also
+// fixes. ungerr.Wrap has no Unwrap method, so the chain is walked with ungerr.Unwrap.
+func isUniqueViolation(err error) bool {
+	for {
+		if coded, ok := err.(interface{ SQLState() string }); ok {
+			return coded.SQLState() == "23505"
+		}
+		if _, wrapped := err.(*ungerr.UnknownError); !wrapped {
+			return false
+		}
+		err = ungerr.Unwrap(err)
+	}
 }
