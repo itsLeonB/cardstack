@@ -8,8 +8,9 @@ import { pageOf } from "@/lib/binder"
 import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 
 // The owner's binder, read-only: one Page at a time, with no Slot panel, Leaf,
-// Layout or pending-review controls. A Page the binder does not have is thrown
-// as not-found, so it replaces the whole shared page rather than sitting inside it.
+// Layout or pending-review controls. A Page the binder does not have renders an
+// inline "Page not found" instead of throwing not-found, which would drop the
+// route's noindex and nest a second h1.
 export function SharedBinderView({
   profileSlug,
   collectionSlug,
