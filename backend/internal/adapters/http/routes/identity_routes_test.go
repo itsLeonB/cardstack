@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -161,6 +162,27 @@ func TestEmailRefreshesAndNameIsNeverOverwritten(t *testing.T) {
 	require.Len(t, profiles, 1)
 	assert.Equal(t, "Test User", profiles[0].Name, "the profile name is written once")
 	assert.Equal(t, "test-user-"+profiles[0].ID.String()[31:], profiles[0].Slug, "the Slug never changes")
+}
+
+// TestBackfilledProfileKeepsItsSlug starts from a profile that exists before the
+// user's first request, as every profile did when the migration backfilled
+// Slugs: the request must resolve to it, not make a second one.
+func TestBackfilledProfileKeepsItsSlug(t *testing.T) {
+	api := newTestAPI(t)
+	claims := validClaims()
+	subject, _ := claims["sub"].(string)
+	user := entity.User{AuthProvider: dto.AuthProviderClerk, AuthSubject: subject, Email: claims["email"].(string)}
+	require.NoError(t, api.db.Create(&user).Error)
+	id := uuid.New()
+	backfilled := entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}, UserID: user.ID, Name: "Old Name", Slug: "old-name-" + id.String()[31:]}
+	require.NoError(t, api.db.Create(&backfilled).Error)
+
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+
+	profiles := api.profilesOf(t, user)
+	require.Len(t, profiles, 1)
+	assert.Equal(t, backfilled.ID, profiles[0].ID)
+	assert.Equal(t, backfilled.Slug, profiles[0].Slug)
 }
 
 func TestProfileSlugFallsBackToUserWhenTheNameSlugifiesToNothing(t *testing.T) {
