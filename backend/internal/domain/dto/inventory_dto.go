@@ -48,6 +48,22 @@ type InventoryQuantityChange struct {
 	Quantity int
 }
 
+// InventoryMoveRequest moves the listed Cards, with every copy of each, from one
+// of a profile's Collections into another.
+type InventoryMoveRequest struct {
+	ProfileID     uuid.UUID
+	SourceID      uuid.UUID
+	DestinationID uuid.UUID
+	CardIDs       []uuid.UUID
+}
+
+// InventoryMoveResult counts what a Move moved: Cards is the number of
+// Inventory Entries, Copies the sum of their quantities.
+type InventoryMoveResult struct {
+	Cards  int `json:"cards" doc:"Inventory Entries moved."`
+	Copies int `json:"copies" doc:"Copies moved, summed across those entries."`
+}
+
 // InventoryBulkUpdateRequest applies Items, in order, to one Collection.
 type InventoryBulkUpdateRequest struct {
 	ProfileID    uuid.UUID

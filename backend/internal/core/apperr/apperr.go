@@ -18,6 +18,10 @@ const CodeLoginRequired = "login_required"
 // change only by placing or clearing Slots (docs/adr/0020).
 const CodeBinderQuantityLocked = "binder_quantity_locked"
 
+// CodeMoveToBinder refuses a Move into a binder: a Move chooses no Slot, so it
+// has nowhere to put the Cards (docs/adr/0020).
+const CodeMoveToBinder = "move_to_binder"
+
 // CodeCollectionNotEmpty refuses a Layout on a Collection that already holds
 // Inventory Entries, which no Slot would explain.
 const CodeCollectionNotEmpty = "collection_not_empty"

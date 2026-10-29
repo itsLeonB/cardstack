@@ -1028,6 +1028,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeInventoryMoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InventoryMoveResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeListBinderPlacementResult": {
         "additionalProperties": false,
         "properties": {
@@ -1273,7 +1285,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed.",
+            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. move_to_binder: a Move's destination is a binder, and a Move chooses no Slot. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed.",
             "examples": [
               "login_required"
             ],
@@ -1505,6 +1517,26 @@
         ],
         "type": "object"
       },
+      "InventoryMoveResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "description": "Inventory Entries moved.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "copies": {
+            "description": "Copies moved, summed across those entries.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cards",
+          "copies"
+        ],
+        "type": "object"
+      },
       "MatchCandidate": {
         "additionalProperties": false,
         "properties": {
@@ -1550,6 +1582,32 @@
           "empty",
           "confident",
           "candidates"
+        ],
+        "type": "object"
+      },
+      "MoveEntriesInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cardIds": {
+            "description": "The Cards to move, with every copy of each. Unique within the request (400 otherwise).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "destinationId": {
+            "description": "The Collection to move them to: another of your own plain Collections. A binder is refused.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardIds",
+          "destinationId"
         ],
         "type": "object"
       },
@@ -4251,6 +4309,64 @@
           }
         ],
         "summary": "Add a Card to one of the current user's own Collections",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/collections/{id}/entries/move": {
+      "post": {
+        "operationId": "move-collection-entries",
+        "parameters": [
+          {
+            "description": "Source Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Source Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveEntriesInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeInventoryMoveResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
         "tags": [
           "inventory"
         ]

@@ -443,6 +443,63 @@ func (_c *MockInventoryService_ListMasterInventory_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// Move provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) Move(ctx context.Context, req dto.InventoryMoveRequest) (dto.InventoryMoveResult, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Move")
+	}
+
+	var r0 dto.InventoryMoveResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryMoveRequest) (dto.InventoryMoveResult, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryMoveRequest) dto.InventoryMoveResult); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.InventoryMoveResult)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.InventoryMoveRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryService_Move_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Move'
+type MockInventoryService_Move_Call struct {
+	*mock.Call
+}
+
+// Move is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.InventoryMoveRequest
+func (_e *MockInventoryService_Expecter) Move(ctx interface{}, req interface{}) *MockInventoryService_Move_Call {
+	return &MockInventoryService_Move_Call{Call: _e.mock.On("Move", ctx, req)}
+}
+
+func (_c *MockInventoryService_Move_Call) Run(run func(ctx context.Context, req dto.InventoryMoveRequest)) *MockInventoryService_Move_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.InventoryMoveRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_Move_Call) Return(_a0 dto.InventoryMoveResult, _a1 error) *MockInventoryService_Move_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInventoryService_Move_Call) RunAndReturn(run func(context.Context, dto.InventoryMoveRequest) (dto.InventoryMoveResult, error)) *MockInventoryService_Move_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Remove provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) Remove(ctx context.Context, req dto.InventoryEntryLookup) error {
 	ret := _m.Called(ctx, req)
