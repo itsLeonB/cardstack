@@ -63,8 +63,11 @@ export function CollectionMoveBar({
   cardIds: string[]
   /** Copies across the selected Cards, shown in the confirm dialog. */
   copies: number
-  /** Sends unsaved quantity edits first, so the Move never runs beside them. */
-  flushEdits: () => Promise<void>
+  /**
+   * Sends unsaved quantity edits first, so the Move never runs beside them.
+   * Resolves false when an edit to a selected Card could not be saved.
+   */
+  flushEdits: () => Promise<boolean>
   onCancel: () => void
   /** Receives the result to announce; the caller leaves selection mode. */
   onMoved: (announcement: string) => void
@@ -79,6 +82,8 @@ export function CollectionMoveBar({
   const [destination, setDestination] = useState<CollectionSummary | null>(null)
   const [moving, setMoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Shown in the bar when edits could not be saved before opening the sheet.
+  const [notice, setNotice] = useState<string | null>(null)
 
   const sourceTitle =
     sourceQuery.data?.status === 200
@@ -95,7 +100,13 @@ export function CollectionMoveBar({
       : []
 
   async function openSheet() {
-    await flushEdits()
+    setNotice(null)
+    if (!(await flushEdits())) {
+      setNotice(
+        "Some quantity edits could not be saved, so nothing was moved. Try again."
+      )
+      return
+    }
     setSheetOpen(true)
   }
 
@@ -139,6 +150,11 @@ export function CollectionMoveBar({
         <p role="status" className="text-sm font-medium">
           {`${cardIds.length} selected`}
         </p>
+        {notice && (
+          <p role="alert" className="w-full text-sm text-destructive">
+            {notice}
+          </p>
+        )}
         <div className="flex gap-2">
           <Button
             ref={moveButton}

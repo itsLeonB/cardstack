@@ -263,6 +263,52 @@ describe("Collection page: selecting cards to move", () => {
   })
 })
 
+describe("Collection page: quantity edits made before selecting", () => {
+  it("won't let a Card edited down to 0 copies be ticked, since it has no entry to move", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    const decrease = await screen.findByRole("button", {
+      name: "Decrease quantity of Pikachu",
+    })
+    fireEvent.click(decrease)
+    fireEvent.click(decrease)
+
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    const pikachuBox = screen.getByRole("checkbox", {
+      name: "Select Pikachu (BS 025)",
+    })
+    expect(pikachuBox.matches(":disabled")).toBe(true)
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+        .matches(":disabled")
+    ).toBe(false)
+  })
+
+  it("reports a failed save and keeps the sheet closed when Move to… can't save the edits first", async () => {
+    // The fake has no bulk-update route, so saving the edit fails with a 500.
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Increase quantity of Pikachu",
+      })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+
+    expect(await screen.findByText(/could not be saved/)).toBeTruthy()
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+})
+
 describe("Collection page: plain Collections only", () => {
   it("shows no Select button for a binder, since its Cards can't be moved yet", async () => {
     await renderCollectionPage(

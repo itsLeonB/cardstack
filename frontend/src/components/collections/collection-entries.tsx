@@ -207,7 +207,8 @@ export function CollectionEntries({
                 aria-label={`Select ${card.name} (${card.expansionSet.code} ${card.localId})`}
                 className="size-5 accent-primary"
                 checked={checked}
-                disabled={!checked && atLimit}
+                // A Card at 0 copies has no entry to move; a ticked one stays enabled so it can be unticked.
+                disabled={!checked && (atLimit || quantity === 0)}
                 onChange={() => toggleSelected(card.id, quantity)}
               />
             )
@@ -238,7 +239,10 @@ export function CollectionEntries({
           collectionId={collectionId}
           cardIds={[...selected.keys()]}
           copies={copies}
-          flushEdits={batch.flush}
+          flushEdits={async () => {
+            await batch.flush()
+            return ![...selected.keys()].some(batch.hasFailed)
+          }}
           onCancel={leaveSelection}
           onMoved={(message) => {
             leaveSelection()

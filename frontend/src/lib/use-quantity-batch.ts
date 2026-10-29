@@ -37,6 +37,8 @@ export function useQuantityBatch(
   // Last quantity the server is known to hold, the revert target.
   const confirmed = useRef<Quantities>({})
   const inFlight = useRef(new Set<string>())
+  // Cards whose last save failed since the latest flush started; unlike `errors` it is readable right after `await flush()`.
+  const failed = useRef(new Set<string>())
   // Bumped on every edit; a batch only acts on a card while its revision is still the latest.
   const revisions = useRef(new Map<string, number>())
   const isLatest = (cardId: string, revision: number) =>
@@ -59,6 +61,7 @@ export function useQuantityBatch(
   ) {
     // A newer edit for the same card (pending or already sent) supersedes this outcome, error included.
     if (!isLatest(cardId, revision)) return
+    failed.current.add(cardId)
     setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
     setErrors((prev) => ({ ...prev, [cardId]: message }))
   }
@@ -125,6 +128,7 @@ export function useQuantityBatch(
       ]
     )
     pending.current.clear()
+    if (items.length > 0) failed.current.clear()
     for (const [cardId] of items) inFlight.current.add(cardId)
     if (items.length > 0) queue.current = queue.current.then(() => send(items))
     return queue.current
@@ -135,6 +139,11 @@ export function useQuantityBatch(
   /** Whether edits are waiting for the next batch (e.g. made while a flush was in flight). */
   function hasPending() {
     return pending.current.size > 0
+  }
+
+  /** Whether this card's save failed since the latest flush started. */
+  function hasFailed(cardId: string) {
+    return failed.current.has(cardId)
   }
 
   /** Whether any edit is unsent or being saved. */
@@ -176,6 +185,7 @@ export function useQuantityBatch(
   ) {
     confirmed.current[cardId] ??= serverQuantity
     revisions.current.set(cardId, (revisions.current.get(cardId) ?? 0) + 1)
+    failed.current.delete(cardId)
     pending.current.delete(cardId)
     pending.current.set(cardId, quantity)
     setQuantities((prev) => ({ ...prev, [cardId]: quantity }))
@@ -183,5 +193,14 @@ export function useQuantityBatch(
     debouncer.maybeExecute()
   }
 
-  return { quantities, errors, setQuantity, flush, hasPending, isBusy, prune }
+  return {
+    quantities,
+    errors,
+    setQuantity,
+    flush,
+    hasPending,
+    hasFailed,
+    isBusy,
+    prune,
+  }
 }
