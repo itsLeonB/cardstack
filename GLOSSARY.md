@@ -53,7 +53,11 @@ A Card or Expansion Set that an Admin last updated. Exists because some real Exp
 _Avoid_: calling a Card "custom" or "manual" — those say how it was typed, not whose row it is.
 
 **Collection**:
-A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit (a Collection with a Layout has none: its capacity is its Slot count). May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Strictly private to its owner in MVP; sharing is a post-MVP concern.
+A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit (a Collection with a Layout has none: its capacity is its Slot count). May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Private to its owner until the owner shares it (see Shared).
+
+**Move**:
+Taking the chosen Cards out of one Collection and into another as whole Inventory Entries, every copy of each. A Card the destination already holds adds its quantity to the existing entry. A binder can be the source, which empties the Slots holding those Cards, but never the destination, since a Move chooses no Slot. A Move that would pass the destination's maximum card-count limit is refused whole, and nothing moves.
+_Avoid_: using it for rearranging Slots inside one binder — that moves a Slot's card, not an Inventory Entry between Collections.
 
 **Layout**:
 The physical shape of a binder-style Collection: how many rows and columns each Page has, and how many Leaves there are. Uniform across the whole Collection. A Collection without a Layout (a box, a deck) has no Leaves, Pages or Slots and tracks quantity only.
@@ -118,5 +122,19 @@ _Avoid_: "admin user" or "admin account" — there is no separate account type, 
 The separate web app where an Admin writes catalog content, on its own host and apart from the app users sign in to (the user app). It uses the same API and the same sign-in as the user app, but the API accepts its admin routes only from this app. It is not linked from the user app and is not indexed.
 _Avoid_: calling it the "admin page" or "admin area" — those named the old `/admin` inside the user app, which no longer exists.
 
+**Shared**:
+A Collection or a Wishlist its owner has made viewable by anyone who has its link, signed in or not (a Guest included). Sharing is off by default, and turning it off makes the link stop working at once. A shared page shows the owner's full name, never their email, and has no edit controls. A Collection that is not Shared is private to its owner.
+_Avoid_: "public" for a Collection that merely has a link nobody has been given — Shared is the owner's explicit choice, and a Collection is either Shared or private, nothing in between.
+
+**Slug**:
+The readable, stable name of a profile or of a Shared Collection, as it appears in their link: the owner's name or the Collection's title, lower-cased and hyphenated, followed by a short random-looking tail so two with the same name still differ. A profile always has a Slug. A Collection has one only while it is Shared; a Collection with no Slug is private.
+
 **Wishlist**:
-Not modeled in MVP. A future concept for cards a user wants but doesn't own; do not conflate with Inventory Entry (owned quantity) until it's actually built.
+The cards a user wants and does not yet own, each with a wanted quantity. One per user. A Wishlist Item is one Card and the quantity wanted, and shows how many of that Card the user owns in Master Inventory next to it. Owning the Card never removes the item: it shows as fulfilled until the user clears it. Can be Shared, and anyone viewing a Shared Wishlist, a Guest included, sees the owner's owned and wanted for each item and whether it is fulfilled. A signed-in viewer of another user's Shared Wishlist sees how many of each Card they own themselves, so the two can see where a trade is possible.
+_Avoid_: conflating it with Inventory Entry (owned quantity) — a Wishlist Item never counts toward Master Inventory.
+
+**Wishlist Preset**:
+A one-time way to fill a Wishlist: the user picks Expansion Sets (and may narrow by rarity, category or tag) and the rule "I own none yet", and every matching Card the user owns none of is added as a Wishlist Item with the chosen quantity. It is applied once and then forgotten; later catalog or inventory changes do not touch the Wishlist.
+
+**Scan Filter**:
+The Expansion Sets and/or rarities a scan is limited to. Applies to one scan session (a Draft Addition or a Page Review): the matcher only offers Cards inside it. Empty means no limit. The last one chosen is remembered for the user.
