@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { CollectionShare } from "@/components/collections/collection-share"
 
@@ -19,7 +25,8 @@ interface ApiBody {
 
 interface Server {
   slug: string | null
-  profileStatus: number
+  // "loading" never answers; "offline" fails the request outright.
+  profileStatus: number | "loading" | "offline"
 }
 
 // Each request is answered by path and method, and the calls made are kept.
@@ -46,6 +53,10 @@ function stubServer(server: Server) {
       const method = init?.method ?? "GET"
       calls.push(`${method} ${url.pathname}`)
       if (url.pathname === "/profile") {
+        if (server.profileStatus === "loading")
+          return new Promise<Response>(() => {})
+        if (server.profileStatus === "offline")
+          throw new TypeError("Failed to fetch")
         if (server.profileStatus !== 200)
           return reply(server.profileStatus, { detail: "no profile" })
         return reply(200, {
@@ -82,6 +93,17 @@ function renderShare(server: Server) {
 
 const linkFor = () => `${window.location.origin}/s/profile-ash/${SLUG}`
 
+// Share is disabled until the profile loads, and a click before that does nothing.
+async function enabledButton(name: string) {
+  await vi.waitFor(() =>
+    expect(screen.getByRole("button", { name })).toHaveProperty(
+      "disabled",
+      false
+    )
+  )
+  return screen.getByRole("button", { name })
+}
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -94,7 +116,7 @@ describe("Collection Share button", () => {
     const server: Server = { slug: null, profileStatus: 200 }
     const calls = renderShare(server)
 
-    fireEvent.click(await screen.findByRole("button", { name: "Share" }))
+    fireEvent.click(await enabledButton("Share"))
     fireEvent.click(
       screen.getByRole("switch", { name: "Anyone with the link can view" })
     )
@@ -116,7 +138,7 @@ describe("Collection Share button", () => {
     const server: Server = { slug: SLUG, profileStatus: 200 }
     const calls = renderShare(server)
 
-    fireEvent.click(await screen.findByRole("button", { name: "Shared" }))
+    fireEvent.click(await enabledButton("Shared"))
     fireEvent.click(
       await screen.findByRole("switch", {
         name: "Anyone with the link can view",
@@ -136,15 +158,42 @@ describe("Collection Share button", () => {
     expect(await screen.findByRole("button", { name: "Share" })).toBeTruthy()
   })
 
-  it("shows nothing until the profile Slug is known, so no link can be wrong", async () => {
-    const calls = renderShare({ slug: null, profileStatus: 500 })
+  it("keeps Share visible but disabled while the profile loads", async () => {
+    renderShare({ slug: null, profileStatus: "loading" })
 
-    // Wait until both reads have been made, so the absence is not just early.
-    await vi.waitFor(() => {
-      expect(calls).toContain("GET /profile")
-      expect(calls).toContain(`GET ${COLLECTION}`)
-    })
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(screen.queryByRole("button", { name: /Share/ })).toBeNull()
+    const share = await screen.findByRole("button", { name: "Share" })
+
+    expect(share).toHaveProperty("disabled", true)
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
+  it("shows a failed profile inline, and Retry loads it again", async () => {
+    const server: Server = { slug: null, profileStatus: 429 }
+    const calls = renderShare(server)
+
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText("Could not load sharing")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Share" })).toHaveProperty(
+      "disabled",
+      true
+    )
+
+    server.profileStatus = 200
+    fireEvent.click(within(alert).getByRole("button", { name: "Retry" }))
+
+    await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull())
+    expect(calls.filter((call) => call === "GET /profile")).toHaveLength(2)
+    await enabledButton("Share")
+  })
+
+  it("does not open a Shared Collection's dialog while its profile is missing", async () => {
+    renderShare({ slug: SLUG, profileStatus: "offline" })
+
+    const shared = await screen.findByRole("button", { name: "Shared" })
+    await screen.findByRole("alert")
+    expect(shared).toHaveProperty("disabled", true)
+
+    fireEvent.click(shared)
+    expect(screen.queryByRole("dialog")).toBeNull()
   })
 })
