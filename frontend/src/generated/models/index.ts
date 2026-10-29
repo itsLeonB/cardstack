@@ -7,6 +7,7 @@
 
 export * from './addEntryInputBody.ts';
 export * from './binderGridBody.ts';
+export * from './binderHeader.ts';
 export * from './binderLayout.ts';
 export * from './binderLayoutBody.ts';
 export * from './binderLeafBody.ts';

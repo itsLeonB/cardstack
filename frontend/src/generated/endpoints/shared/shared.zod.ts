@@ -8,7 +8,7 @@ import * as zod from 'zod';
 
 
 /**
- * @summary Get a Shared Collection's header (owner's display name, title, description) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
+ * @summary Get a Shared Collection's header (owner's display name, title, description, and a binder's Layout and Unidentified count) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
  */
 export const GetSharedCollectionParams = zod.object({
   "profileSlug": zod.string().describe('The owner\'s profile Slug.'),
@@ -17,6 +17,15 @@ export const GetSharedCollectionParams = zod.object({
 
 export const GetSharedCollectionResponse = zod.object({
   "data": zod.object({
+  "binder": zod.object({
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
+}).optional().describe('The binder\'s Layout and Unidentified count. Absent for a plain Collection.'),
   "description": zod.string(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "title": zod.string()
@@ -153,6 +162,60 @@ export const ListSharedCollectionFacetsResponse = zod.object({
   "available": zod.boolean(),
   "value": zod.string()
 })).nullable()
+})
+})
+
+/**
+ * @summary Get one Page of a Shared binder: its Slots, with Cards of unpublished sets read as empty; any viewer, a Guest included. A plain Collection or a Page past the last one is the same 404 as a missing link
+ */
+
+
+
+export const GetSharedCollectionPageParams = zod.object({
+  "profileSlug": zod.string().describe('The owner\'s profile Slug.'),
+  "collectionSlug": zod.string().describe('The Collection\'s Slug.'),
+  "page": zod.int().min(1).describe('Page number in turning order, counted from 1.')
+})
+
+export const GetSharedCollectionPageResponse = zod.object({
+  "data": zod.object({
+  "cardTotal": zod.int().describe('Slots holding a Card plus Unidentified Slots, across the whole binder.'),
+  "layout": zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),
+  "leaf": zod.int().describe('Number of the Leaf this Page belongs to, from 1.'),
+  "page": zod.int().describe('Page number in turning order, from 1.'),
+  "side": zod.enum(['front', 'back']).describe('Which face of the Leaf this Page is.'),
+  "slots": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}).describe('The Card in the pocket, set only when State is card.'),
+  "column": zod.int().describe('Column of the pocket on its Page, from 1.'),
+  "row": zod.int().describe('Row of the pocket on its Page, from 1.'),
+  "state": zod.enum(['empty', 'card', 'unidentified']).describe('empty: no card; card: holds Card; unidentified: holds a card the app could not identify.')
+})).nullable(),
+  "unidentifiedCount": zod.int().describe('Unidentified Slots, across the whole binder.')
 })
 })
 

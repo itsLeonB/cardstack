@@ -25,6 +25,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  EnvelopeBinderPage,
   EnvelopeCatalogFacets,
   EnvelopeSharedCollectionSummary,
   EnvelopeWithMetaListInventoryItemPaginationMeta,
@@ -91,7 +92,7 @@ export const getGetSharedCollectionUrl = (profileSlug: string,
 }
 
 /**
- * @summary Get a Shared Collection's header (owner's display name, title, description) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
+ * @summary Get a Shared Collection's header (owner's display name, title, description, and a binder's Layout and Unidentified count) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
  */
 export const getSharedCollection = async (profileSlug: string,
     collectionSlug: string, options?: Parameters<typeof customFetch>[1]): Promise<getSharedCollectionResponse> => {
@@ -168,7 +169,7 @@ export function useGetSharedCollection<TData = Awaited<ReturnType<typeof getShar
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Get a Shared Collection's header (owner's display name, title, description) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
+ * @summary Get a Shared Collection's header (owner's display name, title, description, and a binder's Layout and Unidentified count) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
  */
 
 export function useGetSharedCollection<TData = Awaited<ReturnType<typeof getSharedCollection>>, TError = ErrorModel>(
@@ -563,6 +564,141 @@ export function useListSharedCollectionFacets<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListSharedCollectionFacetsQueryOptions(profileSlug,collectionSlug,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type getSharedCollectionPageResponse200 = {
+  data: EnvelopeBinderPage
+  status: 200
+}
+
+export type getSharedCollectionPageResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getSharedCollectionPageResponseSuccess = (getSharedCollectionPageResponse200) & {
+  headers: Headers;
+};
+export type getSharedCollectionPageResponseError = (getSharedCollectionPageResponseDefault) & {
+  headers: Headers;
+};
+
+export type getSharedCollectionPageResponse = (getSharedCollectionPageResponseSuccess | getSharedCollectionPageResponseError)
+
+export const getGetSharedCollectionPageUrl = (profileSlug: string,
+    collectionSlug: string,
+    page: number,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/${collectionSlug}/pages/${page}`
+}
+
+/**
+ * @summary Get one Page of a Shared binder: its Slots, with Cards of unpublished sets read as empty; any viewer, a Guest included. A plain Collection or a Page past the last one is the same 404 as a missing link
+ */
+export const getSharedCollectionPage = async (profileSlug: string,
+    collectionSlug: string,
+    page: number, options?: Parameters<typeof customFetch>[1]): Promise<getSharedCollectionPageResponse> => {
+
+  return customFetch<getSharedCollectionPageResponse>(getGetSharedCollectionPageUrl(profileSlug,collectionSlug,page),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSharedCollectionPageQueryKey = (profileSlug: string,
+    collectionSlug: string,
+    page: number,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/${collectionSlug}/pages/${page}`
+    ] as const;
+    }
+
+
+export const getGetSharedCollectionPageQueryOptions = <TData = Awaited<ReturnType<typeof getSharedCollectionPage>>, TError = ErrorModel>(profileSlug: string,
+    collectionSlug: string,
+    page: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedCollectionPage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSharedCollectionPageQueryKey(profileSlug,collectionSlug,page);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSharedCollectionPage>>> = ({ signal }) => getSharedCollectionPage(profileSlug,collectionSlug,page, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: profileSlug !== null && profileSlug !== undefined && collectionSlug !== null && collectionSlug !== undefined && page !== null && page !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSharedCollectionPage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSharedCollectionPageQueryResult = NonNullable<Awaited<ReturnType<typeof getSharedCollectionPage>>>
+export type GetSharedCollectionPageQueryError = ErrorModel
+
+
+export function useGetSharedCollectionPage<TData = Awaited<ReturnType<typeof getSharedCollectionPage>>, TError = ErrorModel>(
+ profileSlug: string,
+    collectionSlug: string,
+    page: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedCollectionPage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSharedCollectionPage>>,
+          TError,
+          Awaited<ReturnType<typeof getSharedCollectionPage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSharedCollectionPage<TData = Awaited<ReturnType<typeof getSharedCollectionPage>>, TError = ErrorModel>(
+ profileSlug: string,
+    collectionSlug: string,
+    page: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedCollectionPage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSharedCollectionPage>>,
+          TError,
+          Awaited<ReturnType<typeof getSharedCollectionPage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSharedCollectionPage<TData = Awaited<ReturnType<typeof getSharedCollectionPage>>, TError = ErrorModel>(
+ profileSlug: string,
+    collectionSlug: string,
+    page: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedCollectionPage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get one Page of a Shared binder: its Slots, with Cards of unpublished sets read as empty; any viewer, a Guest included. A plain Collection or a Page past the last one is the same 404 as a missing link
+ */
+
+export function useGetSharedCollectionPage<TData = Awaited<ReturnType<typeof getSharedCollectionPage>>, TError = ErrorModel>(
+ profileSlug: string,
+    collectionSlug: string,
+    page: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedCollectionPage>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSharedCollectionPageQueryOptions(profileSlug,collectionSlug,page,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
