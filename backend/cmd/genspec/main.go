@@ -30,7 +30,7 @@ func main() {
 	// and limiters are stored in the route closures but never actually called.
 	// The admin routes exist only when an Admin is configured, so a placeholder
 	// puts them in the spec; the address is never compared against anything.
-	if err := routes.RegisterRoutes(api, provider.ProvideServices(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil), ratelimit.Limits{}, []string{"admin@example.invalid"}); err != nil {
+	if err := routes.RegisterRoutes(api, provider.ProvideServices(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil), ratelimit.Limits{}, []string{"admin@example.invalid"}); err != nil {
 		fmt.Fprintln(os.Stderr, "error registering routes:", err)
 		os.Exit(1)
 	}

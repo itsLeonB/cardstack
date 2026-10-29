@@ -22,3 +22,15 @@ type CallerIdentity struct {
 	UserID    uuid.UUID
 	ProfileID uuid.UUID
 }
+
+// ProfileLookup addresses a profile by its ID.
+type ProfileLookup struct {
+	ProfileID uuid.UUID
+}
+
+// ProfileSummary is the caller's own profile: the display name, and the Slug
+// their share links are built from. The email is never part of it.
+type ProfileSummary struct {
+	Name string `json:"name"`
+	Slug string `json:"slug" doc:"The Slug share links are built from (/s/{slug}/{collectionSlug})."`
+}

@@ -63,7 +63,7 @@ func TestR2_Configured_NeedsEveryField(t *testing.T) {
 func TestRateLimitDefaultsAndEnvVarNames(t *testing.T) {
 	defaults := DefaultRateLimit()
 	require.NoError(t, envconfig.Process(defaults.Prefix(), &defaults))
-	assert.Equal(t, RateLimit{User: Tier{PerMinute: 300, Burst: 100}, Search: Tier{PerMinute: 60, Burst: 30}, Facets: Tier{PerMinute: 30, Burst: 15}}, defaults)
+	assert.Equal(t, RateLimit{User: Tier{PerMinute: 300, Burst: 100}, Search: Tier{PerMinute: 60, Burst: 30}, Facets: Tier{PerMinute: 30, Burst: 15}, Shared: Tier{PerMinute: 60, Burst: 30}}, defaults)
 	assert.NoError(t, defaults.ValidateRateLimit())
 
 	t.Setenv("RATE_LIMIT_USER_PER_MINUTE", "1")
@@ -72,10 +72,12 @@ func TestRateLimitDefaultsAndEnvVarNames(t *testing.T) {
 	t.Setenv("RATE_LIMIT_SEARCH_BURST", "4")
 	t.Setenv("RATE_LIMIT_FACETS_PER_MINUTE", "5")
 	t.Setenv("RATE_LIMIT_FACETS_BURST", "6")
+	t.Setenv("RATE_LIMIT_SHARED_PER_MINUTE", "7")
+	t.Setenv("RATE_LIMIT_SHARED_BURST", "8")
 
 	set := DefaultRateLimit()
 	require.NoError(t, envconfig.Process(set.Prefix(), &set))
-	assert.Equal(t, RateLimit{User: Tier{PerMinute: 1, Burst: 2}, Search: Tier{PerMinute: 3, Burst: 4}, Facets: Tier{PerMinute: 5, Burst: 6}}, set)
+	assert.Equal(t, RateLimit{User: Tier{PerMinute: 1, Burst: 2}, Search: Tier{PerMinute: 3, Burst: 4}, Facets: Tier{PerMinute: 5, Burst: 6}, Shared: Tier{PerMinute: 7, Burst: 8}}, set)
 }
 
 func TestMatchDefaultsAndEnvVarNames(t *testing.T) {

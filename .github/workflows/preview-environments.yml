@@ -9,6 +9,8 @@ name: Preview Environments
 #   3. a fresh Vercel preview deployment pointed at that Railway environment,
 #      whose URL is then set as APP_CLIENT_URLS on the Railway API, so the API
 #      accepts tokens minted for that preview
+#      (the inherited APP_EDGE_SECRET is deleted from that environment, since
+#      a preview is not behind Cloudflare)
 #
 # Railway's own PR environment is torn down automatically by Railway when the
 # PR is merged/closed. This workflow owns the Neon branch lifecycle, the PR's
@@ -236,6 +238,26 @@ jobs:
             "CLERK_ISSUER=$issuer" \
             --service api \
             --environment "$RAILWAY_ENV"
+
+          # Railway forks the PR environment from production, so it inherits
+          # APP_EDGE_SECRET. A preview is reached through its own Railway and
+          # Vercel URLs, not Cloudflare, so nothing adds the X-Edge-Secret
+          # header and the API would answer 403 to every route but /health
+          # (the browser reports it as a CORS failure, since the 403
+          # preflight carries no CORS headers). This runs after the variables
+          # above so the redeploy it triggers already has the preview's own
+          # database settings. The listing is captured on its own line, not
+          # piped, so a failed lookup fails the step (the default shell has no
+          # pipefail) instead of reading as "not set"; the listing carries raw
+          # values, so only the true/false answer is ever printed.
+          variables=$(railway variable list --service api \
+            --environment "$RAILWAY_ENV" --json)
+          has_edge_secret=$(jq -r 'has("APP_EDGE_SECRET")' <<<"$variables")
+          if [[ "$has_edge_secret" == "true" ]]; then
+            railway variable delete APP_EDGE_SECRET \
+              --service api \
+              --environment "$RAILWAY_ENV"
+          fi
 
       - name: Wait for the Railway API's public domain
         id: railway-domain

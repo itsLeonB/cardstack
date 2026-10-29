@@ -6,6 +6,8 @@ import {
   getListCollectionsQueryKey,
   useCreateCollection,
   useDeleteCollection,
+  useShareCollection,
+  useUnshareCollection,
   useUpdateCollection,
 } from "@/generated/endpoints/collections/collections"
 import {
@@ -183,6 +185,50 @@ export function useDeleteCollectionMutation() {
       },
     },
   })
+}
+
+/**
+ * Sharing changes the Collection's slug, which the header and the list read,
+ * so both caches are refreshed on success. The unshare route answers 200 too.
+ */
+export function useShareCollectionMutation() {
+  const queryClient = useQueryClient()
+
+  return useShareCollection({
+    mutation: {
+      // Returned, so the mutation stays pending until the refreshed slug is cached.
+      onSuccess: (response, { id }) => {
+        if (response.status === 200) return invalidateSharing(queryClient, id)
+      },
+    },
+  })
+}
+
+export function useUnshareCollectionMutation() {
+  const queryClient = useQueryClient()
+
+  return useUnshareCollection({
+    mutation: {
+      // Returned, so the mutation stays pending until the refreshed slug is cached.
+      onSuccess: (response, { id }) => {
+        if (response.status === 200) return invalidateSharing(queryClient, id)
+      },
+    },
+  })
+}
+
+async function invalidateSharing(
+  queryClient: QueryClient,
+  collectionId: string
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: getListCollectionsQueryKey(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: getGetCollectionQueryKey(collectionId),
+    }),
+  ])
 }
 
 // Success bodies are `{ data }` envelopes and error bodies carry `detail`; both

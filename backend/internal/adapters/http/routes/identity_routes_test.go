@@ -11,12 +11,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const (
 	privatePath    = "/collections"
+	profilePath    = "/profile"
 	guestOKPath    = "/catalog/series"
 	healthPath     = "/health"
 	unauthorizedOK = http.StatusUnauthorized
@@ -93,6 +95,7 @@ func TestFirstRequestCreatesUserAndProfile(t *testing.T) {
 	profiles := api.profilesOf(t, users[0])
 	require.Len(t, profiles, 1)
 	assert.Equal(t, "Test User", profiles[0].Name)
+	assert.Equal(t, "test-user-"+profiles[0].ID.String()[31:], profiles[0].Slug, "the Slug is the hyphenated name and the last 5 hex characters of the id")
 
 	// The same Auth Identity keeps mapping to the same profile.
 	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(token)).Code)
@@ -159,6 +162,58 @@ func TestEmailRefreshesAndNameIsNeverOverwritten(t *testing.T) {
 	profiles := api.profilesOf(t, users[0])
 	require.Len(t, profiles, 1)
 	assert.Equal(t, "Test User", profiles[0].Name, "the profile name is written once")
+	assert.Equal(t, "test-user-"+profiles[0].ID.String()[31:], profiles[0].Slug, "the Slug never changes")
+}
+
+// TestBackfilledProfileKeepsItsSlug starts from a profile that exists before the
+// user's first request, as every profile did when the migration backfilled
+// Slugs: the request must resolve to it, not make a second one.
+func TestBackfilledProfileKeepsItsSlug(t *testing.T) {
+	api := newTestAPI(t)
+	claims := validClaims()
+	subject, _ := claims["sub"].(string)
+	user := entity.User{AuthProvider: dto.AuthProviderClerk, AuthSubject: subject, Email: claims["email"].(string)}
+	require.NoError(t, api.db.Create(&user).Error)
+	id := uuid.New()
+	backfilled := entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}, UserID: user.ID, Name: "Old Name", Slug: "old-name-" + id.String()[31:]}
+	require.NoError(t, api.db.Create(&backfilled).Error)
+
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+
+	profiles := api.profilesOf(t, user)
+	require.Len(t, profiles, 1)
+	assert.Equal(t, backfilled.ID, profiles[0].ID)
+	assert.Equal(t, backfilled.Slug, profiles[0].Slug)
+}
+
+func TestProfileSlugFallsBackToUserWhenTheNameSlugifiesToNothing(t *testing.T) {
+	api := newTestAPI(t)
+	claims := validClaims()
+	claims["name"] = "🔥🔥"
+
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+
+	users := api.usersWithSubject(t, claims["sub"].(string))
+	require.Len(t, users, 1)
+	profiles := api.profilesOf(t, users[0])
+	require.Len(t, profiles, 1)
+	assert.Equal(t, "user-"+profiles[0].ID.String()[31:], profiles[0].Slug)
+}
+
+func TestProfilesWithTheSameNameGetDifferentSlugs(t *testing.T) {
+	api := newTestAPI(t)
+	slugs := map[string]bool{}
+	for range 5 {
+		claims := validClaims()
+		require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+		users := api.usersWithSubject(t, claims["sub"].(string))
+		require.Len(t, users, 1)
+		profiles := api.profilesOf(t, users[0])
+		require.Len(t, profiles, 1)
+		assert.Equal(t, "Test User", profiles[0].Name)
+		slugs[profiles[0].Slug] = true
+	}
+	assert.Len(t, slugs, 5)
 }
 
 func TestForeignAndMissingCollectionsLookIdentical(t *testing.T) {
@@ -176,4 +231,32 @@ func TestForeignAndMissingCollectionsLookIdentical(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, foreign.Code)
 	assert.Equal(t, http.StatusNotFound, missing.Code)
 	assert.Equal(t, missing.Body.String(), foreign.Body.String())
+}
+
+// The signed-in client builds its share link from this Slug, so GET /profile
+// answers with exactly the stored name and Slug, never the email.
+func TestGetProfileReturnsTheCallersNameAndSlugOnly(t *testing.T) {
+	api := newTestAPI(t)
+	claims := validClaims()
+	token := api.sign(t, claims)
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(token)).Code)
+
+	users := api.usersWithSubject(t, claims["sub"].(string))
+	require.Len(t, users, 1)
+	profiles := api.profilesOf(t, users[0])
+	require.Len(t, profiles, 1)
+
+	resp := api.Get(profilePath, bearer(token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var env struct {
+		Data map[string]any `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &env))
+	assert.Equal(t, map[string]any{"name": profiles[0].Name, "slug": profiles[0].Slug}, env.Data)
+	assert.NotContains(t, resp.Body.String(), claims["email"])
+}
+
+func TestGetProfileIsSignedInOnly(t *testing.T) {
+	api := newTestAPI(t)
+	assert.Equal(t, unauthorizedOK, api.Get(profilePath).Code, "a Guest on the profile route")
 }

@@ -238,6 +238,64 @@ func (_c *MockCollectionRepository_FindFirst_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// FindSharedCollection provides a mock function with given fields: ctx, profileID, slug
+func (_m *MockCollectionRepository) FindSharedCollection(ctx context.Context, profileID uuid.UUID, slug string) (entity.Collection, error) {
+	ret := _m.Called(ctx, profileID, slug)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindSharedCollection")
+	}
+
+	var r0 entity.Collection
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (entity.Collection, error)); ok {
+		return rf(ctx, profileID, slug)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) entity.Collection); ok {
+		r0 = rf(ctx, profileID, slug)
+	} else {
+		r0 = ret.Get(0).(entity.Collection)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
+		r1 = rf(ctx, profileID, slug)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCollectionRepository_FindSharedCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindSharedCollection'
+type MockCollectionRepository_FindSharedCollection_Call struct {
+	*mock.Call
+}
+
+// FindSharedCollection is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileID uuid.UUID
+//   - slug string
+func (_e *MockCollectionRepository_Expecter) FindSharedCollection(ctx interface{}, profileID interface{}, slug interface{}) *MockCollectionRepository_FindSharedCollection_Call {
+	return &MockCollectionRepository_FindSharedCollection_Call{Call: _e.mock.On("FindSharedCollection", ctx, profileID, slug)}
+}
+
+func (_c *MockCollectionRepository_FindSharedCollection_Call) Run(run func(ctx context.Context, profileID uuid.UUID, slug string)) *MockCollectionRepository_FindSharedCollection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockCollectionRepository_FindSharedCollection_Call) Return(_a0 entity.Collection, _a1 error) *MockCollectionRepository_FindSharedCollection_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCollectionRepository_FindSharedCollection_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) (entity.Collection, error)) *MockCollectionRepository_FindSharedCollection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGormInstance provides a mock function with given fields: ctx
 func (_m *MockCollectionRepository) GetGormInstance(ctx context.Context) (*gorm.DB, error) {
 	ret := _m.Called(ctx)

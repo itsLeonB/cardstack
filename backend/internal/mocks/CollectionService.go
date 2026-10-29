@@ -242,6 +242,120 @@ func (_c *MockCollectionService_List_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// Share provides a mock function with given fields: ctx, req
+func (_m *MockCollectionService) Share(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Share")
+	}
+
+	var r0 dto.CollectionSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CollectionLookup) (dto.CollectionSummary, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CollectionLookup) dto.CollectionSummary); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.CollectionSummary)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CollectionLookup) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCollectionService_Share_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Share'
+type MockCollectionService_Share_Call struct {
+	*mock.Call
+}
+
+// Share is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.CollectionLookup
+func (_e *MockCollectionService_Expecter) Share(ctx interface{}, req interface{}) *MockCollectionService_Share_Call {
+	return &MockCollectionService_Share_Call{Call: _e.mock.On("Share", ctx, req)}
+}
+
+func (_c *MockCollectionService_Share_Call) Run(run func(ctx context.Context, req dto.CollectionLookup)) *MockCollectionService_Share_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.CollectionLookup))
+	})
+	return _c
+}
+
+func (_c *MockCollectionService_Share_Call) Return(_a0 dto.CollectionSummary, _a1 error) *MockCollectionService_Share_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCollectionService_Share_Call) RunAndReturn(run func(context.Context, dto.CollectionLookup) (dto.CollectionSummary, error)) *MockCollectionService_Share_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Unshare provides a mock function with given fields: ctx, req
+func (_m *MockCollectionService) Unshare(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Unshare")
+	}
+
+	var r0 dto.CollectionSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CollectionLookup) (dto.CollectionSummary, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.CollectionLookup) dto.CollectionSummary); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.CollectionSummary)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.CollectionLookup) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCollectionService_Unshare_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Unshare'
+type MockCollectionService_Unshare_Call struct {
+	*mock.Call
+}
+
+// Unshare is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.CollectionLookup
+func (_e *MockCollectionService_Expecter) Unshare(ctx interface{}, req interface{}) *MockCollectionService_Unshare_Call {
+	return &MockCollectionService_Unshare_Call{Call: _e.mock.On("Unshare", ctx, req)}
+}
+
+func (_c *MockCollectionService_Unshare_Call) Run(run func(ctx context.Context, req dto.CollectionLookup)) *MockCollectionService_Unshare_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.CollectionLookup))
+	})
+	return _c
+}
+
+func (_c *MockCollectionService_Unshare_Call) Return(_a0 dto.CollectionSummary, _a1 error) *MockCollectionService_Unshare_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCollectionService_Unshare_Call) RunAndReturn(run func(context.Context, dto.CollectionLookup) (dto.CollectionSummary, error)) *MockCollectionService_Unshare_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function with given fields: ctx, req
 func (_m *MockCollectionService) Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error) {
 	ret := _m.Called(ctx, req)

@@ -312,7 +312,7 @@ export const getDeleteCollectionUrl = (id: string,) => {
 }
 
 /**
- * @summary Delete one of the current user's own Collections (hard delete, no undo)
+ * @summary Delete one of the current user's own Collections (hard delete, no undo); a Shared Collection's link ends with it
  */
 export const deleteCollection = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<deleteCollectionResponse> => {
 
@@ -364,7 +364,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteCollectionMutationVariables = {id: string}
 
     /**
- * @summary Delete one of the current user's own Collections (hard delete, no undo)
+ * @summary Delete one of the current user's own Collections (hard delete, no undo); a Shared Collection's link ends with it
  */
 export const useDeleteCollection = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCollection>>, TError,DeleteCollectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -601,4 +601,188 @@ export const useUpdateCollection = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getUpdateCollectionMutationOptions(options), queryClient);
+    }
+    export type unshareCollectionResponse200 = {
+  data: EnvelopeCollectionSummary
+  status: 200
+}
+
+export type unshareCollectionResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type unshareCollectionResponseSuccess = (unshareCollectionResponse200) & {
+  headers: Headers;
+};
+export type unshareCollectionResponseError = (unshareCollectionResponseDefault) & {
+  headers: Headers;
+};
+
+export type unshareCollectionResponse = (unshareCollectionResponseSuccess | unshareCollectionResponseError)
+
+export const getUnshareCollectionUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/share`
+}
+
+/**
+ * @summary Stop sharing one of the current user's own Collections; its link stops working at once and a later share makes a new one
+ */
+export const unshareCollection = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<unshareCollectionResponse> => {
+
+  return customFetch<unshareCollectionResponse>(getUnshareCollectionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnshareCollectionMutationKey = () => ['unshareCollection'] as const;
+
+export const getUnshareCollectionMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unshareCollection>>, TError,UnshareCollectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unshareCollection>>, TError,UnshareCollectionMutationVariables, TContext> => {
+
+const mutationKey = getUnshareCollectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unshareCollection>>, UnshareCollectionMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  unshareCollection(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnshareCollectionMutationResult = NonNullable<Awaited<ReturnType<typeof unshareCollection>>>
+
+    export type UnshareCollectionMutationError = ErrorModel
+    export type UnshareCollectionMutationVariables = {id: string}
+
+    /**
+ * @summary Stop sharing one of the current user's own Collections; its link stops working at once and a later share makes a new one
+ */
+export const useUnshareCollection = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unshareCollection>>, TError,UnshareCollectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unshareCollection>>,
+        TError,
+        UnshareCollectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnshareCollectionMutationOptions(options), queryClient);
+    }
+    export type shareCollectionResponse200 = {
+  data: EnvelopeCollectionSummary
+  status: 200
+}
+
+export type shareCollectionResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type shareCollectionResponseSuccess = (shareCollectionResponse200) & {
+  headers: Headers;
+};
+export type shareCollectionResponseError = (shareCollectionResponseDefault) & {
+  headers: Headers;
+};
+
+export type shareCollectionResponse = (shareCollectionResponseSuccess | shareCollectionResponseError)
+
+export const getShareCollectionUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/share`
+}
+
+/**
+ * @summary Share one of the current user's own Collections: anyone with the link can view it. Sharing an already-Shared Collection keeps its link
+ */
+export const shareCollection = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<shareCollectionResponse> => {
+
+  return customFetch<shareCollectionResponse>(getShareCollectionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getShareCollectionMutationKey = () => ['shareCollection'] as const;
+
+export const getShareCollectionMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shareCollection>>, TError,ShareCollectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof shareCollection>>, TError,ShareCollectionMutationVariables, TContext> => {
+
+const mutationKey = getShareCollectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof shareCollection>>, ShareCollectionMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  shareCollection(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ShareCollectionMutationResult = NonNullable<Awaited<ReturnType<typeof shareCollection>>>
+
+    export type ShareCollectionMutationError = ErrorModel
+    export type ShareCollectionMutationVariables = {id: string}
+
+    /**
+ * @summary Share one of the current user's own Collections: anyone with the link can view it. Sharing an already-Shared Collection keeps its link
+ */
+export const useShareCollection = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shareCollection>>, TError,ShareCollectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof shareCollection>>,
+        TError,
+        ShareCollectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getShareCollectionMutationOptions(options), queryClient);
     }

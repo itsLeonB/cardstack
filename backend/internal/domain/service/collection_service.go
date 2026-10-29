@@ -23,6 +23,11 @@ type CollectionService interface {
 	Get(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error)
 	Update(ctx context.Context, req dto.CollectionRequest) (dto.CollectionSummary, error)
 	Delete(ctx context.Context, req dto.CollectionLookup) error
+	// Share turns sharing on, giving the Collection a Slug. Sharing an
+	// already-Shared Collection keeps its Slug, so the link does not move.
+	Share(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error)
+	// Unshare turns sharing off and clears the Slug, ending the link at once.
+	Unshare(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error)
 }
 
 type collectionService struct {
@@ -139,6 +144,58 @@ func (s *collectionService) Delete(ctx context.Context, req dto.CollectionLookup
 	}
 
 	return s.repo.Delete(ctx, c)
+}
+
+// Share gives the Collection a Slug from its title. The tail is the last 5 hex
+// characters of a new id, not the row's own: the row's id never changes, so
+// reusing it would make a re-share reproduce the old link, which must never
+// come back (ADR-0025, Consequences). A new uuid's tail is random too.
+func (s *collectionService) Share(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
+	var shared entity.Collection
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, true)
+		if err != nil {
+			return err
+		}
+		if c.Slug != nil {
+			shared = c
+			return nil
+		}
+
+		// ponytail: a collision on (profile, stem, 5-hex tail) fails the unique index and surfaces as a 500, with no retry. Upgrade: on that unique violation, retry in a new transaction (this one is aborted) with a fresh tail.
+		slug := mapper.SlugOf(c.Title, "collection", uuid.New())
+		c.Slug = &slug
+		shared, err = s.repo.Update(ctx, c)
+		return err
+	})
+	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	return s.summarize(ctx, shared)
+}
+
+func (s *collectionService) Unshare(ctx context.Context, req dto.CollectionLookup) (dto.CollectionSummary, error) {
+	var unshared entity.Collection
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, err := s.repo.GetOwnedCollection(ctx, req.ProfileID, req.ID, true)
+		if err != nil {
+			return err
+		}
+		if c.Slug == nil {
+			unshared = c
+			return nil
+		}
+
+		c.Slug = nil
+		unshared, err = s.repo.Update(ctx, c)
+		return err
+	})
+	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	return s.summarize(ctx, unshared)
 }
 
 func (s *collectionService) summarize(ctx context.Context, c entity.Collection) (dto.CollectionSummary, error) {

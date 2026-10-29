@@ -19,22 +19,23 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideServices)
 
 type Services struct {
-	Health       service.HealthService
-	Verifier     auth.TokenVerifier
-	Users        service.UserService
-	Catalog      service.CatalogService
-	Collection   service.CollectionService
-	Inventory    service.InventoryService
-	Binder       service.BinderService
-	BinderSlot   service.BinderSlotService
-	Match        service.MatchService
-	AdminSets    service.AdminSetService
-	CardAdmin    service.CardAdminService
-	ScanPhoto    service.ScanPhotoService
-	ScanFeedback service.ScanFeedbackService
+	Health           service.HealthService
+	Verifier         auth.TokenVerifier
+	Users            service.UserService
+	Catalog          service.CatalogService
+	Collection       service.CollectionService
+	SharedCollection service.SharedCollectionService
+	Inventory        service.InventoryService
+	Binder           service.BinderService
+	BinderSlot       service.BinderSlotService
+	Match            service.MatchService
+	AdminSets        service.AdminSetService
+	CardAdmin        service.CardAdminService
+	ScanPhoto        service.ScanPhotoService
+	ScanFeedback     service.ScanFeedbackService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -71,6 +72,16 @@ func ProvideCollectionService(ds *DataSources) service.CollectionService {
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
 		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+	)
+}
+
+// ProvideSharedCollectionService builds the shared-link service over ds's DB.
+func ProvideSharedCollectionService(ds *DataSources, images mapper.ImageHost) service.SharedCollectionService {
+	return service.NewSharedCollectionService(
+		crud.NewRepository[entity.UserProfile](ds.Gorm),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
+		images,
 	)
 }
 
@@ -171,20 +182,21 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService) *Services {
 	return &Services{
-		Health:       coreservice.NewHealthService(),
-		Verifier:     verifier,
-		Users:        users,
-		Catalog:      catalog,
-		Collection:   collection,
-		Inventory:    inventory,
-		Binder:       binder,
-		BinderSlot:   binderSlot,
-		Match:        match,
-		AdminSets:    adminSets,
-		CardAdmin:    cardAdmin,
-		ScanPhoto:    scanPhoto,
-		ScanFeedback: scanFeedback,
+		Health:           coreservice.NewHealthService(),
+		Verifier:         verifier,
+		Users:            users,
+		Catalog:          catalog,
+		Collection:       collection,
+		SharedCollection: sharedCollection,
+		Inventory:        inventory,
+		Binder:           binder,
+		BinderSlot:       binderSlot,
+		Match:            match,
+		AdminSets:        adminSets,
+		CardAdmin:        cardAdmin,
+		ScanPhoto:        scanPhoto,
+		ScanFeedback:     scanFeedback,
 	}
 }

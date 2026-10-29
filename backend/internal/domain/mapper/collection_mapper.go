@@ -15,5 +15,6 @@ func ToCollectionSummary(c entity.Collection, cardCount int, binder *dto.BinderL
 		MaxCardCount: c.MaxCardCount,
 		CardCount:    cardCount,
 		Binder:       binder,
+		Slug:         c.Slug,
 	}
 }

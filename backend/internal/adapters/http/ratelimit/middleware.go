@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"math"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -22,6 +23,7 @@ type Limits struct {
 	User   *Limiter
 	Search *Limiter
 	Facets *Limiter
+	Shared *Limiter
 	Now    func() time.Time
 }
 
@@ -30,6 +32,7 @@ func NewLimits(cfg config.RateLimit, now func() time.Time) Limits {
 		User:   NewLimiter(cfg.User.PerMinute, cfg.User.Burst),
 		Search: NewLimiter(cfg.Search.PerMinute, cfg.Search.Burst),
 		Facets: NewLimiter(cfg.Facets.PerMinute, cfg.Facets.Burst),
+		Shared: NewLimiter(cfg.Shared.PerMinute, cfg.Shared.Burst),
 		Now:    now,
 	}
 }
@@ -58,11 +61,42 @@ func PerUser(api huma.API, limits Limits, byOperation map[string]*Limiter) func(
 			return
 		}
 
-		ctx.SetHeader("Retry-After", strconv.Itoa(retryAfterSeconds(retryAfter)))
-		err := ungerr.TooManyRequestsError(tooManyRequestsMsg)
-		if writeFailure := huma.WriteErr(api, ctx, http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests), err); writeFailure != nil {
-			logger.Errorf("writing rate limit response: %v", writeFailure)
+		refuse(api, ctx, retryAfter)
+	}
+}
+
+// PerIP limits every caller of the routes it guards by client address, guest
+// or signed in, so a shared page spends one allowance per address. Unlike
+// PerUser it does not read the caller, so it needs no auth.Guard before it.
+func PerIP(api huma.API, limiter *Limiter, now func() time.Time) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		allowed, retryAfter := limiter.Allow(clientKey(ctx.RemoteAddr()), now())
+		if allowed {
+			next(ctx)
+			return
 		}
+
+		refuse(api, ctx, retryAfter)
+	}
+}
+
+// clientKey is the limiter key for a request's client. Without a proxy header,
+// RemoteAddr is ip:port, and keying on it would give every connection its own
+// bucket. A value with no port (the proxy-set bare IP) is returned unchanged.
+func clientKey(remoteAddr string) string {
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return host
+	}
+	return remoteAddr
+}
+
+// refuse writes the 429 both limiters answer with: a whole-second Retry-After
+// and a body that says nothing about the caller.
+func refuse(api huma.API, ctx huma.Context, retryAfter time.Duration) {
+	ctx.SetHeader("Retry-After", strconv.Itoa(retryAfterSeconds(retryAfter)))
+	err := ungerr.TooManyRequestsError(tooManyRequestsMsg)
+	if writeFailure := huma.WriteErr(api, ctx, http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests), err); writeFailure != nil {
+		logger.Errorf("writing rate limit response: %v", writeFailure)
 	}
 }
 

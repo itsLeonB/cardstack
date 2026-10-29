@@ -22,6 +22,63 @@ func (_m *MockUserService) EXPECT() *MockUserService_Expecter {
 	return &MockUserService_Expecter{mock: &_m.Mock}
 }
 
+// Profile provides a mock function with given fields: ctx, lookup
+func (_m *MockUserService) Profile(ctx context.Context, lookup dto.ProfileLookup) (dto.ProfileSummary, error) {
+	ret := _m.Called(ctx, lookup)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Profile")
+	}
+
+	var r0 dto.ProfileSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.ProfileLookup) (dto.ProfileSummary, error)); ok {
+		return rf(ctx, lookup)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.ProfileLookup) dto.ProfileSummary); ok {
+		r0 = rf(ctx, lookup)
+	} else {
+		r0 = ret.Get(0).(dto.ProfileSummary)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.ProfileLookup) error); ok {
+		r1 = rf(ctx, lookup)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockUserService_Profile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Profile'
+type MockUserService_Profile_Call struct {
+	*mock.Call
+}
+
+// Profile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - lookup dto.ProfileLookup
+func (_e *MockUserService_Expecter) Profile(ctx interface{}, lookup interface{}) *MockUserService_Profile_Call {
+	return &MockUserService_Profile_Call{Call: _e.mock.On("Profile", ctx, lookup)}
+}
+
+func (_c *MockUserService_Profile_Call) Run(run func(ctx context.Context, lookup dto.ProfileLookup)) *MockUserService_Profile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.ProfileLookup))
+	})
+	return _c
+}
+
+func (_c *MockUserService_Profile_Call) Return(_a0 dto.ProfileSummary, _a1 error) *MockUserService_Profile_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockUserService_Profile_Call) RunAndReturn(run func(context.Context, dto.ProfileLookup) (dto.ProfileSummary, error)) *MockUserService_Profile_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResolveCaller provides a mock function with given fields: ctx, identity
 func (_m *MockUserService) ResolveCaller(ctx context.Context, identity dto.AuthIdentity) (dto.CallerIdentity, error) {
 	ret := _m.Called(ctx, identity)
