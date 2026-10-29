@@ -21,6 +21,7 @@ var tightLimits = config.RateLimit{
 	User:   config.Tier{PerMinute: 60, Burst: 4},
 	Search: config.Tier{PerMinute: 30, Burst: 2},
 	Facets: config.Tier{PerMinute: 30, Burst: 1},
+	Shared: config.Tier{PerMinute: 60, Burst: 2},
 }
 
 type fakeClock struct {
@@ -121,6 +122,19 @@ func TestRateLimit_GuestsAreNotLimitedPerUser(t *testing.T) {
 	for i := range tightLimits.User.Burst + tightLimits.Search.Burst + 1 {
 		assert.Equal(t, http.StatusOK, api.Get("/catalog/cards?name=rate").Code, "guest search %d", i+1)
 	}
+}
+
+// TestRateLimit_SharedPagesAreLimitedPerClientNotPerUser: a shared page is
+// limited by the caller's address, guest or signed in, on its own bucket.
+func TestRateLimit_SharedPagesAreLimitedPerClientNotPerUser(t *testing.T) {
+	api, _ := newRateLimitedAPI(t)
+	path := "/shared/no-such-user-00000/no-such-binder-00000"
+
+	for i := range tightLimits.Shared.Burst {
+		assert.Equal(t, http.StatusNotFound, api.Get(path).Code, "shared request %d is served", i+1)
+	}
+	assertRateLimited(t, api.Get(path), "1", "a guest over the shared allowance")
+	assertRateLimited(t, api.Get(path, bearer(api.newUserToken(t))), "1", "a signed-in caller from the same address shares the allowance")
 }
 
 func TestRateLimit_InventorySearchAndFacetsShareTheTighterBuckets(t *testing.T) {

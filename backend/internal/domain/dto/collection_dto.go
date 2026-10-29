@@ -14,6 +14,7 @@ type CollectionSummary struct {
 	MaxCardCount int           `json:"maxCardCount"`
 	CardCount    int           `json:"cardCount"`
 	Binder       *BinderLayout `json:"binder" doc:"The binder's Layout, or null when the Collection is a plain box or deck."`
+	Slug         *string       `json:"slug" doc:"The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private."`
 }
 
 // CollectionRequest is the request to create or edit a Collection. ID is set

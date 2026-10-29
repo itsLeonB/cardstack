@@ -24,6 +24,7 @@ func InitializeProviders() (*Providers, func(), error) {
 	imageHost := ProvideImageHost()
 	catalogService := ProvideCatalogService(dataSources, imageHost)
 	collectionService := ProvideCollectionService(dataSources)
+	sharedCollectionService := ProvideSharedCollectionService(dataSources, imageHost)
 	inventoryService := ProvideInventoryService(dataSources, imageHost)
 	binderService := ProvideBinderService(dataSources, imageHost)
 	binderSlotService := ProvideBinderSlotService(dataSources)
@@ -40,7 +41,7 @@ func InitializeProviders() (*Providers, func(), error) {
 	scanPhotoStore := ProvideScanPhotoStore()
 	scanPhotoService := ProvideScanPhotoService(scanPhotoStore)
 	scanFeedbackService := ProvideScanFeedbackService(dataSources, scanPhotoStore)
-	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, inventoryService, binderService, binderSlotService, matchService, adminSetService, cardAdminService, scanPhotoService, scanFeedbackService)
+	services := ProvideServices(tokenVerifier, userService, catalogService, collectionService, sharedCollectionService, inventoryService, binderService, binderSlotService, matchService, adminSetService, cardAdminService, scanPhotoService, scanFeedbackService)
 	providers := &Providers{
 		DataSources: dataSources,
 		Services:    services,

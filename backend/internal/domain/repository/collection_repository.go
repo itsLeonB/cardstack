@@ -23,6 +23,11 @@ type CollectionRepository interface {
 	// zero value with a nil error. forUpdate row-locks the match; use it
 	// inside crud.Transactor.WithinTransaction with the callback's ctx.
 	GetOwnedCollection(ctx context.Context, profileID, collectionID uuid.UUID, forUpdate bool) (entity.Collection, error)
+	// FindSharedCollection returns the profile's Collection with this Slug, or
+	// the zero value with a nil error when there is none, including when the
+	// Collection is private (its Slug is nil). The caller maps a miss to the
+	// shared page's not-found.
+	FindSharedCollection(ctx context.Context, profileID uuid.UUID, slug string) (entity.Collection, error)
 	// SumQuantities returns each Collection's summed Inventory Entry quantity
 	// in one grouped query. Collections with no entries are absent from the
 	// map, so a lookup yields 0. go-crud has no aggregate, hence raw GORM.
@@ -59,6 +64,19 @@ func (r *collectionRepository) GetOwnedCollection(ctx context.Context, profileID
 	}
 
 	return c, nil
+}
+
+// FindSharedCollection filters by owner and Slug in the query. A zero-value
+// profileID would drop the owner condition (see crud.WhereBySpec), so it is
+// refused up front. No row has an empty Slug, so an empty one matches nothing.
+func (r *collectionRepository) FindSharedCollection(ctx context.Context, profileID uuid.UUID, slug string) (entity.Collection, error) {
+	if profileID == uuid.Nil || slug == "" {
+		return entity.Collection{}, nil
+	}
+
+	return r.FindFirst(ctx, crud.Specification[entity.Collection]{
+		Model: entity.Collection{ProfileID: profileID, Slug: &slug},
+	})
 }
 
 func (r *collectionRepository) SumQuantities(ctx context.Context, collectionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
