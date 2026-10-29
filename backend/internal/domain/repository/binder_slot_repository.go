@@ -73,6 +73,8 @@ func (r *binderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID uuid.
 		return nil, err
 	}
 
+	// go-crud's Specification matches Model fields by equality only, so the
+	// visibility condition, an OR over a subquery, is written as raw GORM.
 	query := db.Preload("Card").Preload("Card.Rarity").Preload("Card.ExpansionSet").
 		Where("leaf_id = ? AND side = ?", leafID, side)
 	if !includeUnpublished {

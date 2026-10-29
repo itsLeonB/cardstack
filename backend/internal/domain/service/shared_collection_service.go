@@ -2,9 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
-	"net/http"
 
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
@@ -88,7 +87,7 @@ func (s *sharedCollectionService) Get(ctx context.Context, req dto.SharedCollect
 	switch {
 	case err == nil:
 		summary.Binder = &header
-	case !isNotFound(err):
+	case !apperr.IsNotFound(err):
 		return dto.SharedCollectionSummary{}, err
 	}
 
@@ -144,16 +143,9 @@ func (s *sharedCollectionService) GetPage(ctx context.Context, req dto.SharedCol
 	}
 
 	page, err := s.binders.Page(ctx, dto.BinderPageReadRequest{CollectionID: c.ID, Page: req.Page})
-	if isNotFound(err) {
+	if apperr.IsNotFound(err) {
 		return dto.BinderPage{}, ungerr.NotFoundError(sharedNotFoundMsg)
 	}
 
 	return page, err
-}
-
-// isNotFound reports whether err is a not-found AppError, which the binder reads
-// return for a plain Collection or a Page past the last Leaf.
-func isNotFound(err error) bool {
-	appErr, ok := errors.AsType[ungerr.AppError](err)
-	return ok && appErr.HttpStatus() == http.StatusNotFound
 }
