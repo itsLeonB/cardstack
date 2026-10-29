@@ -13,6 +13,7 @@ import type { BinderSlotTarget } from "@/generated/models"
 import { AddCardsLink } from "@/components/collections/add-cards-link"
 import { ScanLink } from "@/components/scan/scan-link"
 import { CollectionEntries } from "@/components/collections/collection-entries"
+import { CollectionShare } from "@/components/collections/collection-share"
 import { BinderView } from "@/components/collections/binder-view"
 import { CreateBinderPanel } from "@/components/collections/create-binder-panel"
 import { catalogFilterSchema } from "@/lib/catalog-search"
@@ -84,6 +85,7 @@ function CollectionPage() {
             actions={
               <div className="flex flex-wrap gap-2">
                 <ScanLink collectionId={collectionId} />
+                <CollectionShare collectionId={collectionId} />
                 {!collection.binder && (
                   <AddCardsLink collectionId={collectionId} />
                 )}
