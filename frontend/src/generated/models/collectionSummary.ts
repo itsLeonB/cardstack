@@ -13,5 +13,10 @@ export interface CollectionSummary {
   description: string;
   id: string;
   maxCardCount: number;
+  /**
+     * The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.
+     * @nullable
+     */
+  slug: string | null;
   title: string;
 }

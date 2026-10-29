@@ -16,6 +16,11 @@ export function notFoundResource(resource: Resource) {
 /** Not-found view for unknown URLs and missing entities; rendered inside whichever shell it bubbles to. */
 export function NotFound({ data }: NotFoundRouteProps) {
   const resource = notFoundData.safeParse(data).data?.resource
+  return <NotFoundView resource={resource} />
+}
+
+/** The not-found view itself, for a page that finds its entity missing in its own component. */
+export function NotFoundView({ resource }: { resource?: Resource }) {
   return (
     <PageContainer variant="narrow">
       <PageHeader

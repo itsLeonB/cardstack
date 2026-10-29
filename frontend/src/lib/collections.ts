@@ -6,6 +6,8 @@ import {
   getListCollectionsQueryKey,
   useCreateCollection,
   useDeleteCollection,
+  useShareCollection,
+  useUnshareCollection,
   useUpdateCollection,
 } from "@/generated/endpoints/collections/collections"
 import {
@@ -182,6 +184,43 @@ export function useDeleteCollectionMutation() {
         }
       },
     },
+  })
+}
+
+/**
+ * Sharing changes the Collection's slug, which the header and the list read,
+ * so both caches are refreshed on success. The unshare route answers 200 too.
+ */
+export function useShareCollectionMutation() {
+  const queryClient = useQueryClient()
+
+  return useShareCollection({
+    mutation: {
+      onSuccess: (response, { id }) => {
+        if (response.status === 200) invalidateSharing(queryClient, id)
+      },
+    },
+  })
+}
+
+export function useUnshareCollectionMutation() {
+  const queryClient = useQueryClient()
+
+  return useUnshareCollection({
+    mutation: {
+      onSuccess: (response, { id }) => {
+        if (response.status === 200) invalidateSharing(queryClient, id)
+      },
+    },
+  })
+}
+
+function invalidateSharing(queryClient: QueryClient, collectionId: string) {
+  void queryClient.invalidateQueries({
+    queryKey: getListCollectionsQueryKey(),
+  })
+  void queryClient.invalidateQueries({
+    queryKey: getGetCollectionQueryKey(collectionId),
   })
 }
 

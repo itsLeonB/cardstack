@@ -5,6 +5,10 @@ import {
   useListCollectionEntriesInfinite,
   useListMasterInventoryInfinite,
 } from "@/generated/endpoints/inventory/inventory"
+import {
+  listSharedCollectionEntries,
+  useListSharedCollectionEntriesInfinite,
+} from "@/generated/endpoints/shared/shared"
 import type { BinderSlotTarget, InventoryItem } from "@/generated/models"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { infinitePages, mergePages } from "@/lib/infinite-pages"
@@ -70,6 +74,40 @@ export function useInfiniteCollectionEntries(
       select: (data) => mergeInventoryPages(data.pages),
     },
   })
+}
+
+/**
+ * A shared Collection's entries, page after page, for a Guest or any viewer.
+ * Read-only, so nothing here patches or refetches on focus: the default cache
+ * policy applies.
+ */
+export function useInfiniteSharedCollectionEntries(
+  profileSlug: string,
+  collectionSlug: string,
+  filters: CatalogFilters
+) {
+  const params = { ...filters, limit: INVENTORY_PAGE_SIZE }
+  return useListSharedCollectionEntriesInfinite(
+    profileSlug,
+    collectionSlug,
+    params,
+    {
+      query: {
+        ...infinitePages(
+          (page, signal) =>
+            listSharedCollectionEntries(
+              profileSlug,
+              collectionSlug,
+              { ...params, page },
+              { signal }
+            ),
+          "Could not load this Collection's Cards."
+        ),
+        placeholderData: keepPreviousData,
+        select: (data) => mergeInventoryPages(data.pages),
+      },
+    }
+  )
 }
 
 /**

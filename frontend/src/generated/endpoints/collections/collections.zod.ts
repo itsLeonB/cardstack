@@ -22,6 +22,7 @@ export const ListCollectionsResponse = zod.object({
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
+  "slug": zod.string().nullable().describe('The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.'),
   "title": zod.string()
 })).nullable()
 })
@@ -53,12 +54,13 @@ export const CreateCollectionResponse = zod.object({
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
+  "slug": zod.string().nullable().describe('The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.'),
   "title": zod.string()
 })
 })
 
 /**
- * @summary Delete one of the current user's own Collections (hard delete, no undo)
+ * @summary Delete one of the current user's own Collections (hard delete, no undo); a Shared Collection's link ends with it
  */
 export const DeleteCollectionParams = zod.object({
   "id": zod.string().describe('Collection ID')
@@ -85,6 +87,7 @@ export const GetCollectionResponse = zod.object({
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
+  "slug": zod.string().nullable().describe('The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.'),
   "title": zod.string()
 })
 })
@@ -120,6 +123,55 @@ export const UpdateCollectionResponse = zod.object({
   "description": zod.string(),
   "id": zod.string(),
   "maxCardCount": zod.int(),
+  "slug": zod.string().nullable().describe('The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.'),
+  "title": zod.string()
+})
+})
+
+/**
+ * @summary Stop sharing one of the current user's own Collections; its link stops working at once and a later share makes a new one
+ */
+export const UnshareCollectionParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+export const UnshareCollectionResponse = zod.object({
+  "data": zod.object({
+  "binder": zod.union([zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
+  "cardCount": zod.int(),
+  "description": zod.string(),
+  "id": zod.string(),
+  "maxCardCount": zod.int(),
+  "slug": zod.string().nullable().describe('The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.'),
+  "title": zod.string()
+})
+})
+
+/**
+ * @summary Share one of the current user's own Collections: anyone with the link can view it. Sharing an already-Shared Collection keeps its link
+ */
+export const ShareCollectionParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+export const ShareCollectionResponse = zod.object({
+  "data": zod.object({
+  "binder": zod.union([zod.object({
+  "capacity": zod.int().describe('Number of Slots in the binder.'),
+  "columns": zod.int().describe('Columns of Slots on each Page.'),
+  "leafCount": zod.int().describe('Number of Leaves; each Leaf has a front and a back Page.'),
+  "rows": zod.int().describe('Rows of Slots on each Page.')
+}),zod.null()]).describe('The binder\'s Layout, or null when the Collection is a plain box or deck.'),
+  "cardCount": zod.int(),
+  "description": zod.string(),
+  "id": zod.string(),
+  "maxCardCount": zod.int(),
+  "slug": zod.string().nullable().describe('The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.'),
   "title": zod.string()
 })
 })
