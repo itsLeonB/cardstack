@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { RiShareLine } from "@remixicon/react"
+import { Button } from "@/components/ui/button"
 import { ShareDialog } from "@/components/share/share-dialog"
 import { useGetCollection } from "@/generated/endpoints/collections/collections"
 import { useGetProfile } from "@/generated/endpoints/profile/profile"
@@ -11,8 +13,8 @@ import {
 
 /**
  * The Share button in a Collection's header. The link is built from the
- * caller's profile Slug and the Collection's own Slug, so nothing renders until
- * both are known: the button never offers a link it cannot build.
+ * caller's profile Slug and the Collection's own Slug, so the button stays
+ * disabled until the profile is known: it never offers a link it cannot build.
  */
 export function CollectionShare({ collectionId }: { collectionId: string }) {
   const [error, setError] = useState<string>()
@@ -25,7 +27,34 @@ export function CollectionShare({ collectionId }: { collectionId: string }) {
     query.data?.status === 200 ? query.data.data.data : undefined
   const profileSlug =
     profile.data?.status === 200 ? profile.data.data.data.slug : undefined
-  if (!collection || !profileSlug) return null
+  // A rejected request or an error status both count as failed, and a retry in
+  // flight is loading again, not failed.
+  const profileFailed =
+    !profileSlug &&
+    !profile.isFetching &&
+    (profile.isError || profile.data !== undefined)
+  if (!collection) return null
+  if (!profileSlug)
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" disabled>
+          <RiShareLine data-icon="inline-start" />
+          {collection.slug ? "Shared" : "Share"}
+        </Button>
+        {profileFailed && (
+          <div role="alert" className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-destructive">Could not load sharing</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void profile.refetch()}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    )
 
   const link = collection.slug
     ? `${window.location.origin}/s/${profileSlug}/${collection.slug}`
