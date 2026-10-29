@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { keepPreviousData } from "@tanstack/react-query"
-import { notFound } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { BinderPageGrid } from "@/components/collections/binder-page-grid"
 import { useGetSharedCollectionPage } from "@/generated/endpoints/shared/shared"
@@ -21,18 +20,19 @@ export function SharedBinderView({
   binder: BinderHeader
 }) {
   const [requestedPage, setRequestedPage] = useState(1)
-  // Keeps the previous Page on screen while the next one loads.
+  // Keeps the previous Page on screen while the next one loads. No Page stays
+  // cached past this view, so a revisit reads each Page again.
   const query = useGetSharedCollectionPage(
     profileSlug,
     collectionSlug,
     requestedPage,
-    { query: { placeholderData: keepPreviousData } }
+    { query: { placeholderData: keepPreviousData, gcTime: 0 } }
   )
-  if (query.data?.status === 404) throw notFound()
-
+  const missing = query.data?.status === 404
   const page = query.data?.status === 200 ? query.data.data.data : undefined
   const totalPages = pageOf(binder.layout.leafCount, "back")
-  const loadError = errorDetail(query.data, NETWORK_ERROR)
+  const loadError = missing ? undefined : errorDetail(query.data, NETWORK_ERROR)
+  const { rows, columns, leafCount } = binder.layout
 
   // Steps from the requested Page, not the shown one, so two quick taps move two Pages.
   function stepPage(delta: number) {
@@ -41,16 +41,34 @@ export function SharedBinderView({
     )
   }
 
-  if (!page) {
-    return query.isError || loadError ? (
+  let body: React.ReactNode
+  if (missing) {
+    // Inline rather than the root not-found: that would drop the route's noindex and nest a second h1.
+    body = (
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Page not found</h2>
+        <p className="text-sm">This binder has no Page {requestedPage}.</p>
+      </div>
+    )
+  } else if (query.isError || loadError) {
+    body = (
       <div role="alert" className="flex flex-col items-start gap-2">
         <p className="text-sm text-destructive">{loadError ?? NETWORK_ERROR}</p>
         <Button variant="outline" onClick={() => void query.refetch()}>
           Retry
         </Button>
       </div>
-    ) : (
-      <p className="text-sm">Loading this Page…</p>
+    )
+  } else if (!page) {
+    body = <p className="text-sm">Loading this Page…</p>
+  } else {
+    body = (
+      <section aria-label="Binder page" className="flex flex-col gap-3">
+        <p className="text-sm">
+          Leaf {page.leaf}, {page.side}
+        </p>
+        <BinderPageGrid page={page} />
+      </section>
     )
   }
 
@@ -58,9 +76,15 @@ export function SharedBinderView({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 text-sm">
         <p>Unidentified: {binder.unidentifiedCount}</p>
+        {page && (
+          <p>
+            Cards and Unidentified: {page.cardTotal} of {page.layout.capacity}{" "}
+            slots
+          </p>
+        )}
         <p>
-          {binder.layout.rows} × {binder.layout.columns} slots per Page ·{" "}
-          {binder.layout.leafCount} Leaves
+          {rows} × {columns} slots per Page · {leafCount}{" "}
+          {leafCount === 1 ? "Leaf" : "Leaves"}
         </p>
       </div>
 
@@ -74,7 +98,7 @@ export function SharedBinderView({
           Previous
         </Button>
         <p className="text-sm font-medium">
-          Page {page.page} of {totalPages}
+          Page {page?.page ?? requestedPage} of {totalPages}
         </p>
         <Button
           variant="outline"
@@ -86,12 +110,7 @@ export function SharedBinderView({
         </Button>
       </div>
 
-      <section aria-label="Binder page" className="flex flex-col gap-3">
-        <p className="text-sm">
-          Leaf {page.leaf}, {page.side}
-        </p>
-        <BinderPageGrid page={page} />
-      </section>
+      {body}
     </div>
   )
 }

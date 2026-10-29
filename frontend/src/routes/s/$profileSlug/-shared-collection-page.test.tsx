@@ -16,7 +16,10 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import { NotFound } from "@/components/layout/not-found"
-import { getGetSharedCollectionQueryKey } from "@/generated/endpoints/shared/shared"
+import {
+  getGetSharedCollectionPageQueryKey,
+  getGetSharedCollectionQueryKey,
+} from "@/generated/endpoints/shared/shared"
 import { catalogCard } from "@/test-binder-api"
 import { Route as SharedRoute } from "./$collectionSlug"
 
@@ -29,7 +32,7 @@ const PAGE = "/s/profile-ash/holiday-binder-3f9a2"
 const pikachu = catalogCard("pikachu", "Pikachu", "025")
 
 // A binder of one Leaf: Page 1 is its front, Page 2 its back, 2 by 2 Slots each.
-const binderLayout = { rows: 2, columns: 2, leafCount: 1, capacity: 4 }
+const binderLayout = { rows: 2, columns: 2, leafCount: 1, capacity: 8 }
 const binderHeader = {
   data: {
     ownerName: "Ash Ketchum",
@@ -43,7 +46,7 @@ const frontPage = {
   leaf: 1,
   side: "front",
   layout: binderLayout,
-  cardTotal: 1,
+  cardTotal: 3,
   unidentifiedCount: 1,
   slots: [
     { row: 1, column: 1, state: "card", card: pikachu },
@@ -57,7 +60,7 @@ const backPage = {
   leaf: 1,
   side: "back",
   layout: binderLayout,
-  cardTotal: 0,
+  cardTotal: 3,
   unidentifiedCount: 1,
   slots: [
     { row: 1, column: 1, state: "empty", card: null },
@@ -79,6 +82,8 @@ interface SharedStub {
   entries?: { status: number; body: ApiBody }
   // A binder's Pages in order, from Page 1; any other Page is a not-found.
   pages?: unknown[]
+  // Answers every Page request with this reply instead, e.g. a failure.
+  pageReply?: { status: number; body: ApiBody }
 }
 
 // Each request is answered by path; the requests made are kept for asserts.
@@ -111,6 +116,8 @@ function stubSharedApi(stub: SharedStub = {}) {
     }
     const pageNumber = url.pathname.match(new RegExp(`^${API}/pages/(\\d+)$`))
     if (pageNumber) {
+      if (stub.pageReply)
+        return reply(stub.pageReply.status, stub.pageReply.body)
       const page = stub.pages?.[Number(pageNumber[1]) - 1]
       return page
         ? reply(200, { data: page })
@@ -152,10 +159,12 @@ function pick(options: {
 }
 
 // The real shared page in a memory router, with no signed-in layout around it.
-async function renderSharedPage(path = PAGE) {
-  const queryClient = new QueryClient({
+async function renderSharedPage(
+  path = PAGE,
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
+) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({
     component: Outlet,
     notFoundComponent: NotFound,
@@ -423,8 +432,109 @@ describe("Shared Collection page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next page" }))
 
     expect(
-      await screen.findByRole("heading", { name: "Page not found", level: 1 })
+      await screen.findByRole("heading", { name: "Page not found", level: 2 })
     ).toBeTruthy()
+  })
+
+  it("keeps the page noindex when a Page the binder does not have is asked for", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    const router = await renderSharedPage()
+    await screen.findByText("Page 1 of 2")
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Page not found", level: 2 })
+    ).toBeTruthy()
+    const match = router.state.matches.find(
+      (m) => m.routeId === "/s/$profileSlug/$collectionSlug"
+    )
+    expect(match?.meta).toContainEqual({ name: "robots", content: "noindex" })
+  })
+
+  it("shows the Cards and Unidentified count against the binder's Slots", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    await renderSharedPage()
+
+    expect(
+      await screen.findByText("Cards and Unidentified: 3 of 8 slots")
+    ).toBeTruthy()
+    expect(screen.getByText("2 × 2 slots per Page · 1 Leaf")).toBeTruthy()
+  })
+
+  it("says Leaves when the binder has more than one", async () => {
+    const twoLeaves = {
+      data: {
+        ...binderHeader.data,
+        binder: {
+          layout: { ...binderLayout, leafCount: 2, capacity: 16 },
+          unidentifiedCount: 2,
+        },
+      },
+    }
+    stubSharedApi({
+      header: { status: 200, body: twoLeaves },
+      pages: [frontPage],
+    })
+    await renderSharedPage()
+
+    expect(
+      await screen.findByText("2 × 2 slots per Page · 2 Leaves")
+    ).toBeTruthy()
+  })
+
+  it("offers a Retry when a Page fails to load, and shows the Page on retry", async () => {
+    const stub: SharedStub = {
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+      pageReply: { status: 500, body: { detail: "boom" } },
+    }
+    stubSharedApi(stub)
+    await renderSharedPage()
+
+    expect(
+      within(await screen.findByRole("alert")).getByText("boom")
+    ).toBeTruthy()
+
+    stub.pageReply = undefined
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByRole("group", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
+    ).toBeTruthy()
+  })
+
+  it("does not keep a Page cached once its visit is over", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage],
+    })
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    await renderSharedPage(PAGE, queryClient)
+    await screen.findByRole("group", {
+      name: "Row 1, column 1: Pikachu, Base Set",
+    })
+
+    cleanup()
+
+    const pageKey = getGetSharedCollectionPageQueryKey(
+      "profile-ash",
+      "holiday-binder-3f9a2",
+      1
+    )
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryData(pageKey)).toBeUndefined()
+    )
   })
 
   it("shows no binder and asks for no Page for a plain Collection", async () => {
