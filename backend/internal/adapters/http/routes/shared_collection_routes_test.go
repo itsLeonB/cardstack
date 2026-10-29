@@ -515,9 +515,8 @@ func TestSharedBinderShowsItsLayoutPagesAndSlotsToEveryViewer(t *testing.T) {
 func TestSharedBinderPagesAnswerEveryMissWithTheSameNotFound(t *testing.T) {
 	api := newTestAPI(t)
 	owner := newSharedOwner(t, api)
-	profile := api.profileSlug(t, owner.email)
-
 	plain := createCollection(t, api, owner, "Plain Shared")
+	profile := api.profileSlug(t, owner.email)
 	plainBase := sharedPath(profile, *shareCollection(t, api, owner, plain).Data.Slug)
 
 	binder := createCollection(t, api, owner, "Binder Shared")
