@@ -21,6 +21,7 @@ import (
 func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.Limits, adminEmails []string) error {
 	healthHandler := handler.NewHealthHandler(services.Health)
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
+	profileHandler := handler.NewProfileHandler(services.Users)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 	sharedCollectionHandler := handler.NewSharedCollectionHandler(services.SharedCollection)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
@@ -50,6 +51,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	// The catalog serves Admins the unpublished sets too (GLOSSARY.md Published),
 	// so it flags the caller rather than gating the route.
 	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser, authpkg.AdminFlag(adminEmails))
+	endpoint.RegisterAll(api, profileHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
 	// A shared page is read by Guests too, so it is guest-allowed and limited per
 	// client address instead of per user (docs/adr/0025).

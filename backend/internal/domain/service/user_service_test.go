@@ -166,3 +166,24 @@ func TestUserService_ResolveCaller_RejectsIdentityWithoutProviderOrSubject(t *te
 		assert.Equal(t, http.StatusUnauthorized, appErr.HttpStatus())
 	}
 }
+
+// A nil profile ID must never reach the repository, where it would match any
+// profile; a missing profile is the same not-found.
+func TestUserService_Profile_RefusesNilIDAndMissingProfile(t *testing.T) {
+	f := newUserFixture(t)
+
+	_, err := f.svc.Profile(f.ctx, dto.ProfileLookup{})
+	appErr, ok := err.(ungerr.AppError)
+	require.True(t, ok, "%v", err)
+	assert.Equal(t, http.StatusNotFound, appErr.HttpStatus())
+
+	id := uuid.New()
+	f.profiles.EXPECT().FindFirst(f.ctx, crud.Specification[entity.UserProfile]{
+		Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}},
+	}).Return(entity.UserProfile{}, nil)
+
+	_, err = f.svc.Profile(f.ctx, dto.ProfileLookup{ProfileID: id})
+	appErr, ok = err.(ungerr.AppError)
+	require.True(t, ok, "%v", err)
+	assert.Equal(t, http.StatusNotFound, appErr.HttpStatus())
+}

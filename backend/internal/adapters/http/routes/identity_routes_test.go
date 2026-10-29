@@ -18,6 +18,7 @@ import (
 
 const (
 	privatePath    = "/collections"
+	profilePath    = "/profile"
 	guestOKPath    = "/catalog/series"
 	healthPath     = "/health"
 	unauthorizedOK = http.StatusUnauthorized
@@ -230,4 +231,32 @@ func TestForeignAndMissingCollectionsLookIdentical(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, foreign.Code)
 	assert.Equal(t, http.StatusNotFound, missing.Code)
 	assert.Equal(t, missing.Body.String(), foreign.Body.String())
+}
+
+// The signed-in client builds its share link from this Slug, so GET /profile
+// answers with exactly the stored name and Slug, never the email.
+func TestGetProfileReturnsTheCallersNameAndSlugOnly(t *testing.T) {
+	api := newTestAPI(t)
+	claims := validClaims()
+	token := api.sign(t, claims)
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(token)).Code)
+
+	users := api.usersWithSubject(t, claims["sub"].(string))
+	require.Len(t, users, 1)
+	profiles := api.profilesOf(t, users[0])
+	require.Len(t, profiles, 1)
+
+	resp := api.Get(profilePath, bearer(token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var env struct {
+		Data map[string]any `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &env))
+	assert.Equal(t, map[string]any{"name": profiles[0].Name, "slug": profiles[0].Slug}, env.Data)
+	assert.NotContains(t, resp.Body.String(), claims["email"])
+}
+
+func TestGetProfileIsSignedInOnly(t *testing.T) {
+	api := newTestAPI(t)
+	assert.Equal(t, unauthorizedOK, api.Get(profilePath).Code, "a Guest on the profile route")
 }
