@@ -49,7 +49,7 @@ type binderService struct {
 	leaves      repository.BinderLeafRepository
 	slots       repository.BinderSlotRepository
 	entries     crud.Repository[entity.InventoryEntry]
-	images      mapper.ImageHost
+	pages       BinderPageService
 }
 
 func NewBinderService(
@@ -59,7 +59,7 @@ func NewBinderService(
 	leaves repository.BinderLeafRepository,
 	slots repository.BinderSlotRepository,
 	entries crud.Repository[entity.InventoryEntry],
-	images mapper.ImageHost,
+	pages BinderPageService,
 ) BinderService {
 	return &binderService{
 		transactor:  transactor,
@@ -68,7 +68,7 @@ func NewBinderService(
 		leaves:      leaves,
 		slots:       slots,
 		entries:     entries,
-		images:      images,
+		pages:       pages,
 	}
 }
 
@@ -304,32 +304,7 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 		return dto.BinderPage{}, err
 	}
 
-	layout, err := s.layouts.GetLayout(ctx, c.ID)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-
-	leafCount, err := s.leaves.CountLeaves(ctx, c.ID)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-	leafNumber, side := mapper.LeafOf(req.Page)
-	leaf, err := s.leaves.GetLeafAt(ctx, c.ID, leafNumber)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-
-	slots, err := s.slots.ListSlotsOnPage(ctx, leaf.ID, side)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-
-	cards, unidentified, err := s.slots.CountSlots(ctx, c.ID)
-	if err != nil {
-		return dto.BinderPage{}, err
-	}
-
-	return mapper.ToBinderPage(s.images, req.Page, layout, leafCount, slots, cards+unidentified, unidentified), nil
+	return s.pages.Page(ctx, dto.BinderPageReadRequest{CollectionID: c.ID, Page: req.Page, IncludeUnpublished: true})
 }
 
 // WriteSlots is the one place Slot writes are checked and applied. It validates
@@ -346,7 +321,7 @@ func (s *binderService) GetPage(ctx context.Context, req dto.BinderPageLookup) (
 // requireNoSlots refuses a Layout change while any Slot is occupied, since the
 // cards placed on the binder would no longer sit on a matching grid.
 func (s *binderService) requireNoSlots(ctx context.Context, collectionID uuid.UUID) error {
-	cards, unidentified, err := s.slots.CountSlots(ctx, collectionID)
+	cards, unidentified, err := s.slots.CountSlots(ctx, collectionID, true)
 	if err != nil {
 		return err
 	}

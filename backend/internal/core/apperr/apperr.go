@@ -5,6 +5,7 @@ package apperr
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/itsLeonB/ungerr"
 )
@@ -64,4 +65,11 @@ func CodeOf(err error) string {
 		return c.Code()
 	}
 	return ""
+}
+
+// IsNotFound reports whether err is a not-found AppError, the answer a missing
+// row or a missing Page gets. It compares the HTTP status the AppError carries.
+func IsNotFound(err error) bool {
+	appErr, ok := errors.AsType[ungerr.AppError](err)
+	return ok && appErr.HttpStatus() == http.StatusNotFound
 }

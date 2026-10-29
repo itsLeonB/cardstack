@@ -274,7 +274,7 @@ func TestEveryMissingSharedTargetGetsTheSameNotFound(t *testing.T) {
 		"nonexistent-profile": sharedPath("no-such-user-00000", goneSlug),
 		"other-profile":       sharedPath(otherProfile, goneSlug),
 	}
-	for _, suffix := range []string{"", "/entries", "/facets"} {
+	for _, suffix := range []string{"", "/entries", "/facets", "/pages/1"} {
 		var reference, referenceName string
 		for name, base := range targets {
 			resp := api.Get(base + suffix)
@@ -410,4 +410,139 @@ func TestShareEndpointsAreOwnerOnly(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, api.Post("/collections/"+id+"/share", bearer(other.token)).Code)
 	assert.Equal(t, http.StatusNotFound, api.Delete("/collections/"+id+"/share", bearer(other.token)).Code)
 	assert.Equal(t, http.StatusOK, api.Get("/collections/"+id, bearer(owner.token)).Code)
+}
+
+// sharedBinderEnvelope is the header's optional binder block: absent for a plain Collection.
+type sharedBinderEnvelope struct {
+	Data struct {
+		Binder *struct {
+			Layout            binderLayoutJSON `json:"layout"`
+			UnidentifiedCount int              `json:"unidentifiedCount"`
+		} `json:"binder"`
+	} `json:"data"`
+}
+
+// TestSharedBinderShowsItsLayoutPagesAndSlotsToEveryViewer covers a Shared binder
+// as a Guest, a signed-in viewer and the owner. A Slot holding a Card of an
+// unpublished set reads as empty with no Card, and is not counted.
+func TestSharedBinderShowsItsLayoutPagesAndSlotsToEveryViewer(t *testing.T) {
+	api := newTestAPI(t)
+	owner := newSharedOwner(t, api)
+	other := newSharedOwner(t, api)
+	live := newTestCards(t, 1)[0]
+	hidden := seedSharedSet(t, api, false, "Trainer", "tag-"+uuid.NewString(), 1).cards[0]
+	id := createCollection(t, api, owner, "Shared Binder")
+	createBinder(t, api, owner.token, id, 2, 2, 1)
+	placeSlot(t, api, id, 1, 1, 2, &live, false)
+	placeSlot(t, api, id, 1, 2, 2, nil, true)
+	placeSlot(t, api, id, 2, 1, 1, &hidden, false)
+	require.NoError(t, api.db.Create(&entity.InventoryEntry{CollectionID: uuid.MustParse(id), CardID: live, Quantity: 1}).Error)
+	base := sharedPath(api.profileSlug(t, owner.email), *shareCollection(t, api, owner, id).Data.Slug)
+
+	viewers := map[string]string{"guest": "", "signed-in": bearer(other.token), "owner": bearer(owner.token)}
+	for name, auth := range viewers {
+		var args []any
+		if auth != "" {
+			args = append(args, auth)
+		}
+
+		header := api.Get(base, args...)
+		require.Equal(t, http.StatusOK, header.Code, name+": "+header.Body.String())
+		assert.NotContains(t, header.Body.String(), owner.email, name+" must never see the owner's email")
+		var h sharedBinderEnvelope
+		require.NoError(t, json.Unmarshal(header.Body.Bytes(), &h))
+		require.NotNil(t, h.Data.Binder, name)
+		assert.Equal(t, binderLayoutJSON{Rows: 2, Columns: 2, LeafCount: 1, Capacity: 8}, h.Data.Binder.Layout, name)
+		assert.Equal(t, 1, h.Data.Binder.UnidentifiedCount, name)
+
+		page1 := api.Get(base+"/pages/1", args...)
+		require.Equal(t, http.StatusOK, page1.Code, name+": "+page1.Body.String())
+		assert.NotContains(t, page1.Body.String(), owner.email, name+" must never see the owner's email")
+		var p1 binderPageEnvelope
+		require.NoError(t, json.Unmarshal(page1.Body.Bytes(), &p1))
+		assert.Equal(t, 2, p1.Data.CardTotal, name+": hidden Cards are not counted")
+		assert.Equal(t, 1, p1.Data.UnidentifiedCount, name)
+		require.Len(t, p1.Data.Slots, 4, name)
+		assert.Equal(t, "empty", p1.Data.Slots[0].State, name)
+		assert.Equal(t, "card", p1.Data.Slots[1].State, name)
+		require.NotNil(t, p1.Data.Slots[1].Card, name)
+		assert.Equal(t, live.String(), p1.Data.Slots[1].Card.ID, name)
+		assert.Equal(t, "unidentified", p1.Data.Slots[3].State, name)
+		assert.Nil(t, p1.Data.Slots[3].Card, name)
+
+		page2 := api.Get(base+"/pages/2", args...)
+		require.Equal(t, http.StatusOK, page2.Code, name+": "+page2.Body.String())
+		assert.NotContains(t, page2.Body.String(), hidden.String(), name+" must never see a Card of an unpublished set")
+		assert.NotContains(t, page2.Body.String(), owner.email, name+" must never see the owner's email")
+		var p2 binderPageEnvelope
+		require.NoError(t, json.Unmarshal(page2.Body.Bytes(), &p2))
+		assert.Equal(t, 2, p2.Data.CardTotal, name)
+		require.Len(t, p2.Data.Slots, 4, name)
+		assert.Equal(t, "empty", p2.Data.Slots[0].State, name)
+		assert.Nil(t, p2.Data.Slots[0].Card, name)
+	}
+
+	// The shared Card matches the one the guest entries listing shows.
+	entries := api.Get(base + "/entries")
+	require.Equal(t, http.StatusOK, entries.Code, entries.Body.String())
+	var listed struct {
+		Data []struct {
+			Card json.RawMessage `json:"card"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(entries.Body.Bytes(), &listed))
+	require.Len(t, listed.Data, 1)
+	shared := api.Get(base + "/pages/1")
+	var slotCards struct {
+		Data struct {
+			Slots []struct {
+				Card json.RawMessage `json:"card"`
+			} `json:"slots"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(shared.Body.Bytes(), &slotCards))
+	assert.JSONEq(t, string(listed.Data[0].Card), string(slotCards.Data.Slots[1].Card))
+
+	// The owner's own Page read still shows the hidden Card, so only the shared view hides it.
+	ownerPage := getPage(t, api, owner.token, id, 2)
+	assert.Equal(t, 3, ownerPage.Data.CardTotal)
+	assert.Equal(t, "card", ownerPage.Data.Slots[0].State)
+}
+
+// TestSharedBinderPagesAnswerEveryMissWithTheSameNotFound covers a plain Collection
+// (no binder block, Pages absent), a Page past the last Leaf, an unshared binder
+// and a missing one: each Page read is the same 404 as the header's.
+func TestSharedBinderPagesAnswerEveryMissWithTheSameNotFound(t *testing.T) {
+	api := newTestAPI(t)
+	owner := newSharedOwner(t, api)
+	plain := createCollection(t, api, owner, "Plain Shared")
+	profile := api.profileSlug(t, owner.email)
+	plainBase := sharedPath(profile, *shareCollection(t, api, owner, plain).Data.Slug)
+
+	binder := createCollection(t, api, owner, "Binder Shared")
+	createBinder(t, api, owner.token, binder, 2, 2, 1)
+	binderBase := sharedPath(profile, *shareCollection(t, api, owner, binder).Data.Slug)
+
+	private := createCollection(t, api, owner, "Unshared Binder")
+	createBinder(t, api, owner.token, private, 2, 2, 1)
+
+	plainHeader := api.Get(plainBase)
+	require.Equal(t, http.StatusOK, plainHeader.Code, plainHeader.Body.String())
+	var raw struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(plainHeader.Body.Bytes(), &raw))
+	assert.NotContains(t, raw.Data, "binder", "a plain Collection's header has no binder block")
+
+	reference := sharedMissShape(api.Get(sharedPath(profile, "no-such-binder-00000") + "/pages/1"))
+	targets := map[string]string{
+		"plain-collection": plainBase + "/pages/1",
+		"page-past-last":   binderBase + "/pages/3",
+		"unshared-binder":  sharedPath(profile, "unshared-binder-"+slugTail(private)) + "/pages/1",
+	}
+	for name, path := range targets {
+		resp := api.Get(path)
+		require.Equal(t, http.StatusNotFound, resp.Code, name+": "+resp.Body.String())
+		assert.Equal(t, reference, sharedMissShape(resp), name+" must look exactly like a missing target")
+	}
 }
