@@ -9,7 +9,6 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
-	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
 	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +24,7 @@ type binderFixture struct {
 	layouts     *mocks.MockBinderLayoutRepository
 	leaves      *mocks.MockBinderLeafRepository
 	slots       *mocks.MockBinderSlotRepository
+	pages       *mocks.MockBinderPageService
 	cards       *mocks.MockCardRepository
 	entries     *mocks.MockRepository[entity.InventoryEntry]
 	svc         BinderService
@@ -41,12 +41,13 @@ func newBinderFixture(t *testing.T) binderFixture {
 	f.layouts = mocks.NewMockBinderLayoutRepository(t)
 	f.leaves = mocks.NewMockBinderLeafRepository(t)
 	f.slots = mocks.NewMockBinderSlotRepository(t)
+	f.pages = mocks.NewMockBinderPageService(t)
 	f.cards = mocks.NewMockCardRepository(t)
 	f.entries = mocks.NewMockRepository[entity.InventoryEntry](t)
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewBinderService(transactor, f.collections, f.layouts, f.leaves, f.slots, f.entries, mapper.NewImageHost(""))
+	f.svc = NewBinderService(transactor, f.collections, f.layouts, f.leaves, f.slots, f.entries, f.pages)
 	f.slot = NewBinderSlotService(transactor, f.collections, f.layouts, f.leaves, f.slots, f.entries, NewCardLookup(f.cards))
 	return f
 }
@@ -96,7 +97,7 @@ func TestBinderService_ChangeGrid_RefusesLayoutWithOccupiedSlots(t *testing.T) {
 	f := newBinderFixture(t)
 	f.lockedCollection()
 	f.layouts.EXPECT().GetLayout(f.ctx, f.collection.ID).Return(f.layout(2, 2), nil).Once()
-	f.slots.EXPECT().CountSlots(f.ctx, f.collection.ID).Return(1, 0, nil).Once()
+	f.slots.EXPECT().CountSlots(f.ctx, f.collection.ID, true).Return(1, 0, nil).Once()
 
 	_, err := f.svc.ChangeGrid(f.ctx, dto.BinderGridRequest{ProfileID: f.profileID, CollectionID: f.collection.ID, Rows: 3, Columns: 3})
 	requireStatus(t, err, http.StatusConflict)
@@ -190,31 +191,22 @@ func TestBinderService_RemoveLeaf_NotFound(t *testing.T) {
 	requireStatus(t, err, http.StatusNotFound)
 }
 
-func TestBinderService_GetPage_ReadsTheLeafFaceAndCounts(t *testing.T) {
+func TestBinderService_GetPage_ReadsTheOwnersPageWithUnpublishedCards(t *testing.T) {
 	f := newBinderFixture(t)
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()
-	f.layouts.EXPECT().GetLayout(f.ctx, f.collection.ID).Return(f.layout(2, 2), nil).Once()
-	f.leaves.EXPECT().CountLeaves(f.ctx, f.collection.ID).Return(2, nil).Once()
-	leaf := entity.BinderLeaf{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, Position: 2}
-	f.leaves.EXPECT().GetLeafAt(f.ctx, f.collection.ID, 2).Return(leaf, nil).Once()
-	f.slots.EXPECT().ListSlotsOnPage(f.ctx, leaf.ID, dto.BinderSideBack).Return(nil, nil).Once()
-	f.slots.EXPECT().CountSlots(f.ctx, f.collection.ID).Return(2, 1, nil).Once()
+	want := dto.BinderPage{Page: 4, Leaf: 2, Side: dto.BinderSideBack}
+	f.pages.EXPECT().Page(f.ctx, dto.BinderPageReadRequest{CollectionID: f.collection.ID, Page: 4, IncludeUnpublished: true}).Return(want, nil).Once()
 
 	got, err := f.svc.GetPage(f.ctx, dto.BinderPageLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, Page: 4})
 	require.NoError(t, err)
-	assert.Equal(t, 2, got.Leaf)
-	assert.Equal(t, dto.BinderSideBack, got.Side)
-	assert.Equal(t, 3, got.CardTotal)
-	assert.Equal(t, 1, got.UnidentifiedCount)
-	assert.Len(t, got.Slots, 4)
+	assert.Equal(t, want, got)
 }
 
-func TestBinderService_GetPage_RejectsPageBeyondLastLeaf(t *testing.T) {
+func TestBinderService_GetPage_PassesThroughTheNotFoundForAPageBeyondLastLeaf(t *testing.T) {
 	f := newBinderFixture(t)
 	f.collections.EXPECT().GetOwnedCollection(f.ctx, f.profileID, f.collection.ID, false).Return(f.collection, nil).Once()
-	f.layouts.EXPECT().GetLayout(f.ctx, f.collection.ID).Return(f.layout(2, 2), nil).Once()
-	f.leaves.EXPECT().CountLeaves(f.ctx, f.collection.ID).Return(1, nil).Once()
-	f.leaves.EXPECT().GetLeafAt(f.ctx, f.collection.ID, 2).Return(entity.BinderLeaf{}, ungerr.NotFoundError("no page")).Once()
+	f.pages.EXPECT().Page(f.ctx, dto.BinderPageReadRequest{CollectionID: f.collection.ID, Page: 3, IncludeUnpublished: true}).
+		Return(dto.BinderPage{}, ungerr.NotFoundError("no page")).Once()
 
 	_, err := f.svc.GetPage(f.ctx, dto.BinderPageLookup{ProfileID: f.profileID, CollectionID: f.collection.ID, Page: 3})
 	requireStatus(t, err, http.StatusNotFound)

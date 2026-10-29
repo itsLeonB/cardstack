@@ -14,8 +14,8 @@ export function BinderPageGrid({
   selected?: SlotRef
   /** The source Slot of a pending move, marked until the move lands or is cancelled. */
   picked?: SlotRef
-  /** Passes the tapped tile too, so focus can return to it when the panel closes. */
-  onSelect: (slot: BinderSlot, tile: HTMLButtonElement) => void
+  /** Passes the tapped tile too, so focus can return to it when the panel closes. Left out by a read-only view, whose Slots are not controls. */
+  onSelect?: (slot: BinderSlot, tile: HTMLButtonElement) => void
 }) {
   return (
     <div
@@ -32,7 +32,7 @@ export function BinderPageGrid({
             selected?.row === slot.row && selected.column === slot.column
           }
           picked={picked?.row === slot.row && picked.column === slot.column}
-          onSelect={(tile) => onSelect(slot, tile)}
+          onSelect={onSelect && ((tile) => onSelect(slot, tile))}
         />
       ))}
     </div>
@@ -48,7 +48,7 @@ function SlotTile({
   slot: BinderSlot
   selected: boolean
   picked: boolean
-  onSelect: (tile: HTMLButtonElement) => void
+  onSelect?: (tile: HTMLButtonElement) => void
 }) {
   const where = `Row ${slot.row}, column ${slot.column}`
   const tile = cn(
@@ -59,11 +59,10 @@ function SlotTile({
 
   if (slot.state === "card" && slot.card) {
     return (
-      <button
-        type="button"
-        aria-label={`${where}: ${slot.card.name}, ${slot.card.expansionSet.name}`}
-        aria-pressed={selected}
-        onClick={(event) => onSelect(event.currentTarget)}
+      <SlotFrame
+        label={`${where}: ${slot.card.name}, ${slot.card.expansionSet.name}`}
+        selected={selected}
+        onSelect={onSelect}
         className={cn(tile, "flex flex-col gap-1 bg-card p-1")}
       >
         <img
@@ -74,34 +73,66 @@ function SlotTile({
         />
         <span className="truncate text-xs font-medium">{slot.card.name}</span>
         <span className="truncate text-xs">{cardCode(slot.card)}</span>
-      </button>
+      </SlotFrame>
     )
   }
 
   if (slot.state === "unidentified") {
     return (
-      <button
-        type="button"
-        aria-label={`${where}: Unidentified`}
-        aria-pressed={selected}
-        onClick={(event) => onSelect(event.currentTarget)}
+      <SlotFrame
+        label={`${where}: Unidentified`}
+        selected={selected}
+        onSelect={onSelect}
         className={cn(
           tile,
           "flex aspect-[5/7] items-center justify-center border-dashed bg-muted p-1 text-center text-xs font-medium"
         )}
       >
         Unidentified
-      </button>
+      </SlotFrame>
     )
   }
 
   return (
-    <button
-      type="button"
-      aria-label={`${where}: empty`}
-      aria-pressed={selected}
-      onClick={(event) => onSelect(event.currentTarget)}
+    <SlotFrame
+      label={`${where}: empty`}
+      selected={selected}
+      onSelect={onSelect}
       className={cn(tile, "aspect-[5/7] border-dashed")}
     />
+  )
+}
+
+// A read-only Slot is a plain group, so there is no control to press.
+function SlotFrame({
+  label,
+  selected,
+  onSelect,
+  className,
+  children,
+}: {
+  label: string
+  selected: boolean
+  onSelect?: (tile: HTMLButtonElement) => void
+  className: string
+  children?: React.ReactNode
+}) {
+  if (!onSelect) {
+    return (
+      <div role="group" aria-label={label} className={className}>
+        {children}
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={(event) => onSelect(event.currentTarget)}
+      className={className}
+    >
+      {children}
+    </button>
   )
 }

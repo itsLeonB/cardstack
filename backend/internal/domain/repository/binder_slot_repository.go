@@ -13,12 +13,16 @@ import (
 type BinderSlotRepository interface {
 	crud.Repository[entity.BinderSlot]
 	// ListSlotsOnPage returns the occupied Slots of one face of a Leaf, with
-	// their Cards, Rarities and Expansion Sets loaded.
-	ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string) ([]entity.BinderSlot, error)
+	// their Cards, Rarities and Expansion Sets loaded. Without includeUnpublished,
+	// a Slot holding a Card of an unpublished Expansion Set is left out, so it
+	// reads as empty.
+	ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string, includeUnpublished bool) ([]entity.BinderSlot, error)
 	HasSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string) (bool, error)
 	// CountSlots returns, across the whole binder, how many Slots hold a Card and
-	// how many are Unidentified. It is raw GORM because go-crud has no aggregate.
-	CountSlots(ctx context.Context, collectionID uuid.UUID) (cards, unidentified int, err error)
+	// how many are Unidentified. Without includeUnpublished, Slots holding a Card
+	// of an unpublished Expansion Set are not counted. It is raw GORM because
+	// go-crud has no aggregate.
+	CountSlots(ctx context.Context, collectionID uuid.UUID, includeUnpublished bool) (cards, unidentified int, err error)
 	// CountCardSlots returns how many Slots of one Collection hold the Card. It is
 	// raw GORM because go-crud has no aggregate.
 	CountCardSlots(ctx context.Context, collectionID, cardID uuid.UUID) (int, error)
@@ -59,14 +63,31 @@ func pageSpec(leafID uuid.UUID, side string) crud.Specification[entity.BinderSlo
 	}
 }
 
-func (r *binderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string) ([]entity.BinderSlot, error) {
+func (r *binderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string, includeUnpublished bool) ([]entity.BinderSlot, error) {
 	if leafID == uuid.Nil || side == "" {
 		return nil, nil
 	}
 
-	spec := pageSpec(leafID, side)
-	spec.PreloadRelations = []string{"Card", "Card.Rarity", "Card.ExpansionSet"}
-	return r.FindAll(ctx, spec)
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// go-crud's Specification matches Model fields by equality only, so the
+	// visibility condition, an OR over a subquery, is written as raw GORM.
+	query := db.Preload("Card").Preload("Card.Rarity").Preload("Card.ExpansionSet").
+		Where("leaf_id = ? AND side = ?", leafID, side)
+	if !includeUnpublished {
+		query = query.Where("card_id IS NULL OR card_id IN (?)", visibleCardIDs(db))
+	}
+
+	var slots []entity.BinderSlot
+	err = query.Find(&slots).Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "listing Slots on a Page")
+	}
+
+	return slots, nil
 }
 
 func (r *binderSlotRepository) HasSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string) (bool, error) {
@@ -82,7 +103,7 @@ func (r *binderSlotRepository) HasSlotsOnPage(ctx context.Context, leafID uuid.U
 	return !slot.IsZero(), nil
 }
 
-func (r *binderSlotRepository) CountSlots(ctx context.Context, collectionID uuid.UUID) (int, int, error) {
+func (r *binderSlotRepository) CountSlots(ctx context.Context, collectionID uuid.UUID, includeUnpublished bool) (int, int, error) {
 	if collectionID == uuid.Nil {
 		return 0, 0, nil
 	}
@@ -92,15 +113,18 @@ func (r *binderSlotRepository) CountSlots(ctx context.Context, collectionID uuid
 		return 0, 0, err
 	}
 
+	query := db.Model(&entity.BinderSlot{}).
+		Select("COUNT(card_id) AS cards, COUNT(*) FILTER (WHERE unidentified) AS unidentified").
+		Where("collection_id = ?", collectionID)
+	if !includeUnpublished {
+		query = query.Where("card_id IS NULL OR card_id IN (?)", visibleCardIDs(db))
+	}
+
 	var counts struct {
 		Cards        int64
 		Unidentified int64
 	}
-	err = db.Model(&entity.BinderSlot{}).
-		Select("COUNT(card_id) AS cards, COUNT(*) FILTER (WHERE unidentified) AS unidentified").
-		Where("collection_id = ?", collectionID).
-		Scan(&counts).
-		Error
+	err = query.Scan(&counts).Error
 	if err != nil {
 		return 0, 0, ungerr.Wrap(err, "counting binder slots")
 	}

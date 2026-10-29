@@ -42,6 +42,14 @@ type sharedFacetsInput struct {
 	CardFilterParams
 }
 
+// sharedPageInput is GET /shared/{profileSlug}/{collectionSlug}/pages/{page}: one
+// Page of a Shared binder.
+type sharedPageInput struct {
+	ProfileSlug    string `path:"profileSlug" doc:"The owner's profile Slug."`
+	CollectionSlug string `path:"collectionSlug" doc:"The Collection's Slug."`
+	Page           int    `path:"page" minimum:"1" doc:"Page number in turning order, counted from 1."`
+}
+
 func (h *SharedCollectionHandler) get(ctx context.Context, in sharedLookupInput) (dto.SharedCollectionSummary, error) {
 	return h.sharedSvc.Get(ctx, dto.SharedCollectionLookup{ProfileSlug: in.ProfileSlug, CollectionSlug: in.CollectionSlug})
 }
@@ -74,6 +82,13 @@ func (h *SharedCollectionHandler) listFacets(ctx context.Context, in sharedFacet
 	})
 }
 
+func (h *SharedCollectionHandler) getPage(ctx context.Context, in sharedPageInput) (dto.BinderPage, error) {
+	return h.sharedSvc.GetPage(ctx, dto.SharedCollectionPageRequest{
+		Lookup: dto.SharedCollectionLookup{ProfileSlug: in.ProfileSlug, CollectionSlug: in.CollectionSlug},
+		Page:   in.Page,
+	})
+}
+
 // Routes are guest-allowed: the router passes the guest guard and the per-client
 // limit (ratelimit.PerIP), never the per-user one.
 func (h *SharedCollectionHandler) Routes() []endpoint.Registrable {
@@ -82,7 +97,7 @@ func (h *SharedCollectionHandler) Routes() []endpoint.Registrable {
 			OperationID: "get-shared-collection",
 			Method:      http.MethodGet,
 			Path:        "/shared/{profileSlug}/{collectionSlug}",
-			Summary:     "Get a Shared Collection's header (owner's display name, title, description) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404",
+			Summary:     "Get a Shared Collection's header (owner's display name, title, description, and a binder's Layout and Unidentified count) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404",
 			Tags:        []string{"shared"},
 			SuccessCode: http.StatusOK,
 			HandlerFunc: h.get,
@@ -104,6 +119,15 @@ func (h *SharedCollectionHandler) Routes() []endpoint.Registrable {
 			Tags:        []string{"shared"},
 			SuccessCode: http.StatusOK,
 			HandlerFunc: h.listFacets,
+		}),
+		endpoint.New(endpoint.Endpoint[sharedPageInput, dto.BinderPage]{
+			OperationID: "get-shared-collection-page",
+			Method:      http.MethodGet,
+			Path:        "/shared/{profileSlug}/{collectionSlug}/pages/{page}",
+			Summary:     "Get one Page of a Shared binder: its Slots, with Cards of unpublished sets read as empty; any viewer, a Guest included. A plain Collection or a Page past the last one is the same 404 as a missing link",
+			Tags:        []string{"shared"},
+			SuccessCode: http.StatusOK,
+			HandlerFunc: h.getPage,
 		}),
 	}
 }

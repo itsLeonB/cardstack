@@ -88,9 +88,9 @@ func (_c *MockBinderSlotRepository_CountCardSlots_Call) RunAndReturn(run func(co
 	return _c
 }
 
-// CountSlots provides a mock function with given fields: ctx, collectionID
-func (_m *MockBinderSlotRepository) CountSlots(ctx context.Context, collectionID uuid.UUID) (int, int, error) {
-	ret := _m.Called(ctx, collectionID)
+// CountSlots provides a mock function with given fields: ctx, collectionID, includeUnpublished
+func (_m *MockBinderSlotRepository) CountSlots(ctx context.Context, collectionID uuid.UUID, includeUnpublished bool) (int, int, error) {
+	ret := _m.Called(ctx, collectionID, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountSlots")
@@ -99,23 +99,23 @@ func (_m *MockBinderSlotRepository) CountSlots(ctx context.Context, collectionID
 	var r0 int
 	var r1 int
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, int, error)); ok {
-		return rf(ctx, collectionID)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) (int, int, error)); ok {
+		return rf(ctx, collectionID, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = rf(ctx, collectionID)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) int); ok {
+		r0 = rf(ctx, collectionID, includeUnpublished)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) int); ok {
-		r1 = rf(ctx, collectionID)
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, bool) int); ok {
+		r1 = rf(ctx, collectionID, includeUnpublished)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, uuid.UUID) error); ok {
-		r2 = rf(ctx, collectionID)
+	if rf, ok := ret.Get(2).(func(context.Context, uuid.UUID, bool) error); ok {
+		r2 = rf(ctx, collectionID, includeUnpublished)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -131,13 +131,14 @@ type MockBinderSlotRepository_CountSlots_Call struct {
 // CountSlots is a helper method to define mock.On call
 //   - ctx context.Context
 //   - collectionID uuid.UUID
-func (_e *MockBinderSlotRepository_Expecter) CountSlots(ctx interface{}, collectionID interface{}) *MockBinderSlotRepository_CountSlots_Call {
-	return &MockBinderSlotRepository_CountSlots_Call{Call: _e.mock.On("CountSlots", ctx, collectionID)}
+//   - includeUnpublished bool
+func (_e *MockBinderSlotRepository_Expecter) CountSlots(ctx interface{}, collectionID interface{}, includeUnpublished interface{}) *MockBinderSlotRepository_CountSlots_Call {
+	return &MockBinderSlotRepository_CountSlots_Call{Call: _e.mock.On("CountSlots", ctx, collectionID, includeUnpublished)}
 }
 
-func (_c *MockBinderSlotRepository_CountSlots_Call) Run(run func(ctx context.Context, collectionID uuid.UUID)) *MockBinderSlotRepository_CountSlots_Call {
+func (_c *MockBinderSlotRepository_CountSlots_Call) Run(run func(ctx context.Context, collectionID uuid.UUID, includeUnpublished bool)) *MockBinderSlotRepository_CountSlots_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(bool))
 	})
 	return _c
 }
@@ -147,7 +148,7 @@ func (_c *MockBinderSlotRepository_CountSlots_Call) Return(cards int, unidentifi
 	return _c
 }
 
-func (_c *MockBinderSlotRepository_CountSlots_Call) RunAndReturn(run func(context.Context, uuid.UUID) (int, int, error)) *MockBinderSlotRepository_CountSlots_Call {
+func (_c *MockBinderSlotRepository_CountSlots_Call) RunAndReturn(run func(context.Context, uuid.UUID, bool) (int, int, error)) *MockBinderSlotRepository_CountSlots_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -773,9 +774,9 @@ func (_c *MockBinderSlotRepository_ListSlotsAt_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// ListSlotsOnPage provides a mock function with given fields: ctx, leafID, side
-func (_m *MockBinderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string) ([]entity.BinderSlot, error) {
-	ret := _m.Called(ctx, leafID, side)
+// ListSlotsOnPage provides a mock function with given fields: ctx, leafID, side, includeUnpublished
+func (_m *MockBinderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID uuid.UUID, side string, includeUnpublished bool) ([]entity.BinderSlot, error) {
+	ret := _m.Called(ctx, leafID, side, includeUnpublished)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSlotsOnPage")
@@ -783,19 +784,19 @@ func (_m *MockBinderSlotRepository) ListSlotsOnPage(ctx context.Context, leafID 
 
 	var r0 []entity.BinderSlot
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) ([]entity.BinderSlot, error)); ok {
-		return rf(ctx, leafID, side)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool) ([]entity.BinderSlot, error)); ok {
+		return rf(ctx, leafID, side, includeUnpublished)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) []entity.BinderSlot); ok {
-		r0 = rf(ctx, leafID, side)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool) []entity.BinderSlot); ok {
+		r0 = rf(ctx, leafID, side, includeUnpublished)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]entity.BinderSlot)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = rf(ctx, leafID, side)
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool) error); ok {
+		r1 = rf(ctx, leafID, side, includeUnpublished)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -812,13 +813,14 @@ type MockBinderSlotRepository_ListSlotsOnPage_Call struct {
 //   - ctx context.Context
 //   - leafID uuid.UUID
 //   - side string
-func (_e *MockBinderSlotRepository_Expecter) ListSlotsOnPage(ctx interface{}, leafID interface{}, side interface{}) *MockBinderSlotRepository_ListSlotsOnPage_Call {
-	return &MockBinderSlotRepository_ListSlotsOnPage_Call{Call: _e.mock.On("ListSlotsOnPage", ctx, leafID, side)}
+//   - includeUnpublished bool
+func (_e *MockBinderSlotRepository_Expecter) ListSlotsOnPage(ctx interface{}, leafID interface{}, side interface{}, includeUnpublished interface{}) *MockBinderSlotRepository_ListSlotsOnPage_Call {
+	return &MockBinderSlotRepository_ListSlotsOnPage_Call{Call: _e.mock.On("ListSlotsOnPage", ctx, leafID, side, includeUnpublished)}
 }
 
-func (_c *MockBinderSlotRepository_ListSlotsOnPage_Call) Run(run func(ctx context.Context, leafID uuid.UUID, side string)) *MockBinderSlotRepository_ListSlotsOnPage_Call {
+func (_c *MockBinderSlotRepository_ListSlotsOnPage_Call) Run(run func(ctx context.Context, leafID uuid.UUID, side string, includeUnpublished bool)) *MockBinderSlotRepository_ListSlotsOnPage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string), args[3].(bool))
 	})
 	return _c
 }
@@ -828,7 +830,7 @@ func (_c *MockBinderSlotRepository_ListSlotsOnPage_Call) Return(_a0 []entity.Bin
 	return _c
 }
 
-func (_c *MockBinderSlotRepository_ListSlotsOnPage_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) ([]entity.BinderSlot, error)) *MockBinderSlotRepository_ListSlotsOnPage_Call {
+func (_c *MockBinderSlotRepository_ListSlotsOnPage_Call) RunAndReturn(run func(context.Context, uuid.UUID, string, bool) ([]entity.BinderSlot, error)) *MockBinderSlotRepository_ListSlotsOnPage_Call {
 	_c.Call.Return(run)
 	return _c
 }

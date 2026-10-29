@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
@@ -24,12 +25,14 @@ type SharedCollectionService interface {
 	Get(ctx context.Context, req dto.SharedCollectionLookup) (dto.SharedCollectionSummary, error)
 	ListEntries(ctx context.Context, req dto.SharedCollectionListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)
 	ListFacets(ctx context.Context, req dto.SharedCollectionListRequest) (dto.CatalogFacets, error)
+	GetPage(ctx context.Context, req dto.SharedCollectionPageRequest) (dto.BinderPage, error)
 }
 
 type sharedCollectionService struct {
 	profiles    crud.Repository[entity.UserProfile]
 	collections repository.CollectionRepository
 	catalog     repository.CatalogRepository
+	binders     BinderPageService
 	images      mapper.ImageHost
 }
 
@@ -37,9 +40,10 @@ func NewSharedCollectionService(
 	profiles crud.Repository[entity.UserProfile],
 	collections repository.CollectionRepository,
 	catalog repository.CatalogRepository,
+	binders BinderPageService,
 	images mapper.ImageHost,
 ) SharedCollectionService {
-	return &sharedCollectionService{profiles: profiles, collections: collections, catalog: catalog, images: images}
+	return &sharedCollectionService{profiles: profiles, collections: collections, catalog: catalog, binders: binders, images: images}
 }
 
 // resolve finds the owner's profile by its Slug, then the Collection by its
@@ -76,7 +80,18 @@ func (s *sharedCollectionService) Get(ctx context.Context, req dto.SharedCollect
 		return dto.SharedCollectionSummary{}, err
 	}
 
-	return dto.SharedCollectionSummary{OwnerName: profile.Name, Title: c.Title, Description: c.Description}, nil
+	summary := dto.SharedCollectionSummary{OwnerName: profile.Name, Title: c.Title, Description: c.Description}
+
+	// A plain Collection has no Layout, so its header has no binder block.
+	header, err := s.binders.Header(ctx, dto.BinderReadRequest{CollectionID: c.ID})
+	switch {
+	case err == nil:
+		summary.Binder = &header
+	case !apperr.IsNotFound(err):
+		return dto.SharedCollectionSummary{}, err
+	}
+
+	return summary, nil
 }
 
 // ListEntries pages the Shared Collection's Cards with the owner's listing's
@@ -116,4 +131,21 @@ func (s *sharedCollectionService) ListFacets(ctx context.Context, req dto.Shared
 	}
 
 	return mapper.ToCatalogFacets(s.images, facets), nil
+}
+
+// GetPage reads one Page of a Shared binder for any viewer. Cards of unpublished
+// sets read as empty, as ListEntries leaves them out. A plain Collection and a
+// Page past the last Leaf answer the same not-found as a missing link.
+func (s *sharedCollectionService) GetPage(ctx context.Context, req dto.SharedCollectionPageRequest) (dto.BinderPage, error) {
+	_, c, err := s.resolve(ctx, req.Lookup)
+	if err != nil {
+		return dto.BinderPage{}, err
+	}
+
+	page, err := s.binders.Page(ctx, dto.BinderPageReadRequest{CollectionID: c.ID, Page: req.Page})
+	if apperr.IsNotFound(err) {
+		return dto.BinderPage{}, ungerr.NotFoundError(sharedNotFoundMsg)
+	}
+
+	return page, err
 }

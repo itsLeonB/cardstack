@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
+import { SharedBinderView } from "@/components/collections/shared-binder-view"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import {
   getGetSharedCollectionQueryKey,
@@ -126,6 +127,14 @@ function SharedCollectionList({ shared }: { shared: SharedCollectionSummary }) {
           </>
         }
       />
+      {shared.binder && (
+        <SharedBinderView
+          key={`${profileSlug}/${collectionSlug}`}
+          profileSlug={profileSlug}
+          collectionSlug={collectionSlug}
+          binder={shared.binder}
+        />
+      )}
       <section className="flex flex-col gap-6" aria-label="Collection contents">
         <CatalogFilterPanel
           search={search}

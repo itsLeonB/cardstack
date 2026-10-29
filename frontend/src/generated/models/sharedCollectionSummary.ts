@@ -4,8 +4,11 @@
  * Cardstack API
  * OpenAPI spec version: 1.0
  */
+import type { BinderHeader } from './binderHeader.ts';
 
 export interface SharedCollectionSummary {
+  /** The binder's Layout and Unidentified count. Absent for a plain Collection. */
+  binder?: BinderHeader;
   description: string;
   /** The owner's display name, never their email. */
   ownerName: string;
