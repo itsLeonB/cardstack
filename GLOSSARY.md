@@ -127,7 +127,7 @@ A Collection or a Wishlist its owner has made viewable by anyone who has its lin
 _Avoid_: "public" for a Collection that merely has a link nobody has been given — Shared is the owner's explicit choice, and a Collection is either Shared or private, nothing in between.
 
 **Slug**:
-The readable, stable name of a profile or of a Shared Collection, as it appears in their link: the owner's name or the Collection's title, lower-cased and hyphenated, followed by a short random-looking tail so two with the same name still differ. A profile always has a Slug. A Collection has one only while it is Shared; a Collection with no Slug is private.
+The readable, stable name of a profile or of a Shared Collection, as it appears in their link: the owner's name or the Collection's title, lower-cased and hyphenated, followed by a short random-looking tail so two with the same name still differ (a Collection's tail is drawn afresh each time sharing is turned on, so a revoked link never comes back). A profile always has a Slug. A Collection has one only while it is Shared; a Collection with no Slug is private.
 
 **Wishlist**:
 The cards a user wants and does not yet own, each with a wanted quantity. One per user. A Wishlist Item is one Card and the quantity wanted, and shows how many of that Card the user owns in Master Inventory next to it. Owning the Card never removes the item: it shows as fulfilled until the user clears it. Can be Shared, and anyone viewing a Shared Wishlist, a Guest included, sees the owner's owned and wanted for each item and whether it is fulfilled. A signed-in viewer of another user's Shared Wishlist sees how many of each Card they own themselves, so the two can see where a trade is possible.
