@@ -33,6 +33,7 @@ import type {
   BulkUpdateEntriesInputBody,
   EnvelopeCatalogFacets,
   EnvelopeInventoryEntry,
+  EnvelopeInventoryMoveResult,
   EnvelopeListCardHolding,
   EnvelopeListInventoryChangeResult,
   EnvelopeWithMetaListInventoryItemPaginationMeta,
@@ -41,6 +42,7 @@ import type {
   ListCollectionFacetsParams,
   ListMasterInventoryFacetsParams,
   ListMasterInventoryParams,
+  MoveEntriesInputBody,
   UpdateEntryInputBody
 } from '../../models';
 
@@ -507,6 +509,113 @@ export const useAddCollectionEntry = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getAddCollectionEntryMutationOptions(options), queryClient);
+    }
+    export type moveCollectionEntriesResponse200 = {
+  data: EnvelopeInventoryMoveResult
+  status: 200
+}
+
+export type moveCollectionEntriesResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type moveCollectionEntriesResponseSuccess = (moveCollectionEntriesResponse200) & {
+  headers: Headers;
+};
+export type moveCollectionEntriesResponseError = (moveCollectionEntriesResponseDefault) & {
+  headers: Headers;
+};
+
+export type moveCollectionEntriesResponse = (moveCollectionEntriesResponseSuccess | moveCollectionEntriesResponseError)
+
+export const getMoveCollectionEntriesUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries/move`
+}
+
+/**
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ */
+export const moveCollectionEntries = async (id: string,
+    moveEntriesInputBody: MoveEntriesInputBody, options?: Parameters<typeof customFetch>[1]): Promise<moveCollectionEntriesResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<moveCollectionEntriesResponse>(getMoveCollectionEntriesUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(moveEntriesInputBody)
+  }
+);}
+
+
+
+
+
+export const getMoveCollectionEntriesMutationKey = () => ['moveCollectionEntries'] as const;
+
+export const getMoveCollectionEntriesMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveCollectionEntries>>, TError,MoveCollectionEntriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveCollectionEntries>>, TError,MoveCollectionEntriesMutationVariables, TContext> => {
+
+const mutationKey = getMoveCollectionEntriesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveCollectionEntries>>, MoveCollectionEntriesMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  moveCollectionEntries(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveCollectionEntriesMutationResult = NonNullable<Awaited<ReturnType<typeof moveCollectionEntries>>>
+    export type MoveCollectionEntriesMutationBody = MoveEntriesInputBody
+    export type MoveCollectionEntriesMutationError = ErrorModel
+    export type MoveCollectionEntriesMutationVariables = {id: string;data: MoveEntriesInputBody}
+
+    /**
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ */
+export const useMoveCollectionEntries = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveCollectionEntries>>, TError,MoveCollectionEntriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveCollectionEntries>>,
+        TError,
+        MoveCollectionEntriesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveCollectionEntriesMutationOptions(options), queryClient);
     }
     export type removeCollectionEntryResponse204 = {
   data: void
