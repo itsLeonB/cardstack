@@ -129,6 +129,7 @@ function SharedCollectionList({ shared }: { shared: SharedCollectionSummary }) {
       />
       {shared.binder && (
         <SharedBinderView
+          key={`${profileSlug}/${collectionSlug}`}
           profileSlug={profileSlug}
           collectionSlug={collectionSlug}
           binder={shared.binder}

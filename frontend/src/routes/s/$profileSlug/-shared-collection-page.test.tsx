@@ -537,6 +537,33 @@ describe("Shared Collection page", () => {
     )
   })
 
+  it("starts at Page 1 when the link changes to another binder", async () => {
+    stubSharedApi({
+      header: { status: 200, body: binderHeader },
+      pages: [frontPage, backPage],
+    })
+    // The second link is answered by the same stub, under its own slug.
+    const inner = globalThis.fetch
+    const asked: string[] = []
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = String(input)
+      asked.push(new URL(url).pathname)
+      return inner(url.replace("other-binder-77777", "holiday-binder-3f9a2"))
+    })
+    const router = await renderSharedPage()
+    await screen.findByText("Page 1 of 2")
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }))
+    await screen.findByText("Page 2 of 2")
+
+    await router.history.push("/s/profile-ash/other-binder-77777")
+    await router.load()
+
+    await vi.waitFor(() =>
+      expect(asked).toContain("/shared/profile-ash/other-binder-77777/pages/1")
+    )
+    expect(await screen.findByText("Page 1 of 2")).toBeTruthy()
+  })
+
   it("shows no binder and asks for no Page for a plain Collection", async () => {
     const requests = stubSharedApi()
     await renderSharedPage()
