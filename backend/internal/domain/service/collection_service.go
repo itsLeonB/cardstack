@@ -162,6 +162,7 @@ func (s *collectionService) Share(ctx context.Context, req dto.CollectionLookup)
 			return nil
 		}
 
+		// ponytail: a collision on (profile, stem, 5-hex tail) fails the unique index and surfaces as a 500, with no retry. Upgrade: on that unique violation, retry in a new transaction (this one is aborted) with a fresh tail.
 		slug := mapper.SlugOf(c.Title, "collection", uuid.New())
 		c.Slug = &slug
 		shared, err = s.repo.Update(ctx, c)

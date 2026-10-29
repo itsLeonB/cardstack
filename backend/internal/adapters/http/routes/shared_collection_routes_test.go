@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -189,6 +190,13 @@ func TestUnshareEndsTheLinkAndResharingNeverBringsItBack(t *testing.T) {
 	assert.Nil(t, private.Data.Slug, "a private Collection has no Slug")
 	assert.Equal(t, http.StatusNotFound, api.Get(sharedPath(profile, first)).Code, "the old link stops working at once")
 
+	// Unsharing a Collection that is already private changes nothing and still succeeds.
+	again := api.Delete("/collections/"+id+"/share", bearer(owner.token))
+	require.Equal(t, http.StatusOK, again.Code, again.Body.String())
+	var stillPrivate sharedCollectionEnvelope
+	require.NoError(t, json.Unmarshal(again.Body.Bytes(), &stillPrivate))
+	assert.Nil(t, stillPrivate.Data.Slug)
+
 	second := *shareCollection(t, api, owner, id).Data.Slug
 	assert.NotEqual(t, first, second, "sharing again makes a fresh Slug")
 	assert.Equal(t, http.StatusNotFound, api.Get(sharedPath(profile, first)).Code, "the old link never comes back")
@@ -221,6 +229,9 @@ func TestSharedViewIsTheSameForAGuestASignedInUserAndTheOwner(t *testing.T) {
 		require.Equal(t, http.StatusOK, entries[name].Code, name+": "+entries[name].Body.String())
 		assert.NotContains(t, headers[name].Body.String(), owner.email, name+" must never see the owner's email")
 		assert.NotContains(t, entries[name].Body.String(), owner.email, name+" must never see the owner's email")
+		facets := api.Get(base+"/facets", args...)
+		require.Equal(t, http.StatusOK, facets.Code, name+": "+facets.Body.String())
+		assert.NotContains(t, facets.Body.String(), owner.email, name+" must never see the owner's email")
 	}
 	assert.JSONEq(t, headers["guest"].Body.String(), headers["signed-in"].Body.String())
 	assert.JSONEq(t, headers["guest"].Body.String(), headers["owner"].Body.String())
@@ -246,6 +257,8 @@ func TestEveryMissingSharedTargetGetsTheSameNotFound(t *testing.T) {
 	api := newTestAPI(t)
 	owner := newSharedOwner(t, api)
 	other := newSharedOwner(t, api)
+	// A real row that was never shared: its slug is NULL, so the probe below
+	// names a Slug nothing holds.
 	privateID := createCollection(t, api, owner, "Base Set Binder")
 	gone := createCollection(t, api, owner, "Once Shared")
 	goneSlug := *shareCollection(t, api, owner, gone).Data.Slug
@@ -262,17 +275,27 @@ func TestEveryMissingSharedTargetGetsTheSameNotFound(t *testing.T) {
 		"other-profile":       sharedPath(otherProfile, goneSlug),
 	}
 	for _, suffix := range []string{"", "/entries", "/facets"} {
-		var reference string
+		var reference, referenceName string
 		for name, base := range targets {
 			resp := api.Get(base + suffix)
 			require.Equal(t, http.StatusNotFound, resp.Code, name+suffix+": "+resp.Body.String())
+			shape := sharedMissShape(resp)
 			if reference == "" {
-				reference = resp.Body.String()
+				reference, referenceName = shape, name
 				continue
 			}
-			assert.JSONEq(t, reference, resp.Body.String(), name+suffix+" must look like every other miss")
+			assert.Equal(t, reference, shape, name+suffix+" must look exactly like "+referenceName)
 		}
 	}
+}
+
+// sharedMissShape is every part of a response a caller can see, except the
+// per-request headers (Date and the request id), which differ on each call.
+func sharedMissShape(resp *httptest.ResponseRecorder) string {
+	headers := resp.Result().Header.Clone()
+	headers.Del("Date")
+	headers.Del("X-Request-Id")
+	return fmt.Sprintf("%d\n%v\n%s", resp.Code, headers, resp.Body.String())
 }
 
 // TestSharedEntriesUseTheOwnersFiltersAndFacetsForAGuest: a Guest is not held to
