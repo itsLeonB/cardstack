@@ -209,3 +209,71 @@ func TestBinderSlotRepository_NilIDsMatchNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, slots, "a nil Collection id must not list every binder's Slots")
 }
+
+// newSlotsWithHiddenCard places three Slots on one face: a Card from a published
+// set, a Card from a set since unpublished, and an Unidentified Slot. The hidden
+// set is unpublished only after its Card exists, as the sibling tests do.
+func newSlotsWithHiddenCard(t *testing.T, db *gorm.DB) (entity.Collection, entity.BinderLeaf, uuid.UUID, uuid.UUID) {
+	t.Helper()
+	fixture := newCatalogFixture(t, db)
+	visible := fixture.newCard(t, db, fixture.newExpansionSet(t, db, nil, nil).ID, nil)
+	hiddenSet := fixture.newExpansionSet(t, db, nil, nil)
+	hidden := fixture.newCard(t, db, hiddenSet.ID, nil)
+	hideSet(t, db, hiddenSet)
+
+	binder, leaf := newBinderWithLeaf(t, db, "Visibility Test")
+	placeSlotRow(t, db, binder, leaf, 1, 1, &visible.ID, false)
+	placeSlotRow(t, db, binder, leaf, 1, 2, &hidden.ID, false)
+	placeSlotRow(t, db, binder, leaf, 2, 1, nil, true)
+	return binder, leaf, visible.ID, hidden.ID
+}
+
+func TestBinderSlotRepository_ListSlotsOnPage_ExcludesCardsOfUnpublishedSets(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](db))
+	_, leaf, visibleID, hiddenID := newSlotsWithHiddenCard(t, db)
+
+	hiding, err := repo.ListSlotsOnPage(ctx, leaf.ID, "front", false)
+	require.NoError(t, err)
+	require.Len(t, hiding, 2, "the visible Card and the Unidentified Slot stay; the hidden Card's Slot is left out")
+	var unidentified int
+	for _, slot := range hiding {
+		if slot.CardID == nil {
+			assert.True(t, slot.Unidentified)
+			unidentified++
+			continue
+		}
+		assert.Equal(t, visibleID, *slot.CardID)
+		assert.Equal(t, visibleID, slot.Card.ID, "the Card is preloaded")
+	}
+	assert.Equal(t, 1, unidentified)
+
+	all, err := repo.ListSlotsOnPage(ctx, leaf.ID, "front", true)
+	require.NoError(t, err)
+	require.Len(t, all, 3, "with includeUnpublished the hidden Card's Slot is listed too")
+	var ids []uuid.UUID
+	for _, slot := range all {
+		if slot.CardID != nil {
+			ids = append(ids, *slot.CardID)
+		}
+	}
+	assert.ElementsMatch(t, []uuid.UUID{visibleID, hiddenID}, ids)
+}
+
+func TestBinderSlotRepository_CountSlots_ExcludesCardsOfUnpublishedSets(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	repo := NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](db))
+	binder, _, _, _ := newSlotsWithHiddenCard(t, db)
+
+	cards, unidentified, err := repo.CountSlots(ctx, binder.ID, false)
+	require.NoError(t, err)
+	assert.Equal(t, 1, cards, "the hidden Card is not counted")
+	assert.Equal(t, 1, unidentified, "an Unidentified Slot is counted whatever the flag")
+
+	cards, unidentified, err = repo.CountSlots(ctx, binder.ID, true)
+	require.NoError(t, err)
+	assert.Equal(t, 2, cards)
+	assert.Equal(t, 1, unidentified)
+}
