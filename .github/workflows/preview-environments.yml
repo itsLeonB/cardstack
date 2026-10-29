@@ -9,6 +9,8 @@ name: Preview Environments
 #   3. a fresh Vercel preview deployment pointed at that Railway environment,
 #      whose URL is then set as APP_CLIENT_URLS on the Railway API, so the API
 #      accepts tokens minted for that preview
+#      (the inherited APP_EDGE_SECRET is deleted from that environment, since
+#      a preview is not behind Cloudflare)
 #
 # Railway's own PR environment is torn down automatically by Railway when the
 # PR is merged/closed. This workflow owns the Neon branch lifecycle, the PR's
@@ -226,6 +228,20 @@ jobs:
             exit 1
           fi
           issuer="https://$domain"
+          # Railway forks the PR environment from production, so it inherits
+          # APP_EDGE_SECRET. A preview is reached through its own Railway and
+          # Vercel URLs, not Cloudflare, so nothing adds the X-Edge-Secret
+          # header and the API would answer 403 to every route but /health
+          # (the browser reports it as a CORS failure, since the 403
+          # preflight carries no CORS headers). The jq test prints nothing,
+          # so the secret stays out of the log.
+          if railway variable list --service api \
+            --environment "$RAILWAY_ENV" --json \
+            | jq -e 'has("APP_EDGE_SECRET")' >/dev/null; then
+            railway variable delete APP_EDGE_SECRET \
+              --service api \
+              --environment "$RAILWAY_ENV"
+          fi
           railway variable set \
             "DB_HOST=${{ steps.neon.outputs.host }}" \
             "DB_PORT=5432" \

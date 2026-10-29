@@ -74,7 +74,7 @@ If production shows stale behavior (missing images, old UI), suspect a failed Ve
 `.github/workflows/preview-environments.yml` provisions a stack per pull request, and its header comment is the authority on what it creates and deletes:
 
 - A Neon branch `preview/pr-<number>`, forked from `production`.
-- Neon credentials and the Clerk development instance's `CLERK_SECRET_KEY` and `CLERK_ISSUER` pushed into the Railway PR environment, which Railway creates and deletes itself. After the Vercel preview deploys, its URL is set as `APP_CLIENT_URLS` on that API.
+- Neon credentials and the Clerk development instance's `CLERK_SECRET_KEY` and `CLERK_ISSUER` pushed into the Railway PR environment, which Railway creates and deletes itself. After the Vercel preview deploys, its URL is set as `APP_CLIENT_URLS` on that API. The workflow also deletes `APP_EDGE_SECRET` from that environment, because Railway forks it from production and a preview is not behind Cloudflare: left in place, the API answers 403 to every route but `/health`, which the browser shows as a CORS error.
 - A Vercel preview deployment with a branch-scoped `VITE_API_BASE_URL` pointing at that Railway environment and a branch-scoped `VITE_CLERK_PUBLISHABLE_KEY` (the development instance's). Closing the PR deletes the Neon branch, the preview deployments and those env vars.
 
 Provisioning skips fork and Dependabot PRs because they get no repo secrets.
