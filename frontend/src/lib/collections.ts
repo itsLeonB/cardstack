@@ -196,8 +196,9 @@ export function useShareCollectionMutation() {
 
   return useShareCollection({
     mutation: {
+      // Returned, so the mutation stays pending until the refreshed slug is cached.
       onSuccess: (response, { id }) => {
-        if (response.status === 200) invalidateSharing(queryClient, id)
+        if (response.status === 200) return invalidateSharing(queryClient, id)
       },
     },
   })
@@ -208,20 +209,26 @@ export function useUnshareCollectionMutation() {
 
   return useUnshareCollection({
     mutation: {
+      // Returned, so the mutation stays pending until the refreshed slug is cached.
       onSuccess: (response, { id }) => {
-        if (response.status === 200) invalidateSharing(queryClient, id)
+        if (response.status === 200) return invalidateSharing(queryClient, id)
       },
     },
   })
 }
 
-function invalidateSharing(queryClient: QueryClient, collectionId: string) {
-  void queryClient.invalidateQueries({
-    queryKey: getListCollectionsQueryKey(),
-  })
-  void queryClient.invalidateQueries({
-    queryKey: getGetCollectionQueryKey(collectionId),
-  })
+async function invalidateSharing(
+  queryClient: QueryClient,
+  collectionId: string
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: getListCollectionsQueryKey(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: getGetCollectionQueryKey(collectionId),
+    }),
+  ])
 }
 
 // Success bodies are `{ data }` envelopes and error bodies carry `detail`; both

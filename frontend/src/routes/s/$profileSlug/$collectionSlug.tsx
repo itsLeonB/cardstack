@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { NOINDEX_META, pageHead } from "@/lib/site"
@@ -27,14 +26,25 @@ import { useInfiniteSharedCollectionEntries } from "@/lib/infinite-inventory"
 // the head carries `noindex` (ADR-0025).
 export const Route = createFileRoute("/s/$profileSlug/$collectionSlug")({
   validateSearch: catalogFilterSchema,
+  // Read fresh on every visit: a cached header would keep showing a Collection
+  // whose sharing was stopped since.
   loader: async ({ context: { queryClient }, params }) => {
-    const response = await queryClient.ensureQueryData(
-      getGetSharedCollectionQueryOptions(
+    const response = await queryClient.fetchQuery({
+      ...getGetSharedCollectionQueryOptions(
         params.profileSlug,
         params.collectionSlug
-      )
-    )
-    if (response.status === 404) return "missing" as const
+      ),
+      staleTime: 0,
+    })
+    if (response.status === 404) {
+      queryClient.removeQueries({
+        queryKey: getGetSharedCollectionQueryKey(
+          params.profileSlug,
+          params.collectionSlug
+        ),
+      })
+      return "missing" as const
+    }
     return response.status === 200 ? response.data.data : null
   },
   head: ({ loaderData }) => {
@@ -48,19 +58,12 @@ export const Route = createFileRoute("/s/$profileSlug/$collectionSlug")({
 })
 
 function SharedCollectionPage() {
-  const { profileSlug, collectionSlug } = Route.useParams()
   const shared = Route.useLoaderData()
   const router = useRouter()
-  const queryClient = useQueryClient()
 
   if (shared === "missing") return <NotFoundView resource="Collection" />
 
-  // The loader answers from the cache, so a failed header is dropped first;
-  // otherwise invalidating the route would re-read the same failure.
   function retry() {
-    queryClient.removeQueries({
-      queryKey: getGetSharedCollectionQueryKey(profileSlug, collectionSlug),
-    })
     void router.invalidate()
   }
 

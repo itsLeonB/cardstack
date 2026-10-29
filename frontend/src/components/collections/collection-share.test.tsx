@@ -27,6 +27,8 @@ interface Server {
   slug: string | null
   // "loading" never answers; "offline" fails the request outright.
   profileStatus: number | "loading" | "offline"
+  // Set to hold the Collection read-back until released.
+  holdCollectionRead?: Promise<void>
 }
 
 // Each request is answered by path and method, and the calls made are kept.
@@ -71,7 +73,10 @@ function stubServer(server: Server) {
         server.slug = null
         return reply(200, { data: collection() })
       }
-      if (url.pathname === COLLECTION) return reply(200, { data: collection() })
+      if (url.pathname === COLLECTION) {
+        await server.holdCollectionRead
+        return reply(200, { data: collection() })
+      }
       return reply(500, { detail: `unexpected ${method} ${url.pathname}` })
     })
   )
@@ -92,6 +97,11 @@ function renderShare(server: Server) {
 }
 
 const linkFor = () => `${window.location.origin}/s/profile-ash/${SLUG}`
+
+// The Switch is a span, so a disabled one shows it as an attribute.
+const isDisabled = (el: HTMLElement) =>
+  el.hasAttribute("data-disabled") ||
+  el.getAttribute("aria-disabled") === "true"
 
 // Share is disabled until the profile loads, and a click before that does nothing.
 async function enabledButton(name: string) {
@@ -156,6 +166,63 @@ describe("Collection Share button", () => {
     )
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
     expect(await screen.findByRole("button", { name: "Share" })).toBeTruthy()
+  })
+
+  it("keeps the switch pending until the shared Collection is read back", async () => {
+    const server: Server = { slug: null, profileStatus: 200 }
+    const calls = renderShare(server)
+    const switchOf = () =>
+      screen.getByRole("switch", { name: "Anyone with the link can view" })
+
+    fireEvent.click(await enabledButton("Share"))
+    let releaseRead = () => {}
+    server.holdCollectionRead = new Promise<void>((resolve) => {
+      releaseRead = resolve
+    })
+    fireEvent.click(switchOf())
+
+    await vi.waitFor(() =>
+      expect(calls.filter((call) => call === `GET ${COLLECTION}`)).toHaveLength(
+        2
+      )
+    )
+    expect(isDisabled(switchOf())).toBe(true)
+
+    releaseRead()
+    expect(
+      await screen.findByRole("textbox", { name: "Share link" })
+    ).toHaveProperty("value", linkFor())
+    expect(isDisabled(switchOf())).toBe(false)
+  })
+
+  it("keeps the switch pending until the unshared Collection is read back", async () => {
+    const server: Server = { slug: SLUG, profileStatus: 200 }
+    const calls = renderShare(server)
+    const switchOf = () =>
+      screen.getByRole("switch", { name: "Anyone with the link can view" })
+
+    fireEvent.click(await enabledButton("Shared"))
+    let releaseRead = () => {}
+    server.holdCollectionRead = new Promise<void>((resolve) => {
+      releaseRead = resolve
+    })
+    fireEvent.click(
+      await screen.findByRole("switch", {
+        name: "Anyone with the link can view",
+      })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Stop sharing" }))
+
+    await vi.waitFor(() =>
+      expect(calls.filter((call) => call === `GET ${COLLECTION}`)).toHaveLength(
+        2
+      )
+    )
+    expect(isDisabled(switchOf())).toBe(true)
+
+    releaseRead()
+    await vi.waitFor(() => expect(isDisabled(switchOf())).toBe(false))
+    expect(switchOf().getAttribute("aria-checked")).toBe("false")
   })
 
   it("keeps Share visible but disabled while the profile loads", async () => {
