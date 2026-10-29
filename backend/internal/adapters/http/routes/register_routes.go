@@ -22,6 +22,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	healthHandler := handler.NewHealthHandler(services.Health)
 	catalogHandler := handler.NewCatalogHandler(services.Catalog)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
+	sharedCollectionHandler := handler.NewSharedCollectionHandler(services.SharedCollection)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
 	binderHandler := handler.NewBinderHandler(services.Binder, services.BinderSlot)
 	binderPlacementHandler := handler.NewBinderPlacementHandler(services.BinderSlot)
@@ -50,6 +51,9 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	// so it flags the caller rather than gating the route.
 	endpoint.RegisterAll(api, catalogHandler.Routes(), guestsAllowed, perUser, authpkg.AdminFlag(adminEmails))
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
+	// A shared page is read by Guests too, so it is guest-allowed and limited per
+	// client address instead of per user (docs/adr/0025).
+	endpoint.RegisterAll(api, sharedCollectionHandler.Routes(), guestsAllowed, ratelimit.PerIP(api, limits.Shared, limits.Now))
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderPlacementHandler.Routes(), private, perUser)

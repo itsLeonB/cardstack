@@ -113,6 +113,24 @@ func (h *CollectionHandler) delete(ctx context.Context, in collectionIDInput) er
 	return h.collectionSvc.Delete(ctx, dto.CollectionLookup{ProfileID: profileID, ID: in.ID})
 }
 
+func (h *CollectionHandler) share(ctx context.Context, in collectionIDInput) (dto.CollectionSummary, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	return h.collectionSvc.Share(ctx, dto.CollectionLookup{ProfileID: profileID, ID: in.ID})
+}
+
+func (h *CollectionHandler) unshare(ctx context.Context, in collectionIDInput) (dto.CollectionSummary, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.CollectionSummary{}, err
+	}
+
+	return h.collectionSvc.Unshare(ctx, dto.CollectionLookup{ProfileID: profileID, ID: in.ID})
+}
+
 // Routes sets Secured:true only sets OpenAPI security metadata; the router must pass
 // SessionGuard to RegisterAll.
 func (h *CollectionHandler) Routes() []endpoint.Registrable {
@@ -160,10 +178,30 @@ func (h *CollectionHandler) Routes() []endpoint.Registrable {
 			OperationID: "delete-collection",
 			Method:      http.MethodDelete,
 			Path:        "/collections/{id}",
-			Summary:     "Delete one of the current user's own Collections (hard delete, no undo)",
+			Summary:     "Delete one of the current user's own Collections (hard delete, no undo); a Shared Collection's link ends with it",
 			Tags:        []string{"collections"},
 			Secured:     true,
 			HandlerFunc: h.delete,
+		}),
+		endpoint.New(endpoint.Endpoint[collectionIDInput, dto.CollectionSummary]{
+			OperationID: "share-collection",
+			Method:      http.MethodPost,
+			Path:        "/collections/{id}/share",
+			Summary:     "Share one of the current user's own Collections: anyone with the link can view it. Sharing an already-Shared Collection keeps its link",
+			Tags:        []string{"collections"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.share,
+		}),
+		endpoint.New(endpoint.Endpoint[collectionIDInput, dto.CollectionSummary]{
+			OperationID: "unshare-collection",
+			Method:      http.MethodDelete,
+			Path:        "/collections/{id}/share",
+			Summary:     "Stop sharing one of the current user's own Collections; its link stops working at once and a later share makes a new one",
+			Tags:        []string{"collections"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.unshare,
 		}),
 	}
 }

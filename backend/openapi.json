@@ -761,6 +761,13 @@
             "format": "int64",
             "type": "integer"
           },
+          "slug": {
+            "description": "The Slug of the shared link (/shared/{profileSlug}/{slug}), or null while the Collection is private.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "title": {
             "type": "string"
           }
@@ -771,7 +778,8 @@
           "description",
           "maxCardCount",
           "cardCount",
-          "binder"
+          "binder",
+          "slug"
         ],
         "type": "object"
       },
@@ -1151,6 +1159,18 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/SeriesBrowseResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeSharedCollectionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SharedCollectionSummary"
           }
         },
         "required": [
@@ -1858,6 +1878,27 @@
           "name",
           "imageUrl",
           "expansionSets"
+        ],
+        "type": "object"
+      },
+      "SharedCollectionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "ownerName": {
+            "description": "The owner's display name, never their email.",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ownerName",
+          "title",
+          "description"
         ],
         "type": "object"
       },
@@ -2986,7 +3027,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Delete one of the current user's own Collections (hard delete, no undo)",
+        "summary": "Delete one of the current user's own Collections (hard delete, no undo); a Shared Collection's link ends with it",
         "tags": [
           "collections"
         ]
@@ -4418,6 +4459,100 @@
         ]
       }
     },
+    "/collections/{id}/share": {
+      "delete": {
+        "operationId": "unshare-collection",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCollectionSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Stop sharing one of the current user's own Collections; its link stops working at once and a later share makes a new one",
+        "tags": [
+          "collections"
+        ]
+      },
+      "post": {
+        "operationId": "share-collection",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCollectionSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Share one of the current user's own Collections: anyone with the link can view it. Sharing an already-Shared Collection keeps its link",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "get-health",
@@ -4992,6 +5127,387 @@
         "summary": "List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
         "tags": [
           "scan"
+        ]
+      }
+    },
+    "/shared/{profileSlug}/{collectionSlug}": {
+      "get": {
+        "operationId": "get-shared-collection",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Collection's Slug.",
+            "in": "path",
+            "name": "collectionSlug",
+            "required": true,
+            "schema": {
+              "description": "The Collection's Slug.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeSharedCollectionSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a Shared Collection's header (owner's display name, title, description) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404",
+        "tags": [
+          "shared"
+        ]
+      }
+    },
+    "/shared/{profileSlug}/{collectionSlug}/entries": {
+      "get": {
+        "operationId": "list-shared-collection-entries",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Collection's Slug.",
+            "in": "path",
+            "name": "collectionSlug",
+            "required": true,
+            "schema": {
+              "description": "The Collection's Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "1-indexed page number.",
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "description": "1-indexed page number.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 24,
+              "description": "Page size.",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListInventoryItemPaginationMeta"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Search/page the Cards and quantities of a Shared Collection, with the owner's listing's filters; any viewer, a Guest included",
+        "tags": [
+          "shared"
+        ]
+      }
+    },
+    "/shared/{profileSlug}/{collectionSlug}/facets": {
+      "get": {
+        "operationId": "list-shared-collection-facets",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Collection's Slug.",
+            "in": "path",
+            "name": "collectionSlug",
+            "required": true,
+            "schema": {
+              "description": "The Collection's Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCatalogFacets"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List each filter's available options computed only from the Cards of a Shared Collection; any viewer, a Guest included",
+        "tags": [
+          "shared"
         ]
       }
     }

@@ -71,7 +71,7 @@ func newTestAPI(t *testing.T) testAPI {
 	t.Helper()
 
 	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
-	return newTestAPIWithLimits(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now))
+	return newTestAPIWithLimits(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now))
 }
 
 func newTestAPIWithLimits(t *testing.T, limits ratelimit.Limits) testAPI {
@@ -85,7 +85,7 @@ func newTestAPIWithEmptyThreshold(t *testing.T, emptyThreshold float64) testAPI 
 	t.Helper()
 
 	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
-	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), nil, emptyThreshold)
+	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now), nil, emptyThreshold)
 }
 
 // newTestAPIWithAdmins is the API as booted with ADMIN_EMAILS set to emails
@@ -94,7 +94,7 @@ func newTestAPIWithAdmins(t *testing.T, emails []string) testAPI {
 	t.Helper()
 
 	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
-	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), emails, 0)
+	return newTestAPIWith(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now), emails, 0)
 }
 
 // newTestAPIWithoutPhotoBucket is the API as booted with no SCAN_PHOTO_R2_*
@@ -103,7 +103,7 @@ func newTestAPIWithoutPhotoBucket(t *testing.T) testAPI {
 	t.Helper()
 
 	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
-	return newTestAPIWithPhotoBucket(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable}, time.Now), nil, 0, false)
+	return newTestAPIWithPhotoBucket(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now), nil, 0, false)
 }
 
 func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64) testAPI {
@@ -141,6 +141,7 @@ func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmail
 		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
+		provider.ProvideSharedCollectionService(ds, images),
 		provider.ProvideInventoryService(ds, images),
 		binder,
 		provider.ProvideBinderSlotService(ds),

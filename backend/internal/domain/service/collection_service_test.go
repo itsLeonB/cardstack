@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"regexp"
 	"testing"
 
 	"github.com/google/uuid"
@@ -253,6 +254,88 @@ func TestCollectionService_Delete(t *testing.T) {
 	f.repo.EXPECT().Delete(ctx, found).Return(nil).Once()
 
 	assert.NoError(t, f.svc.Delete(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id}))
+}
+
+// TestCollectionService_Share_MintsASlugFromTheTitle: a private Collection gets
+// a Slug from its title and a random 5-hex tail, and the summary carries it.
+func TestCollectionService_Share_MintsASlugFromTheTitle(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	id := uuid.New()
+	f := newCollectionFixture(t)
+
+	f.repo.EXPECT().GetOwnedCollection(ctx, profileID, id, true).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Base Set Binder"}, nil).Once()
+	f.repo.EXPECT().
+		Update(ctx, mock.MatchedBy(func(c entity.Collection) bool {
+			return c.ID == id && c.Slug != nil && regexp.MustCompile(`^base-set-binder-[0-9a-f]{5}$`).MatchString(*c.Slug)
+		})).
+		RunAndReturn(func(_ context.Context, c entity.Collection) (entity.Collection, error) { return c, nil }).
+		Once()
+	f.repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id}).Return(map[uuid.UUID]int{}, nil).Once()
+	f.layouts.EXPECT().FindLayout(ctx, id).Return(entity.CollectionLayout{}, nil).Once()
+
+	got, err := f.svc.Share(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
+	require.NoError(t, err)
+	require.NotNil(t, got.Slug)
+	assert.Regexp(t, `^base-set-binder-[0-9a-f]{5}$`, *got.Slug)
+}
+
+// TestCollectionService_Share_KeepsTheSlugOfAnAlreadySharedCollection: sharing
+// a Shared Collection again writes nothing, so its link does not move.
+func TestCollectionService_Share_KeepsTheSlugOfAnAlreadySharedCollection(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	id := uuid.New()
+	slug := "base-set-binder-a1b2c"
+	f := newCollectionFixture(t)
+
+	f.repo.EXPECT().GetOwnedCollection(ctx, profileID, id, true).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Renamed", Slug: &slug}, nil).Once()
+	f.repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id}).Return(map[uuid.UUID]int{}, nil).Once()
+	f.layouts.EXPECT().FindLayout(ctx, id).Return(entity.CollectionLayout{}, nil).Once()
+
+	got, err := f.svc.Share(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
+	require.NoError(t, err)
+	require.NotNil(t, got.Slug)
+	assert.Equal(t, slug, *got.Slug)
+}
+
+// TestCollectionService_Unshare_ClearsTheSlug: a Shared Collection goes private
+// by clearing its Slug to NULL.
+func TestCollectionService_Unshare_ClearsTheSlug(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	id := uuid.New()
+	slug := "base-set-binder-a1b2c"
+	f := newCollectionFixture(t)
+
+	f.repo.EXPECT().GetOwnedCollection(ctx, profileID, id, true).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder", Slug: &slug}, nil).Once()
+	f.repo.EXPECT().
+		Update(ctx, mock.MatchedBy(func(c entity.Collection) bool { return c.ID == id && c.Slug == nil })).
+		RunAndReturn(func(_ context.Context, c entity.Collection) (entity.Collection, error) { return c, nil }).
+		Once()
+	f.repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id}).Return(map[uuid.UUID]int{}, nil).Once()
+	f.layouts.EXPECT().FindLayout(ctx, id).Return(entity.CollectionLayout{}, nil).Once()
+
+	got, err := f.svc.Unshare(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
+	require.NoError(t, err)
+	assert.Nil(t, got.Slug)
+}
+
+// TestCollectionService_Unshare_IsANoOpOnAPrivateCollection: unsharing a
+// Collection that is already private writes nothing and succeeds.
+func TestCollectionService_Unshare_IsANoOpOnAPrivateCollection(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	id := uuid.New()
+	f := newCollectionFixture(t)
+
+	f.repo.EXPECT().GetOwnedCollection(ctx, profileID, id, true).Return(entity.Collection{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder"}, nil).Once()
+	f.repo.EXPECT().SumQuantities(ctx, []uuid.UUID{id}).Return(map[uuid.UUID]int{}, nil).Once()
+	f.layouts.EXPECT().FindLayout(ctx, id).Return(entity.CollectionLayout{}, nil).Once()
+
+	got, err := f.svc.Unshare(ctx, dto.CollectionLookup{ProfileID: profileID, ID: id})
+	require.NoError(t, err)
+	assert.Nil(t, got.Slug)
 }
 
 func assertNotFound(t *testing.T, err error) {
