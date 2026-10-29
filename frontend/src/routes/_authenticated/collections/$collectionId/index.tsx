@@ -106,6 +106,7 @@ function CollectionPage() {
             <CreateBinderPanel collectionId={collectionId} />
           )}
           <CollectionEntries
+            binder={collection.binder !== null}
             collectionId={collectionId}
             search={search}
             onSearchChange={(next) => void changeSearch(next)}

@@ -42,6 +42,12 @@ afterEach(() => {
 interface FakeCollectionApi {
   /** The user's Collections, as the destination sheet lists them. */
   collections: object[]
+  /** The Collection being viewed, as GET /collections/col-1 answers. */
+  source: object
+  /** Status of the user's Collections list; anything but 200 is an error. */
+  collectionsStatus: number
+  /** When set, the Collections list never answers, so it stays loading. */
+  collectionsPending: boolean
   entries: { card: object; quantity: number }[]
   moveStatus: number
   moveBody: FakeBody
@@ -49,7 +55,8 @@ interface FakeCollectionApi {
 }
 
 /** The JSON the fake answers with: an envelope, or an error. */
-type FakeBody = { data: unknown; meta?: unknown } | { detail: string }
+type FakeBody =
+  { data: unknown; meta?: unknown } | { code?: string; detail: string }
 
 function json(status: number, body: FakeBody) {
   return new Response(JSON.stringify(body), {
@@ -78,6 +85,9 @@ function fakeCollectionApi(
   overrides: Partial<FakeCollectionApi> = {}
 ): FakeCollectionApi {
   return {
+    source: collection("col-1", "Deck A"),
+    collectionsStatus: 200,
+    collectionsPending: false,
     collections: [
       collection("col-1", "Deck A"),
       collection("col-2", "Deck B"),
@@ -100,10 +110,14 @@ function stubCollectionApi(api: FakeCollectionApi) {
       api.requests.push({ method, path: pathname, body })
       if (method === "POST" && pathname.endsWith("/entries/move"))
         return json(api.moveStatus, api.moveBody)
-      if (method === "GET" && pathname.endsWith("/collections"))
+      if (method === "GET" && pathname.endsWith("/collections")) {
+        if (api.collectionsPending) return new Promise<Response>(() => {})
+        if (api.collectionsStatus !== 200)
+          return json(api.collectionsStatus, { detail: "boom" })
         return json(200, { data: api.collections })
+      }
       if (method === "GET" && pathname.endsWith("/collections/col-1"))
-        return json(200, { data: collection("col-1", "Deck A") })
+        return json(200, { data: api.source })
       if (method === "GET" && pathname.endsWith("/collections/col-1/entries"))
         return json(200, {
           data: api.entries,
@@ -123,7 +137,7 @@ function stubCollectionApi(api: FakeCollectionApi) {
 }
 
 // The real Collection page in a memory router, over the faked network.
-async function renderCollectionPage(api: FakeCollectionApi) {
+async function renderCollectionPage(api: FakeCollectionApi, title = "Deck A") {
   // jsdom does no layout, so the virtual grid needs the stub to render rows.
   stubGridLayout()
   stubCollectionApi(api)
@@ -152,7 +166,7 @@ async function renderCollectionPage(api: FakeCollectionApi) {
     </QueryClientProvider>
   )
   // The page's title shows once its Collection has loaded.
-  await screen.findByRole("heading", { name: "Deck A", level: 1 })
+  await screen.findByRole("heading", { name: title, level: 1 })
   return router
 }
 
@@ -205,6 +219,67 @@ describe("Collection page: selecting cards to move", () => {
     ).toBe(false)
     expect(screen.getByText("0 selected")).toBeTruthy()
   })
+
+  it("starts with nothing selected when selection mode is re-entered after Cancel", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+    )
+    expect(screen.getByText("2 selected")).toBeTruthy()
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    expect(screen.getByText("0 selected")).toBeTruthy()
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+        .matches(":checked")
+    ).toBe(false)
+  })
+
+  it("returns focus to Select when Cancel leaves selection mode", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Select" })
+      )
+    )
+  })
+})
+
+describe("Collection page: plain Collections only", () => {
+  it("shows no Select button for a binder, since its Cards can't be moved yet", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({
+        source: collection("col-1", "Binder A", {
+          rows: 2,
+          columns: 2,
+          leafCount: 1,
+        }),
+        entries: twoCardsThreeCopies,
+      }),
+      "Binder A"
+    )
+
+    await screen.findByRole("link", { name: "Pikachu" })
+    expect(screen.queryByRole("button", { name: "Select" })).toBeNull()
+  })
 })
 
 describe("Collection page: the 100-card limit", () => {
@@ -229,7 +304,7 @@ describe("Collection page: the 100-card limit", () => {
 })
 
 describe("Collection page: the Move to sheet", () => {
-  it("lists the user's Collections with the source and every binder disabled, each with its reason", async () => {
+  it("lists the user's Collections with the source and every binder refused, each with its reason", async () => {
     await renderCollectionPage(
       fakeCollectionApi({ entries: twoCardsThreeCopies })
     )
@@ -244,17 +319,79 @@ describe("Collection page: the Move to sheet", () => {
     const binder = within(sheet).getByRole("button", { name: /Binder/ })
     const destination = within(sheet).getByRole("button", { name: /Deck B/ })
 
-    expect(source.matches(":disabled")).toBe(true)
+    // aria-disabled, not disabled: a refused destination stays focusable.
+    expect(source.getAttribute("aria-disabled")).toBe("true")
+    expect(binder.getAttribute("aria-disabled")).toBe("true")
+    expect(destination.getAttribute("aria-disabled")).toBe("false")
     expect(
-      within(sheet).getByText("This is the Collection you are moving from.")
+      document.getElementById(source.getAttribute("aria-describedby") ?? "")
+        ?.textContent
+    ).toBe("This is the Collection you are moving from.")
+    expect(
+      document.getElementById(binder.getAttribute("aria-describedby") ?? "")
+        ?.textContent
+    ).toBe("A binder needs a Slot for each card, and a Move chooses none.")
+
+    source.focus()
+    expect(document.activeElement).toBe(source)
+    fireEvent.click(source)
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+  })
+
+  it("shows a loading state while the Collections load", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({
+        collectionsPending: true,
+        entries: twoCardsThreeCopies,
+      })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+
+    const sheet = await screen.findByRole("dialog")
+    expect(within(sheet).getByText("Loading your Collections…")).toBeTruthy()
+    expect(within(sheet).queryByRole("button", { name: /Deck B/ })).toBeNull()
+  })
+
+  it("shows an error, not an empty sheet, when the Collections fail to load", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({
+        collectionsStatus: 500,
+        entries: twoCardsThreeCopies,
+      })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+
+    const sheet = await screen.findByRole("dialog")
+    expect(
+      await within(sheet).findByText("Could not load your Collections.")
     ).toBeTruthy()
-    expect(binder.matches(":disabled")).toBe(true)
-    expect(
-      within(sheet).getByText(
-        "A binder needs a Slot for each card, and a Move chooses none."
+    expect(within(sheet).queryByRole("button", { name: /Deck B/ })).toBeNull()
+  })
+
+  it("returns focus to Move to… when the sheet closes without a destination", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.keyDown(await screen.findByRole("dialog"), { key: "Escape" })
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Move to…" })
       )
-    ).toBeTruthy()
-    expect(destination.matches(":disabled")).toBe(false)
+    )
   })
 })
 
@@ -332,7 +469,9 @@ describe("Collection page: confirming a Move", () => {
       ).toBeGreaterThan(entryListsBefore)
     )
     expect(screen.queryByRole("checkbox")).toBeNull()
-    expect(screen.getByRole("button", { name: "Select" })).toBeTruthy()
+    const select = screen.getByRole("button", { name: "Select" })
+    expect(select).toBeTruthy()
+    await waitFor(() => expect(document.activeElement).toBe(select))
   })
 
   it("shows the API's message inline and keeps the selection when the Move is refused", async () => {
@@ -372,5 +511,108 @@ describe("Collection page: confirming a Move", () => {
       })
     )
     expect(screen.getByText("1 selected")).toBeTruthy()
+  })
+
+  it("shows the API's message inline and keeps the selection when the destination is gone (404)", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      moveStatus: 404,
+      moveBody: { detail: "That Collection no longer exists." },
+    })
+    await renderCollectionPage(api)
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    fireEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Move",
+      })
+    )
+
+    const alert = await within(screen.getByRole("alertdialog")).findByRole(
+      "alert"
+    )
+    expect(alert.textContent).toBe("That Collection no longer exists.")
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel",
+      })
+    )
+    expect(screen.getByText("1 selected")).toBeTruthy()
+  })
+
+  it("shows the API's message inline and keeps the selection when the destination is a binder (409)", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      moveStatus: 409,
+      moveBody: {
+        code: "move_to_binder",
+        detail:
+          "A binder can't take a Move: choose a Collection without a Layout.",
+      },
+    })
+    await renderCollectionPage(api)
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    fireEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Move",
+      })
+    )
+
+    const alert = await within(screen.getByRole("alertdialog")).findByRole(
+      "alert"
+    )
+    expect(alert.textContent).toBe(
+      "A binder can't take a Move: choose a Collection without a Layout."
+    )
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel",
+      })
+    )
+    expect(screen.getByText("1 selected")).toBeTruthy()
+  })
+
+  it("returns focus to Move to… when the confirm dialog closes without moving", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    fireEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Cancel",
+      })
+    )
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Move to…" })
+      )
+    )
   })
 })

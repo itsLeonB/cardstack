@@ -31,6 +31,8 @@ interface CollectionEntriesProps {
   onSearchChange: (next: CatalogFilters) => void
   /** Opens the binder on a position's Page. */
   onFindPosition: (position: BinderSlotTarget) => void
+  /** A binder's Cards can't be moved yet, so it has no selection mode. */
+  binder?: boolean
 }
 
 export function CollectionEntries({
@@ -38,6 +40,7 @@ export function CollectionEntries({
   search,
   onSearchChange,
   onFindPosition,
+  binder = false,
 }: CollectionEntriesProps) {
   const queryClient = useQueryClient()
   // A save writes the confirmed quantities into the cached pages instead of
@@ -109,24 +112,45 @@ export function CollectionEntries({
 
   // Selection mode. Each ticked Card keeps its copies, so the Move's count
   // holds even for a Card whose page is no longer loaded after a filter change.
-  const [selecting, setSelecting] = useState(false)
-  const [selected, setSelected] = useState<Map<string, number>>(new Map())
+  // The selection is tagged with its Collection: one made in another Collection
+  // is ignored here, and the effect below clears it once the Collection changes.
+  const [selection, setSelection] = useState<{
+    collectionId: string
+    cards: Map<string, number>
+  } | null>(null)
+  const owned = selection?.collectionId === collectionId ? selection : null
+  const selecting = owned !== null
+  const selected = owned?.cards ?? new Map<string, number>()
+  useEffect(() => {
+    setSelection(null)
+  }, [collectionId])
   const [announcement, setAnnouncement] = useState("")
+  const selectButton = useRef<HTMLButtonElement>(null)
+  // Set when selection ends, so focus goes back to Select once it is rendered again.
+  const restoreFocus = useRef(false)
+  useEffect(() => {
+    if (!selecting && restoreFocus.current) {
+      restoreFocus.current = false
+      selectButton.current?.focus()
+    }
+  }, [selecting])
   const atLimit = selected.size >= MOVE_LIMIT
   const copies = [...selected.values()].reduce((sum, n) => sum + n, 0)
 
   function toggleSelected(cardId: string, quantity: number) {
-    setSelected((current) => {
-      const next = new Map(current)
-      if (next.has(cardId)) next.delete(cardId)
-      else if (next.size < MOVE_LIMIT) next.set(cardId, quantity)
-      return next
+    setSelection((current) => {
+      const cards = new Map(
+        current?.collectionId === collectionId ? current.cards : undefined
+      )
+      if (cards.has(cardId)) cards.delete(cardId)
+      else if (cards.size < MOVE_LIMIT) cards.set(cardId, quantity)
+      return { collectionId, cards }
     })
   }
 
   function leaveSelection() {
-    setSelecting(false)
-    setSelected(new Map())
+    restoreFocus.current = true
+    setSelection(null)
   }
 
   return (
@@ -142,13 +166,14 @@ export function CollectionEntries({
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {!selecting && (
+        {!binder && !selecting && (
           <Button
+            ref={selectButton}
             variant="outline"
             size="sm"
             onClick={() => {
               setAnnouncement("")
-              setSelecting(true)
+              setSelection({ collectionId, cards: new Map() })
             }}
           >
             Select
@@ -213,6 +238,7 @@ export function CollectionEntries({
           collectionId={collectionId}
           cardIds={[...selected.keys()]}
           copies={copies}
+          flushEdits={batch.flush}
           onCancel={leaveSelection}
           onMoved={(message) => {
             leaveSelection()

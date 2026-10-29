@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   useGetCollection,
@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { invalidateBinder } from "@/lib/binder"
 import {
   NETWORK_ERROR,
   errorDetail,
@@ -56,6 +55,7 @@ export function CollectionMoveBar({
   collectionId,
   cardIds,
   copies,
+  flushEdits,
   onCancel,
   onMoved,
 }: {
@@ -63,6 +63,8 @@ export function CollectionMoveBar({
   cardIds: string[]
   /** Copies across the selected Cards, shown in the confirm dialog. */
   copies: number
+  /** Sends unsaved quantity edits first, so the Move never runs beside them. */
+  flushEdits: () => Promise<void>
   onCancel: () => void
   /** Receives the result to announce; the caller leaves selection mode. */
   onMoved: (announcement: string) => void
@@ -71,6 +73,8 @@ export function CollectionMoveBar({
   const sourceQuery = useGetCollection(collectionId)
   const collectionsQuery = useListCollections()
   const move = useMoveCollectionEntries()
+  // Dialogs return focus here when they close without moving.
+  const moveButton = useRef<HTMLButtonElement>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [destination, setDestination] = useState<CollectionSummary | null>(null)
   const [moving, setMoving] = useState(false)
@@ -80,10 +84,20 @@ export function CollectionMoveBar({
     sourceQuery.data?.status === 200
       ? sourceQuery.data.data.data.title
       : "this Collection"
+  const listLoading = collectionsQuery.isPending
+  const listFailed =
+    collectionsQuery.isError ||
+    (collectionsQuery.data !== undefined &&
+      collectionsQuery.data.status !== 200)
   const collections =
     collectionsQuery.data?.status === 200
       ? (collectionsQuery.data.data.data ?? [])
       : []
+
+  async function openSheet() {
+    await flushEdits()
+    setSheetOpen(true)
+  }
 
   function closeConfirm() {
     setDestination(null)
@@ -100,8 +114,9 @@ export function CollectionMoveBar({
       })
       if (response.status === 200) {
         const { cards, copies: moved } = response.data.data
-        // A Move changes both Collections' entries and counts, and the master list.
-        invalidateBinder(queryClient, collectionId)
+        // Only the two Collections touched by the Move, and the master list, go stale.
+        invalidateCollectionEntries(queryClient, collectionId)
+        invalidateCollectionCounts(queryClient, collectionId)
         invalidateCollectionEntries(queryClient, target.id)
         invalidateCollectionCounts(queryClient, target.id)
         invalidateMasterInventory(queryClient)
@@ -126,8 +141,9 @@ export function CollectionMoveBar({
         </p>
         <div className="flex gap-2">
           <Button
+            ref={moveButton}
             disabled={cardIds.length === 0}
-            onClick={() => setSheetOpen(true)}
+            onClick={() => void openSheet()}
           >
             Move to…
           </Button>
@@ -138,16 +154,24 @@ export function CollectionMoveBar({
       </div>
 
       <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
-        <DialogContent className="top-auto right-0 bottom-0 left-0 max-w-none translate-x-0 translate-y-0 rounded-b-none">
+        <DialogContent
+          finalFocus={moveButton}
+          className="top-auto right-0 bottom-0 left-0 max-w-none translate-x-0 translate-y-0 rounded-b-none"
+        >
           <DialogHeader>
             <DialogTitle>Move to…</DialogTitle>
             <DialogDescription>
               Choose the Collection for the selected cards.
             </DialogDescription>
           </DialogHeader>
-          {collectionsQuery.isError && (
+          {listLoading && (
+            <p role="status" className="text-sm">
+              Loading your Collections…
+            </p>
+          )}
+          {listFailed && (
             <p role="alert" className="text-sm text-destructive">
-              {NETWORK_ERROR}
+              Could not load your Collections.
             </p>
           )}
           <div className="flex flex-col gap-2">
@@ -158,11 +182,13 @@ export function CollectionMoveBar({
                   key={collection.id}
                   variant="outline"
                   className="h-auto flex-col items-start gap-1 py-2"
-                  disabled={Boolean(reason)}
+                  // aria-disabled, not disabled: a keyboard user can still focus it and hear the reason.
+                  aria-disabled={Boolean(reason)}
                   aria-describedby={
                     reason ? `move-refusal-${collection.id}` : undefined
                   }
                   onClick={() => {
+                    if (reason) return
                     setSheetOpen(false)
                     setDestination(collection)
                   }}
@@ -189,7 +215,7 @@ export function CollectionMoveBar({
           if (!open && !moving) closeConfirm()
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent finalFocus={moveButton}>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {`Move ${count(cardIds.length, "card", "cards")} to ${destination?.title ?? ""}?`}
