@@ -1130,6 +1130,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeProfileSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProfileSummary"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeReprintResult": {
         "additionalProperties": false,
         "properties": {
@@ -1585,6 +1597,23 @@
         "required": [
           "cardId",
           "quantity"
+        ],
+        "type": "object"
+      },
+      "ProfileSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "description": "The Slug share links are built from (/s/{slug}/{collectionSlug}).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
         ],
         "type": "object"
       },
@@ -4927,6 +4956,42 @@
         "summary": "List the current user's own Collections that hold a Card, with the quantity in each (empty when none)",
         "tags": [
           "inventory"
+        ]
+      }
+    },
+    "/profile": {
+      "get": {
+        "operationId": "get-profile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeProfileSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get the caller's own profile: its display name and Slug",
+        "tags": [
+          "profile"
         ]
       }
     },
