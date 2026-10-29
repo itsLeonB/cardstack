@@ -4,8 +4,10 @@ import (
 	"context"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
@@ -96,7 +98,19 @@ func (s *userService) provision(ctx context.Context, identity dto.AuthIdentity) 
 		return dto.CallerIdentity{}, err
 	}
 	if profile.IsZero() {
-		profile, err = s.profiles.Insert(ctx, entity.UserProfile{UserID: user.ID, Name: profileName(identity)})
+		// The Slug embeds the id, so the id is made here rather than by the
+		// column default.
+		id, idErr := uuid.NewV7()
+		if idErr != nil {
+			return dto.CallerIdentity{}, ungerr.Wrap(idErr, "generating profile id")
+		}
+		name := profileName(identity)
+		profile, err = s.profiles.Insert(ctx, entity.UserProfile{
+			BaseEntity: crud.BaseEntity{ID: id},
+			UserID:     user.ID,
+			Name:       name,
+			Slug:       mapper.SlugOf(name, "user", id),
+		})
 		if err != nil {
 			return dto.CallerIdentity{}, err
 		}

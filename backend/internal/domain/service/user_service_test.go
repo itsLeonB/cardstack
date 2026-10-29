@@ -50,6 +50,14 @@ func profileSpec(userID uuid.UUID) crud.Specification[entity.UserProfile] {
 	return crud.Specification[entity.UserProfile]{Model: entity.UserProfile{UserID: userID}}
 }
 
+// newProfile matches the profile the service inserts: its id is generated in
+// the service, so the match checks that the Slug is the stem plus the id's tail.
+func newProfile(userID uuid.UUID, name, stem string) any {
+	return mock.MatchedBy(func(p entity.UserProfile) bool {
+		return p.ID != uuid.Nil && p.UserID == userID && p.Name == name && p.Slug == stem+"-"+p.ID.String()[31:]
+	})
+}
+
 // expectProvisioning expects a cache miss, the identity lock, and the mapping
 // being cached for the caller the test resolves to.
 func (f userFixture) expectProvisioning(caller dto.CallerIdentity) {
@@ -71,7 +79,7 @@ func TestUserService_ResolveCaller_FirstUseCreatesUserAndProfile(t *testing.T) {
 	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(entity.User{}, nil).Once()
 	f.users.EXPECT().Insert(f.ctx, entity.User{AuthProvider: "clerk", AuthSubject: "user_1", Email: "ada@example.com"}).Return(user, nil).Once()
 	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(entity.UserProfile{}, nil).Once()
-	f.profiles.EXPECT().Insert(f.ctx, entity.UserProfile{UserID: user.ID, Name: "Ada Lovelace"}).Return(profile, nil).Once()
+	f.profiles.EXPECT().Insert(f.ctx, newProfile(user.ID, "Ada Lovelace", "ada-lovelace")).Return(profile, nil).Once()
 
 	caller, err := f.svc.ResolveCaller(f.ctx, f.identity)
 
@@ -89,7 +97,7 @@ func TestUserService_ResolveCaller_NameFallsBackToEmailLocalPart(t *testing.T) {
 		f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: created.ID})
 		f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
 		f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(entity.UserProfile{}, nil).Once()
-		f.profiles.EXPECT().Insert(f.ctx, entity.UserProfile{UserID: user.ID, Name: "ada"}).Return(created, nil).Once()
+		f.profiles.EXPECT().Insert(f.ctx, newProfile(user.ID, "ada", "ada")).Return(created, nil).Once()
 
 		_, err := f.svc.ResolveCaller(f.ctx, f.identity)
 

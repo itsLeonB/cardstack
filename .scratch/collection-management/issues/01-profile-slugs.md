@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A migration adds a unique Slug to profiles and backfills it for every existing profile before the column becomes required.
-- [ ] A new profile gets its Slug when it is created, and it never changes afterwards, including when the name is later edited.
-- [ ] A name that slugifies to nothing (emoji or non-Latin only) falls back to the stem `user`.
-- [ ] Two profiles with the same name get different Slugs, and a unique index backs the tail.
-- [ ] HTTP-boundary tests against a real Postgres cover profile creation and a backfilled profile.
+- [x] A migration adds a unique Slug to profiles and backfills it for every existing profile before the column becomes required.
+- [x] A new profile gets its Slug when it is created, and it never changes afterwards, including when the name is later edited.
+- [x] A name that slugifies to nothing (emoji or non-Latin only) falls back to the stem `user`.
+- [x] Two profiles with the same name get different Slugs, and a unique index backs the tail.
+- [x] HTTP-boundary tests against a real Postgres cover profile creation and a backfilled profile.

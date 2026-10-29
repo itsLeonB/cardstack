@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/adapters/db/postgres/migrations"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	crud "github.com/itsLeonB/go-crud"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -80,7 +81,8 @@ func newTestProfile(t *testing.T, db *gorm.DB, name string) entity.UserProfile {
 	t.Helper()
 	user := entity.User{AuthProvider: "test", AuthSubject: uuid.NewString(), Email: uniqueEmail(t)}
 	require.NoError(t, db.Create(&user).Error)
-	profile := entity.UserProfile{UserID: user.ID, Name: name}
+	id := uuid.New()
+	profile := entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}, UserID: user.ID, Name: name, Slug: "test-" + id.String()}
 	require.NoError(t, db.Create(&profile).Error)
 	return profile
 }

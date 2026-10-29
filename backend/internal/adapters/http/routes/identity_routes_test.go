@@ -93,6 +93,7 @@ func TestFirstRequestCreatesUserAndProfile(t *testing.T) {
 	profiles := api.profilesOf(t, users[0])
 	require.Len(t, profiles, 1)
 	assert.Equal(t, "Test User", profiles[0].Name)
+	assert.Equal(t, "test-user-"+profiles[0].ID.String()[31:], profiles[0].Slug, "the Slug is the hyphenated name and the last 5 hex characters of the id")
 
 	// The same Auth Identity keeps mapping to the same profile.
 	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(token)).Code)
@@ -159,6 +160,37 @@ func TestEmailRefreshesAndNameIsNeverOverwritten(t *testing.T) {
 	profiles := api.profilesOf(t, users[0])
 	require.Len(t, profiles, 1)
 	assert.Equal(t, "Test User", profiles[0].Name, "the profile name is written once")
+	assert.Equal(t, "test-user-"+profiles[0].ID.String()[31:], profiles[0].Slug, "the Slug never changes")
+}
+
+func TestProfileSlugFallsBackToUserWhenTheNameSlugifiesToNothing(t *testing.T) {
+	api := newTestAPI(t)
+	claims := validClaims()
+	claims["name"] = "🔥🔥"
+
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+
+	users := api.usersWithSubject(t, claims["sub"].(string))
+	require.Len(t, users, 1)
+	profiles := api.profilesOf(t, users[0])
+	require.Len(t, profiles, 1)
+	assert.Equal(t, "user-"+profiles[0].ID.String()[31:], profiles[0].Slug)
+}
+
+func TestProfilesWithTheSameNameGetDifferentSlugs(t *testing.T) {
+	api := newTestAPI(t)
+	slugs := map[string]bool{}
+	for range 5 {
+		claims := validClaims()
+		require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+		users := api.usersWithSubject(t, claims["sub"].(string))
+		require.Len(t, users, 1)
+		profiles := api.profilesOf(t, users[0])
+		require.Len(t, profiles, 1)
+		assert.Equal(t, "Test User", profiles[0].Name)
+		slugs[profiles[0].Slug] = true
+	}
+	assert.Len(t, slugs, 5)
 }
 
 func TestForeignAndMissingCollectionsLookIdentical(t *testing.T) {
