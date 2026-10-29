@@ -99,7 +99,7 @@ func TestMoveRefusedWhenDestinationWouldPassItsLimit(t *testing.T) {
 
 	resp := moveEntries(api, owner, source, destination, cards[1], cards[2])
 	require.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
-	assert.Contains(t, decodeError(t, resp.Body.Bytes()).Detail, "limit of 5 cards by 1 copies")
+	assert.Contains(t, decodeError(t, resp.Body.Bytes()).Detail, "limit of 5 cards by 1 copy")
 	assert.Equal(t, map[string]int{cards[1].String(): 2, cards[2].String(): 1}, entryQuantities(t, api, owner, source))
 	assert.Equal(t, map[string]int{cards[0].String(): 3}, entryQuantities(t, api, owner, destination))
 

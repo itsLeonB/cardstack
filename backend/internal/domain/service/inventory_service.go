@@ -25,7 +25,7 @@ const (
 	binderQuantityLockedMsg = "a binder's quantities change only by placing or clearing Slots"
 	moveSameCollectionMsg   = "a move needs two different collections"
 	moveToBinderMsg         = "a binder cannot receive a move: a move chooses no Slot"
-	moveCapacityMsg         = "this move would exceed the collection's limit of %d cards by %d copies"
+	moveCapacityMsg         = "this move would exceed the collection's limit of %s by %s"
 )
 
 // InventoryService scopes every method to the request's ProfileID; another
@@ -397,7 +397,7 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 				return err
 			}
 			if over := sum + copies - dst.MaxCardCount; over > 0 {
-				return ungerr.UnprocessableEntityError(fmt.Sprintf(moveCapacityMsg, dst.MaxCardCount, over))
+				return ungerr.UnprocessableEntityError(fmt.Sprintf(moveCapacityMsg, countOf(dst.MaxCardCount, "card", "cards"), countOf(over, "copy", "copies")))
 			}
 		}
 
@@ -428,6 +428,15 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 	}
 
 	return result, nil
+}
+
+// countOf renders n with the singular or plural noun, so "1 copy" and "2 copies" read right.
+func countOf(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+
+	return fmt.Sprintf("%d %s", n, many)
 }
 
 // rejectDuplicateCards refuses a request that names a Card twice, since the
