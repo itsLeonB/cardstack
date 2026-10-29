@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -102,6 +103,71 @@ func TestUserService_ResolveCaller_NameFallsBackToEmailLocalPart(t *testing.T) {
 		_, err := f.svc.ResolveCaller(f.ctx, f.identity)
 
 		require.NoError(t, err, "name %q", name)
+	}
+}
+
+// sqlStateError stands in for the driver's Postgres error (pgconn.PgError),
+// which exposes its SQLSTATE through SQLState.
+type sqlStateError string
+
+func (e sqlStateError) Error() string    { return "postgres error " + string(e) }
+func (e sqlStateError) SQLState() string { return string(e) }
+
+// expectProvisionAttempts expects the database calls of n provisioning
+// attempts for a new user and profile. Each attempt reruns the whole
+// transaction, so every call repeats n times.
+func (f userFixture) expectProvisionAttempts(n int, user entity.User) {
+	f.cache.EXPECT().Get(f.identity).Return(dto.CallerIdentity{}, false).Once()
+	f.users.EXPECT().LockIdentity(f.ctx, f.identity.Provider, f.identity.Subject).Return(nil).Times(n)
+	f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(entity.User{}, nil).Times(n)
+	f.users.EXPECT().Insert(f.ctx, entity.User{AuthProvider: "clerk", AuthSubject: "user_1", Email: "ada@example.com"}).Return(user, nil).Times(n)
+	f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(entity.UserProfile{}, nil).Times(n)
+}
+
+func TestUserService_ResolveCaller_RetriesAProfileSlugClashWithAFreshID(t *testing.T) {
+	f := newUserFixture(t)
+	user := f.existingUser()
+	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: user.ID, Name: "Ada Lovelace"}
+	clash := ungerr.Wrap(sqlStateError("23505"), "error inserting data")
+
+	f.expectProvisionAttempts(2, user)
+	f.profiles.EXPECT().Insert(f.ctx, newProfile(user.ID, "Ada Lovelace", "ada-lovelace")).Return(entity.UserProfile{}, clash).Once()
+	f.profiles.EXPECT().Insert(f.ctx, newProfile(user.ID, "Ada Lovelace", "ada-lovelace")).Return(profile, nil).Once()
+	f.cache.EXPECT().Set(f.identity, dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID}).Once()
+
+	caller, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+	require.NoError(t, err)
+	assert.Equal(t, dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID}, caller)
+}
+
+func TestUserService_ResolveCaller_GivesUpAfterTheAttemptBudget(t *testing.T) {
+	f := newUserFixture(t)
+	user := f.existingUser()
+	clash := ungerr.Wrap(sqlStateError("23505"), "error inserting data")
+
+	f.expectProvisionAttempts(maxProvisionAttempts, user)
+	f.profiles.EXPECT().Insert(f.ctx, mock.Anything).Return(entity.UserProfile{}, clash).Times(maxProvisionAttempts)
+
+	_, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+	assert.Equal(t, clash, err)
+}
+
+func TestUserService_ResolveCaller_DoesNotRetryOtherInsertErrors(t *testing.T) {
+	for label, insertErr := range map[string]error{
+		"a not-null violation": ungerr.Wrap(sqlStateError("23502"), "error inserting data"),
+		"a plain driver error": ungerr.Wrap(errors.New("connection reset"), "error inserting data"),
+	} {
+		t.Run(label, func(t *testing.T) {
+			f := newUserFixture(t)
+			f.expectProvisionAttempts(1, f.existingUser())
+			f.profiles.EXPECT().Insert(f.ctx, mock.Anything).Return(entity.UserProfile{}, insertErr).Once()
+
+			_, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+			assert.Equal(t, insertErr, err)
+		})
 	}
 }
 

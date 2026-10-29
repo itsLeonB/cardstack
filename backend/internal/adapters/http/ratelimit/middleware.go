@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"math"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -69,7 +70,7 @@ func PerUser(api huma.API, limits Limits, byOperation map[string]*Limiter) func(
 // PerUser it does not read the caller, so it needs no auth.Guard before it.
 func PerIP(api huma.API, limiter *Limiter, now func() time.Time) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		allowed, retryAfter := limiter.Allow(ctx.RemoteAddr(), now())
+		allowed, retryAfter := limiter.Allow(clientKey(ctx.RemoteAddr()), now())
 		if allowed {
 			next(ctx)
 			return
@@ -77,6 +78,16 @@ func PerIP(api huma.API, limiter *Limiter, now func() time.Time) func(huma.Conte
 
 		refuse(api, ctx, retryAfter)
 	}
+}
+
+// clientKey is the limiter key for a request's client. Without a proxy header,
+// RemoteAddr is ip:port, and keying on it would give every connection its own
+// bucket. A value with no port (the proxy-set bare IP) is returned unchanged.
+func clientKey(remoteAddr string) string {
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return host
+	}
+	return remoteAddr
 }
 
 // refuse writes the 429 both limiters answer with: a whole-second Retry-After
