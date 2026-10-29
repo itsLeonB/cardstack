@@ -4,3 +4,4 @@ export * from './collections/collections.zod.ts';
 export * from './health/health.zod.ts';
 export * from './inventory/inventory.zod.ts';
 export * from './scan/scan.zod.ts';
+export * from './shared/shared.zod.ts';

@@ -10,3 +10,4 @@ export * from './collections/collections.ts';
 export * from './health/health.ts';
 export * from './inventory/inventory.ts';
 export * from './scan/scan.ts';
+export * from './shared/shared.ts';
