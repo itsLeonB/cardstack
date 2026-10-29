@@ -5,7 +5,7 @@ The frontend runs in TanStack Start's SPA mode, which prerenders only the root r
 ## Considered Options
 
 - Statically prerender `/` (TanStack Start's top-level `prerender` option combined with `spa: { enabled: true }`). Rejected: the session lives in HttpOnly cookies the server can't read, so a prerendered `/` would have to pick the landing (flashing marketing copy at signed-in users) or the loading skeleton (no better for crawlers than the shell). Revisit only if the home page stops depending on the session.
-- Rely on the `<meta name="robots">` tag alone to keep `/auth` out of the index. Rejected: it only exists once scripts run, so `vercel.json` also sends `X-Robots-Tag: noindex` for `/auth/:path*`, the one server-visible directive. Authenticated paths rely on the `robots.txt` disallow instead, which deliberately does not cover `/auth` so the noindex tag stays readable.
+- Rely on the `<meta name="robots">` tag alone to keep `/auth` out of the index. Rejected: it only exists once scripts run, so `vercel.json` also sends `X-Robots-Tag: noindex` for `/auth/:path*` and for the shared pages under `/s/:path*` (ADR-0025), the server-visible directive. Authenticated paths rely on the `robots.txt` disallow instead, which deliberately does not cover `/auth` or `/s` so the noindex tag stays readable.
 
 ## Consequences
 
