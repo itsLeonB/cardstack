@@ -16,6 +16,7 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import { NotFound } from "@/components/layout/not-found"
+import { getGetSharedCollectionQueryKey } from "@/generated/endpoints/shared/shared"
 import { catalogCard } from "@/test-binder-api"
 import { Route as SharedRoute } from "./$collectionSlug"
 
@@ -129,6 +130,12 @@ async function renderSharedPage(path = PAGE) {
   return router
 }
 
+// Leaves the page and comes back, as a second visit does.
+async function revisit(router: Awaited<ReturnType<typeof renderSharedPage>>) {
+  await router.history.push(PAGE)
+  await router.load()
+}
+
 describe("Shared Collection page", () => {
   it("shows who shares it, its title and description, and the Cards read-only", async () => {
     stubSharedApi()
@@ -212,6 +219,45 @@ describe("Shared Collection page", () => {
     expect(
       await screen.findByRole("heading", { name: "Holiday Binder", level: 1 })
     ).toBeTruthy()
+  })
+
+  it("shows the not-found page on a revisit after the sharing was stopped", async () => {
+    const stub: SharedStub = {}
+    stubSharedApi(stub)
+    const router = await renderSharedPage()
+    await screen.findByRole("heading", { name: "Holiday Binder", level: 1 })
+
+    stub.header = { status: 404, body: { detail: "not found" } }
+    await revisit(router)
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Collection not found",
+        level: 1,
+      })
+    ).toBeTruthy()
+    const match = router.state.matches.find(
+      (m) => m.routeId === "/s/$profileSlug/$collectionSlug"
+    )
+    expect(match?.meta).toContainEqual({ name: "robots", content: "noindex" })
+    // The not-found is not kept in the cache for the next visit to read.
+    expect(
+      router.options.context.queryClient.getQueryData(
+        getGetSharedCollectionQueryKey("profile-ash", "holiday-binder-3f9a2")
+      )
+    ).toBeUndefined()
+  })
+
+  it("requests the header again on a revisit", async () => {
+    const requests = stubSharedApi()
+    const router = await renderSharedPage()
+    await screen.findByRole("heading", { name: "Holiday Binder", level: 1 })
+
+    await revisit(router)
+
+    await vi.waitFor(() =>
+      expect(requests.filter((r) => r === API)).toHaveLength(2)
+    )
   })
 
   it("keeps the not-found page out of search engines too", async () => {
