@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   Outlet,
@@ -168,6 +174,58 @@ describe("Shared Collection page", () => {
         )
       ).toBe(true)
     )
+  })
+
+  it("shows each Card's quantity, and no control in the list to change it", async () => {
+    stubSharedApi()
+    await renderSharedPage()
+
+    expect(await screen.findByText("Quantity: 2")).toBeTruthy()
+    const list = within(screen.getByRole("list"))
+    expect(list.queryAllByRole("button")).toHaveLength(0)
+    expect(list.queryAllByRole("spinbutton")).toHaveLength(0)
+    expect(list.queryAllByRole("textbox")).toHaveLength(0)
+  })
+
+  it("offers a Retry when the header fails to load, and loads on retry", async () => {
+    const stub: SharedStub = {
+      header: { status: 500, body: { detail: "boom" } },
+    }
+    stubSharedApi(stub)
+    await renderSharedPage()
+    expect(
+      await screen.findByText("Could not load this Collection.")
+    ).toBeTruthy()
+
+    stub.header = {
+      status: 200,
+      body: {
+        data: {
+          ownerName: "Ash Ketchum",
+          title: "Holiday Binder",
+          description: "",
+        },
+      },
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Holiday Binder", level: 1 })
+    ).toBeTruthy()
+  })
+
+  it("keeps the not-found page out of search engines too", async () => {
+    stubSharedApi({ header: { status: 404, body: { detail: "not found" } } })
+    const router = await renderSharedPage()
+    await screen.findByRole("heading", {
+      name: "Collection not found",
+      level: 1,
+    })
+
+    const match = router.state.matches.find(
+      (m) => m.routeId === "/s/$profileSlug/$collectionSlug"
+    )
+    expect(match?.meta).toContainEqual({ name: "robots", content: "noindex" })
   })
 
   it("is kept out of search engines", async () => {

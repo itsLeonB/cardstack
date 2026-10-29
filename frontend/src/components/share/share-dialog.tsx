@@ -26,7 +26,7 @@ interface ShareDialogProps {
   error?: string
 }
 
-type CopyState = "idle" | "copied" | "failed"
+type CopyOutcome = "copied" | "failed"
 
 /**
  * Turns sharing on or off and copies the link. Holds no data of its own: the
@@ -43,13 +43,17 @@ export function ShareDialog({
 }: ShareDialogProps) {
   const [open, setOpen] = useState(false)
   const [confirmingOff, setConfirmingOff] = useState(false)
-  const [copyState, setCopyState] = useState<CopyState>("idle")
+  // Keyed by the link it was made for, so a new link (a re-share) starts clean.
+  const [copy, setCopy] = useState<{
+    link: string
+    outcome: CopyOutcome
+  } | null>(null)
   const switchId = useId()
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
     setConfirmingOff(false)
-    setCopyState("idle")
+    setCopy(null)
   }
 
   // Turning sharing off ends every link at once, so it asks first.
@@ -58,17 +62,21 @@ export function ShareDialog({
     else setConfirmingOff(true)
   }
 
+  // Clearing first makes a repeat copy announce again: the live region changes
+  // from empty to "Copied" each time, not from "Copied" to "Copied".
   function copyLink() {
+    setCopy(null)
     navigator.clipboard
       .writeText(link)
-      .then(() => setCopyState("copied"))
-      .catch(() => setCopyState("failed"))
+      .then(() => setCopy({ link, outcome: "copied" }))
+      .catch(() => setCopy({ link, outcome: "failed" }))
   }
 
+  const outcome = copy?.link === link ? copy.outcome : null
   const copyMessage =
-    copyState === "copied"
+    outcome === "copied"
       ? "Copied"
-      : copyState === "failed"
+      : outcome === "failed"
         ? "Could not copy the link. Select it and copy it by hand."
         : ""
 

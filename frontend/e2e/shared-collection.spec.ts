@@ -91,8 +91,12 @@ test.describe("Shared Collection as a Guest", () => {
     await expect(page.getByText("Shared by Ash Ketchum")).toBeVisible()
     await expect(page.getByText("Cards for the trade table")).toBeVisible()
     await expect(page.getByRole("link", { name: "Pikachu" })).toBeVisible()
-    // A Guest sees the Cards with no quantity to change.
-    await expect(page.getByRole("spinbutton")).toHaveCount(0)
+    // The quantity is read-only: no stepper, input or button in the card list.
+    const list = page.getByRole("list")
+    await expect(list.getByText("Quantity: 2")).toBeVisible()
+    await expect(list.getByRole("button")).toHaveCount(0)
+    await expect(list.getByRole("spinbutton")).toHaveCount(0)
+    await expect(list.getByRole("textbox")).toHaveCount(0)
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       "content",
       "noindex"
