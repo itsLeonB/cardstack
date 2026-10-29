@@ -54,6 +54,14 @@ type bulkUpdateEntriesInput struct {
 	}
 }
 
+type moveEntriesInput struct {
+	CollectionID uuid.UUID `path:"id" doc:"Source Collection ID"`
+	Body         struct {
+		CardIDs       []uuid.UUID `json:"cardIds" required:"true" minItems:"1" maxItems:"100" doc:"The Cards to move, with every copy of each. Unique within the request (400 otherwise)."`
+		DestinationID uuid.UUID   `json:"destinationId" required:"true" doc:"The Collection to move them to: another of your own plain Collections. A binder is refused."`
+	}
+}
+
 // listEntriesInput is GET /collections/{id}/entries: the catalog search
 // filters plus pagination.
 type listEntriesInput struct {
@@ -200,6 +208,20 @@ func (h *InventoryHandler) bulkUpdate(ctx context.Context, in bulkUpdateEntriesI
 	return h.inventorySvc.BulkUpdate(ctx, dto.InventoryBulkUpdateRequest{ProfileID: profileID, CollectionID: in.CollectionID, Items: items})
 }
 
+func (h *InventoryHandler) move(ctx context.Context, in moveEntriesInput) (dto.InventoryMoveResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+
+	return h.inventorySvc.Move(ctx, dto.InventoryMoveRequest{
+		ProfileID:     profileID,
+		SourceID:      in.CollectionID,
+		DestinationID: in.Body.DestinationID,
+		CardIDs:       in.Body.CardIDs,
+	})
+}
+
 func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -300,6 +322,16 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.bulkUpdate,
+		}),
+		endpoint.New(endpoint.Endpoint[moveEntriesInput, dto.InventoryMoveResult]{
+			OperationID: "move-collection-entries",
+			Method:      http.MethodPost,
+			Path:        "/collections/{id}/entries/move",
+			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.move,
 		}),
 		endpoint.NewNoBody(endpoint.NoBodyEndpoint[entryInput]{
 			OperationID: "remove-collection-entry",
