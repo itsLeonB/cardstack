@@ -96,6 +96,24 @@
         ],
         "type": "object"
       },
+      "BinderHeader": {
+        "additionalProperties": false,
+        "properties": {
+          "layout": {
+            "$ref": "#/components/schemas/BinderLayout"
+          },
+          "unidentifiedCount": {
+            "description": "Unidentified Slots, across the whole binder.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "layout",
+          "unidentifiedCount"
+        ],
+        "type": "object"
+      },
       "BinderLayout": {
         "additionalProperties": false,
         "properties": {
@@ -1913,6 +1931,10 @@
       "SharedCollectionSummary": {
         "additionalProperties": false,
         "properties": {
+          "binder": {
+            "$ref": "#/components/schemas/BinderHeader",
+            "description": "The binder's Layout and Unidentified count. Absent for a plain Collection."
+          },
           "description": {
             "type": "string"
           },
@@ -5242,7 +5264,7 @@
             "description": "Error"
           }
         },
-        "summary": "Get a Shared Collection's header (owner's display name, title, description) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404",
+        "summary": "Get a Shared Collection's header (owner's display name, title, description, and a binder's Layout and Unidentified count) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404",
         "tags": [
           "shared"
         ]
@@ -5571,6 +5593,71 @@
           }
         },
         "summary": "List each filter's available options computed only from the Cards of a Shared Collection; any viewer, a Guest included",
+        "tags": [
+          "shared"
+        ]
+      }
+    },
+    "/shared/{profileSlug}/{collectionSlug}/pages/{page}": {
+      "get": {
+        "operationId": "get-shared-collection-page",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Collection's Slug.",
+            "in": "path",
+            "name": "collectionSlug",
+            "required": true,
+            "schema": {
+              "description": "The Collection's Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page number in turning order, counted from 1.",
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "description": "Page number in turning order, counted from 1.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeBinderPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get one Page of a Shared binder: its Slots, with Cards of unpublished sets read as empty; any viewer, a Guest included. A plain Collection or a Page past the last one is the same 404 as a missing link",
         "tags": [
           "shared"
         ]

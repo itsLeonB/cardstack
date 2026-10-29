@@ -81,6 +81,12 @@ func ProvideSharedCollectionService(ds *DataSources, images mapper.ImageHost) se
 		crud.NewRepository[entity.UserProfile](ds.Gorm),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
+		service.NewBinderPageService(
+			catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+			catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+			catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
+			images,
+		),
 		images,
 	)
 }
@@ -108,7 +114,12 @@ func ProvideBinderService(ds *DataSources, images mapper.ImageHost) service.Bind
 		catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
 		catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
 		crud.NewRepository[entity.InventoryEntry](ds.Gorm),
-		images,
+		service.NewBinderPageService(
+			catalogrepository.NewBinderLayoutRepository(crud.NewRepository[entity.CollectionLayout](ds.Gorm)),
+			catalogrepository.NewBinderLeafRepository(crud.NewRepository[entity.BinderLeaf](ds.Gorm)),
+			catalogrepository.NewBinderSlotRepository(crud.NewRepository[entity.BinderSlot](ds.Gorm)),
+			images,
+		),
 	)
 }
 

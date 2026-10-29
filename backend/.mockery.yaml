@@ -30,6 +30,7 @@ packages:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       BinderService:
+      BinderPageService:
       BinderSlotService:
       CardLookup:
       CatalogService:

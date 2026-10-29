@@ -108,3 +108,25 @@ type BinderSlotChange struct {
 	State  string
 	CardID uuid.UUID
 }
+
+// BinderReadRequest addresses a binder by its Collection. It is a read for a
+// caller who has already resolved the Collection, so no owner is checked.
+type BinderReadRequest struct {
+	CollectionID uuid.UUID
+}
+
+// BinderPageReadRequest addresses one Page of a binder the caller has already
+// resolved. IncludeUnpublished keeps Cards of unpublished Expansion Sets in its
+// Slots: the owner sees them, a Shared link reads them as empty.
+type BinderPageReadRequest struct {
+	CollectionID       uuid.UUID
+	Page               int
+	IncludeUnpublished bool
+}
+
+// BinderHeader is a binder's Layout and Unidentified count, the part of a binder
+// that is not one of its Pages.
+type BinderHeader struct {
+	Layout            BinderLayout `json:"layout"`
+	UnidentifiedCount int          `json:"unidentifiedCount" doc:"Unidentified Slots, across the whole binder."`
+}

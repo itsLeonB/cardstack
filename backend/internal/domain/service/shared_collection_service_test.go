@@ -19,6 +19,7 @@ import (
 type sharedFixture struct {
 	profiles    *mocks.MockRepository[entity.UserProfile]
 	collections *mocks.MockCollectionRepository
+	binders     *mocks.MockBinderPageService
 	svc         SharedCollectionService
 }
 
@@ -27,8 +28,9 @@ func newSharedFixture(t *testing.T) sharedFixture {
 	f := sharedFixture{
 		profiles:    mocks.NewMockRepository[entity.UserProfile](t),
 		collections: mocks.NewMockCollectionRepository(t),
+		binders:     mocks.NewMockBinderPageService(t),
 	}
-	f.svc = NewSharedCollectionService(f.profiles, f.collections, nil, mapper.NewImageHost(""))
+	f.svc = NewSharedCollectionService(f.profiles, f.collections, nil, f.binders, mapper.NewImageHost(""))
 	return f
 }
 
@@ -42,12 +44,15 @@ func sharedProfileSpec(slug string) crud.Specification[entity.UserProfile] {
 func TestSharedCollectionService_Get_ResolvesBothSlugs(t *testing.T) {
 	ctx := context.Background()
 	profileID := uuid.New()
+	collectionID := uuid.New()
 	f := newSharedFixture(t)
 
 	f.profiles.EXPECT().FindFirst(ctx, sharedProfileSpec("ana-a1b2c")).
 		Return(entity.UserProfile{BaseEntity: baseEntity(profileID), Name: "Ana", Slug: "ana-a1b2c"}, nil).Once()
 	f.collections.EXPECT().FindSharedCollection(ctx, profileID, "binder-d3e4f").
-		Return(entity.Collection{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID, Title: "Binder", Description: "my cards"}, nil).Once()
+		Return(entity.Collection{BaseEntity: baseEntity(collectionID), ProfileID: profileID, Title: "Binder", Description: "my cards"}, nil).Once()
+	f.binders.EXPECT().Header(ctx, dto.BinderReadRequest{CollectionID: collectionID}).
+		Return(dto.BinderHeader{}, ungerr.NotFoundError("this Collection is not a binder")).Once()
 
 	got, err := f.svc.Get(ctx, dto.SharedCollectionLookup{ProfileSlug: "ana-a1b2c", CollectionSlug: "binder-d3e4f"})
 	require.NoError(t, err)
