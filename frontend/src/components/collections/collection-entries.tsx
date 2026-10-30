@@ -117,13 +117,30 @@ export function CollectionEntries({
   const [selection, setSelection] = useState<{
     collectionId: string
     cards: Map<string, number>
+    // Every card the filter matches, across all pages; `cards` stays empty.
+    allMatching: boolean
   } | null>(null)
   const owned = selection?.collectionId === collectionId ? selection : null
   const selecting = owned !== null
+  const allMatching = owned?.allMatching ?? false
   const selected = owned?.cards ?? new Map<string, number>()
   useEffect(() => {
     setSelection(null)
   }, [collectionId])
+  // A filter selection belongs to the filter it was made with, so any change to
+  // the filter (a chip, the search, or the URL) returns to an empty ticked form.
+  const filterKey = JSON.stringify(search)
+  useEffect(() => {
+    setSelection((current) =>
+      current?.allMatching
+        ? {
+            collectionId: current.collectionId,
+            cards: new Map(),
+            allMatching: false,
+          }
+        : current
+    )
+  }, [filterKey])
   const [announcement, setAnnouncement] = useState("")
   const selectButton = useRef<HTMLButtonElement>(null)
   // Set when selection ends, so focus goes back to Select once it is rendered again.
@@ -144,8 +161,26 @@ export function CollectionEntries({
       )
       if (cards.has(cardId)) cards.delete(cardId)
       else if (cards.size < MOVE_LIMIT) cards.set(cardId, quantity)
-      return { collectionId, cards }
+      return { collectionId, cards, allMatching: false }
     })
+  }
+
+  // Every loaded Card is ticked and the list has more: offer the whole filter.
+  const allLoadedTicked =
+    results.cards.length > 0 &&
+    results.cards.every((card) => selected.has(card.id))
+  const showSelectAll =
+    selecting &&
+    !allMatching &&
+    allLoadedTicked &&
+    results.total > results.cards.length
+
+  function selectAllMatching() {
+    setSelection({ collectionId, cards: new Map(), allMatching: true })
+  }
+
+  function clearSelection() {
+    setSelection({ collectionId, cards: new Map(), allMatching: false })
   }
 
   function leaveSelection() {
@@ -173,10 +208,19 @@ export function CollectionEntries({
             size="sm"
             onClick={() => {
               setAnnouncement("")
-              setSelection({ collectionId, cards: new Map() })
+              setSelection({
+                collectionId,
+                cards: new Map(),
+                allMatching: false,
+              })
             }}
           >
             Select
+          </Button>
+        )}
+        {showSelectAll && (
+          <Button variant="outline" size="sm" onClick={selectAllMatching}>
+            {`Select all ${results.total} matching this filter`}
           </Button>
         )}
         {/* Always mounted: a live region that appears together with its text is often not announced. */}
@@ -200,7 +244,7 @@ export function CollectionEntries({
             // The quantity shown in the list is the one the Move counts.
             const quantity =
               batch.quantities[card.id] ?? serverQuantities?.[card.id] ?? 0
-            const checked = selected.has(card.id)
+            const checked = allMatching || selected.has(card.id)
             return (
               <input
                 type="checkbox"
@@ -208,7 +252,9 @@ export function CollectionEntries({
                 className="size-5 accent-primary"
                 checked={checked}
                 // A Card at 0 copies has no entry to move; a ticked one stays enabled so it can be unticked.
-                disabled={!checked && (atLimit || quantity === 0)}
+                disabled={
+                  allMatching || (!checked && (atLimit || quantity === 0))
+                }
                 onChange={() => toggleSelected(card.id, quantity)}
               />
             )
@@ -240,6 +286,10 @@ export function CollectionEntries({
           binder={binder}
           cardIds={[...selected.keys()]}
           copies={copies}
+          matching={
+            allMatching ? { filter: search, total: results.total } : undefined
+          }
+          onClearMatching={clearSelection}
           flushEdits={async (cardIds) => {
             await batch.flush()
             return !cardIds.some(batch.hasFailed)

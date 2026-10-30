@@ -137,7 +137,42 @@ export const AddCollectionEntryResponse = zod.object({
 })
 
 /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Count the Inventory Entries in one of the current user's own Collections that match the catalog search filters, and the copies in them
+ */
+export const CountCollectionEntriesParams = zod.object({
+  "id": zod.string().describe('Collection ID')
+})
+
+export const countCollectionEntriesQueryNameMax = 64;
+
+export const countCollectionEntriesQueryExpansionSetIdMax = 20;
+
+export const countCollectionEntriesQueryRarityIdMax = 20;
+
+export const countCollectionEntriesQueryCategoryMax = 20;
+
+export const countCollectionEntriesQueryTagMax = 20;
+
+
+
+export const CountCollectionEntriesQueryParams = zod.object({
+  "name": zod.string().max(countCollectionEntriesQueryNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
+  "expansionSetId": zod.array(zod.string()).max(countCollectionEntriesQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).max(countCollectionEntriesQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
+  "category": zod.array(zod.string()).max(countCollectionEntriesQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).max(countCollectionEntriesQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).')
+})
+
+export const CountCollectionEntriesResponse = zod.object({
+  "data": zod.object({
+  "cards": zod.int().describe('Inventory Entries moved, or counted by the count endpoint.'),
+  "copies": zod.int().describe('Copies in those entries, summed.')
+})
+})
+
+/**
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry matching a filter across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const MoveCollectionEntriesParams = zod.object({
   "id": zod.string().describe('Source Collection ID')
@@ -145,17 +180,35 @@ export const MoveCollectionEntriesParams = zod.object({
 
 export const moveCollectionEntriesBodyCardIdsMax = 100;
 
+export const moveCollectionEntriesBodyFilterCategoriesMax = 20;
+
+export const moveCollectionEntriesBodyFilterExpansionSetIdsMax = 20;
+
+export const moveCollectionEntriesBodyFilterNameMax = 64;
+
+export const moveCollectionEntriesBodyFilterRarityIdsMax = 20;
+
+export const moveCollectionEntriesBodyFilterTagsMax = 20;
+
 
 
 export const MoveCollectionEntriesBody = zod.object({
-  "cardIds": zod.array(zod.string()).min(1).max(moveCollectionEntriesBodyCardIdsMax).nullable().describe('The Cards to move, with every copy of each. Unique within the request (400 otherwise).'),
-  "destinationId": zod.string().describe('The Collection to move them to: another of your own plain Collections. A binder is refused.')
+  "cardIds": zod.array(zod.string()).min(1).max(moveCollectionEntriesBodyCardIdsMax).nullish().describe('The Cards to move, with every copy of each. Unique within the request (400 otherwise). Exactly one of cardIds and filter is required.'),
+  "destinationId": zod.string().describe('The Collection to move them to: another of your own plain Collections. A binder is refused.'),
+  "filter": zod.object({
+  "categories": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterCategoriesMax).nullish().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
+  "expansionSetIds": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterExpansionSetIdsMax).nullish().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "name": zod.string().max(moveCollectionEntriesBodyFilterNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
+  "rarityIds": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterRarityIdsMax).nullish().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
+  "tags": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterTagsMax).nullish().describe('Only Cards carrying any of these tags (repeatable, at most 20).')
+}).optional().describe('Move every Inventory Entry of the source that matches these filters, across all pages; {} moves every entry. Exactly one of cardIds and filter is required.')
 })
 
 export const MoveCollectionEntriesResponse = zod.object({
   "data": zod.object({
-  "cards": zod.int().describe('Inventory Entries moved.'),
-  "copies": zod.int().describe('Copies moved, summed across those entries.')
+  "cards": zod.int().describe('Inventory Entries moved, or counted by the count endpoint.'),
+  "copies": zod.int().describe('Copies in those entries, summed.')
 })
 })
 
