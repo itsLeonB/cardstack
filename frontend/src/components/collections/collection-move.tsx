@@ -4,8 +4,13 @@ import {
   useGetCollection,
   useListCollections,
 } from "@/generated/endpoints/collections/collections"
-import { useMoveCollectionEntries } from "@/generated/endpoints/inventory/inventory"
-import type { CollectionSummary } from "@/generated/models"
+import {
+  getCountCollectionEntriesQueryKey,
+  getListCollectionFacetsQueryKey,
+  useCountCollectionEntries,
+  useMoveCollectionEntries,
+} from "@/generated/endpoints/inventory/inventory"
+import type { CardFilterParams, CollectionSummary } from "@/generated/models"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -23,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { CatalogFilters } from "@/lib/catalog-search"
 import { invalidateBinder } from "@/lib/binder"
 import {
   NETWORK_ERROR,
@@ -33,9 +39,22 @@ import {
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 
 const MOVE_FAILED = "Could not move these cards."
+const COUNT_FAILED = "Could not count the matching cards."
 
 function count(n: number, one: string, many: string) {
   return `${n} ${n === 1 ? one : many}`
+}
+
+/** The shared card filters, in the Move's request shape. Unset fields are dropped from the JSON. */
+function cardFilter(search: CatalogFilters): CardFilterParams {
+  return {
+    name: search.name || undefined,
+    expansionSetIds: search.expansionSetId,
+    localId: search.localId || undefined,
+    rarityIds: search.rarityId,
+    categories: search.category,
+    tags: search.tag,
+  }
 }
 
 /** Why a Collection can't take the Move, or undefined when it can. */
@@ -57,8 +76,10 @@ export function CollectionMoveBar({
   binder,
   cardIds,
   copies,
+  matching,
   flushEdits,
   onCancel,
+  onClearMatching,
   onMoved,
 }: {
   collectionId: string
@@ -68,11 +89,18 @@ export function CollectionMoveBar({
   /** Copies across the selected Cards, shown in the confirm dialog. */
   copies: number
   /**
+   * Every Card the filter matches, instead of `cardIds`. `total` is the list's
+   * count, shown in the bar before the server counts them.
+   */
+  matching?: { filter: CatalogFilters; total: number }
+  /**
    * Sends unsaved quantity edits first, so the Move never runs beside them.
    * Resolves false when an edit to one of these Cards could not be saved.
    */
   flushEdits: (cardIds: string[]) => Promise<boolean>
   onCancel: () => void
+  /** Returns to the ticked-card form with nothing ticked. */
+  onClearMatching: () => void
   /** Receives the result to announce; the caller leaves selection mode. */
   onMoved: (announcement: string) => void
 }) {
@@ -89,7 +117,15 @@ export function CollectionMoveBar({
   // Shown in the bar when edits could not be saved before opening the sheet.
   const [notice, setNotice] = useState<string | null>(null)
   // The Cards the sheet and the confirm dialog act on, fixed when "Move to…" is pressed.
-  const [picked, setPicked] = useState({ cardIds, copies })
+  const [picked, setPicked] = useState({ cardIds, copies, matching })
+  // Fetched only once the confirm dialog opens, for a filter Move.
+  const countQuery = useCountCollectionEntries(
+    collectionId,
+    picked.matching?.filter,
+    {
+      query: { enabled: destination !== null && picked.matching !== undefined },
+    }
+  )
 
   const sourceTitle =
     sourceQuery.data?.status === 200
@@ -104,10 +140,26 @@ export function CollectionMoveBar({
     collectionsQuery.data?.status === 200
       ? (collectionsQuery.data.data.data ?? [])
       : []
+  // A filter Move states the server's count; an ids Move states its own.
+  // A cached count from an earlier open is not this one: it counts only once
+  // the refetch for this open has settled.
+  const countSettled = !countQuery.isFetching
+  const counted =
+    countSettled && countQuery.data?.status === 200
+      ? countQuery.data.data.data
+      : undefined
+  const countError = !countSettled
+    ? undefined
+    : countQuery.isError
+      ? NETWORK_ERROR
+      : errorDetail(countQuery.data, COUNT_FAILED)
+  const shown = picked.matching
+    ? counted
+    : { cards: picked.cardIds.length, copies: picked.copies }
 
   async function openSheet() {
     // The selection can change while the edits save; check and move this one.
-    const chosen = { cardIds, copies }
+    const chosen = { cardIds, copies, matching }
     setNotice(null)
     if (!(await flushEdits(chosen.cardIds))) {
       setNotice(
@@ -130,7 +182,12 @@ export function CollectionMoveBar({
     try {
       const response = await move.mutateAsync({
         id: collectionId,
-        data: { cardIds: picked.cardIds, destinationId: target.id },
+        data: picked.matching
+          ? {
+              destinationId: target.id,
+              filter: cardFilter(picked.matching.filter),
+            }
+          : { destinationId: target.id, cardIds: picked.cardIds },
       })
       if (response.status === 200) {
         const { cards, copies: moved } = response.data.data
@@ -143,6 +200,14 @@ export function CollectionMoveBar({
         }
         invalidateCollectionEntries(queryClient, target.id)
         invalidateCollectionCounts(queryClient, target.id)
+        for (const id of [collectionId, target.id]) {
+          void queryClient.invalidateQueries({
+            queryKey: getListCollectionFacetsQueryKey(id),
+          })
+          void queryClient.invalidateQueries({
+            queryKey: getCountCollectionEntriesQueryKey(id),
+          })
+        }
         invalidateMasterInventory(queryClient)
         onMoved(
           `Moved ${count(cards, "card", "cards")} (${count(moved, "copy", "copies")}) to ${target.title}.`
@@ -161,7 +226,9 @@ export function CollectionMoveBar({
     <>
       <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
         <p role="status" className="text-sm font-medium">
-          {`${cardIds.length} selected`}
+          {matching
+            ? `All ${matching.total} matching this filter selected`
+            : `${cardIds.length} selected`}
         </p>
         {notice && (
           <p role="alert" className="w-full text-sm text-destructive">
@@ -171,11 +238,16 @@ export function CollectionMoveBar({
         <div className="flex gap-2">
           <Button
             ref={moveButton}
-            disabled={cardIds.length === 0}
+            disabled={!matching && cardIds.length === 0}
             onClick={() => void openSheet()}
           >
             Move to…
           </Button>
+          {matching && (
+            <Button variant="outline" onClick={onClearMatching}>
+              Clear selection
+            </Button>
+          )}
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
@@ -247,21 +319,27 @@ export function CollectionMoveBar({
         <AlertDialogContent finalFocus={moveButton}>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {`Move ${count(picked.cardIds.length, "card", "cards")} to ${destination?.title ?? ""}?`}
+              {shown
+                ? `Move ${count(shown.cards, "card", "cards")} to ${destination?.title ?? ""}?`
+                : `Move matching cards to ${destination?.title ?? ""}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {`This moves ${count(picked.cardIds.length, "card", "cards")} and ${count(picked.copies, "copy", "copies")} from ${sourceTitle} to ${destination?.title ?? ""}. ${binder ? "The Slots holding them will be emptied. " : ""}There is no undo.`}
+              {shown
+                ? `This moves ${count(shown.cards, "card", "cards")} and ${count(shown.copies, "copy", "copies")} from ${sourceTitle} to ${destination?.title ?? ""}. ${binder ? "The Slots holding them will be emptied. " : ""}There is no undo.`
+                : countError
+                  ? ""
+                  : "Counting the matching cards…"}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {error && (
+          {(error ?? countError) && (
             <p role="alert" className="text-sm text-destructive">
-              {error}
+              {error ?? countError}
             </p>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={moving}>Cancel</AlertDialogCancel>
             <Button
-              disabled={moving}
+              disabled={moving || !shown}
               onClick={() => {
                 if (destination) void confirm(destination)
               }}

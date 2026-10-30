@@ -6,8 +6,8 @@
  */
 
 export interface InventoryMoveResult {
-  /** Inventory Entries moved. */
+  /** Inventory Entries moved, or counted by the count endpoint. */
   cards: number;
-  /** Copies moved, summed across those entries. */
+  /** Copies in those entries, summed. */
   copies: number;
 }
