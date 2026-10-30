@@ -263,16 +263,21 @@ func TestBinderSlotService_WriteSlot_RefusesUnknownCardBeforeWriting(t *testing.
 func TestBinderSlotService_ClearCards_EmptiesHeldSlotsAndReconcilesEachCard(t *testing.T) {
 	f := newBinderFixture(t)
 	f.expectWriteStart(2, 2)
+	leaf := testBinderLeaf(f)
 	held, absent := uuid.New(), uuid.New()
-	slot := entity.BinderSlot{CollectionID: f.collection.ID, CardID: &held}
+	slot := testBinderSlot(f, leaf, 1, 2, &held, false)
+	slot.Leaf = leaf
 	entry := entity.InventoryEntry{BaseEntity: baseEntity(uuid.New()), CollectionID: f.collection.ID, CardID: held, Quantity: 1}
 	f.slots.EXPECT().ListOccupiedSlots(f.ctx, f.collection.ID, []uuid.UUID{held, absent}).Return([]entity.BinderSlot{slot}, nil).Once()
+	// The Slot is emptied through the shared write, which reconciles the held Card.
+	f.leaves.EXPECT().GetLeafAt(f.ctx, f.collection.ID, 1).Return(leaf, nil).Once()
+	f.expectOccupied(slot)
 	f.slots.EXPECT().Delete(f.ctx, slot).Return(nil).Once()
 	// The held Card's entry goes, because no Slot holds it any more.
 	f.slots.EXPECT().CountCardSlots(f.ctx, f.collection.ID, held).Return(0, nil).Once()
 	f.entries.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entry, nil).Once()
 	f.entries.EXPECT().Delete(f.ctx, entry).Return(nil).Once()
-	// A Card with no Slot and no entry is a no-op.
+	// A Card with no Slot and no entry is reconciled on its own, and is a no-op.
 	f.slots.EXPECT().CountCardSlots(f.ctx, f.collection.ID, absent).Return(0, nil).Once()
 	f.entries.EXPECT().FindFirst(f.ctx, mock.Anything).Return(entity.InventoryEntry{}, nil).Once()
 
