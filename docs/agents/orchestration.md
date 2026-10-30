@@ -46,7 +46,7 @@ The orchestrator owns every edit outside the component directories (`docs/`, `GL
 A **loop** is one implementation pass, started by a task or by a user input: implement, review once, fix the findings, done. Code review (the `code-review` skill, managed outside this repo, so never edit it) runs once per loop, by whoever implemented it, on that implementer's own model. The reviewer evaluates the findings, discards the ones that do not hold, and fixes the rest. Fixes made from a finding are not reviewed again, so a loop ends. A new request from the maintainer starts a new loop with its own review.
 
 - A [small task](#small-task) is one loop, reviewed by the orchestrator.
-- A big task is three loops: one per worker, reviewed by that worker before it reports (task message item 7), and one by the orchestrator on the merged feature branch (step 8).
+- A big task is one loop per worker, reviewed by that worker before it reports (task message item 7), plus one orchestrator loop on the merged feature branch (step 8). Two components make three loops; a single-component big task makes two.
 
 The [advisor](#advisor) is not a reviewer and is not part of any loop.
 

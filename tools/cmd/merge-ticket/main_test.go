@@ -125,8 +125,21 @@ func TestWorktreeForm(t *testing.T) {
 	g(wtRen, "branch", "-m", "harness/renamed")
 	wtDet := commitIn("feat/int-det", "backend/c")
 	g(wtDet, "checkout", "-q", "--detach")
+	// a repository of its own: a branch name read from it means nothing in main
+	foreign := filepath.Join(t.TempDir(), "foreign")
+	os.Mkdir(foreign, 0o755)
+	g(foreign, "init", "-q", "-b", "feat/int-orig")
+	g(foreign, "commit", "-q", "--allow-empty", "-m", "x")
 	t.Chdir(main)
 
+	for _, p := range []string{foreign, filepath.Join(foreign, "nope")} {
+		if err := run([]string{"merge", "--worktree", p, "--component", "backend"}); err == nil || !strings.Contains(err.Error(), "not a worktree of this repository") {
+			t.Fatalf("%s should be refused as not attached, got %v", p, err)
+		}
+	}
+	if err := run([]string{"cleanup", "--worktree", foreign}); err == nil || !strings.Contains(err.Error(), "not a worktree of this repository") {
+		t.Fatalf("cleanup of a foreign repo should be refused, got %v", err)
+	}
 	if err := run([]string{"merge", "--worktree", wtDet, "--component", "backend"}); err == nil || !strings.Contains(err.Error(), "detached") {
 		t.Fatalf("detached HEAD should be refused, got %v", err)
 	}

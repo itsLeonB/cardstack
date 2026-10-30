@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -59,16 +60,38 @@ var components = map[string][]string{
 }
 
 // resolveBranch fills o.branch from the live branch of o.worktree, so a renamed or harness-minted branch needs no copying by hand.
+// resolveBranch fills o.branch from the live branch of o.worktree, so a renamed or harness-minted branch needs no copying by hand.
+// The path must be a worktree of the current repository: another repo's branch name means nothing here.
 func resolveBranch(o *opts) error {
 	if o.worktree == "" {
 		return nil
 	}
+	if !attached(o.worktree) {
+		return fmt.Errorf("%s is not a worktree of this repository, refusing", o.worktree)
+	}
 	out, err := git("-C", o.worktree, "symbolic-ref", "--short", "HEAD")
 	if err != nil {
-		return fmt.Errorf("%s has a detached HEAD or is not a worktree, refusing: %s", o.worktree, out)
+		return fmt.Errorf("%s has a detached HEAD, refusing: %s", o.worktree, out)
 	}
 	o.branch = out
 	return nil
+}
+
+// attached reports whether path is in the current repository's `git worktree list`.
+func attached(path string) bool {
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+	out, _ := git("worktree", "list", "--porcelain")
+	for _, l := range strings.Split(out, "\n") {
+		if p, ok := strings.CutPrefix(l, "worktree "); ok {
+			if r, err := filepath.EvalSymlinks(p); err == nil && r == real {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // expandComponents adds the directories of each --component to o.scopes.
