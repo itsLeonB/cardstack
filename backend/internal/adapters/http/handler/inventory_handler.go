@@ -264,6 +264,7 @@ const (
 	OpListMasterInventory       = "list-master-inventory"
 	OpListMasterInventoryFacets = "list-master-inventory-facets"
 	OpListCollectionFacets      = "list-collection-facets"
+	OpCountCollectionEntries    = "count-collection-entries"
 )
 
 // Routes sets Secured:true only as OpenAPI metadata; the router must pass
@@ -311,7 +312,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			HandlerFunc: h.listHoldings,
 		}),
 		endpoint.New(endpoint.Endpoint[countEntriesInput, dto.InventoryMoveResult]{
-			OperationID: "count-collection-entries",
+			OperationID: OpCountCollectionEntries,
 			Method:      http.MethodGet,
 			Path:        "/collections/{id}/entries/count",
 			Summary:     "Count the Inventory Entries in one of the current user's own Collections that match the catalog search filters, and the copies in them",

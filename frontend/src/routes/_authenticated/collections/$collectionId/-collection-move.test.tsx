@@ -58,6 +58,8 @@ interface FakeCollectionApi {
   countGate?: Promise<unknown>
   /** When set, GET .../entries/count fails with this message. */
   countError?: string
+  /** When set, GET .../entries/count fails as a dropped connection does (the fetch rejects). */
+  countNetworkFails?: boolean
   moveStatus: number
   moveBody: FakeBody
   /** The binder's Pages, as GET .../binder/pages/N answers. */
@@ -142,6 +144,7 @@ function stubCollectionApi(api: FakeCollectionApi) {
         pathname.endsWith("/collections/col-1/entries/count")
       ) {
         if (api.countGate) await api.countGate
+        if (api.countNetworkFails) throw new TypeError("Failed to fetch")
         if (api.countError) return json(500, { detail: api.countError })
         return json(200, { data: api.count })
       }
@@ -849,6 +852,29 @@ describe("Collection page: selecting every card matching a filter", () => {
     expect(
       within(second).getByText("Counting the matching cards…")
     ).toBeTruthy()
+    expect(within(second).queryByText("Move 37 cards to Deck B?")).toBeNull()
+    expect(
+      within(second).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
+  })
+
+  it("does not enable Confirm with the previous count when the refetch fails on the network", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+    })
+    await renderCollectionPage(api)
+    await selectEveryMatch()
+    const first = await openConfirmToDeckB()
+    await within(first).findByText("Move 37 cards to Deck B?")
+    fireEvent.click(within(first).getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+
+    api.countNetworkFails = true
+    const second = await openConfirmToDeckB()
+
+    await within(second).findByRole("alert")
     expect(within(second).queryByText("Move 37 cards to Deck B?")).toBeNull()
     expect(
       within(second).getByRole("button", { name: "Move" }).matches(":disabled")

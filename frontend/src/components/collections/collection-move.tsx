@@ -156,7 +156,7 @@ export function CollectionMoveBar({
   // the refetch for this open has settled.
   const countSettled = !countQuery.isFetching
   const counted =
-    countSettled && countQuery.data?.status === 200
+    countSettled && !countQuery.isError && countQuery.data?.status === 200
       ? countQuery.data.data.data
       : undefined
   const countError = !countSettled
