@@ -1,0 +1,51 @@
+name: Compose images
+description: >-
+  Builds the compose stack's images with a GitHub Actions layer cache and
+  restores a package cache that the tooling containers bind-mount.
+
+inputs:
+  services:
+    description: Space-separated compose services to build
+    required: true
+  cache:
+    description: Package cache to restore, go or bun
+    required: true
+  lockfiles:
+    description: Glob of the lockfiles that key the package cache
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Restore the package cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/cardstack-${{ inputs.cache }}
+        key: >-
+          cardstack-${{ inputs.cache }}-${{ hashFiles(inputs.lockfiles) }}
+        restore-keys: |
+          cardstack-${{ inputs.cache }}-
+
+    - name: Point the tooling containers at the cache directory
+      shell: bash
+      run: |
+        dir="$HOME/.cache/cardstack-${{ inputs.cache }}"
+        mkdir -p "$dir"
+        echo "${INPUT_CACHE^^}_CACHE_DIR=$dir" >> "$GITHUB_ENV"
+        # The images are built below, so the scripts must not build again.
+        echo "SKIP_BUILD=1" >> "$GITHUB_ENV"
+      env:
+        INPUT_CACHE: ${{ inputs.cache }}
+
+    - name: Set up Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build the images
+      uses: docker/bake-action@v6
+      with:
+        files: compose.yaml
+        targets: ${{ inputs.services }}
+        load: true
+        set: |
+          *.cache-from=type=gha,scope=${{ inputs.services }}
+          *.cache-to=type=gha,mode=max,scope=${{ inputs.services }}

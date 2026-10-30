@@ -13,9 +13,12 @@ compose() {
 }
 
 # up <service>...: starts these services (and what they depend on) and waits
-# until they are healthy. --build is a no-op when an image is current.
+# until they are healthy. --build is a no-op when an image is current. CI
+# builds the images first, with a layer cache, and sets SKIP_BUILD.
 up() {
-  compose up -d --build --wait "$@"
+  local build=--build
+  [ -z "${SKIP_BUILD:-}" ] || build=--no-build
+  compose up -d "$build" --wait "$@"
 }
 
 # run_in <service> <command>...: runs a command in a started tooling container.

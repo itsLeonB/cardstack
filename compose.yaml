@@ -114,7 +114,7 @@ services:
     environment: *db-env
     volumes:
       - .:/workspace
-      - go-cache:/cache
+      - ${GO_CACHE_DIR:-go-cache}:/cache
 
 volumes:
   # Shared by every worktree: a Go cache is safe to use concurrently.
