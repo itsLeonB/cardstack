@@ -17,7 +17,8 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import { NotFound } from "@/components/layout/not-found"
-import { catalogCard } from "@/test-binder-api"
+import { catalogCard, fakeBinder, pageBody } from "@/test-binder-api"
+import type { FakeBinder } from "@/test-binder-api"
 import { stubGridLayout } from "@/test-grid-layout"
 import { Route as CollectionRoute } from "./index"
 
@@ -51,6 +52,8 @@ interface FakeCollectionApi {
   entries: { card: object; quantity: number }[]
   moveStatus: number
   moveBody: FakeBody
+  /** The binder's Pages, as GET .../binder/pages/N answers. */
+  binder: FakeBinder
   requests: { method: string; path: string; body?: unknown }[]
 }
 
@@ -96,6 +99,7 @@ function fakeCollectionApi(
     entries: [],
     moveStatus: 200,
     moveBody: { data: { cards: 0, copies: 0 } },
+    binder: fakeBinder({ rows: 2, columns: 2, leafCount: 1 }),
     requests: [],
     ...overrides,
   }
@@ -108,8 +112,14 @@ function stubCollectionApi(api: FakeCollectionApi) {
       const method = init?.method ?? "GET"
       const body = init?.body ? JSON.parse(String(init.body)) : undefined
       api.requests.push({ method, path: pathname, body })
-      if (method === "POST" && pathname.endsWith("/entries/move"))
+      if (method === "POST" && pathname.endsWith("/entries/move")) {
+        // A Move that succeeds empties Page 1's Slot 1,1, as a binder source does.
+        if (api.moveStatus === 200) delete api.binder.filled[1]?.["1,1"]
         return json(api.moveStatus, api.moveBody)
+      }
+      const page = pathname.match(/\/binder\/pages\/(\d+)$/)
+      if (method === "GET" && page)
+        return json(200, { data: pageBody(api.binder, Number(page[1])) })
       if (method === "GET" && pathname.endsWith("/collections")) {
         if (api.collectionsPending) return new Promise<Response>(() => {})
         if (api.collectionsStatus !== 200)
@@ -531,16 +541,20 @@ describe("Collection page: confirming a Move", () => {
       collections: binderCollections,
       entries: twoCardsThreeCopies,
       moveBody: { data: { cards: 2, copies: 3 } },
+      binder: fakeBinder({
+        rows: 2,
+        columns: 2,
+        leafCount: 1,
+        catalog: [pikachu],
+        filled: { 1: { "1,1": { state: "card", card: pikachu } } },
+      }),
     })
     await renderCollectionPage(api, "Binder A")
-    const binderRequests = () =>
-      api.requests.filter(
-        (request) =>
-          request.method === "GET" &&
-          request.path.startsWith("/collections/col-1/binder")
-      ).length
-    await waitFor(() => expect(binderRequests()).toBeGreaterThan(0))
-    const before = binderRequests()
+    expect(
+      await screen.findByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
+    ).toBeTruthy()
 
     fireEvent.click(await screen.findByRole("button", { name: "Select" }))
     fireEvent.click(
@@ -564,7 +578,14 @@ describe("Collection page: confirming a Move", () => {
     expect(
       await screen.findByText("Moved 2 cards (3 copies) to Deck B.")
     ).toBeTruthy()
-    await waitFor(() => expect(binderRequests()).toBeGreaterThan(before))
+    expect(
+      await screen.findByRole("button", { name: "Row 1, column 1: empty" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", {
+        name: "Row 1, column 1: Pikachu, Base Set",
+      })
+    ).toBeNull()
   })
 
   it("moves the selected cards, announces the result, and leaves selection mode", async () => {
