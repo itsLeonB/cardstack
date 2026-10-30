@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
-# Verifies the backend component. Run it from anywhere; it stops at the first failing command.
+# Verifies the backend component in the compose stack's tooling container.
+# Usage: backend.sh [build|vet|format|lint|test]
+# With no argument it runs every step in order and stops at the first failure.
+# A step that needs no database starts only the tooling container.
 set -euo pipefail
 
-cd "$(dirname "$0")/../../backend"
+source "$(dirname "$0")/lib.sh"
 
-run() {
-  echo "+ $*"
-  "$@"
-}
+run() { run_in backend-tools "$@"; }
 
-run go build ./...
-run go vet ./...
-run test -z "$(gofmt -l .)"
-run golangci-lint run ./... --timeout=5m
-run go test -race ./...
+step_build() { up backend-tools; run go build ./...; }
+step_vet() { up backend-tools; run go vet ./...; }
+step_format() { up backend-tools; run sh -c 'test -z "$(gofmt -l .)"'; }
+step_lint() { up backend-tools; run golangci-lint run ./... --timeout=5m; }
+step_test() { up db backend-tools; run go test -race ./...; }
+
+steps=(build vet format lint test)
+case "${1:-all}" in
+  all) for s in "${steps[@]}"; do "step_$s"; done ;;
+  build | vet | format | lint | test) "step_$1" ;;
+  *)
+    echo "usage: $0 [${steps[*]// /|}]" >&2
+    exit 2
+    ;;
+esac

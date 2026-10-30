@@ -11,6 +11,14 @@ x-backend-env: &backend-env
   - path: backend/.env
     required: false
 
+x-tools: &tools
+  # Long-lived tooling containers: `docker compose exec` runs every lint,
+  # test and build in them. They run as the host user, so no root-owned files
+  # appear in the bind-mounted repository.
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  init: true
+  restart: "no"
+
 services:
   db:
     image: pgvector/pgvector:pg18
@@ -95,3 +103,20 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  backend-tools:
+    <<: *tools
+    build:
+      context: backend
+      dockerfile: tooling.Dockerfile
+    image: cardstack-backend-tools:local
+    working_dir: /workspace/backend
+    environment: *db-env
+    volumes:
+      - .:/workspace
+      - go-cache:/cache
+
+volumes:
+  # Shared by every worktree: a Go cache is safe to use concurrently.
+  go-cache:
+    name: cardstack-go-cache
