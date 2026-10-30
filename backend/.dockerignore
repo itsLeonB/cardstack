@@ -1,2 +1,6 @@
 # Test fixtures are not needed to build the image.
 **/testdata
+
+# Env files hold local secrets; keep them out of the build context and layer cache.
+.env
+.env.*
