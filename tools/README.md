@@ -4,8 +4,8 @@ Small Go commands that make agent workflow steps deterministic. This is a separa
 
 | Command | What it does | Used by |
 | --- | --- | --- |
-| `deny-big-output` | `PreToolUse` hook (`Bash\|Read`) that refuses a `cat` or `git diff` printing more than 20 KB, and a `Read` of a file over 40 KB without `offset` or `limit` | `.claude/settings.json`; details in `docs/agents/security.md` |
-| `merge-ticket` | `merge` checks a child worktree is clean and in scope, then runs `git merge --no-ff`; `cleanup` removes the worktree, runs `git branch -d` and marks the issue done | The orchestrator, step 9 of `docs/agents/orchestration.md` |
+| `deny-big-output` | `PreToolUse` hook (`Bash\|Read`) that refuses a `cat` or `git diff` printing more than 20 KB, and a `Read` of a file over 40 KB without `offset` or `limit` | `.claude/settings.json`; details in `docs/security.md` |
+| `merge-ticket` | `merge` checks a child worktree is clean and in scope, then runs `git merge --no-ff`; `cleanup` removes the worktree, runs `git branch -d` and marks the issue done | The orchestrator, step 8 of `docs/agents/orchestration.md` |
 
 ## Install
 
@@ -37,7 +37,6 @@ The `merge-ticket` test builds throwaway git repos in a temp directory.
 
 ```sh
 merge-ticket merge <child-branch> --scope backend
-# archive the T3 thread here (orchestration.md step 9.2)
 merge-ticket cleanup <child-branch> --issue .scratch/<feature>/issues/NN-<slug>.md
 ```
 

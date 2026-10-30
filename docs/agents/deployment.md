@@ -58,7 +58,7 @@ One release moves the Admin from `/admin` in the user app to the Admin app (ADR-
 
 Rollback is a revert of the release: revert, redeploy the API, then the user app. `ADMIN_CLIENT_URLS` may stay set in Railway, because the old API ignores it, and the Admin app project can stay up unused.
 
-Local setup for the Admin app (port, Clerk development instance, origin in `ADMIN_CLIENT_URLS`) is in `docs/agents/environment.md`.
+Local setup for the Admin app (port, Clerk development instance, origin in `ADMIN_CLIENT_URLS`) is in `docs/environment.md`.
 
 ## A failed Vercel build keeps serving the old bundle
 

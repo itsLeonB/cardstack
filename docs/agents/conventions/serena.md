@@ -4,21 +4,19 @@ Serena is an MCP server that exposes semantic, symbol-aware tools for reading, s
 
 ## Who uses Serena
 
-Everyone in a T3 thread uses Serena: the orchestrator, the component agents and the advisor. Read this file before your first tool call on a code file.
+Everyone uses Serena: the orchestrator, the component agents and the advisor. Read this file before your first tool call on a code file.
 
 - The orchestrator's Serena is rooted at the main checkout.
-- A component agent runs as its own T3 thread in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the main checkout.
+- A component agent works in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the main checkout.
 - The advisor uses Serena for reads in the main checkout, and reads a child's worktree by absolute path with the built-in tools, because its Serena is rooted at the main checkout.
 
-Launched threads are top-level threads, not subagents, so the always-on `serena-hooks remind` hook applies to them too. Dry run 10 (`.scratch/agent-tooling/issues/10-dry-run-serena-hook-in-launched-thread.md`) confirmed it: the third consecutive built-in code read in a launched thread came back as a `PreToolUse:Read hook error` telling the agent to use symbolic tools, and a retry of the same read then went through. Native subagents are skipped by the hook.
-
-Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md` and `.scratch/agent-tooling/research/t3-code-worktree-orchestration-sources.md`.
+Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md`.
 
 ## Reaching the tools
 
-- **Claude Code**: Serena's tools are `mcp__serena__*` and arrive deferred, so a direct call fails until loaded. Before your first code tool call, load them in one `ToolSearch` with `select:mcp__serena__initial_instructions,mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols,mcp__serena__replace_symbol_body,mcp__serena__replace_content`, then call `initial_instructions`.
-- **pi**: reach them through the `mcp` proxy, `mcp({ tool: "find_symbol", args: { ... } })`, or run `tool_search` and call the activated `mcp__serena__*` tool. The same rule covers every other MCP server: `mcp({ tool: "..." })` in pi, `mcp__<server>__<tool>` in Claude Code.
-- Both clients start Serena with `--project-from-cwd` under a single-project context, so the project is already active. Do not call `activate_project`; that tool does not exist in these configurations.
+- Serena's tools are `mcp__serena__*` and may arrive deferred, so a direct call fails until loaded. Before your first code tool call, load them in one tool search with `select:mcp__serena__initial_instructions,mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols,mcp__serena__replace_symbol_body,mcp__serena__replace_content`, then call `initial_instructions`.
+- Where MCP tools sit behind an `mcp` proxy instead, call them through it: `mcp({ tool: "find_symbol", args: { ... } })`. The same rule covers every other MCP server.
+- Serena starts with `--project-from-cwd` under a single-project context, so the project is already active. Do not call `activate_project`; that tool does not exist in these configurations.
 
 ## Mapping (use the right column, not the left)
 

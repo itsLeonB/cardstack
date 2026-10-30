@@ -12,7 +12,7 @@ How Serena is wired so both clients, and pi's subagents, use Serena's symbol-lev
 | Serena launch | `.mcp.json` → `--context claude-code` | `.pi/mcp-adapter.json` → `--context ide`, `directTools: "search"` |
 | Lifecycle hooks | `.claude/settings.json` → `serena-hooks activate/remind/auto-approve/cleanup --client=claude-code` | `.pi/settings.json` → `@lystran/pi-serena-hooks`, same commands in Serena's `claude-code` hook format |
 | System prompt | `--system-prompt "$(serena print-system-prompt --context claude-code)"` per invocation | `AGENTS.md` (pi has no committed system-prompt override) |
-| Subagent prompts | `.claude/agents/*.md`, symlinked as `.pi/agents/*.md` | same files |
+| Subagent prompts | `.claude/agents/*.md` | not committed |
 
 Two facts drive the recommendations below.
 
@@ -68,8 +68,6 @@ pi loads `AGENTS.md` into every main session, so that section carries the policy
 `--append-system-prompt "$(serena print-system-prompt --only-instructions)"` gives the same effect per invocation and picks up Serena's own wording as it evolves, but it is per-developer shell setup, not something the repo can commit. `AGENTS.md` is the committable path; the flag is a reasonable personal addition on top.
 
 ### 5. Drive subagents from one shared policy
-
-`.pi/agents/backend-agent.md` and `.pi/agents/frontend-agent.md` are symlinks to the Claude Code agent files, so one edit covers both clients.
 
 Previously the mapping was duplicated inline in both agent files;
 The tool-selection mapping and the pre-edit workflow now live only in `docs/agents/conventions/serena.md`; both agent files reference it alongside `general.md` and their component conventions file, so the child has to read it before the first code edit. The prompts no longer call themselves Claude Code, and the shared doc states pi's tool path explicitly: the `mcp` proxy, or `mcp__serena__*` once `tool_search` activates them.

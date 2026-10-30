@@ -1,1 +1,0 @@
-../../.claude/agents/frontend-agent.md

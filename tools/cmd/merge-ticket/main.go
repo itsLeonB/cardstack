@@ -1,10 +1,10 @@
 // Command merge-ticket runs the mechanical steps of docs/agents/orchestration.md "Merge and clean up" for one child branch.
 // Run it from the feature-branch checkout.
 //
-//	merge-ticket merge   <branch> --scope <dir>...   clean-worktree check, scope check (step 7), then merge --no-ff (step 9.1)
-//	merge-ticket cleanup <branch> [--issue <file>]   worktree remove, safe branch delete (steps 9.3-9.4), mark the issue done
+//	merge-ticket merge   <branch> --scope <dir>...   clean-worktree check, scope check (step 6), then merge --no-ff (step 8.1)
+//	merge-ticket cleanup <branch> [--issue <file>]   worktree remove, safe branch delete (steps 8.2-8.3), mark the issue done
 //
-// Archive the T3 thread (step 9.2) between the two. Install (from tools/): go install ./cmd/...
+// Install (from tools/): go install ./cmd/...
 package main
 
 import (
