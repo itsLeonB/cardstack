@@ -7,8 +7,8 @@
 #   docker compose up -d --build --wait api-ready web admin
 #
 # Then open http://localhost:3000 (user app) and http://localhost:3001 (Admin).
-# The e2e step of scripts/verification/frontend.sh still works: it reaches the
-# app by service name from inside the network.
+# The e2e step of scripts/verification/frontend.sh ignores this file: it needs
+# the in-network addresses, since its browser runs inside the network.
 
 services:
   db:

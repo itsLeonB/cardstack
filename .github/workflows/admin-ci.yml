@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "admin/**"
+      - "frontend/tooling.Dockerfile"
       - "compose.yaml"
       - "compose.defaults.env"
       - "scripts/verification/**"
@@ -17,6 +18,7 @@ on:
     branches: [main]
     paths:
       - "admin/**"
+      - "frontend/tooling.Dockerfile"
       - "compose.yaml"
       - "compose.defaults.env"
       - "scripts/verification/**"

@@ -11,7 +11,10 @@ run() { run_in backend-tools "$@"; }
 
 step_build() { up backend-tools; run go build ./...; }
 step_vet() { up backend-tools; run go vet ./...; }
-step_format() { up backend-tools; run sh -c 'test -z "$(gofmt -l .)"'; }
+step_format() {
+  up backend-tools
+  run sh -c 'out=$(gofmt -l .); [ -z "$out" ] || { echo "gofmt: $out"; exit 1; }'
+}
 step_lint() { up backend-tools; run golangci-lint run ./... --timeout=5m; }
 step_test() { up db backend-tools; run go test -race ./...; }
 

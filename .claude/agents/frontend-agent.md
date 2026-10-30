@@ -36,7 +36,7 @@ Before writing or changing code, read `docs/agents/conventions/general.md` and `
 
 # Workflow when delegated a task
 
-1. Run `scripts/bootstrap-worktree/frontend.sh` once: a fresh worktree has no installed dependencies or env files.
+1. Run `scripts/bootstrap-worktree/frontend.sh` once: a fresh worktree has no env files and no started tooling container.
 2. Implement the change using the tool selection rules above. If the task comes from a spec/ticket file, drive it TDD-first at agreed seams (`tdd` skill).
 3. Run `scripts/verification/frontend.sh` and fix every failure before moving on.
 4. Commit your changes on your branch with message format `<semantic commit>(frontend): <message>` (e.g. `feat(frontend): add login page`). Never push: the orchestrator merges your branch into the feature branch.

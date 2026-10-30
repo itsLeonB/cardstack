@@ -5,7 +5,7 @@ description: >-
 
 inputs:
   services:
-    description: Space-separated compose services to build
+    description: Comma-separated compose services to build
     required: true
   cache:
     description: Package cache to restore, go or bun
@@ -40,12 +40,29 @@ runs:
     - name: Set up Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Give each image its own layer cache scope
+      id: scopes
+      shell: bash
+      run: |
+        # One scope per image, so the images do not overwrite each other's
+        # cache entries.
+        {
+          echo "set<<EOF"
+          for service in ${INPUT_SERVICES//,/ }; do
+            echo "$service.cache-from=type=gha,scope=cardstack-$service"
+            echo "$service.cache-to=type=gha,mode=max,scope=cardstack-$service"
+          done
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        INPUT_SERVICES: ${{ inputs.services }}
+
     - name: Build the images
       uses: docker/bake-action@v6
       with:
+        # Build the checked-out tree, as a local run does, not a Git clone.
+        source: .
         files: compose.yaml
-        targets: ${{ replace(inputs.services, ' ', ',') }}
+        targets: ${{ inputs.services }}
         load: true
-        set: |
-          *.cache-from=type=gha,scope=${{ github.workflow }}
-          *.cache-to=type=gha,mode=max,scope=${{ github.workflow }}
+        set: ${{ steps.scopes.outputs.set }}

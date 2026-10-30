@@ -37,10 +37,14 @@ step_e2e() {
   # The user app's key, so the built app and the suite agree on the Clerk
   # instance. CI sets it; a local run reads it from the app's env file.
   if [ -z "${VITE_CLERK_PUBLISHABLE_KEY:-}" ] && [ -f "$root/frontend/.env" ]; then
-    VITE_CLERK_PUBLISHABLE_KEY="$(sed -n 's/^VITE_CLERK_PUBLISHABLE_KEY=//p' "$root/frontend/.env")"
+    VITE_CLERK_PUBLISHABLE_KEY="$(sed -n 's/^VITE_CLERK_PUBLISHABLE_KEY=//p' "$root/frontend/.env" | tr -d '"\r')"
     export VITE_CLERK_PUBLISHABLE_KEY
   fi
+  # Skip compose.override.yaml: it rebuilds the app with a localhost API
+  # address, which the browser in the tooling container cannot reach.
+  export COMPOSE_FILE="$root/compose.yaml"
   up api-ready web frontend-tools
+  pkg=frontend install
   compose run --rm seed
   RUN_DIR=frontend \
     RUN_ENV="VITE_CLERK_PUBLISHABLE_KEY CLERK_SECRET_KEY E2E_CLERK_USER_EMAIL E2E_CLERK_USER_PASSWORD E2E_REQUIRE_SIGN_IN CI" \
@@ -57,6 +61,11 @@ case "$step" in
     exit 2
     ;;
 esac
+
+if [ "$step" = e2e ] && [ "${packages[*]}" = admin ]; then
+  echo "e2e runs the user app's suite: use --package frontend or no package" >&2
+  exit 2
+fi
 
 for pkg in "${packages[@]}"; do
   # admin/ is absent in worktrees cut before the Admin app existed.

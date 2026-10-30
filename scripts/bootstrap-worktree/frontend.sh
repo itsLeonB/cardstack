@@ -22,6 +22,5 @@ if [ -e "$root/.envrc" ] && command -v direnv >/dev/null 2>&1; then
 fi
 
 cd "$root"
-source scripts/verification/lib.sh
 # Starts the tooling container and installs both packages' dependencies in it.
 scripts/verification/frontend.sh install

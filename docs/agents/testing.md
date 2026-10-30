@@ -13,7 +13,7 @@ One compose stack (`compose.yaml` at the repository root) gives agents and CI th
 | `backend-tools`, `frontend-tools` | Long-lived tooling containers with the repository bind-mounted at `/workspace`, running as your user. `backend-tools` has Go, a C compiler (the race detector needs cgo) and the pinned lint tool. `frontend-tools` is the official Playwright image at the version `frontend/package.json` pins, plus bun, and serves both frontend packages. |
 | `seed` | Profile `seed`: loads the end-to-end fixture, `backend/internal/adapters/db/postgres/testdata/e2e_seed.sql`. |
 
-Each worktree gets its own stack: the project name is the directory's name, and no host port is published, so containers reach each other by service name (`db`, `api:8080`, `web:3000`, `admin:3001`) and two worktrees can run at once. `docker compose down` leaves nothing behind but the named package caches (`cardstack-go-cache`, `cardstack-bun-cache`, shared by every worktree).
+Each worktree gets its own stack (the built images carry fixed tags such as `cardstack-web:local`, shared by every worktree: each script run rebuilds its own, so a bare `docker compose up` without `--build` may pick up another worktree's image): the project name is the directory's name, and no host port is published, so containers reach each other by service name (`db`, `api:8080`, `web:3000`, `admin:3001`) and two worktrees can run at once. `docker compose down` leaves nothing behind but the named package caches (`cardstack-go-cache`, `cardstack-bun-cache`, shared by every worktree).
 
 ## Run the checks
 

@@ -34,8 +34,6 @@ permissions:
   contents: read
 
 env:
-  # The images are built under the names Compose gives them in this project.
-  COMPOSE_PROJECT_NAME: cardstack
   # The built app needs Clerk to load before it treats anyone as a guest. Fork
   # pull requests get no variables, so they fall back to this project's Clerk
   # development instance's publishable key (public by design: it only encodes
@@ -58,7 +56,7 @@ jobs:
       - name: Set up the stack images
         uses: ./.github/actions/compose-images
         with:
-          services: migrate api web frontend-tools
+          services: migrate,api,web,frontend-tools
           cache: bun
           lockfiles: frontend/bun.lock
 

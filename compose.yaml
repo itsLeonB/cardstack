@@ -44,6 +44,7 @@ services:
   migrate:
     build:
       context: backend
+    image: cardstack-backend:local
     entrypoint: ["/migrate"]
     env_file: *backend-env
     environment: &db-env
@@ -60,6 +61,7 @@ services:
   api:
     build:
       context: backend
+    image: cardstack-backend:local
     env_file: *backend-env
     environment:
       <<: *db-env
@@ -119,6 +121,7 @@ services:
       args:
         VITE_API_BASE_URL: http://api:8080
         VITE_CLERK_PUBLISHABLE_KEY: *clerk-key
+    image: cardstack-web:local
     healthcheck:
       test:
         - CMD
@@ -139,6 +142,7 @@ services:
       args:
         VITE_API_BASE_URL: http://api:8080
         VITE_CLERK_PUBLISHABLE_KEY: *clerk-key
+    image: cardstack-admin:local
     healthcheck:
       test:
         - CMD
