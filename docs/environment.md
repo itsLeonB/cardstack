@@ -8,7 +8,7 @@ Set up a fresh clone so agents and their MCP servers see the variables `.mcp.jso
 4. Run `direnv allow` in the repo root, and again after every `.envrc` change.
 5. Start your agent from that shell, inside the repo.
 
-Worktrees don't hold gitignored files. A delegate runs `scripts/bootstrap-worktree/<component>.sh` first: it copies `.envrc` from the main checkout and runs `direnv allow`.
+Worktrees don't hold gitignored files. A delegate runs `scripts/bootstrap-worktree/<component>.sh` first: it copies `.envrc` and the component's env files from the main checkout, runs `direnv allow`, and starts the compose stack's tooling container (the frontend script also installs dependencies in it).
 
 When an MCP server needs a new `${VAR}`, add it to `.envrc.example` in the same change and tell the team to update `.envrc` and run `direnv allow`.
 
@@ -21,3 +21,12 @@ The Admin app (`admin/`, ADR-0024) runs on port 3001 with `--strictPort`, next t
 3. Run `bun run dev` in `admin/` and open `http://localhost:3001`.
 
 The Admin app has no sign-in page: sign in at `http://localhost:3000` with a listed email first. Unverified in a browser: whether the development instance carries that session to port 3001. If a listed email gets not-found, suspect that first. Guests and unlisted users always get the ordinary not-found page.
+
+## The compose stack
+
+Docker with the Compose plugin is the only tool the checks need: the database, API, apps and tooling run in containers (`docs/agents/testing.md`). The host keeps its own language toolchains (Go, bun) because Serena's language servers run on the host and need them; nothing else does.
+
+- **Env files.** The stack reads `backend/.env` when it exists, over the placeholders in `compose.defaults.env` that let the API boot without it. `frontend/.env` supplies the Clerk publishable key the end-to-end step bakes into the app. A missing file is fine; the guest checks still run.
+- **Isolation.** Each worktree has its own stack, named after its directory, with no host port published.
+- **Your own browser.** Copy `compose.override.example.yaml` to the gitignored `compose.override.yaml`. It publishes ports 5432, 8080, 3000 and 3001, adds the localhost origins to the API's allowed client addresses, and rebuilds the apps with `http://localhost:8080` as the API address. The apps bake that address in at build time, so changing it, or the Clerk key, needs `docker compose up -d --build`. There is no hot reload: for that, keep running `bun run dev` natively.
+- **Cleanup.** `docker compose down` removes the containers and the database; the named caches `cardstack-go-cache` and `cardstack-bun-cache` stay, and `docker volume rm` removes them.

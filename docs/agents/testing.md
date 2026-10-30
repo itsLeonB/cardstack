@@ -1,8 +1,38 @@
-# Backend test environment setup
+# Test environment: the compose stack
 
-How an agent should get a working Postgres for backend tests, and how to get real catalog data quickly for manual verification, depending on where the session is running. How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
+One compose stack (`compose.yaml` at the repository root) gives agents and CI the same database, API, apps and tooling. Never install a toolchain or provision a database yourself: bring the stack up, then run everything with the verification scripts or `docker compose exec`. How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
+
+## The stack
+
+| Service | What it is |
+| --- | --- |
+| `db` | `pgvector/pgvector:pg18`, throwaway data (`down` removes it). The tests require pgvector (ADR-0005, ADR-0018). |
+| `migrate`, `api` | The unchanged production backend image (`backend/Dockerfile`): its migrate binary once, then the API. |
+| `api-ready` | A sidecar whose health check asks the API from outside, because the API image has no shell. `up --wait` returns once the database is ready, the migration finished and the API answers. |
+| `web`, `admin` | The user app and the Admin app from production-style images (`frontend/app.Dockerfile`, `admin/app.Dockerfile`), each served by `tools/serve.ts`, which reads that app's own `vercel.json`. |
+| `backend-tools`, `frontend-tools` | Long-lived tooling containers with the repository bind-mounted at `/workspace`, running as your user. `backend-tools` has Go, a C compiler (the race detector needs cgo) and the pinned lint tool. `frontend-tools` is the official Playwright image at the version `frontend/package.json` pins, plus bun, and serves both frontend packages. |
+| `seed` | Profile `seed`: loads the end-to-end fixture, `backend/internal/adapters/db/postgres/testdata/e2e_seed.sql`. |
+
+Each worktree gets its own stack: the project name is the directory's name, and no host port is published, so containers reach each other by service name (`db`, `api:8080`, `web:3000`, `admin:3001`) and two worktrees can run at once. `docker compose down` leaves nothing behind but the named package caches (`cardstack-go-cache`, `cardstack-bun-cache`, shared by every worktree).
+
+## Run the checks
+
+`scripts/verification/<component>.sh [step]` is the one entrypoint, for agents and for CI. It brings up what the step needs, runs it in the tooling container and stops at the first failure. With no step it runs them all in order.
+
+| Script | Steps |
+| --- | --- |
+| `backend.sh` | `build`, `vet`, `format`, `lint`, `test` |
+| `frontend.sh [--package frontend\|admin]` | `install`, `lint`, `format`, `typecheck`, `test`, `build` for each package, then `e2e` (user app) |
+
+Only `test` (the backend) and `e2e` need the database; every other step starts just its tooling container. Lint, typecheck and unit tests run against the bind-mounted source, so they never need a rebuild. `e2e` rebuilds the `web` image, because the app runs from a built image with no hot reload: a source edit reaches a running app only through a rebuild. `scripts/bootstrap-worktree/<component>.sh` copies the gitignored env files and starts the tooling container; run it once in a fresh worktree.
+
+The first run on a machine pulls images and takes several minutes; a warm run adds a few seconds of image checks. Calls to the stack by hand: `docker compose exec backend-tools go test ./internal/domain/repository/...`. The `DB_*` values the tests read are already set in `backend-tools`.
+
+If Docker is unavailable, fall back to a Postgres 18 with the `vector` extension reachable through the `DB_*` variables of `backend/.env.example`; the schema relies on PostgreSQL 18's native `uuidv7()`, so an older major version does not work.
 
 ## Frontend: driving a headless browser (Playwright) for manual UI verification
+
+In the stack, `frontend-tools` already carries the browser: drive it with `docker compose exec -w /workspace/frontend frontend-tools node script.mjs` against `http://web:3000`. The rest of this section is for a session outside the stack, such as a cloud sandbox with its own browser.
 
 `frontend/package.json` declares `playwright` (plain library, not `@playwright/test`) as a devDependency, pinned to an exact version (no `^`) matching the Chromium build baked into this box's base image. Run `bun install` in `frontend/` and then `import { chromium } from "playwright"` resolves normally — no absolute-path import workaround needed, and no `playwright install` should ever be run (that would try to re-download a browser that's already provided).
 
@@ -31,13 +61,15 @@ The e2e layer signs in through the real Clerk development instance (ADR-0015), n
 | `CLERK_SECRET_KEY` | GitHub secret | The development instance's secret key (Clerk dashboard, API keys). Mints the Testing Token and the sign-in token. A production key (`sk_live_`) is refused by `clerkSetup`. |
 | `E2E_CLERK_USER_EMAIL` | GitHub secret | The dedicated test user's email, created in the development instance by `scripts/clerk-setup.sh` (a `+clerk_test` address, which never sends mail and accepts the code `424242`). |
 | `E2E_CLERK_USER_PASSWORD` | GitHub secret | That user's password, from the same wizard run. Only the form-based specs type it. |
-| `VITE_CLERK_PUBLISHABLE_KEY` | GitHub variable | The development instance's publishable key (public). `clerkSetup` derives the instance's Frontend API from it; the dev server bakes it into the app. `e2e.yml` falls back to the development instance's public key when the variable is absent. |
+| `VITE_CLERK_PUBLISHABLE_KEY` | GitHub variable | The development instance's publishable key (public). `clerkSetup` derives the instance's Frontend API from it; the build bakes it into the app. `e2e.yml` falls back to the development instance's public key when the variable is absent. |
 
 `scripts/clerk-setup.sh` stores all four in GitHub and writes the local values (it keeps the secret key in `backend/.env`).
 
 **Skip and fail behaviour.** Without all three secrets the tests tagged `@signed-in` (the sign-in specs and every spec that signs in) skip with a reason that names the missing variables, and `global-setup.ts` does not call Clerk. The guest specs run exactly as before. This is what happens on fork and Dependabot pull requests, which GitHub gives no secrets: the E2E job still runs there for the guest specs (it falls back to placeholder Clerk values for the API) and only the sign-in specs skip. To keep a misconfigured repository from going green with no sign-in run, `e2e.yml` sets `E2E_REQUIRE_SIGN_IN=true` on pushes and same-repo pull requests; with it set, missing credentials make the signed-in specs fail naming the missing variables (never values). A wrong secret fails loudly in the global setup.
 
-**Run it locally.** Run the backend against a seeded Postgres as for any e2e run, and give the backend the same development instance (`CLERK_SECRET_KEY`, `CLERK_ISSUER` from `backend/.env.example`; `APP_CLIENT_URLS` must include `http://localhost:3000`). Then, in `frontend/`, put `VITE_CLERK_PUBLISHABLE_KEY`, `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD` and `CLERK_SECRET_KEY` in `.env` (`playwright.config.ts` loads it; real environment variables win) and run `bunx playwright test`. `--project=chromium-signed-in` runs only the signed-in specs, `--project=chromium` only the guest ones.
+**Run it locally.** `scripts/verification/frontend.sh e2e` seeds the stack's database, rebuilds the `web` image and runs the suite from `frontend-tools` against `http://web:3000`: no development server. The API reads the Clerk development instance (`CLERK_SECRET_KEY`, `CLERK_ISSUER`) from `backend/.env`, which the stack loads when it exists (placeholders otherwise, so the API still boots). The stack names its own origins in the API's `APP_CLIENT_URLS` (`http://web:3000`) and `ADMIN_CLIENT_URLS` (`http://admin:3001`); the development instance accepts them. Put `VITE_CLERK_PUBLISHABLE_KEY`, `E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD` and `CLERK_SECRET_KEY` in `frontend/.env`: `playwright.config.ts` loads it, and the script bakes the publishable key into the app. Without the secrets the signed-in specs skip. To narrow a run, pass Playwright's own arguments through `docker compose exec -w /workspace/frontend -e PLAYWRIGHT_BASE_URL=http://web:3000 frontend-tools bunx playwright test e2e/home.spec.ts --project=chromium`.
+
+The origin `http://web:3000` is not a secure context, which only `localhost` is; Clerk logs a notice about its cookie suffix and carries on. A spec that needs a secure browser API would need a Chromium flag.
 
 **What needs what.**
 
@@ -48,41 +80,9 @@ The e2e layer signs in through the real Clerk development instance (ADR-0015), n
 
 **No secret in artifacts.** The HTML report is uploaded when CI fails, so the signed-in specs run in their own untraced `chromium-signed-in` project, selected by tagging the describe `SIGNED_IN_TAG` (the sign-in helpers throw in an untagged test), and the form helper types credentials through `evaluate`, never `fill()`. The reasoning is in the header of `frontend/e2e/support/clerk-auth.ts`. The one residual is the test user's email in `clerk.signIn`'s own error text; GitHub masks secret values in the job log.
 
-## Getting a local Postgres
-
-Repository tests run against a real Postgres per `docs/adr/0005-backend-tests-hit-real-postgres.md`, using the `DB_*` env vars from `backend/.env.example` (`localhost:5432`, user/password/db all `cardstack`). Whether you provision this yourself depends on the environment:
-
-- **Cloud/remote agent environment** (no human sitting at this machine, no existing Postgres you'd be stepping on): check for and self-provision one. Look for a pre-installed server first (`pg_lsclusters`, `service postgresql status`) before assuming Docker is available or needed — a cloud sandbox may ship a packaged Postgres with no Docker daemon at all. Start it (`service postgresql start`), then create the `cardstack` role/database if missing, matching `.env.example`'s credentials exactly.
-- **Local developer environment**: don't touch their setup. Assume they already have Postgres running per `backend/internal/domain/repository/repository_test_helper_test.go`'s existing Docker-based instructions, and let them provision it themselves if not.
-
-### Version mismatch: PG18's native `uuidv7()`
-
-The schema's bootstrap migration relies on PostgreSQL 18's native `uuidv7()` (see `backend/internal/adapters/db/postgres/migrations/20260918000000_bootstrap.sql`) so no extension is needed for that on a real PG18 instance. The card embeddings migration does need one: `CREATE EXTENSION vector` (pgvector), so the Postgres under the tests must ship it (the `pgvector/pgvector:pg18` image, or `postgresql-18-pgvector` from the PGDG repository below). The compatibility shim further down covers only `uuidv7()`, not pgvector. A cloud sandbox's pre-installed Postgres package may only offer an older major version (e.g. 16), but that doesn't mean PG18 is unavailable — try to actually install/provision a real PG18 first, e.g. via the OS package manager: check what's actually in the configured apt/yum repos (`apt-cache policy postgresql-18` or equivalent) before assuming it isn't there, and add the PostgreSQL project's own package repository (PGDG, `apt.postgresql.org`) if the default repos don't carry PG18 and the sandbox's network access allows reaching it. A second installed major version doesn't need to replace the first — just point `DB_PORT`/a fresh cluster at the port tests actually use.
-
-Only when a genuine PG18 truly cannot be provisioned in that environment (no compatible package available, no network access to fetch one) fall back to a local-only compatibility shim on the older-version database — never on a committed migration or on a developer's own database — so migrations can still run:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-CREATE OR REPLACE FUNCTION uuidv7() RETURNS uuid AS $$
-DECLARE
-  unix_ts_ms bytea;
-  uuid_bytes bytea;
-BEGIN
-  unix_ts_ms := substring(int8send(floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3);
-  uuid_bytes := unix_ts_ms || gen_random_bytes(10);
-  uuid_bytes := set_byte(uuid_bytes, 6, (b'0111' || get_byte(uuid_bytes, 6)::bit(4))::bit(8)::int);
-  uuid_bytes := set_byte(uuid_bytes, 8, (b'10' || get_byte(uuid_bytes, 8)::bit(6))::bit(8)::int);
-  RETURN encode(uuid_bytes, 'hex')::uuid;
-END;
-$$ LANGUAGE plpgsql VOLATILE;
-```
-
-This is purely to unblock `goose` migrations and tests in a sandbox that can't run real PG18 — it doesn't change what ships. No test asserts actual v7 bit-layout, only that primary keys are non-nil valid UUIDs.
-
 ## Seed data for manual verification
 
-Ticket 04's full ingestion (`go run ./cmd/ingest-pokemon-asia`, no flags) scrapes all four Series and can take hours. When you need real rows to manually sanity-check a catalog feature (not a full pre-merge verification), ingest one small Expansion Set instead:
+Loading `e2e_seed.sql` (`docker compose run --rm seed`) is the quickest way to get rows. Ticket 04's full ingestion (`go run ./cmd/ingest-pokemon-asia`, no flags) scrapes all four Series and can take hours. When you need real rows to manually sanity-check a catalog feature (not a full pre-merge verification), ingest one small Expansion Set instead:
 
 ```
 go run ./cmd/ingest-pokemon-asia -set SVAL

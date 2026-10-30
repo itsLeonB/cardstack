@@ -6,7 +6,7 @@
 
 **Delivery:** PR 2, branch `chore/compose-stack`, orchestrator-owned (docs, scripts).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The testing doc is compose-first: bring the stack up once, then run every tool with `compose exec` or the verification scripts. The manual Postgres provisioning steps and the uuid compatibility shim are removed, or reduced to one short fallback pointer.
 - [ ] The environment doc covers the stack's env files and the gitignored override that publishes ports and rebuilds the app images with localhost addresses for a human's browser. It states that the host keeps its language toolchains for Serena's language servers.
