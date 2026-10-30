@@ -22,9 +22,9 @@ The agent the maintainer talks to is the orchestrator. Multi-component or large 
 
 Code review runs once per implementation loop, by whoever implemented it. The advisor is separate: the orchestrator spawns it only to choose between approaches, to answer a worker question the ticket and ADRs leave open, or after a failure survives two different fixes, never to confirm finished work and never for short tasks. Component agents ask the orchestrator, not the advisor. The rules are in `docs/agents/orchestration.md`.
 
-### Backend test environment setup
+### Test environment
 
-Provisioning a local Postgres for backend tests is environment-conditional (cloud/remote agent vs. local developer), and manual catalog verification should use a small seed set, not a full scrape. See `docs/agents/testing.md`.
+Agents and CI share one compose stack (database, API, apps, tooling) and one set of verification scripts, never a hand-provisioned Postgres or a host toolchain. See `docs/agents/testing.md`.
 
 ### Deployment
 

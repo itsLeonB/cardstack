@@ -1,0 +1,195 @@
+# The development and CI stack (see docs/agents/testing.md). The project name
+# is Compose's default, the name of this directory, so every worktree gets its
+# own isolated stack. No host ports are published: containers reach each other
+# by service name. A human who wants a browser copies
+# compose.override.example.yaml to the gitignored compose.override.yaml.
+
+x-backend-env: &backend-env
+  # Later files win: placeholders the API needs to boot, then the real values
+  # from the backend's own env file when it exists.
+  - compose.defaults.env
+  - path: backend/.env
+    required: false
+
+# Public: it only encodes the dev instance's Frontend API domain (the same
+# fallback the E2E workflow uses for pull requests from forks).
+# yamllint disable-line rule:line-length
+x-clerk-key: &clerk-key ${VITE_CLERK_PUBLISHABLE_KEY:-pk_test_d29ya2luZy1jaGltcC01NzcxLmNsZXJrLmFjY291bnRzLmRldiQ=}
+
+x-tools: &tools
+  # Long-lived tooling containers: `docker compose exec` runs every lint,
+  # test and build in them. They run as the host user, so no root-owned files
+  # appear in the bind-mounted repository.
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  init: true
+  restart: "no"
+
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: cardstack
+      POSTGRES_PASSWORD: cardstack
+      POSTGRES_DB: cardstack
+    # Throwaway data: `down` leaves nothing behind.
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardstack -d cardstack"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # The production image's own migrate binary, run once.
+  migrate:
+    build:
+      context: backend
+    image: cardstack-backend:local
+    entrypoint: ["/migrate"]
+    env_file: *backend-env
+    environment: &db-env
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: cardstack
+      DB_PASSWORD: cardstack
+      DB_NAME: cardstack
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: backend
+    image: cardstack-backend:local
+    env_file: *backend-env
+    environment:
+      <<: *db-env
+      APP_PORT: "8080"
+      # The in-network origins of the apps (a browser in the stack visits
+      # them), compared as exact strings with a token's authorized party.
+      APP_CLIENT_URLS: http://web:3000
+      ADMIN_CLIENT_URLS: http://admin:3001
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # The API image is distroless, with no shell to run a health check in, so
+  # this sidecar asks the API from outside. `up --wait` returns once it is
+  # healthy: the database is ready, the migration finished, the API answers.
+  api-ready:
+    image: busybox:1.37
+    command: ["sleep", "infinity"]
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null",
+             "http://api:8080/catalog/series"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  # Loads the end-to-end fixture: docker compose run --rm seed
+  seed:
+    profiles: ["seed"]
+    image: pgvector/pgvector:pg18
+    entrypoint: ["psql", "-v", "ON_ERROR_STOP=1"]
+    command:
+      - -h
+      - db
+      - -U
+      - cardstack
+      - -d
+      - cardstack
+      - -f
+      - /seed/e2e_seed.sql
+    environment:
+      PGPASSWORD: cardstack
+    volumes:
+      - ./backend/internal/adapters/db/postgres/testdata:/seed:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # The apps run from production-style images: no hot reload, so a source edit
+  # reaches them only through a rebuild. Vite bakes the build arguments in, so
+  # a changed API address or Clerk key needs a rebuild too.
+  web:
+    build:
+      context: frontend
+      dockerfile: app.Dockerfile
+      args:
+        VITE_API_BASE_URL: http://api:8080
+        VITE_CLERK_PUBLISHABLE_KEY: *clerk-key
+    image: cardstack-web:local
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - >-
+          fetch('http://localhost:3000')
+          .then((r) => process.exit(r.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  admin:
+    build:
+      context: admin
+      dockerfile: app.Dockerfile
+      args:
+        VITE_API_BASE_URL: http://api:8080
+        VITE_CLERK_PUBLISHABLE_KEY: *clerk-key
+    image: cardstack-admin:local
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - >-
+          fetch('http://localhost:3001')
+          .then((r) => process.exit(r.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  backend-tools:
+    <<: *tools
+    build:
+      context: backend
+      dockerfile: tooling.Dockerfile
+    image: cardstack-backend-tools:local
+    working_dir: /workspace/backend
+    environment: *db-env
+    volumes:
+      - .:/workspace
+      - ${GO_CACHE_DIR:-go-cache}:/cache
+
+  # Lint, tests and builds for both frontend packages, and the Playwright
+  # suite (its browser ships in the image) against the built apps.
+  frontend-tools:
+    <<: *tools
+    build:
+      context: frontend
+      dockerfile: tooling.Dockerfile
+    image: cardstack-frontend-tools:local
+    working_dir: /workspace
+    # Chromium needs the host's shared memory.
+    ipc: host
+    environment:
+      # The build prerenders the shell through a local server that Node binds
+      # on ::1 here, while the request goes to 127.0.0.1 and is refused.
+      NODE_OPTIONS: --dns-result-order=ipv4first
+    volumes:
+      - .:/workspace
+      - ${BUN_CACHE_DIR:-bun-cache}:/cache
+
+volumes:
+  bun-cache:
+    name: cardstack-bun-cache
+  # Shared by every worktree: a Go cache is safe to use concurrently.
+  go-cache:
+    name: cardstack-go-cache

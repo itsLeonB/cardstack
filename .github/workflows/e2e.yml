@@ -1,13 +1,12 @@
 name: E2E
 
-# Runs the frontend's Playwright suite against a throwaway stack this
-# workflow provisions and seeds itself: a fresh Postgres service container,
-# migrated and seeded with the deterministic e2e fixture, the real backend
-# API running against it, and the frontend's own dev server in front of
-# that. Deliberately independent of preview-environments.yml's per-PR Neon/
-# Railway/Vercel stack — that pipeline provisions previews for humans to
-# look at, not a target for CI to run tests against (see that workflow's
-# own comments, and the PR discussion that settled this split).
+# Runs the frontend's Playwright suite against the compose stack's built user
+# app: the production-style image served by the same script Vercel's rules are
+# applied by, in front of the real API image, a fresh Postgres migrated and
+# seeded with the deterministic e2e fixture. Deliberately independent of
+# preview-environments.yml's per-PR Neon/Railway/Vercel stack — that pipeline
+# provisions previews for humans to look at, not a target for CI to run tests
+# against. It is the same script an agent runs (docs/agents/testing.md).
 
 on:
   push:
@@ -15,48 +14,38 @@ on:
     paths:
       - "backend/**"
       - "frontend/**"
+      - "compose.yaml"
+      - "compose.defaults.env"
+      - "scripts/verification/**"
       - ".github/workflows/e2e.yml"
-      - ".github/actions/setup-go/**"
-      - ".github/actions/setup-bun/**"
+      - ".github/actions/compose-images/**"
   pull_request:
     branches: [main]
     paths:
       - "backend/**"
       - "frontend/**"
+      - "compose.yaml"
+      - "compose.defaults.env"
+      - "scripts/verification/**"
       - ".github/workflows/e2e.yml"
-      - ".github/actions/setup-go/**"
-      - ".github/actions/setup-bun/**"
+      - ".github/actions/compose-images/**"
 
 permissions:
   contents: read
+
+env:
+  # The built app needs Clerk to load before it treats anyone as a guest. Fork
+  # pull requests get no variables, so they fall back to this project's Clerk
+  # development instance's publishable key (public by design: it only encodes
+  # the instance's Frontend API domain).
+  VITE_CLERK_PUBLISHABLE_KEY: >-
+    ${{ vars.VITE_CLERK_PUBLISHABLE_KEY ||
+    'pk_test_d29ya2luZy1jaGltcC01NzcxLmNsZXJrLmFjY291bnRzLmRldiQ=' }}
 
 jobs:
   e2e:
     name: Playwright
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_USER: cardstack
-          POSTGRES_PASSWORD: cardstack
-          POSTGRES_DB: cardstack
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DB_HOST: localhost
-      DB_PORT: "5432"
-      DB_USER: cardstack
-      DB_PASSWORD: cardstack
-      DB_NAME: cardstack
-      APP_CLIENT_URLS: http://localhost:3000
 
     steps:
       - name: Checkout code
@@ -64,89 +53,33 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Go with cache
-        uses: ./.github/actions/setup-go
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          go-version-file: "backend/go.mod"
-          working-directory: backend
+          services: migrate,api,web,frontend-tools
+          cache: bun
+          lockfiles: frontend/bun.lock
 
-      - name: Run database migrations
-        working-directory: backend
-        run: go run ./cmd/job
-
-      - name: Install postgresql-client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Seed e2e fixture data
+      - name: Configure the API's Clerk settings
         env:
-          PGPASSWORD: cardstack
-        run: >-
-          psql -h localhost -U cardstack -d cardstack
-          -f backend/internal/adapters/db/postgres/testdata/e2e_seed.sql
-
-      - name: Derive the Clerk issuer from the publishable key
-        env:
-          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
           # The issuer is the Frontend API URL, which the publishable key
-          # base64-encodes as "<domain>$".
-          payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
+          # base64-encodes as "<domain>$". Fork pull requests get no secret,
+          # so the API keeps the placeholders in compose.defaults.env and
+          # only the signed-in specs need the real values.
+          payload="${VITE_CLERK_PUBLISHABLE_KEY#pk_*_}"
           domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
             | tr -d '$') || true
-          if [[ -n "$domain" ]]; then
-            echo "CLERK_ISSUER=https://$domain" >> "$GITHUB_ENV"
+          if [[ -n "$CLERK_SECRET_KEY" && -n "$domain" ]]; then
+            {
+              echo "CLERK_SECRET_KEY=$CLERK_SECRET_KEY"
+              echo "CLERK_ISSUER=https://$domain"
+            } > backend/.env
           fi
 
-      - name: Start the backend API
-        working-directory: backend
-        env:
-          # The API refuses to boot without these. Fork pull requests get no
-          # secrets or variables, so they fall back to placeholders: the API
-          # starts, and only the signed-in e2e specs need the real values.
-          # Scoped to this step so the migration and the other steps never
-          # see the secret.
-          CLERK_SECRET_KEY: >-
-            ${{ secrets.CLERK_SECRET_KEY || 'sk_test_placeholder' }}
-        run: |
-          : "${CLERK_ISSUER:=https://placeholder.clerk.accounts.dev}"
-          export CLERK_ISSUER
-          go build -o bin/api ./cmd/api
-          ./bin/api &
-          for i in $(seq 1 30); do
-            curl -fsS http://localhost:8080/catalog/series \
-              >/dev/null 2>&1 && exit 0
-            sleep 1
-          done
-          echo "::error::Backend API never became ready on :8080."
-          exit 1
-
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-        with:
-          working-directory: frontend
-
-      # This runner has no pre-provisioned browser (unlike a Claude Code
-      # cloud sandbox, which bakes one in) — always install for real here.
-      - name: Install Playwright's browser
-        working-directory: frontend
-        run: bunx playwright install --with-deps chromium
-
-      # No PLAYWRIGHT_BASE_URL set: playwright.config.ts's local-mode branch
-      # starts the frontend dev server itself (bun run dev) and points at
-      # it, talking to the backend API started above via the default
-      # VITE_API_BASE_URL (http://localhost:8080).
       - name: Run Playwright e2e tests
-        working-directory: frontend
         env:
-          # The dev server bakes this in; the app needs Clerk to load before it
-          # treats anyone as a guest. Fork pull requests get no variables, so
-          # they fall back to this project's Clerk development instance's
-          # publishable key (public by design: it only encodes the instance's
-          # Frontend API domain, the same one the issuer derived above comes
-          # from on pushes). Guest specs then run.
-          VITE_CLERK_PUBLISHABLE_KEY: >-
-            ${{ vars.VITE_CLERK_PUBLISHABLE_KEY ||
-            'pk_test_d29ya2luZy1jaGltcC01NzcxLmNsZXJrLmFjY291bnRzLmRldiQ=' }}
           # Real sign-in (ticket 09), scoped to this step. Fork and Dependabot
           # pull requests get no secrets, so the signed-in specs skip there
           # while the guest specs run. Everywhere else the secrets must exist:
@@ -157,7 +90,7 @@ jobs:
           E2E_REQUIRE_SIGN_IN: >-
             ${{ github.event.pull_request.head.repo.fork != true &&
             github.actor != 'dependabot[bot]' }}
-        run: bunx playwright test
+        run: scripts/verification/frontend.sh e2e
 
       - name: Upload Playwright report
         if: failure()

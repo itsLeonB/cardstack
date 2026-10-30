@@ -1,0 +1,38 @@
+# Copy to compose.override.yaml (gitignored; Compose loads it on its own) to
+# open the stack in your own browser. It publishes the ports and rebuilds the
+# apps with localhost addresses, since the browser is outside the compose
+# network. Only one stack can hold these ports at a time.
+#
+#   cp compose.override.example.yaml compose.override.yaml
+#   docker compose up -d --build --wait api-ready web admin
+#
+# Then open http://localhost:3000 (user app) and http://localhost:3001 (Admin).
+# The e2e step of scripts/verification/frontend.sh ignores this file: it needs
+# the in-network addresses, since its browser runs inside the network.
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  api:
+    ports:
+      - "8080:8080"
+    environment:
+      # Both the in-network origins and the browser's.
+      APP_CLIENT_URLS: http://web:3000,http://localhost:3000
+      ADMIN_CLIENT_URLS: http://admin:3001,http://localhost:3001
+
+  web:
+    ports:
+      - "3000:3000"
+    build:
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+
+  admin:
+    ports:
+      - "3001:3001"
+    build:
+      args:
+        VITE_API_BASE_URL: http://localhost:8080

@@ -19,7 +19,7 @@ Never commit, merge or push on a protected branch (main). Before any other step,
 
 ## Verification
 
-Run `scripts/verification/<component>.sh` for each component touched, and fix every failure before committing. A fresh worktree has no installed dependencies: run `scripts/bootstrap-worktree/<component>.sh` first.
+Run `scripts/verification/<component>.sh [step]` for each component touched, and fix every failure before committing. It is the single entrypoint, for agents and for CI, and it brings up the compose stack itself (`docs/agents/testing.md`). The backend steps are `build`, `vet`, `format`, `lint` and `test`. The frontend steps are `install`, `lint`, `format`, `typecheck`, `test` and `build` per package (`--package frontend` or `--package admin`), then `e2e`. With no step it runs them all. An `e2e` run rebuilds the app image; lint, typecheck and unit tests run against the mounted source and need no rebuild. A fresh worktree needs `scripts/bootstrap-worktree/<component>.sh` first, which copies the env files and starts the tooling container.
 
 ## Big task
 

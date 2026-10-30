@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Prepares a fresh backend worktree: a new worktree holds only commits, so install dependencies
-# and copy the gitignored env files from the main checkout. Idempotent.
+# Prepares a fresh backend worktree: a new worktree holds only commits, so copy
+# the gitignored env files from the main checkout and start the compose stack
+# (docs/agents/testing.md). Idempotent.
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -19,5 +20,6 @@ if [ -e "$root/.envrc" ] && command -v direnv >/dev/null 2>&1; then
   direnv allow "$root"
 fi
 
-cd "$root/backend"
-go mod download
+cd "$root"
+source scripts/verification/lib.sh
+up backend-tools db

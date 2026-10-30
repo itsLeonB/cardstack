@@ -1,25 +1,30 @@
 name: Backend CI
 
+# Every job runs the same script an agent runs locally, in the compose
+# stack's tooling container (docs/agents/testing.md).
+
 on:
   push:
     branches: [main]
     paths:
       - "backend/**"
+      - "compose.yaml"
+      - "compose.defaults.env"
+      - "scripts/verification/**"
       - ".github/workflows/backend-ci.yml"
-      - ".github/actions/setup-go/**"
+      - ".github/actions/compose-images/**"
   pull_request:
     branches: [main]
     paths:
       - "backend/**"
+      - "compose.yaml"
+      - "compose.defaults.env"
+      - "scripts/verification/**"
       - ".github/workflows/backend-ci.yml"
-      - ".github/actions/setup-go/**"
+      - ".github/actions/compose-images/**"
 
 permissions:
   contents: read
-
-defaults:
-  run:
-    working-directory: backend
 
 jobs:
   build:
@@ -31,55 +36,34 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Go with cache
-        uses: ./.github/actions/setup-go
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          go-version-file: "backend/go.mod"
-          working-directory: backend
+          services: backend-tools
+          cache: go
+          lockfiles: backend/go.sum
 
       - name: Build
-        run: go build ./...
+        run: scripts/verification/backend.sh build
 
   test:
     name: Test
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_USER: cardstack
-          POSTGRES_PASSWORD: cardstack
-          POSTGRES_DB: cardstack
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DB_HOST: localhost
-      DB_PORT: "5432"
-      DB_USER: cardstack
-      DB_PASSWORD: cardstack
-      DB_NAME: cardstack
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Setup Go with cache
-        uses: ./.github/actions/setup-go
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          go-version-file: "backend/go.mod"
-          working-directory: backend
+          services: backend-tools
+          cache: go
+          lockfiles: backend/go.sum
 
       - name: Run tests
-        run: go test -race ./...
+        run: scripts/verification/backend.sh test
 
   lint:
     name: Lint
@@ -90,18 +74,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Go with cache
-        uses: ./.github/actions/setup-go
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          go-version-file: "backend/go.mod"
-          working-directory: backend
+          services: backend-tools
+          cache: go
+          lockfiles: backend/go.sum
 
       - name: Run go vet
-        run: go vet ./...
+        run: scripts/verification/backend.sh vet
+
+      - name: Check formatting
+        run: scripts/verification/backend.sh format
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
-          args: --timeout=5m
-          working-directory: backend
+        run: scripts/verification/backend.sh lint

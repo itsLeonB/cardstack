@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Link } from "@tanstack/react-router"
+import { Link, useHydrated } from "@tanstack/react-router"
 import { RiCloseLine, RiMenuLine } from "@remixicon/react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { useSession } from "@/lib/session"
@@ -13,6 +13,7 @@ import { Wordmark } from "./wordmark"
 export function SiteHeader() {
   const links = useNavLinks()
   const { isAuthenticated } = useSession()
+  const hydrated = useHydrated()
   const [open, setOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
 
@@ -39,7 +40,13 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
+      {/* The SPA shell is prerendered at "/" and React keeps the attributes it
+          hydrates, so the links' aria-current would stay that of "/". Remount
+          once hydrated to render them for the real location. */}
+      <div
+        key={String(hydrated)}
+        className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4"
+      >
         <Wordmark />
         <nav
           aria-label="Main"
