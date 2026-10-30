@@ -65,6 +65,7 @@ type inventoryService struct {
 	catalog     repository.CatalogRepository
 	cards       CardLookup
 	images      mapper.ImageHost
+	binderSlots BinderSlotService
 }
 
 func NewInventoryService(
@@ -76,8 +77,9 @@ func NewInventoryService(
 	catalog repository.CatalogRepository,
 	cards CardLookup,
 	images mapper.ImageHost,
+	binderSlots BinderSlotService,
 ) InventoryService {
-	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, slots: slots, entries: entries, catalog: catalog, cards: cards, images: images}
+	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, slots: slots, entries: entries, catalog: catalog, cards: cards, images: images, binderSlots: binderSlots}
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -367,7 +369,8 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 		}
 		src, dst := owned[req.SourceID], owned[req.DestinationID]
 
-		if err := s.refuseBinder(ctx, src.ID); err != nil {
+		srcBinder, err := s.layouts.IsBinder(ctx, src.ID)
+		if err != nil {
 			return err
 		}
 		isBinder, err := s.layouts.IsBinder(ctx, dst.ID)
@@ -401,9 +404,19 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 			}
 		}
 
-		for _, entry := range moving {
-			if err := s.entries.Delete(ctx, entry); err != nil {
+		if srcBinder {
+			// ADR-0020: a binder's entries follow its Slots, so ClearCards empties
+			// the Slots holding these Cards and reconciles each entry away.
+			if err := s.binderSlots.ClearCards(ctx, dto.BinderCardsClear{ProfileID: req.ProfileID, CollectionID: src.ID, CardIDs: req.CardIDs}); err != nil {
 				return err
+			}
+		}
+
+		for _, entry := range moving {
+			if !srcBinder {
+				if err := s.entries.Delete(ctx, entry); err != nil {
+					return err
+				}
 			}
 			existing, err := s.findEntry(ctx, dst.ID, entry.CardID)
 			if err != nil {
