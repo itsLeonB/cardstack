@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   useGetCollection,
@@ -126,6 +126,17 @@ export function CollectionMoveBar({
       query: { enabled: destination !== null && picked.matching !== undefined },
     }
   )
+
+  // A filter Move's sheet and dialog act on the filter they were opened with, so
+  // they close once the filter is no longer the selection (the parent cleared it).
+  const filterMode = matching !== undefined
+  useEffect(() => {
+    if (picked.matching && !filterMode) {
+      setSheetOpen(false)
+      setDestination(null)
+      setError(null)
+    }
+  }, [filterMode, picked.matching])
 
   const sourceTitle =
     sourceQuery.data?.status === 200
