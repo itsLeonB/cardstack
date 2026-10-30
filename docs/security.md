@@ -1,23 +1,37 @@
 # Hooks, permissions and security
 
-What `.claude/settings.json` enforces, and how to add to it. Personal overrides go in `.claude/settings.local.json`, which is not shared.
+`.claude/settings.json` enforces the hooks and permissions below. Put personal overrides in `.claude/settings.local.json`, which isn't shared.
 
-## What is wired
+## Enforced settings
 
-- **Serena hooks.** `serena-hooks remind` nudges an agent that reads code with built-in tools instead of Serena; `activate`, `auto-approve` and `cleanup` manage the Serena session. See `docs/agents/conventions/serena.md`.
-- **`.claude/hooks/block-commit-on-main.sh`.** Refuses `git commit` and `git merge` while the current branch is protected (main), and `git push` from or to a protected branch. A command that first creates a branch is allowed. The protected list is the `PROTECTED` variable at the top of the script.
-- **`deny-big-output`.** Refuses a `cat` of more than 20 KB, a `git diff` that would print more than 20 KB, and a `Read` of a file over 40 KB without `offset` or `limit`, with a message naming the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a Bash command with `BIG_OK=1 ` to override. Source in `tools/cmd/deny-big-output`; install steps in `tools/README.md`. Without the binary the hook errors without blocking.
-- **`permissions.deny`.** Patterns the harness refuses outright. Edit the list in `.claude/settings.json`; a wider allow in `settings.local.json` does not override a deny.
-- **`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`.** Turns off the native advisor tool, so the advisor subagent is the only advisor.
-- **hookify.** `hookify@claude-plugins-official` turns a mistake into a rule file.
-- **security-guidance.** `security-guidance@claude-plugins-official` reviews code in three layers: instant pattern warnings on `Edit` and `Write` (`ENABLE_PATTERN_RULES`), an LLM review of the diff when a turn ends (`ENABLE_STOP_REVIEW`, model `SECURITY_REVIEW_MODEL`), and an agentic review at commit time (`ENABLE_COMMIT_REVIEW`, model `SG_AGENTIC_MODEL`). The two reviews call a model, the newest Opus unless pinned, so they cost tokens. `SG_DUAL_OR=on` doubles each review for higher recall. Pattern warnings on, turn-end review off, commit review on and pinned to `claude-sonnet-5-5`, dual review off. The settings live under `env` in `.claude/settings.json`; the plugin's README lists every variable. Project-specific rules go in `.claude/claude-security-guidance.md`, which the turn-end review reads. The plugin sends diffs and the files it reads to your model endpoint.
+- **Serena hooks**: `serena-hooks remind` nudges an agent that reads code with built-in tools; `activate`, `auto-approve` and `cleanup` manage the Serena session. See `docs/agents/conventions/serena.md`.
+- **`.claude/hooks/block-commit-on-main.sh`**: refuses `git commit` and `git merge` on a protected branch, and `git push` from or to one. A command that creates a branch first is allowed. The `PROTECTED` variable at the top of the script lists the branches (main).
+- **`deny-big-output`**: refuses `cat` or `git diff` output over 20 KB, and a `Read` over 40 KB without `offset` or `limit`. The message names the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a Bash command with `BIG_OK=1 ` to override. Source: `tools/cmd/deny-big-output`; install: `tools/README.md`. Without the binary the hook errors but doesn't block.
+- **`permissions.deny`**: patterns the harness refuses. A wider allow in `settings.local.json` doesn't override a deny.
+- **`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`**: turns off the native advisor tool, so the advisor subagent is the only advisor.
+- **hookify** (`hookify@claude-plugins-official`): turns a mistake into a rule file.
+- **security-guidance** (`security-guidance@claude-plugins-official`): reviews code in three layers, configured under `env` in `.claude/settings.json`. The plugin sends diffs and the files it reads to your model endpoint. The plugin's README lists every variable.
 
-## Adding a hookify rule
+## security-guidance layers
 
-Run `/hookify` right after an agent repeats a mistake you do not want to see again; with no argument it reads the conversation and proposes rules. Each rule is a markdown file with YAML frontmatter at `.claude/hookify.<name>.local.md`, matching a tool call by event and regex, then warning or blocking. A new rule takes effect on the next tool use, with no restart. `/hookify:list` shows the rules and `/hookify:configure` turns them on and off.
+| Layer | Variable | State |
+|---|---|---|
+| Pattern warnings on `Edit` and `Write` | `ENABLE_PATTERN_RULES` | on |
+| LLM review of the diff at turn end | `ENABLE_STOP_REVIEW`, `SECURITY_REVIEW_MODEL` | off |
+| Agentic review at commit | `ENABLE_COMMIT_REVIEW`, `SG_AGENTIC_MODEL` | on, `claude-sonnet-5-5` |
+| Doubled reviews for higher recall | `SG_DUAL_OR` | off |
 
-Good rules target a mistake that tooling cannot catch and that has a precise textual signature: a command, a path, a string in an edit. Serena's `remind` already covers built-in code reads, and `block-commit-on-main` covers commits on protected branches, so do not duplicate them.
+Both reviews cost tokens: they use the newest Opus unless pinned. Project-specific rules go in `.claude/claude-security-guidance.md`, which the turn-end review reads.
+
+## Add a hookify rule
+
+1. Run `/hookify` right after an agent repeats a mistake. With no argument it reads the conversation and proposes rules.
+2. Check the rule file at `.claude/hookify.<name>.local.md`: markdown with YAML frontmatter that matches a tool call by event and regex, then warns or blocks.
+
+A new rule applies on the next tool use, with no restart. `/hookify:list` shows rules; `/hookify:configure` toggles them.
+
+Target mistakes that tooling can't catch and that have a precise textual signature (a command, a path, a string in an edit). Don't duplicate Serena's `remind` (built-in code reads) or `block-commit-on-main` (commits on protected branches).
 
 ## Secrets
 
-Real values live in `.envrc` (gitignored, see `docs/environment.md`) and never in `.mcp.json`, settings files or docs: reference them as `${VAR}`.
+Real values live in `.envrc` (gitignored, see `docs/environment.md`). Never put them in `.mcp.json`, settings files or docs; reference them as `${VAR}`.
