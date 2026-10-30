@@ -1,5 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest"
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
+import { hydrateRoot } from "react-dom/client"
+import { renderToString } from "react-dom/server"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   Outlet,
@@ -40,7 +49,7 @@ function mockSession(session: ClerkState) {
   vi.mocked(useClerk).mockReturnValue({ signOut: async () => {} } as any)
 }
 
-async function renderShell(path = "/") {
+function buildRouter(path: string) {
   const root = createRootRoute({
     component: () => (
       <ThemeProvider>
@@ -61,15 +70,22 @@ async function renderShell(path = "/") {
       "/account",
     ].map((p) => createRoute({ getParentRoute: () => root, path: p }))
   )
-  const router = createRouter({
+  return createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   })
-  render(
+}
+
+function shellElement(router: ReturnType<typeof buildRouter>) {
+  return (
     <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+}
+
+async function renderShell(path = "/") {
+  render(shellElement(buildRouter(path)))
   return screen.findByRole("banner")
 }
 
@@ -128,6 +144,31 @@ describe("SiteHeader", () => {
         .getByRole("link", { name: "Catalog" })
         .getAttribute("aria-current")
     ).toBeNull()
+  })
+
+  it("marks the current page after hydrating a shell prerendered at another location", async () => {
+    mockSession("signed-in")
+    // The SPA shell is prerendered once, at "/", and served for every URL.
+    const shellRouter = buildRouter("/")
+    await shellRouter.load()
+    const container = document.createElement("div")
+    container.innerHTML = renderToString(shellElement(shellRouter))
+    document.body.append(container)
+    onTestFinished(() => container.remove())
+
+    const router = buildRouter("/collections")
+    await router.load()
+    await act(async () => {
+      hydrateRoot(container, shellElement(router))
+    })
+
+    await waitFor(() =>
+      expect(
+        within(container)
+          .getByRole("link", { name: "Collections" })
+          .getAttribute("aria-current")
+      ).toBe("page")
+    )
   })
 
   it("renders the footer description without repeating nav links", async () => {
