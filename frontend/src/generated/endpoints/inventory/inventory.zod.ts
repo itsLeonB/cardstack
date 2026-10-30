@@ -137,7 +137,7 @@ export const AddCollectionEntryResponse = zod.object({
 })
 
 /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const MoveCollectionEntriesParams = zod.object({
   "id": zod.string().describe('Source Collection ID')

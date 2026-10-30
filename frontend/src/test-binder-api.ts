@@ -98,7 +98,7 @@ function allFilled(b: FakeBinder) {
   return Object.values(b.filled).flatMap((page) => Object.values(page))
 }
 
-function pageBody(b: FakeBinder, page: number) {
+export function pageBody(b: FakeBinder, page: number) {
   const slots = []
   for (let row = 1; row <= b.rows; row++) {
     for (let column = 1; column <= b.columns; column++) {

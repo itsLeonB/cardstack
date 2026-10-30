@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { invalidateBinder } from "@/lib/binder"
 import {
   NETWORK_ERROR,
   errorDetail,
@@ -53,6 +54,7 @@ function refusal(collection: CollectionSummary, sourceId: string) {
  */
 export function CollectionMoveBar({
   collectionId,
+  binder,
   cardIds,
   copies,
   flushEdits,
@@ -60,6 +62,8 @@ export function CollectionMoveBar({
   onMoved,
 }: {
   collectionId: string
+  /** A binder source empties the Slots holding the moved Cards. */
+  binder: boolean
   cardIds: string[]
   /** Copies across the selected Cards, shown in the confirm dialog. */
   copies: number
@@ -131,8 +135,12 @@ export function CollectionMoveBar({
       if (response.status === 200) {
         const { cards, copies: moved } = response.data.data
         // Only the two Collections touched by the Move, and the master list, go stale.
-        invalidateCollectionEntries(queryClient, collectionId)
-        invalidateCollectionCounts(queryClient, collectionId)
+        // A binder source also refetches its pages, where the emptied Slots show.
+        if (binder) invalidateBinder(queryClient, collectionId)
+        else {
+          invalidateCollectionEntries(queryClient, collectionId)
+          invalidateCollectionCounts(queryClient, collectionId)
+        }
         invalidateCollectionEntries(queryClient, target.id)
         invalidateCollectionCounts(queryClient, target.id)
         invalidateMasterInventory(queryClient)
@@ -242,7 +250,7 @@ export function CollectionMoveBar({
               {`Move ${count(picked.cardIds.length, "card", "cards")} to ${destination?.title ?? ""}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {`This moves ${count(picked.cardIds.length, "card", "cards")} and ${count(picked.copies, "copy", "copies")} from ${sourceTitle} to ${destination?.title ?? ""}. There is no undo.`}
+              {`This moves ${count(picked.cardIds.length, "card", "cards")} and ${count(picked.copies, "copy", "copies")} from ${sourceTitle} to ${destination?.title ?? ""}. ${binder ? "The Slots holding them will be emptied. " : ""}There is no undo.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error && (

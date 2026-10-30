@@ -4,9 +4,9 @@
 
 **Blocked by:** 04 (Move selected cards between plain Collections).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Moving Cards out of a binder moves their whole entries to a plain Collection and empties every Slot that held them, through the one shared Slot-write path ADR-0020 requires, so each remaining entry's quantity still equals its Slot count and an entry with no Slots does not exist.
-- [ ] Unidentified Slots are untouched, and the move is all-or-nothing in one transaction together with the capacity check.
-- [ ] The selection mode and the Move to sheet work on a binder's card list, and the confirm dialog says that the Slots will be emptied.
-- [ ] HTTP-boundary tests assert the Slot and entry invariant after a move out of a binder, that Unidentified Slots remain, and the refusal case. A screen test covers the confirm wording.
+- [x] Moving Cards out of a binder moves their whole entries to a plain Collection and empties every Slot that held them, through the one shared Slot-write path ADR-0020 requires, so each remaining entry's quantity still equals its Slot count and an entry with no Slots does not exist.
+- [x] Unidentified Slots are untouched, and the move is all-or-nothing in one transaction together with the capacity check.
+- [x] The selection mode and the Move to sheet work on a binder's card list, and the confirm dialog says that the Slots will be emptied.
+- [x] HTTP-boundary tests assert the Slot and entry invariant after a move out of a binder, that Unidentified Slots remain, and the refusal case. A screen test covers the confirm wording.

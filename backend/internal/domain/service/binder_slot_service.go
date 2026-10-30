@@ -38,6 +38,11 @@ type BinderSlotService interface {
 	// declines, rather than fails, the copies that find no empty Slot or whose
 	// Card is unknown.
 	PlaceCards(ctx context.Context, req dto.BinderPlacementRequest) ([]dto.BinderPlacementResult, error)
+
+	// ClearCards empties every Slot of the binder that holds one of the Cards, then
+	// reconciles each Card's Inventory Entry, so a Card left with no Slot has none.
+	// Other Slots, Unidentified ones included, are untouched.
+	ClearCards(ctx context.Context, req dto.BinderCardsClear) error
 }
 
 type binderSlotService struct {
@@ -87,6 +92,50 @@ func (s *binderSlotService) WriteSlot(ctx context.Context, req dto.BinderSlotWri
 		}
 
 		return s.writeSlots(ctx, c, layout, []dto.BinderSlotChange{{Target: req.Target, State: req.State, CardID: req.CardID}})
+	})
+}
+
+func (s *binderSlotService) ClearCards(ctx context.Context, req dto.BinderCardsClear) error {
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		c, layout, err := s.lockBinder(ctx, req.ProfileID, req.CollectionID)
+		if err != nil {
+			return err
+		}
+
+		slots, err := s.slots.ListOccupiedSlots(ctx, c.ID, req.CardIDs)
+		if err != nil {
+			return err
+		}
+
+		// writeSlots reconciles every Card whose Slot it empties, so those Cards are not reconciled again below.
+		reconciled := make(map[uuid.UUID]bool, len(req.CardIDs))
+		if len(slots) > 0 {
+			changes := make([]dto.BinderSlotChange, 0, len(slots))
+			for _, slot := range slots {
+				changes = append(changes, dto.BinderSlotChange{
+					Target: dto.BinderSlotTarget{Page: mapper.PageOf(slot.Leaf.Position, slot.Side), Row: slot.Row, Column: slot.Column},
+					State:  dto.BinderSlotEmpty,
+				})
+				if slot.CardID != nil {
+					reconciled[*slot.CardID] = true
+				}
+			}
+			if err := s.writeSlots(ctx, c, layout, changes); err != nil {
+				return err
+			}
+		}
+
+		for _, cardID := range req.CardIDs {
+			if reconciled[cardID] {
+				continue
+			}
+			reconciled[cardID] = true
+			if err := s.reconcileEntry(ctx, c.ID, cardID); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 }
 

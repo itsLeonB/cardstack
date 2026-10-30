@@ -128,17 +128,84 @@ func TestMoveRefusesBinderDestination(t *testing.T) {
 
 // TestMoveRefusesBinderSource: a binder's quantities change only by placing
 // or clearing Slots, so its Cards cannot be moved out as entries.
-func TestMoveRefusesBinderSource(t *testing.T) {
+func TestMoveOutOfBinderEmptiesTheSlotsHoldingTheCards(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 3)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 1)
+	placeCardAt(api, owner, binder, 1, 1, 1, cards[0])
+	placeCardAt(api, owner, binder, 1, 1, 2, cards[0])
+	placeCardAt(api, owner, binder, 1, 2, 1, cards[1])
+	placeCardAt(api, owner, binder, 2, 1, 1, cards[1])
+	placeCardAt(api, owner, binder, 2, 2, 2, cards[2])
+	markUnidentifiedAt(api, owner, binder, 2, 1, 2)
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, destination, cards[1], 4)
+
+	resp := moveEntries(api, owner, binder, destination, cards[0], cards[1])
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 2, moved.Data.Cards)
+	assert.Equal(t, 4, moved.Data.Copies)
+
+	assert.Equal(t, map[string]int{cards[0].String(): 2, cards[1].String(): 6}, entryQuantities(t, api, owner, destination))
+	assert.Equal(t, map[string]int{cards[2].String(): 1}, entryQuantities(t, api, owner, binder))
+	requireEntriesMatchSlots(t, api, binder)
+
+	assert.Equal(t, []string{"empty", "empty", "empty", "empty"}, slotStates(getPage(t, api, owner, binder, 1)))
+	second := getPage(t, api, owner, binder, 2)
+	assert.Equal(t, []string{"empty", "unidentified", "empty", "card"}, slotStates(second))
+	assert.Equal(t, cards[2].String(), second.Data.Slots[3].Card.ID)
+}
+
+func TestMoveOutOfBinderRefusedWhenDestinationWouldPassItsLimitChangesNothing(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 2)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 1)
+	placeCardAt(api, owner, binder, 1, 1, 1, cards[0])
+	placeCardAt(api, owner, binder, 1, 1, 2, cards[0])
+	placeCardAt(api, owner, binder, 1, 2, 1, cards[1])
+	destination := newPlainCollection(t, api, owner, 2)
+	addEntry(t, api, owner, destination, cards[1], 1)
+
+	resp := moveEntries(api, owner, binder, destination, cards[0])
+	require.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, entryQuantities(t, api, owner, destination))
+	assert.Equal(t, map[string]int{cards[0].String(): 2, cards[1].String(): 1}, entryQuantities(t, api, owner, binder))
+	requireEntriesMatchSlots(t, api, binder)
+	assert.Equal(t, []string{"card", "card", "card", "empty"}, slotStates(getPage(t, api, owner, binder, 1)))
+}
+
+func TestMoveOutOfBinderRefusesBinderDestinationChangesNothing(t *testing.T) {
 	api := newTestAPI(t)
 	owner := api.newUserToken(t)
 	cards := newTestCards(t, 1)
-	binder := newBinderCollection(t, api, owner)
-	createBinder(t, api, owner, binder, 2, 2, 1)
-	destination := newPlainCollection(t, api, owner, 0)
+	source := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, source, 2, 2, 1)
+	placeCardAt(api, owner, source, 1, 1, 1, cards[0])
+	destination := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, destination, 2, 2, 1)
 
-	resp := moveEntries(api, owner, binder, destination, cards[0])
+	resp := moveEntries(api, owner, source, destination, cards[0])
 	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
-	assert.Equal(t, "binder_quantity_locked", decodeError(t, resp.Body.Bytes()).Code)
+	assert.Equal(t, "move_to_binder", decodeError(t, resp.Body.Bytes()).Code)
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, entryQuantities(t, api, owner, source))
+	assert.Empty(t, entryQuantities(t, api, owner, destination))
+	requireEntriesMatchSlots(t, api, source)
+	assert.Equal(t, []string{"card", "empty", "empty", "empty"}, slotStates(getPage(t, api, owner, source, 1)))
+}
+
+// slotStates lists a page's Slot states row by row, so each index is one Slot.
+func slotStates(env binderPageEnvelope) []string {
+	states := make([]string, 0, len(env.Data.Slots))
+	for _, slot := range env.Data.Slots {
+		states = append(states, slot.State)
+	}
+	return states
 }
 
 // TestMoveRefusesBadRequests: the same Collection on both sides, a Card named

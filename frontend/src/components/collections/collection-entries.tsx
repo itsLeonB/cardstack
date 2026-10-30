@@ -31,7 +31,7 @@ interface CollectionEntriesProps {
   onSearchChange: (next: CatalogFilters) => void
   /** Opens the binder on a position's Page. */
   onFindPosition: (position: BinderSlotTarget) => void
-  /** A binder's Cards can't be moved yet, so it has no selection mode. */
+  /** A binder can be a Move's source: the Move empties the Slots holding the moved Cards. */
   binder?: boolean
 }
 
@@ -166,7 +166,7 @@ export function CollectionEntries({
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {!binder && !selecting && (
+        {!selecting && (
           <Button
             ref={selectButton}
             variant="outline"
@@ -237,6 +237,7 @@ export function CollectionEntries({
       {selecting && (
         <CollectionMoveBar
           collectionId={collectionId}
+          binder={binder}
           cardIds={[...selected.keys()]}
           copies={copies}
           flushEdits={async (cardIds) => {

@@ -327,7 +327,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			OperationID: "move-collection-entries",
 			Method:      http.MethodPost,
 			Path:        "/collections/{id}/entries/move",
-			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
+			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
 			Tags:        []string{"inventory"},
 			SuccessCode: http.StatusOK,
 			Secured:     true,

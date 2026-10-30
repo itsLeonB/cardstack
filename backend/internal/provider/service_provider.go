@@ -102,6 +102,7 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 		catalogrepository.NewCatalogRepository(crud.NewRepository[entity.Card](ds.Gorm)),
 		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
 		images,
+		ProvideBinderSlotService(ds),
 	)
 }
 

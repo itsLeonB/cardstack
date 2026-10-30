@@ -101,6 +101,14 @@ type BinderSlotWrite struct {
 	CardID       uuid.UUID
 }
 
+// BinderCardsClear empties every Slot of one binder Collection that holds one of
+// the Cards, for a Move out of the binder.
+type BinderCardsClear struct {
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+	CardIDs      []uuid.UUID
+}
+
 // BinderSlotChange is one Slot's new state inside a Page or placement write. State
 // is one of the BinderSlot constants, and CardID is read only when it is card.
 type BinderSlotChange struct {
