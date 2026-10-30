@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Prepares a fresh frontend worktree (frontend/ and the Admin app's admin/): a new worktree holds
-# only commits, so install dependencies and copy the gitignored env files from the main checkout.
+# only commits, so copy the gitignored env files from the main checkout, start the compose
+# stack's tooling container and install dependencies in it (docs/agents/testing.md).
 # Idempotent.
 set -euo pipefail
 
@@ -20,11 +21,7 @@ if [ -e "$root/.envrc" ] && command -v direnv >/dev/null 2>&1; then
   direnv allow "$root"
 fi
 
-cd "$root/frontend"
-bun install --frozen-lockfile
-
-# admin/ is absent in worktrees cut before the Admin app existed, so skip it there.
-if [ -d "$root/admin" ]; then
-  cd "$root/admin"
-  bun install --frozen-lockfile
-fi
+cd "$root"
+source scripts/verification/lib.sh
+# Starts the tooling container and installs both packages' dependencies in it.
+scripts/verification/frontend.sh install

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verifies the frontend components, the user app (frontend/) and the Admin app
 # (admin/), in the compose stack's tooling container.
-# Usage: frontend.sh [--package frontend|admin] [lint|format|typecheck|test|build|e2e]
+# Usage: frontend.sh [--package frontend|admin] [install|lint|format|typecheck|test|build|e2e]
 # With no step it runs every step in order and stops at the first failure; with
 # no package, both. Every step but e2e needs no API, so it starts only the
 # tooling container and runs against the bind-mounted source, with no rebuild.
@@ -51,7 +51,7 @@ step_e2e() {
 steps=(lint format typecheck test build)
 step=${1:-all}
 case "$step" in
-  all | e2e | lint | format | typecheck | test | build) ;;
+  all | e2e | install | lint | format | typecheck | test | build) ;;
   *)
     echo "usage: $0 [--package frontend|admin] [${steps[*]// /|}|e2e]" >&2
     exit 2
@@ -63,7 +63,9 @@ for pkg in "${packages[@]}"; do
   [ -d "$root/$pkg" ] || continue
   [ "$step" = e2e ] && continue
   install
-  if [ "$step" = all ]; then
+  if [ "$step" = install ]; then
+    continue
+  elif [ "$step" = all ]; then
     for s in "${steps[@]}"; do "step_$s"; done
   else
     "step_$step"
