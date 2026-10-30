@@ -239,9 +239,9 @@ export function CollectionEntries({
           collectionId={collectionId}
           cardIds={[...selected.keys()]}
           copies={copies}
-          flushEdits={async () => {
+          flushEdits={async (cardIds) => {
             await batch.flush()
-            return ![...selected.keys()].some(batch.hasFailed)
+            return !cardIds.some(batch.hasFailed)
           }}
           onCancel={leaveSelection}
           onMoved={(message) => {

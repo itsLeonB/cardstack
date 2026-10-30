@@ -65,9 +65,9 @@ export function CollectionMoveBar({
   copies: number
   /**
    * Sends unsaved quantity edits first, so the Move never runs beside them.
-   * Resolves false when an edit to a selected Card could not be saved.
+   * Resolves false when an edit to one of these Cards could not be saved.
    */
-  flushEdits: () => Promise<boolean>
+  flushEdits: (cardIds: string[]) => Promise<boolean>
   onCancel: () => void
   /** Receives the result to announce; the caller leaves selection mode. */
   onMoved: (announcement: string) => void
@@ -84,6 +84,8 @@ export function CollectionMoveBar({
   const [error, setError] = useState<string | null>(null)
   // Shown in the bar when edits could not be saved before opening the sheet.
   const [notice, setNotice] = useState<string | null>(null)
+  // The Cards the sheet and the confirm dialog act on, fixed when "Move to…" is pressed.
+  const [picked, setPicked] = useState({ cardIds, copies })
 
   const sourceTitle =
     sourceQuery.data?.status === 200
@@ -100,13 +102,16 @@ export function CollectionMoveBar({
       : []
 
   async function openSheet() {
+    // The selection can change while the edits save; check and move this one.
+    const chosen = { cardIds, copies }
     setNotice(null)
-    if (!(await flushEdits())) {
+    if (!(await flushEdits(chosen.cardIds))) {
       setNotice(
         "Some quantity edits could not be saved, so nothing was moved. Try again."
       )
       return
     }
+    setPicked(chosen)
     setSheetOpen(true)
   }
 
@@ -121,7 +126,7 @@ export function CollectionMoveBar({
     try {
       const response = await move.mutateAsync({
         id: collectionId,
-        data: { cardIds, destinationId: target.id },
+        data: { cardIds: picked.cardIds, destinationId: target.id },
       })
       if (response.status === 200) {
         const { cards, copies: moved } = response.data.data
@@ -234,10 +239,10 @@ export function CollectionMoveBar({
         <AlertDialogContent finalFocus={moveButton}>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {`Move ${count(cardIds.length, "card", "cards")} to ${destination?.title ?? ""}?`}
+              {`Move ${count(picked.cardIds.length, "card", "cards")} to ${destination?.title ?? ""}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {`This moves ${count(cardIds.length, "card", "cards")} and ${count(copies, "copy", "copies")} from ${sourceTitle} to ${destination?.title ?? ""}. There is no undo.`}
+              {`This moves ${count(picked.cardIds.length, "card", "cards")} and ${count(picked.copies, "copy", "copies")} from ${sourceTitle} to ${destination?.title ?? ""}. There is no undo.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error && (
