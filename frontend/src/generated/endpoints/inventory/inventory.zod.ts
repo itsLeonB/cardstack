@@ -172,7 +172,7 @@ export const CountCollectionEntriesResponse = zod.object({
 })
 
 /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry matching a filter across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const MoveCollectionEntriesParams = zod.object({
   "id": zod.string().describe('Source Collection ID')
@@ -202,7 +202,7 @@ export const MoveCollectionEntriesBody = zod.object({
   "name": zod.string().max(moveCollectionEntriesBodyFilterNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
   "rarityIds": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterRarityIdsMax).nullish().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
   "tags": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterTagsMax).nullish().describe('Only Cards carrying any of these tags (repeatable, at most 20).')
-}).optional().describe('Move every Inventory Entry of the source that matches these filters, across all pages; {} moves every entry. Exactly one of cardIds and filter is required.')
+}).optional().describe('Move every Inventory Entry the source\'s list shows for these filters, across all pages; {} moves every entry the source\'s list shows. Exactly one of cardIds and filter is required.')
 })
 
 export const MoveCollectionEntriesResponse = zod.object({

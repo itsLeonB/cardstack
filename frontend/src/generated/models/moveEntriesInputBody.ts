@@ -16,6 +16,6 @@ export interface MoveEntriesInputBody {
   cardIds?: string[] | null;
   /** The Collection to move them to: another of your own plain Collections. A binder is refused. */
   destinationId: string;
-  /** Move every Inventory Entry of the source that matches these filters, across all pages; {} moves every entry. Exactly one of cardIds and filter is required. */
+  /** Move every Inventory Entry the source's list shows for these filters, across all pages; {} moves every entry the source's list shows. Exactly one of cardIds and filter is required. */
   filter?: CardFilterParams;
 }

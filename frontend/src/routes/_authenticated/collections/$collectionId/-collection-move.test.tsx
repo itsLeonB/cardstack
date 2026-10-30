@@ -524,25 +524,32 @@ describe("Collection page: selecting every card matching a filter", () => {
     ).toBeNull()
   })
 
-  it("offers Select all N matching once the page is selected and more cards match", async () => {
+  it("offers Select all N matching as soon as selection mode is on, with nothing ticked", async () => {
     await renderCollectionPage(
       fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
     )
     fireEvent.click(screen.getByRole("button", { name: "Select" }))
-    fireEvent.click(
-      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
-    )
+
     expect(
-      screen.queryByRole("button", {
+      await screen.findByRole("button", {
         name: "Select all 250 matching this filter",
       })
-    ).toBeNull()
+    ).toBeTruthy()
+  })
 
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+  it("offers Select all N once 200 of 250 matching cards are loaded, with nothing ticked", async () => {
+    // Page 2 is not fetched here: the 200 loaded cards stand for the loaded pages.
+    const loaded = Array.from({ length: 200 }, (_, i) => ({
+      card: { ...pikachu, id: String(i) },
+      quantity: 1,
+    }))
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: loaded, total: 250 })
     )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
     expect(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: "Select all 250 matching this filter",
       })
     ).toBeTruthy()
@@ -643,6 +650,65 @@ describe("Collection page: selecting every card matching a filter", () => {
       ).toBeNull()
     )
     expect(screen.getByText("0 selected")).toBeTruthy()
+  })
+
+  it("closes the sheet and sends no Move when the filter changes while it is open", async () => {
+    const api = fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    const router = await renderCollectionPage(api)
+    await selectEveryMatch()
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    await screen.findByRole("dialog")
+
+    await router.history.push("/collections/col-1/?name=pika")
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(requestsTo(api, "POST", "/collections/col-1/entries/move")).toEqual(
+      []
+    )
+  })
+
+  it("closes the confirm dialog and sends no Move when the filter changes while it is open", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+    })
+    const router = await renderCollectionPage(api)
+    await selectEveryMatch()
+    const confirm = await openConfirmToDeckB()
+    await within(confirm).findByText("Move 37 cards to Deck B?")
+
+    await router.history.push("/collections/col-1/?name=pika")
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+    expect(requestsTo(api, "POST", "/collections/col-1/entries/move")).toEqual(
+      []
+    )
+  })
+
+  it("blocks a filter Move while a quantity edit can't be saved, and says so", async () => {
+    // The fake has no bulk-update route, so saving the edit fails with a 500.
+    const api = fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    await renderCollectionPage(api)
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Increase quantity of Pikachu",
+      })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+
+    expect(await screen.findByText(/could not be saved/)).toBeTruthy()
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(requestsTo(api, "POST", "/collections/col-1/entries/move")).toEqual(
+      []
+    )
   })
 
   it("clears the filter selection when Cancel leaves selection mode", async () => {

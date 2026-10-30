@@ -37,7 +37,7 @@ export function useQuantityBatch(
   // Last quantity the server is known to hold, the revert target.
   const confirmed = useRef<Quantities>({})
   const inFlight = useRef(new Set<string>())
-  // Cards whose last save failed since the latest flush started; unlike `errors` it is readable right after `await flush()`.
+  // Cards whose last save failed and that have not been edited since; unlike `errors` it is readable right after `await flush()`.
   // Keyed by Collection too: Cards are global, and this hook outlives a switch to another Collection.
   const failed = useRef(new Set<string>())
   const failKey = (cardId: string) => `${collectionId}/${cardId}`
@@ -130,7 +130,8 @@ export function useQuantityBatch(
       ]
     )
     pending.current.clear()
-    if (items.length > 0) failed.current.clear()
+    // Only the flushed cards' failures are retired: another card's failed edit still shows its error.
+    for (const [cardId] of items) failed.current.delete(failKey(cardId))
     for (const [cardId] of items) inFlight.current.add(cardId)
     if (items.length > 0) queue.current = queue.current.then(() => send(items))
     return queue.current
@@ -146,6 +147,11 @@ export function useQuantityBatch(
   /** Whether this card's save failed since the latest flush started. */
   function hasFailed(cardId: string) {
     return failed.current.has(failKey(cardId))
+  }
+
+  /** Whether any card in this Collection has a failed save that no later edit replaced. */
+  function hasAnyFailed() {
+    return [...failed.current].some((key) => key.startsWith(`${collectionId}/`))
   }
 
   /** Whether any edit is unsent or being saved. */
@@ -202,6 +208,7 @@ export function useQuantityBatch(
     flush,
     hasPending,
     hasFailed,
+    hasAnyFailed,
     isBusy,
     prune,
   }

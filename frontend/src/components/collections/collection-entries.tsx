@@ -165,15 +165,9 @@ export function CollectionEntries({
     })
   }
 
-  // Every loaded Card is ticked and the list has more: offer the whole filter.
-  const allLoadedTicked =
-    results.cards.length > 0 &&
-    results.cards.every((card) => selected.has(card.id))
+  // The filter matches more cards than the list has loaded: offer all of them.
   const showSelectAll =
-    selecting &&
-    !allMatching &&
-    allLoadedTicked &&
-    results.total > results.cards.length
+    selecting && !allMatching && results.total > results.cards.length
 
   function selectAllMatching() {
     setSelection({ collectionId, cards: new Map(), allMatching: true })
@@ -292,7 +286,10 @@ export function CollectionEntries({
           onClearMatching={clearSelection}
           flushEdits={async (cardIds) => {
             await batch.flush()
-            return !cardIds.some(batch.hasFailed)
+            // A filter Move may touch any matching card, so any failed edit blocks it.
+            return allMatching
+              ? !batch.hasAnyFailed()
+              : !cardIds.some(batch.hasFailed)
           }}
           onCancel={leaveSelection}
           onMoved={(message) => {
