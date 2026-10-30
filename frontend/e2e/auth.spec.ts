@@ -50,13 +50,15 @@ test.describe("Auth redirects", () => {
 
     test("ignores an external redirect target after login", async ({
       page,
+      baseURL,
     }) => {
       await signInThroughForm(
         page,
         "/auth/login?redirect=https://evil.example/"
       )
 
-      await expect(page).toHaveURL(/localhost:\d+\/account$/, {
+      // Compared against baseURL so it holds on the dev server and on the stack.
+      await expect(page).toHaveURL(new URL("/account", baseURL).href, {
         timeout: 15_000,
       })
     })
