@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
@@ -21,6 +23,9 @@ const (
 	quantityNotPositiveMsg  = "quantity must be positive"
 	duplicateCardMsg        = "duplicate cardId in request"
 	binderQuantityLockedMsg = "a binder's quantities change only by placing or clearing Slots"
+	moveSameCollectionMsg   = "a move needs two different collections"
+	moveToBinderMsg         = "a binder cannot receive a move: a move chooses no Slot"
+	moveCapacityMsg         = "this move would exceed the collection's limit of %s by %s"
 )
 
 // InventoryService scopes every method to the request's ProfileID; another
@@ -42,6 +47,10 @@ type InventoryService interface {
 	Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	Remove(ctx context.Context, req dto.InventoryEntryLookup) error
+	// Move takes the listed Cards, every copy of each, from the source
+	// Collection into the destination, in one transaction. A refusal changes
+	// neither Collection.
+	Move(ctx context.Context, req dto.InventoryMoveRequest) (dto.InventoryMoveResult, error)
 	// BulkUpdate applies the items in order in one transaction, declining (not
 	// failing) an item that is over capacity or names an unknown Card.
 	BulkUpdate(ctx context.Context, req dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error)
@@ -332,13 +341,122 @@ func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLoo
 	})
 }
 
-func (s *inventoryService) BulkUpdate(ctx context.Context, req dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error) {
-	seen := make(map[uuid.UUID]struct{}, len(req.Items))
-	for _, item := range req.Items {
-		if _, dup := seen[item.CardID]; dup {
-			return nil, ungerr.BadRequestError(duplicateCardMsg)
+func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveRequest) (dto.InventoryMoveResult, error) {
+	if req.SourceID == req.DestinationID {
+		return dto.InventoryMoveResult{}, ungerr.BadRequestError(moveSameCollectionMsg)
+	}
+	if err := rejectDuplicateCards(req.CardIDs); err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+
+	var result dto.InventoryMoveResult
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		// Both rows are locked in one order, so two Moves in opposite
+		// directions cannot deadlock on each other.
+		lockOrder := []uuid.UUID{req.SourceID, req.DestinationID}
+		if bytes.Compare(req.DestinationID[:], req.SourceID[:]) < 0 {
+			lockOrder[0], lockOrder[1] = lockOrder[1], lockOrder[0]
 		}
-		seen[item.CardID] = struct{}{}
+		owned := make(map[uuid.UUID]entity.Collection, len(lockOrder))
+		for _, id := range lockOrder {
+			c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, id, true)
+			if err != nil {
+				return err
+			}
+			owned[id] = c
+		}
+		src, dst := owned[req.SourceID], owned[req.DestinationID]
+
+		if err := s.refuseBinder(ctx, src.ID); err != nil {
+			return err
+		}
+		isBinder, err := s.layouts.IsBinder(ctx, dst.ID)
+		if err != nil {
+			return err
+		}
+		if isBinder {
+			return apperr.WithCode(ungerr.ConflictError(moveToBinderMsg), apperr.CodeMoveToBinder)
+		}
+
+		moving := make([]entity.InventoryEntry, 0, len(req.CardIDs))
+		copies := 0
+		for _, cardID := range req.CardIDs {
+			entry, err := s.getEntry(ctx, src.ID, cardID)
+			if err != nil {
+				return err
+			}
+			moving = append(moving, entry)
+			copies += entry.Quantity
+		}
+
+		// Every moved copy lands in the destination, merged or not, so the
+		// destination's count rises by the whole total.
+		if dst.MaxCardCount > 0 {
+			sum, err := s.entries.SumQuantity(ctx, dst.ID)
+			if err != nil {
+				return err
+			}
+			if over := sum + copies - dst.MaxCardCount; over > 0 {
+				return ungerr.UnprocessableEntityError(fmt.Sprintf(moveCapacityMsg, countOf(dst.MaxCardCount, "card", "cards"), countOf(over, "copy", "copies")))
+			}
+		}
+
+		for _, entry := range moving {
+			if err := s.entries.Delete(ctx, entry); err != nil {
+				return err
+			}
+			existing, err := s.findEntry(ctx, dst.ID, entry.CardID)
+			if err != nil {
+				return err
+			}
+			if existing.IsZero() {
+				_, err = s.entries.Insert(ctx, entity.InventoryEntry{CollectionID: dst.ID, CardID: entry.CardID, Quantity: entry.Quantity})
+			} else {
+				existing.Quantity += entry.Quantity
+				_, err = s.entries.Update(ctx, existing)
+			}
+			if err != nil {
+				return err
+			}
+		}
+
+		result = dto.InventoryMoveResult{Cards: len(moving), Copies: copies}
+		return nil
+	})
+	if err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+
+	return result, nil
+}
+
+// countOf renders n with the singular or plural noun, so "1 copy" and "2 copies" read right.
+func countOf(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+
+	return fmt.Sprintf("%d %s", n, many)
+}
+
+// rejectDuplicateCards refuses a request that names a Card twice, since the
+// second item would silently override the first.
+func rejectDuplicateCards(cardIDs []uuid.UUID) error {
+	seen := make(map[uuid.UUID]struct{}, len(cardIDs))
+	for _, id := range cardIDs {
+		if _, dup := seen[id]; dup {
+			return ungerr.BadRequestError(duplicateCardMsg)
+		}
+		seen[id] = struct{}{}
+	}
+
+	return nil
+}
+
+func (s *inventoryService) BulkUpdate(ctx context.Context, req dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error) {
+	cardIDs := ezutil.MapSlice(req.Items, func(item dto.InventoryQuantityChange) uuid.UUID { return item.CardID })
+	if err := rejectDuplicateCards(cardIDs); err != nil {
+		return nil, err
 	}
 
 	var results []dto.InventoryChangeResult

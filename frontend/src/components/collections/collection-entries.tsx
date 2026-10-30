@@ -18,6 +18,11 @@ import { useInfiniteCardResultsProps } from "@/lib/infinite-catalog-cards"
 import { useInfiniteCollectionEntries } from "@/lib/infinite-inventory"
 import { invalidateMasterInventory } from "@/lib/master-inventory"
 import { useQuantityBatch } from "@/lib/use-quantity-batch"
+import { Button } from "@/components/ui/button"
+import { CollectionMoveBar } from "@/components/collections/collection-move"
+
+// The Move request takes at most 100 Card ids.
+const MOVE_LIMIT = 100
 
 interface CollectionEntriesProps {
   collectionId: string
@@ -26,6 +31,8 @@ interface CollectionEntriesProps {
   onSearchChange: (next: CatalogFilters) => void
   /** Opens the binder on a position's Page. */
   onFindPosition: (position: BinderSlotTarget) => void
+  /** A binder's Cards can't be moved yet, so it has no selection mode. */
+  binder?: boolean
 }
 
 export function CollectionEntries({
@@ -33,6 +40,7 @@ export function CollectionEntries({
   search,
   onSearchChange,
   onFindPosition,
+  binder = false,
 }: CollectionEntriesProps) {
   const queryClient = useQueryClient()
   // A save writes the confirmed quantities into the cached pages instead of
@@ -102,6 +110,49 @@ export function CollectionEntries({
     if (!draining) void drain()
   }
 
+  // Selection mode. Each ticked Card keeps its copies, so the Move's count
+  // holds even for a Card whose page is no longer loaded after a filter change.
+  // The selection is tagged with its Collection: one made in another Collection
+  // is ignored here, and the effect below clears it once the Collection changes.
+  const [selection, setSelection] = useState<{
+    collectionId: string
+    cards: Map<string, number>
+  } | null>(null)
+  const owned = selection?.collectionId === collectionId ? selection : null
+  const selecting = owned !== null
+  const selected = owned?.cards ?? new Map<string, number>()
+  useEffect(() => {
+    setSelection(null)
+  }, [collectionId])
+  const [announcement, setAnnouncement] = useState("")
+  const selectButton = useRef<HTMLButtonElement>(null)
+  // Set when selection ends, so focus goes back to Select once it is rendered again.
+  const restoreFocus = useRef(false)
+  useEffect(() => {
+    if (!selecting && restoreFocus.current) {
+      restoreFocus.current = false
+      selectButton.current?.focus()
+    }
+  }, [selecting])
+  const atLimit = selected.size >= MOVE_LIMIT
+  const copies = [...selected.values()].reduce((sum, n) => sum + n, 0)
+
+  function toggleSelected(cardId: string, quantity: number) {
+    setSelection((current) => {
+      const cards = new Map(
+        current?.collectionId === collectionId ? current.cards : undefined
+      )
+      if (cards.has(cardId)) cards.delete(cardId)
+      else if (cards.size < MOVE_LIMIT) cards.set(cardId, quantity)
+      return { collectionId, cards }
+    })
+  }
+
+  function leaveSelection() {
+    restoreFocus.current = true
+    setSelection(null)
+  }
+
   return (
     <section className="flex flex-col gap-6" aria-label="Collection contents">
       <CatalogFilterPanel
@@ -114,6 +165,29 @@ export function CollectionEntries({
         onClear={() => changeSearch(() => ({}))}
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {!binder && !selecting && (
+          <Button
+            ref={selectButton}
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setAnnouncement("")
+              setSelection({ collectionId, cards: new Map() })
+            }}
+          >
+            Select
+          </Button>
+        )}
+        {/* Always mounted: a live region that appears together with its text is often not announced. */}
+        <p role="status" className="text-sm empty:sr-only">
+          {atLimit ? `Up to ${MOVE_LIMIT} cards at a time` : ""}
+        </p>
+        <p role="status" className="text-sm empty:sr-only">
+          {announcement}
+        </p>
+      </div>
+
       <InfiniteCardResults
         {...results}
         emptyMessage={
@@ -122,6 +196,23 @@ export function CollectionEntries({
             : "This Collection has no Cards yet. Add some from the catalog."
         }
         renderControl={(card) => {
+          if (selecting) {
+            // The quantity shown in the list is the one the Move counts.
+            const quantity =
+              batch.quantities[card.id] ?? serverQuantities?.[card.id] ?? 0
+            const checked = selected.has(card.id)
+            return (
+              <input
+                type="checkbox"
+                aria-label={`Select ${card.name} (${card.expansionSet.code} ${card.localId})`}
+                className="size-5 accent-primary"
+                checked={checked}
+                // A Card at 0 copies has no entry to move; a ticked one stays enabled so it can be unticked.
+                disabled={!checked && (atLimit || quantity === 0)}
+                onChange={() => toggleSelected(card.id, quantity)}
+              />
+            )
+          }
           // A binder's Cards carry positions and change only by placing Slots
           // (ADR-0020), so they show where they sit instead of a quantity.
           const positions = serverPositions?.[card.id]
@@ -142,6 +233,23 @@ export function CollectionEntries({
           )
         }}
       />
+
+      {selecting && (
+        <CollectionMoveBar
+          collectionId={collectionId}
+          cardIds={[...selected.keys()]}
+          copies={copies}
+          flushEdits={async (cardIds) => {
+            await batch.flush()
+            return !cardIds.some(batch.hasFailed)
+          }}
+          onCancel={leaveSelection}
+          onMoved={(message) => {
+            leaveSelection()
+            setAnnouncement(message)
+          }}
+        />
+      )}
     </section>
   )
 }

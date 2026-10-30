@@ -78,7 +78,7 @@ func runProfileSlugBackfill(t *testing.T, seed func(tx *gorm.DB), check func(tx 
 	t.Helper()
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		envOr("DB_HOST", "localhost"), envOr("DB_PORT", "5432"), envOr("DB_USER", "cardstack"),
-		envOr("DB_PASSWORD", "cardstack"), envOr("DB_NAME", "cardstack"))
+		envOr("DB_PASSWORD", "cardstack"), privateDB(t))
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	require.NoError(t, err)
 

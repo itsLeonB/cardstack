@@ -115,6 +115,23 @@ describe("useQuantityBatch", () => {
     expect(Object.keys(result.current.errors).sort()).toEqual(["a", "b"])
   })
 
+  it("reports a failed save only in the Collection it failed in", async () => {
+    bulk.mockRejectedValue(new Error("offline"))
+    const { result, rerender } = renderHook(({ id }) => useQuantityBatch(id), {
+      initialProps: { id: "col-1" },
+    })
+
+    act(() => result.current.setQuantity("a", 2, 1))
+    await tick(QUANTITY_DEBOUNCE_MS)
+    expect(result.current.hasFailed("a")).toBe(true)
+
+    // Cards are global, so the same id in another Collection is a different entry.
+    rerender({ id: "col-2" })
+    expect(result.current.hasFailed("a")).toBe(false)
+    rerender({ id: "col-1" })
+    expect(result.current.hasFailed("a")).toBe(true)
+  })
+
   it("keeps a card at 0 and clears its error when changed again", async () => {
     respond([{ cardId: "a", quantity: 0, status: "removed" }])
     const { result } = renderHook(() => useQuantityBatch("col-1"))

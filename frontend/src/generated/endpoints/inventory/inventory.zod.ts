@@ -137,6 +137,29 @@ export const AddCollectionEntryResponse = zod.object({
 })
 
 /**
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ */
+export const MoveCollectionEntriesParams = zod.object({
+  "id": zod.string().describe('Source Collection ID')
+})
+
+export const moveCollectionEntriesBodyCardIdsMax = 100;
+
+
+
+export const MoveCollectionEntriesBody = zod.object({
+  "cardIds": zod.array(zod.string()).min(1).max(moveCollectionEntriesBodyCardIdsMax).nullable().describe('The Cards to move, with every copy of each. Unique within the request (400 otherwise).'),
+  "destinationId": zod.string().describe('The Collection to move them to: another of your own plain Collections. A binder is refused.')
+})
+
+export const MoveCollectionEntriesResponse = zod.object({
+  "data": zod.object({
+  "cards": zod.int().describe('Inventory Entries moved.'),
+  "copies": zod.int().describe('Copies moved, summed across those entries.')
+})
+})
+
+/**
  * @summary Remove a Card from one of the current user's own Collections
  */
 export const RemoveCollectionEntryParams = zod.object({
