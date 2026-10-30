@@ -31,6 +31,7 @@ import type {
 import type {
   AddEntryInputBody,
   BulkUpdateEntriesInputBody,
+  CountCollectionEntriesParams,
   EnvelopeCatalogFacets,
   EnvelopeInventoryEntry,
   EnvelopeInventoryMoveResult,
@@ -510,7 +511,149 @@ export const useAddCollectionEntry = <TError = ErrorModel,
       > => {
       return useMutation(getAddCollectionEntryMutationOptions(options), queryClient);
     }
-    export type moveCollectionEntriesResponse200 = {
+    export type countCollectionEntriesResponse200 = {
+  data: EnvelopeInventoryMoveResult
+  status: 200
+}
+
+export type countCollectionEntriesResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type countCollectionEntriesResponseSuccess = (countCollectionEntriesResponse200) & {
+  headers: Headers;
+};
+export type countCollectionEntriesResponseError = (countCollectionEntriesResponseDefault) & {
+  headers: Headers;
+};
+
+export type countCollectionEntriesResponse = (countCollectionEntriesResponseSuccess | countCollectionEntriesResponseError)
+
+export const getCountCollectionEntriesUrl = (id: string,
+    params?: CountCollectionEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries/count?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries/count`
+}
+
+/**
+ * @summary Count the Inventory Entries in one of the current user's own Collections that match the catalog search filters, and the copies in them
+ */
+export const countCollectionEntries = async (id: string,
+    params?: CountCollectionEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<countCollectionEntriesResponse> => {
+
+  return customFetch<countCollectionEntriesResponse>(getCountCollectionEntriesUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCountCollectionEntriesQueryKey = (id: string,
+    params?: CountCollectionEntriesParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/collections/${id}/entries/count`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCountCollectionEntriesQueryOptions = <TData = Awaited<ReturnType<typeof countCollectionEntries>>, TError = ErrorModel>(id: string,
+    params?: CountCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof countCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCountCollectionEntriesQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof countCollectionEntries>>> = ({ signal }) => countCollectionEntries(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof countCollectionEntries>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CountCollectionEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof countCollectionEntries>>>
+export type CountCollectionEntriesQueryError = ErrorModel
+
+
+export function useCountCollectionEntries<TData = Awaited<ReturnType<typeof countCollectionEntries>>, TError = ErrorModel>(
+ id: string,
+    params: undefined |  CountCollectionEntriesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof countCollectionEntries>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof countCollectionEntries>>,
+          TError,
+          Awaited<ReturnType<typeof countCollectionEntries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCountCollectionEntries<TData = Awaited<ReturnType<typeof countCollectionEntries>>, TError = ErrorModel>(
+ id: string,
+    params?: CountCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof countCollectionEntries>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof countCollectionEntries>>,
+          TError,
+          Awaited<ReturnType<typeof countCollectionEntries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCountCollectionEntries<TData = Awaited<ReturnType<typeof countCollectionEntries>>, TError = ErrorModel>(
+ id: string,
+    params?: CountCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof countCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Count the Inventory Entries in one of the current user's own Collections that match the catalog search filters, and the copies in them
+ */
+
+export function useCountCollectionEntries<TData = Awaited<ReturnType<typeof countCollectionEntries>>, TError = ErrorModel>(
+ id: string,
+    params?: CountCollectionEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof countCollectionEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCountCollectionEntriesQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type moveCollectionEntriesResponse200 = {
   data: EnvelopeInventoryMoveResult
   status: 200
 }
@@ -538,7 +681,7 @@ export const getMoveCollectionEntriesUrl = (id: string,) => {
 }
 
 /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const moveCollectionEntries = async (id: string,
     moveEntriesInputBody: MoveEntriesInputBody, options?: Parameters<typeof customFetch>[1]): Promise<moveCollectionEntriesResponse> => {
@@ -605,7 +748,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MoveCollectionEntriesMutationVariables = {id: string;data: MoveEntriesInputBody}
 
     /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const useMoveCollectionEntries = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveCollectionEntries>>, TError,MoveCollectionEntriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

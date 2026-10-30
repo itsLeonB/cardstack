@@ -41,6 +41,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	perUser := ratelimit.PerUser(api, limits, map[string]*ratelimit.Limiter{
 		handler.OpSearchCatalogCards:        limits.Search,
 		handler.OpListCollectionEntries:     limits.Search,
+		handler.OpCountCollectionEntries:    limits.Search,
 		handler.OpListMasterInventory:       limits.Search,
 		handler.OpListCatalogFacets:         limits.Facets,
 		handler.OpListCollectionFacets:      limits.Facets,

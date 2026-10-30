@@ -138,6 +138,63 @@ func (_c *MockInventoryService_BulkUpdate_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// CountEntries provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) CountEntries(ctx context.Context, req dto.InventoryListRequest) (dto.InventoryMoveResult, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountEntries")
+	}
+
+	var r0 dto.InventoryMoveResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) (dto.InventoryMoveResult, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryListRequest) dto.InventoryMoveResult); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.InventoryMoveResult)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.InventoryListRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInventoryService_CountEntries_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountEntries'
+type MockInventoryService_CountEntries_Call struct {
+	*mock.Call
+}
+
+// CountEntries is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.InventoryListRequest
+func (_e *MockInventoryService_Expecter) CountEntries(ctx interface{}, req interface{}) *MockInventoryService_CountEntries_Call {
+	return &MockInventoryService_CountEntries_Call{Call: _e.mock.On("CountEntries", ctx, req)}
+}
+
+func (_c *MockInventoryService_CountEntries_Call) Run(run func(ctx context.Context, req dto.InventoryListRequest)) *MockInventoryService_CountEntries_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.InventoryListRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_CountEntries_Call) Return(_a0 dto.InventoryMoveResult, _a1 error) *MockInventoryService_CountEntries_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInventoryService_CountEntries_Call) RunAndReturn(run func(context.Context, dto.InventoryListRequest) (dto.InventoryMoveResult, error)) *MockInventoryService_CountEntries_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
 	ret := _m.Called(ctx, req)

@@ -4,15 +4,18 @@
  * Cardstack API
  * OpenAPI spec version: 1.0
  */
+import type { CardFilterParams } from './cardFilterParams.ts';
 
 export interface MoveEntriesInputBody {
   /**
-     * The Cards to move, with every copy of each. Unique within the request (400 otherwise).
+     * The Cards to move, with every copy of each. Unique within the request (400 otherwise). Exactly one of cardIds and filter is required.
      * @minItems 1
      * @maxItems 100
      * @nullable
      */
-  cardIds: string[] | null;
+  cardIds?: string[] | null;
   /** The Collection to move them to: another of your own plain Collections. A binder is refused. */
   destinationId: string;
+  /** Move every Inventory Entry the source's list shows for these filters, across all pages; {} moves every entry the source's list shows. Exactly one of cardIds and filter is required. */
+  filter?: CardFilterParams;
 }

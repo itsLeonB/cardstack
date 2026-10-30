@@ -50,6 +50,16 @@ interface FakeCollectionApi {
   /** When set, the Collections list never answers, so it stays loading. */
   collectionsPending: boolean
   entries: { card: object; quantity: number }[]
+  /** The list's total when more Cards match than `entries` holds. Defaults to entries.length. */
+  total?: number
+  /** What GET .../entries/count answers with. */
+  count: { cards: number; copies: number }
+  /** When set, GET .../entries/count waits for this before it answers. */
+  countGate?: Promise<unknown>
+  /** When set, GET .../entries/count fails with this message. */
+  countError?: string
+  /** When set, GET .../entries/count fails as a dropped connection does (the fetch rejects). */
+  countNetworkFails?: boolean
   moveStatus: number
   moveBody: FakeBody
   /** The binder's Pages, as GET .../binder/pages/N answers. */
@@ -97,6 +107,7 @@ function fakeCollectionApi(
       collection("col-3", "Binder", { rows: 2, columns: 2, leafCount: 1 }),
     ],
     entries: [],
+    count: { cards: 0, copies: 0 },
     moveStatus: 200,
     moveBody: { data: { cards: 0, copies: 0 } },
     binder: fakeBinder({ rows: 2, columns: 2, leafCount: 1 }),
@@ -128,11 +139,28 @@ function stubCollectionApi(api: FakeCollectionApi) {
       }
       if (method === "GET" && pathname.endsWith("/collections/col-1"))
         return json(200, { data: api.source })
-      if (method === "GET" && pathname.endsWith("/collections/col-1/entries"))
+      if (
+        method === "GET" &&
+        pathname.endsWith("/collections/col-1/entries/count")
+      ) {
+        if (api.countGate) await api.countGate
+        if (api.countNetworkFails) throw new TypeError("Failed to fetch")
+        if (api.countError) return json(500, { detail: api.countError })
+        return json(200, { data: api.count })
+      }
+      if (method === "GET" && pathname.endsWith("/collections/col-1/entries")) {
+        const pageNumber = Number(
+          new URL(String(input)).searchParams.get("page") ?? 1
+        )
         return json(200, {
-          data: api.entries,
-          meta: { total: api.entries.length, page: 1, limit: 100 },
+          data: pageNumber === 1 ? api.entries : [],
+          meta: {
+            total: api.total ?? api.entries.length,
+            page: pageNumber,
+            limit: 100,
+          },
         })
+      }
       if (method === "GET" && pathname.endsWith("/facets"))
         return json(200, {
           data: { categories: [], expansionSets: [], rarities: [], tags: [] },
@@ -473,6 +501,384 @@ describe("Collection page: the Move to sheet", () => {
         screen.getByRole("button", { name: "Move to…" })
       )
     )
+  })
+})
+
+describe("Collection page: selecting every card matching a filter", () => {
+  // Selects the two loaded cards, which is what enables the banner.
+  async function selectLoadedPage() {
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+    )
+  }
+
+  const cards = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      card: { ...pikachu, id: String(i) },
+      quantity: 1,
+    }))
+
+  it("offers nothing when the filter matches 2 cards", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies })
+    )
+    await selectLoadedPage()
+
+    expect(
+      screen.queryByRole("button", { name: /matching this filter/ })
+    ).toBeNull()
+  })
+
+  it("offers nothing when the filter matches exactly 10 cards, all loaded", async () => {
+    await renderCollectionPage(fakeCollectionApi({ entries: cards(10) }))
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    await screen.findAllByRole("checkbox")
+
+    expect(
+      screen.queryByRole("button", { name: /matching this filter/ })
+    ).toBeNull()
+  })
+
+  it("offers Select all 11 matching once more than 10 cards match, though they are all loaded", async () => {
+    await renderCollectionPage(fakeCollectionApi({ entries: cards(11) }))
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Select all 11 matching this filter",
+      })
+    ).toBeTruthy()
+  })
+
+  it("offers Select all N matching as soon as selection mode is on, with nothing ticked", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    ).toBeTruthy()
+  })
+
+  it("offers Select all N once 200 of 250 matching cards are loaded, with nothing ticked", async () => {
+    // Page 2 is not fetched here: the 200 loaded cards stand for the loaded pages.
+    const loaded = Array.from({ length: 200 }, (_, i) => ({
+      card: { ...pikachu, id: String(i) },
+      quantity: 1,
+    }))
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: loaded, total: 250 })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    ).toBeTruthy()
+  })
+
+  it("moves every matching card by filter, and the confirm dialog states the server's counts", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+      moveBody: { data: { cards: 37, copies: 64 } },
+    })
+    await renderCollectionPage(api)
+    await selectLoadedPage()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+    expect(
+      screen.getByText("All 250 matching this filter selected")
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    const confirm = await screen.findByRole("alertdialog")
+    expect(
+      await within(confirm).findByText("Move 37 cards to Deck B?")
+    ).toBeTruthy()
+    expect(
+      within(confirm).getByText(
+        "This moves 37 cards and 64 copies from Deck A to Deck B. There is no undo."
+      )
+    ).toBeTruthy()
+
+    fireEvent.click(within(confirm).getByRole("button", { name: "Move" }))
+    expect(
+      await screen.findByText("Moved 37 cards (64 copies) to Deck B.")
+    ).toBeTruthy()
+    const [move] = requestsTo(api, "POST", "/collections/col-1/entries/move")
+    expect(move.body).toEqual({ destinationId: "col-2", filter: {} })
+  })
+
+  it("sends the current filter with the Move, not the ticked ids", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 3, copies: 4 },
+      moveBody: { data: { cards: 3, copies: 4 } },
+    })
+    const router = await renderCollectionPage(api)
+    await router.history.push("/collections/col-1/?name=pika")
+    await selectLoadedPage()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    const confirm = await screen.findByRole("alertdialog")
+    await within(confirm).findByText("Move 3 cards to Deck B?")
+    fireEvent.click(within(confirm).getByRole("button", { name: "Move" }))
+
+    await screen.findByText("Moved 3 cards (4 copies) to Deck B.")
+    const [move] = requestsTo(api, "POST", "/collections/col-1/entries/move")
+    expect(move.body).toEqual({
+      destinationId: "col-2",
+      filter: { name: "pika" },
+    })
+  })
+
+  it("clears the filter selection when the filter changes", async () => {
+    const router = await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    )
+    await selectLoadedPage()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+
+    await router.history.push("/collections/col-1/?name=pika")
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("All 250 matching this filter selected")
+      ).toBeNull()
+    )
+    expect(screen.getByText("0 selected")).toBeTruthy()
+  })
+
+  it("closes the sheet and sends no Move when the filter changes while it is open", async () => {
+    const api = fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    const router = await renderCollectionPage(api)
+    await selectEveryMatch()
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    await screen.findByRole("dialog")
+
+    await router.history.push("/collections/col-1/?name=pika")
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(requestsTo(api, "POST", "/collections/col-1/entries/move")).toEqual(
+      []
+    )
+  })
+
+  it("closes the confirm dialog and sends no Move when the filter changes while it is open", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+    })
+    const router = await renderCollectionPage(api)
+    await selectEveryMatch()
+    const confirm = await openConfirmToDeckB()
+    await within(confirm).findByText("Move 37 cards to Deck B?")
+
+    await router.history.push("/collections/col-1/?name=pika")
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+    expect(requestsTo(api, "POST", "/collections/col-1/entries/move")).toEqual(
+      []
+    )
+  })
+
+  it("blocks a filter Move while a quantity edit can't be saved, and says so", async () => {
+    // The fake has no bulk-update route, so saving the edit fails with a 500.
+    const api = fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    await renderCollectionPage(api)
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Increase quantity of Pikachu",
+      })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+
+    expect(await screen.findByText(/could not be saved/)).toBeTruthy()
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(requestsTo(api, "POST", "/collections/col-1/entries/move")).toEqual(
+      []
+    )
+  })
+
+  it("clears the filter selection when Cancel leaves selection mode", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({ entries: twoCardsThreeCopies, total: 250 })
+    )
+    await selectLoadedPage()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    expect(
+      screen.queryByText("All 250 matching this filter selected")
+    ).toBeNull()
+    expect(screen.getByText("0 selected")).toBeTruthy()
+  })
+
+  // Selects every loaded card and then Select all matching, so the bar is in filter mode.
+  async function selectEveryMatch() {
+    await selectLoadedPage()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+  }
+
+  // Opens the confirm dialog for a Move to Deck B from the filter selection.
+  async function openConfirmToDeckB() {
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    return screen.findByRole("alertdialog")
+  }
+
+  it("keeps Confirm disabled while the count is pending, and enables it with the server's numbers", async () => {
+    let release!: () => void
+    await renderCollectionPage(
+      fakeCollectionApi({
+        entries: twoCardsThreeCopies,
+        total: 250,
+        count: { cards: 37, copies: 64 },
+        countGate: new Promise<void>((resolve) => {
+          release = resolve
+        }),
+      })
+    )
+    await selectEveryMatch()
+
+    const confirm = await openConfirmToDeckB()
+    expect(
+      within(confirm).getByText("Counting the matching cards…")
+    ).toBeTruthy()
+    expect(
+      within(confirm).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
+
+    release()
+    expect(
+      await within(confirm).findByText("Move 37 cards to Deck B?")
+    ).toBeTruthy()
+    expect(
+      within(confirm).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(false)
+  })
+
+  it("shows a count error inline and keeps Confirm disabled", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({
+        entries: twoCardsThreeCopies,
+        total: 250,
+        countError: "Could not count right now.",
+      })
+    )
+    await selectEveryMatch()
+
+    const confirm = await openConfirmToDeckB()
+    expect((await within(confirm).findByRole("alert")).textContent).toBe(
+      "Could not count right now."
+    )
+    expect(
+      within(confirm).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
+  })
+
+  it("does not show the previous count when the dialog reopens and the count is fetched again", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+    })
+    await renderCollectionPage(api)
+    await selectEveryMatch()
+    const first = await openConfirmToDeckB()
+    await within(first).findByText("Move 37 cards to Deck B?")
+    fireEvent.click(within(first).getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+
+    // The next count call never answers, so anything shown is the cached 37.
+    api.countGate = new Promise(() => {})
+    const second = await openConfirmToDeckB()
+
+    expect(
+      within(second).getByText("Counting the matching cards…")
+    ).toBeTruthy()
+    expect(within(second).queryByText("Move 37 cards to Deck B?")).toBeNull()
+    expect(
+      within(second).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
+  })
+
+  it("does not enable Confirm with the previous count when the refetch fails on the network", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+    })
+    await renderCollectionPage(api)
+    await selectEveryMatch()
+    const first = await openConfirmToDeckB()
+    await within(first).findByText("Move 37 cards to Deck B?")
+    fireEvent.click(within(first).getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+
+    api.countNetworkFails = true
+    const second = await openConfirmToDeckB()
+
+    await within(second).findByRole("alert")
+    expect(within(second).queryByText("Move 37 cards to Deck B?")).toBeNull()
+    expect(
+      within(second).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
   })
 })
 
