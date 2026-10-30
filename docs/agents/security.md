@@ -6,6 +6,7 @@ What `.claude/settings.json` enforces, and how to add to it. Personal overrides 
 
 - **Serena hooks.** `serena-hooks remind` nudges a thread that reads code with built-in tools instead of Serena; `activate`, `auto-approve` and `cleanup` manage the Serena session. See `docs/agents/conventions/serena.md`.
 - **`.claude/hooks/block-commit-on-main.sh`.** Refuses `git commit` and `git merge` while the current branch is protected (main), and `git push` from or to a protected branch. A command that first creates a branch is allowed. The protected list is the `PROTECTED` variable at the top of the script.
+- **`deny-big-output`.** Refuses a `cat` of more than 20 KB, a `git diff` that would print more than 20 KB, and a `Read` of a file over 40 KB without `offset` or `limit`, with a message naming the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a Bash command with `BIG_OK=1 ` to override. Source in `tools/cmd/deny-big-output`; install steps in `tools/README.md`. Without the binary the hook errors without blocking.
 - **`permissions.deny`.** Patterns the harness refuses outright. Edit the list in `.claude/settings.json`; a wider allow in `settings.local.json` does not override a deny.
 - **`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`.** Turns off the native advisor tool, so the advisor T3 thread is the only advisor.
 - **hookify.** `hookify@claude-plugins-official` turns a mistake into a rule file.

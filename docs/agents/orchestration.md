@@ -38,10 +38,10 @@ The orchestrator stays on the main checkout and the feature branch, launches one
 7. **Check scope.** `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under the child's component directories. Run it only on a clean worktree: `git -C <worktree path> status --porcelain` must print nothing, because uncommitted edits (staged, unstaged or untracked) are invisible to the diff. If it prints anything, send the child back to commit or discard it before the review. Tool restrictions do not enforce scope, so this check does.
 8. **Review.** Run the [review loop](#review-loop) until the child's diff has no finding left to fix.
 9. **Merge and clean up**, per child once it is done, in this order, because T3 has no tool for removing worktrees or branches:
-   1. Merge the child's branch into the feature branch.
+   1. Merge the child's branch into the feature branch: `merge-ticket merge <branch> --scope <component dir>...` (from `tools/`, see `docs/agents/security.md`) checks the child worktree is clean (step 7), checks scope, then runs `git merge --no-ff`. It refuses on a protected branch.
    2. Archive the thread: `t3_thread_organize` with `action: "archive"` and the child's `threadId`.
    3. Remove the worktree: `git worktree remove <path>`. If it refuses because the worktree is dirty, inspect it: the work is already merged, so what remains is leftover state. Report it to the maintainer instead of using `--force`.
-   4. Delete the branch with a safe delete: `git branch -d <branch>`, which refuses an unmerged branch. Never use `-D`.
+   4. Delete the branch with a safe delete: `git branch -d <branch>`, which refuses an unmerged branch. Never use `-D`. `merge-ticket cleanup <branch> [--issue <file>]` does items 3 and 4 together, never forces, and stops with the git message when either refuses.
 10. **Architecture review.** Once every child is merged, the orchestrator runs the `code-review` skill scoped to the full feature branch diff, focused on cross-component integration and architecture, not on re-litigating what the component-level reviews checked. Every child is archived and its branch deleted by then, so findings in component code go to a fresh child launched as in step 4 on a new branch from the feature branch and merged as in step 9; the orchestrator fixes only what lies outside the component directories, then reruns the relevant [verification](#verification).
 11. Commit the merge on the feature branch (never on a protected branch) and push, confirming with the maintainer before pushing.
 
