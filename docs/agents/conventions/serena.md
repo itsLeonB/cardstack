@@ -14,9 +14,10 @@ Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subag
 
 ## Reaching the tools
 
-- Serena's tools are `mcp__serena__*` and may arrive deferred, so a direct call fails until loaded. Before your first code tool call, load them in one tool search with `select:mcp__serena__initial_instructions,mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols,mcp__serena__replace_symbol_body,mcp__serena__replace_content`, then call `initial_instructions`.
-- Where MCP tools sit behind an `mcp` proxy instead, call them through it: `mcp({ tool: "find_symbol", args: { ... } })`. The same rule covers every other MCP server.
-- Serena starts with `--project-from-cwd` under a single-project context, so the project is already active. Do not call `activate_project`; that tool does not exist in these configurations.
+- Serena's tools have Serena's own names (`initial_instructions`, `get_symbols_overview`, `find_symbol`, `replace_symbol_body`, ...). A harness adds its own prefix or namespace to them, so find each tool by its Serena name whatever the prefix, in your tool list or with the harness's tool search. If the harness puts MCP tools behind a proxy tool, call Serena's through it by the Serena name.
+- If no Serena tool is listed, the server is not connected yet. Connect or enable it through the harness's own MCP mechanism (its connect command or MCP settings) and look again. Fall back to the built-in tools only after that fails, and say so in your report.
+- Before your first code tool call, call `initial_instructions`.
+- Call the project-activation tool (`activate_project`) only if it exists. Under a single-project setup the project is already active and the tool is absent.
 
 ## Mapping (use the right column, not the left)
 

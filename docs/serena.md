@@ -41,7 +41,7 @@ The `claude-code` context excludes `search_for_pattern`, which pi needs, and wor
 }
 ```
 
-- `directTools: "search"` registers Serena's tools as deferred tools in the `mcp__serena` namespace: `tool_search` loads them on demand and the `mcp` proxy stays available ([tools.md](https://github.com/nicobailon/pi-mcp-adapter/blob/main/docs/tools.md)). Use `true` to load all 22 tools every turn and skip discovery.
+- `directTools: "search"` makes Serena's tools discoverable through the `mcp` proxy and turns each into a direct tool the first time a search matches it or the proxy calls it ([tools.md](https://github.com/nicobailon/pi-mcp-adapter/blob/main/docs/tools.md)). The server connects lazily, so see [Tool names and connecting](#tool-names-and-connecting). Use `true` to register every tool up front and skip discovery.
 - The `ide` context sets `single_project: true`, which removes `activate_project`; the project is active from startup.
 - Project servers need one interactive approval per effective definition. Headless sessions skip them unless the user-global adapter settings set `projectServers: "allow"`.
 
@@ -67,7 +67,7 @@ pi loads `AGENTS.md` into every main session. Its Serena section holds the polic
 
 ### Share policy with subagents
 
-The tool mapping and pre-edit workflow live only in `docs/agents/conventions/serena.md`. Both agent files reference it next to `general.md` and their component conventions, so a child reads it before its first code edit. The doc states pi's tool path: the `mcp` proxy, or `mcp__serena__*` after `tool_search` activates them.
+The tool mapping and pre-edit workflow live only in `docs/agents/conventions/serena.md`. Both agent files reference it next to `general.md` and their component conventions, so a child reads it before its first code edit. The doc names no client: it tells the agent to find Serena's tools by Serena's own names and to connect the server when none is listed. The client-specific names and steps are below.
 
 How subagents reach Serena ([pi-subagents agents.md](https://github.com/nicobailon/pi-subagents/blob/main/docs/agents.md)):
 
@@ -77,6 +77,16 @@ How subagents reach Serena ([pi-subagents agents.md](https://github.com/nicobail
 - `inheritProjectContext` is off by default for custom agents, so a child doesn't see `AGENTS.md` unless the agent opts in.
 
 Run Serena-using subagents as background children (pi-subagents' default) and put the policy in the agent prompt, not in `AGENTS.md` inheritance.
+
+## Tool names and connecting
+
+| | Claude Code | pi |
+|---|---|---|
+| Tool names | `mcp__serena__<tool>` | `serena_<tool>` in the `mcp` listing; called through the proxy as `mcp({ server: "serena", tool: "<tool>", args: { ... } })` |
+| When not listed | the tools may arrive deferred: load them with tool search before the first call | the server is lazy, so run `mcp({ connect: "serena" })` once per session |
+| Project activation | already active; `activate_project` is absent | already active; `activate_project` is absent |
+
+In the ticket 06 session an agent looked for `mcp__serena__*` names on pi, found none, and nearly fell back to built-in file tools: pi's tools carry the `serena_` prefix, and `mcp({ })` showed Serena as "not connected yet" until `mcp({ connect: "serena" })` ran. If an agent reports that it cannot find Serena, check the server status with `mcp({ })` in pi, or `/mcp` in Claude Code, and connect it.
 
 ## Verify a context choice
 
