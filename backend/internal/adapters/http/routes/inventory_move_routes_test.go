@@ -16,6 +16,40 @@ func moveEntries(api testAPI, token, source, destination string, cards ...uuid.U
 	return api.Post("/collections/"+source+"/entries/move", bearer(token), map[string]any{"cardIds": cards, "destinationId": destination})
 }
 
+func moveByFilter(api testAPI, token, source, destination string, filter map[string]any) *httptest.ResponseRecorder {
+	return api.Post("/collections/"+source+"/entries/move", bearer(token), map[string]any{"filter": filter, "destinationId": destination})
+}
+
+// entryCard returns the Expansion Set ID and the name of a Card already in a Collection.
+func entryCard(t *testing.T, api testAPI, token, collectionID string, card uuid.UUID) (string, string) {
+	t.Helper()
+	resp := api.Get("/collections/"+collectionID+"/entries", bearer(token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var list struct {
+		Data []struct {
+			Card struct {
+				ID           string `json:"id"`
+				ExpansionSet struct {
+					ID string `json:"id"`
+				} `json:"expansionSet"`
+				Name string `json:"name"`
+			} `json:"card"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &list))
+	for _, it := range list.Data {
+		if it.Card.ID == card.String() {
+			return it.Card.ExpansionSet.ID, it.Card.Name
+		}
+	}
+	require.Failf(t, "card not in collection", "card %s is not in %s", card, collectionID)
+	return "", ""
+}
+
+func countEntries(api testAPI, token, collectionID, query string) *httptest.ResponseRecorder {
+	return api.Get("/collections/"+collectionID+"/entries/count"+query, bearer(token))
+}
+
 // newPlainCollection creates a plain Collection, capped at maxCardCount when
 // it is positive.
 func newPlainCollection(t *testing.T, api testAPI, token string, maxCardCount int) string {
@@ -255,4 +289,207 @@ func TestMoveRefusesAnotherProfilesCollection(t *testing.T) {
 
 	assert.Equal(t, map[string]int{cards[0].String(): 1}, entryQuantities(t, api, owner, source))
 	assert.Empty(t, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveByFilterMovesOnlyTheMatchingSet(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	setA := newTestCards(t, 2)
+	setB := newTestCards(t, 1)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, source, setA[0], 2)
+	addEntry(t, api, owner, source, setA[1], 1)
+	addEntry(t, api, owner, source, setB[0], 4)
+	setAID, _ := entryCard(t, api, owner, source, setA[0])
+
+	resp := moveByFilter(api, owner, source, destination, map[string]any{"expansionSetIds": []string{setAID}})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 2, moved.Data.Cards)
+	assert.Equal(t, 3, moved.Data.Copies)
+
+	assert.Equal(t, map[string]int{setB[0].String(): 4}, entryQuantities(t, api, owner, source))
+	assert.Equal(t, map[string]int{setA[0].String(): 2, setA[1].String(): 1}, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveByFilterCombinesNameWithOtherFilters(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	setA := newTestCards(t, 2)
+	setB := newTestCards(t, 1)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, source, setA[0], 2)
+	addEntry(t, api, owner, source, setA[1], 1)
+	addEntry(t, api, owner, source, setB[0], 4)
+	setBID, _ := entryCard(t, api, owner, source, setB[0])
+	_, nameA := entryCard(t, api, owner, source, setA[0])
+
+	// Each set's Card names carry that set's own suffix, so nameA matches set A only.
+	resp := moveByFilter(api, owner, source, destination, map[string]any{"name": nameA, "expansionSetIds": []string{setBID}})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var none moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &none))
+	assert.Equal(t, 0, none.Data.Cards)
+	assert.Equal(t, 0, none.Data.Copies)
+	assert.Empty(t, entryQuantities(t, api, owner, destination))
+
+	resp = moveByFilter(api, owner, source, destination, map[string]any{"name": nameA})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 2, moved.Data.Cards)
+	assert.Equal(t, 3, moved.Data.Copies)
+	assert.Equal(t, map[string]int{setB[0].String(): 4}, entryQuantities(t, api, owner, source))
+	assert.Equal(t, map[string]int{setA[0].String(): 2, setA[1].String(): 1}, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveByEmptyFilterMovesEveryEntry(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	setA := newTestCards(t, 2)
+	setB := newTestCards(t, 1)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, source, setA[0], 2)
+	addEntry(t, api, owner, source, setA[1], 1)
+	addEntry(t, api, owner, source, setB[0], 4)
+
+	resp := moveByFilter(api, owner, source, destination, map[string]any{})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 3, moved.Data.Cards)
+	assert.Equal(t, 7, moved.Data.Copies)
+
+	assert.Empty(t, entryQuantities(t, api, owner, source))
+	assert.Equal(t, map[string]int{setA[0].String(): 2, setA[1].String(): 1, setB[0].String(): 4}, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveByFilterMatchingNothingMovesNothing(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 2)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, source, cards[0], 2)
+	addEntry(t, api, owner, source, cards[1], 1)
+
+	resp := moveByFilter(api, owner, source, destination, map[string]any{"localId": "zz"})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 0, moved.Data.Cards)
+	assert.Equal(t, 0, moved.Data.Copies)
+	assert.Equal(t, map[string]int{cards[0].String(): 2, cards[1].String(): 1}, entryQuantities(t, api, owner, source))
+	assert.Empty(t, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveRefusesIdsAndFilterTogetherOrNeither(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 1)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, source, cards[0], 1)
+
+	both := api.Post("/collections/"+source+"/entries/move", bearer(owner), map[string]any{"cardIds": cards, "filter": map[string]any{}, "destinationId": destination})
+	assert.Equal(t, http.StatusBadRequest, both.Code, both.Body.String())
+
+	neither := api.Post("/collections/"+source+"/entries/move", bearer(owner), map[string]any{"destinationId": destination})
+	assert.Equal(t, http.StatusBadRequest, neither.Code, neither.Body.String())
+
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, entryQuantities(t, api, owner, source))
+	assert.Empty(t, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveByFilterOutOfBinderEmptiesTheSlotsHoldingTheCards(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 3)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 1)
+	placeCardAt(api, owner, binder, 1, 1, 1, cards[0])
+	placeCardAt(api, owner, binder, 1, 1, 2, cards[0])
+	placeCardAt(api, owner, binder, 1, 2, 1, cards[1])
+	placeCardAt(api, owner, binder, 2, 1, 1, cards[1])
+	placeCardAt(api, owner, binder, 2, 2, 2, cards[2])
+	destination := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, destination, cards[1], 4)
+
+	resp := moveByFilter(api, owner, binder, destination, map[string]any{"localId": "b"})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 1, moved.Data.Cards)
+	assert.Equal(t, 2, moved.Data.Copies)
+
+	assert.Equal(t, map[string]int{cards[1].String(): 6}, entryQuantities(t, api, owner, destination))
+	assert.Equal(t, map[string]int{cards[0].String(): 2, cards[2].String(): 1}, entryQuantities(t, api, owner, binder))
+	requireEntriesMatchSlots(t, api, binder)
+}
+
+func TestMoveByFilterRefusedWhenDestinationWouldPassItsLimitChangesNothing(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 3)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 5)
+	addEntry(t, api, owner, source, cards[1], 2)
+	addEntry(t, api, owner, source, cards[2], 1)
+	addEntry(t, api, owner, destination, cards[0], 3)
+
+	resp := moveByFilter(api, owner, source, destination, map[string]any{})
+	require.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+	assert.Contains(t, decodeError(t, resp.Body.Bytes()).Detail, "limit of 5 cards by 1 copy")
+	assert.Equal(t, map[string]int{cards[1].String(): 2, cards[2].String(): 1}, entryQuantities(t, api, owner, source))
+	assert.Equal(t, map[string]int{cards[0].String(): 3}, entryQuantities(t, api, owner, destination))
+
+	resp = moveByFilter(api, owner, source, destination, map[string]any{"localId": "b"})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, map[string]int{cards[0].String(): 3, cards[1].String(): 2}, entryQuantities(t, api, owner, destination))
+}
+
+func TestMoveByFilterRefusesBinderDestination(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 1)
+	source := newPlainCollection(t, api, owner, 0)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 1)
+	addEntry(t, api, owner, source, cards[0], 1)
+
+	resp := moveByFilter(api, owner, source, binder, map[string]any{})
+	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "move_to_binder", decodeError(t, resp.Body.Bytes()).Code)
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, entryQuantities(t, api, owner, source))
+	assert.Empty(t, entryQuantities(t, api, owner, binder))
+}
+
+func TestMoveByFilterPastOneHundredEntries(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	cards := newTestCards(t, 150)
+	source := newPlainCollection(t, api, owner, 0)
+	destination := newPlainCollection(t, api, owner, 0)
+	for _, card := range cards {
+		addEntry(t, api, owner, source, card, 1)
+	}
+
+	resp := moveByFilter(api, owner, source, destination, map[string]any{})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var moved moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &moved))
+	assert.Equal(t, 150, moved.Data.Cards)
+	assert.Equal(t, 150, moved.Data.Copies)
+
+	counted := countEntries(api, owner, destination, "")
+	require.Equal(t, http.StatusOK, counted.Code, counted.Body.String())
+	var count moveResultEnvelope
+	require.NoError(t, json.Unmarshal(counted.Body.Bytes(), &count))
+	assert.Equal(t, 150, count.Data.Cards)
+	assert.Equal(t, 150, count.Data.Copies)
+	assert.Empty(t, entryQuantities(t, api, owner, source))
 }

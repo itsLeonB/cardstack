@@ -55,12 +55,12 @@ func (h *CatalogHandler) listTags(ctx context.Context, _ listTagsInput) ([]strin
 // value means "don't filter on this facet". The multi-value ones are
 // repeated params (?rarityId=a&rarityId=b): OR within a param, AND across.
 type CardFilterParams struct {
-	Name            string   `query:"name" maxLength:"64" doc:"Case-insensitive substring match on the Card's name (at most 64 characters)."`
-	ExpansionSetIDs []string `query:"expansionSetId,explode" maxItems:"20" doc:"Only Cards in any of these Expansion Sets (repeatable, at most 20)."`
-	LocalID         string   `query:"localId" doc:"Only the Card with this number within its Expansion Set (e.g. \"001\")."`
-	RarityIDs       []string `query:"rarityId,explode" maxItems:"20" doc:"Only Cards with any of these Rarities (repeatable, at most 20)."`
-	Categories      []string `query:"category,explode" maxItems:"20" doc:"Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi)."`
-	Tags            []string `query:"tag,explode" maxItems:"20" doc:"Only Cards carrying any of these tags (repeatable, at most 20)."`
+	Name            string   `query:"name" json:"name,omitempty" maxLength:"64" doc:"Case-insensitive substring match on the Card's name (at most 64 characters)."`
+	ExpansionSetIDs []string `query:"expansionSetId,explode" json:"expansionSetIds,omitempty" maxItems:"20" doc:"Only Cards in any of these Expansion Sets (repeatable, at most 20)."`
+	LocalID         string   `query:"localId" json:"localId,omitempty" doc:"Only the Card with this number within its Expansion Set (e.g. \"001\")."`
+	RarityIDs       []string `query:"rarityId,explode" json:"rarityIds,omitempty" maxItems:"20" doc:"Only Cards with any of these Rarities (repeatable, at most 20)."`
+	Categories      []string `query:"category,explode" json:"categories,omitempty" maxItems:"20" doc:"Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi)."`
+	Tags            []string `query:"tag,explode" json:"tags,omitempty" maxItems:"20" doc:"Only Cards carrying any of these tags (repeatable, at most 20)."`
 }
 
 // searchCardsInput is GET /catalog/cards's query string.

@@ -408,3 +408,34 @@ func TestMasterInventoryFlow(t *testing.T) {
 	}
 	assert.Empty(t, get(owner).Data)
 }
+
+func TestCountCollectionEntries(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	other := api.newUserToken(t)
+	setA := newTestCards(t, 2)
+	setB := newTestCards(t, 1)
+	collection := newPlainCollection(t, api, owner, 0)
+	addEntry(t, api, owner, collection, setA[0], 2)
+	addEntry(t, api, owner, collection, setA[1], 1)
+	addEntry(t, api, owner, collection, setB[0], 4)
+	setAID, _ := entryCard(t, api, owner, collection, setA[0])
+
+	resp := countEntries(api, owner, collection, "")
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var all moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &all))
+	assert.Equal(t, 3, all.Data.Cards)
+	assert.Equal(t, 7, all.Data.Copies)
+
+	resp = countEntries(api, owner, collection, "?expansionSetId="+setAID)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var inSetA moveResultEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &inSetA))
+	assert.Equal(t, 2, inSetA.Data.Cards)
+	assert.Equal(t, 3, inSetA.Data.Copies)
+
+	assert.Equal(t, http.StatusNotFound, countEntries(api, other, collection, "").Code)
+	assert.Equal(t, http.StatusNotFound, countEntries(api, owner, uuid.NewString(), "").Code)
+	assert.Equal(t, http.StatusUnauthorized, api.Get("/collections/"+collection+"/entries/count").Code)
+}

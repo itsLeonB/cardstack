@@ -24,6 +24,7 @@ const (
 	duplicateCardMsg        = "duplicate cardId in request"
 	binderQuantityLockedMsg = "a binder's quantities change only by placing or clearing Slots"
 	moveSameCollectionMsg   = "a move needs two different collections"
+	moveSelectionMsg        = "a move takes either cardIds or filter, not both and not neither"
 	moveToBinderMsg         = "a binder cannot receive a move: a move chooses no Slot"
 	moveCapacityMsg         = "this move would exceed the collection's limit of %s by %s"
 )
@@ -36,6 +37,8 @@ type InventoryService interface {
 	List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error)
 	// ListFacets returns filter options computed only from the Collection's Cards.
 	ListFacets(ctx context.Context, req dto.InventoryListRequest) (dto.CatalogFacets, error)
+	// CountEntries counts the Collection's Inventory Entries matching req.Filter, and their copies.
+	CountEntries(ctx context.Context, req dto.InventoryListRequest) (dto.InventoryMoveResult, error)
 	// ListCardHoldings returns the profile's own Collections holding the Card
 	// (empty when none, or when the Card is unknown).
 	// ListMasterInventory returns the profile's Cards with the quantity owned
@@ -344,6 +347,9 @@ func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLoo
 }
 
 func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveRequest) (dto.InventoryMoveResult, error) {
+	if (len(req.CardIDs) > 0) == (req.Filter != nil) {
+		return dto.InventoryMoveResult{}, ungerr.BadRequestError(moveSelectionMsg)
+	}
 	if req.SourceID == req.DestinationID {
 		return dto.InventoryMoveResult{}, ungerr.BadRequestError(moveSameCollectionMsg)
 	}
@@ -381,9 +387,21 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 			return apperr.WithCode(ungerr.ConflictError(moveToBinderMsg), apperr.CodeMoveToBinder)
 		}
 
-		moving := make([]entity.InventoryEntry, 0, len(req.CardIDs))
+		cardIDs := req.CardIDs
+		if req.Filter != nil {
+			entries, err := s.matchingEntries(ctx, src.ID, *req.Filter)
+			if err != nil {
+				return err
+			}
+			cardIDs = ezutil.MapSlice(entries, func(r repository.CardResult) uuid.UUID { return r.ID })
+			if len(cardIDs) == 0 {
+				return nil
+			}
+		}
+
+		moving := make([]entity.InventoryEntry, 0, len(cardIDs))
 		copies := 0
-		for _, cardID := range req.CardIDs {
+		for _, cardID := range cardIDs {
 			entry, err := s.getEntry(ctx, src.ID, cardID)
 			if err != nil {
 				return err
@@ -407,7 +425,7 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 		if srcBinder {
 			// ADR-0020: a binder's entries follow its Slots, so ClearCards empties
 			// the Slots holding these Cards and reconciles each entry away.
-			if err := s.binderSlots.ClearCards(ctx, dto.BinderCardsClear{ProfileID: req.ProfileID, CollectionID: src.ID, CardIDs: req.CardIDs}); err != nil {
+			if err := s.binderSlots.ClearCards(ctx, dto.BinderCardsClear{ProfileID: req.ProfileID, CollectionID: src.ID, CardIDs: cardIDs}); err != nil {
 				return err
 			}
 		}
@@ -440,6 +458,36 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 		return dto.InventoryMoveResult{}, err
 	}
 
+	return result, nil
+}
+
+// matchingEntries returns every Inventory Entry of the Collection that the
+// filter selects, with the same query the entries list uses. The negative
+// Limit drops the LIMIT clause (gorm omits it for a negative value), so the
+// result is every match and not one page.
+func (s *inventoryService) matchingEntries(ctx context.Context, collectionID uuid.UUID, filter dto.CardFilter) ([]repository.CardResult, error) {
+	repoFilter := mapper.ToRepoCardFilter(filter)
+	repoFilter.CollectionID = collectionID
+	repoFilter.Limit = -1
+	results, _, err := s.catalog.SearchCards(ctx, repoFilter)
+	return results, err
+}
+
+// CountEntries reads the owner's Collection; the count is the same query as the entries list.
+func (s *inventoryService) CountEntries(ctx context.Context, req dto.InventoryListRequest) (dto.InventoryMoveResult, error) {
+	if _, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, false); err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+
+	entries, err := s.matchingEntries(ctx, req.CollectionID, req.Filter)
+	if err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+
+	result := dto.InventoryMoveResult{Cards: len(entries)}
+	for _, e := range entries {
+		result.Copies += e.Quantity
+	}
 	return result, nil
 }
 
