@@ -5,7 +5,7 @@ Small Go commands that make agent workflow steps deterministic. This is a separa
 | Command | What it does | Used by |
 | --- | --- | --- |
 | `deny-big-output` | `PreToolUse` hook (`Bash\|Read`) that refuses a `cat` or `git diff` printing more than 20 KB, and a `Read` of a file over 40 KB without `offset` or `limit` | `.claude/settings.json`; details in `docs/security.md` |
-| `merge-ticket` | `merge` checks a child worktree is clean and in scope, then runs `git merge --no-ff`; `cleanup` removes the worktree, runs `git branch -d` and marks the issue done | The orchestrator, step 8 of `docs/agents/orchestration.md` |
+| `merge-ticket` | `merge` checks a child worktree is clean and in scope, then runs `git merge --no-ff`; `cleanup` removes the worktree, runs `git branch -d` and marks the issue done | The orchestrator, step 7 of `docs/agents/orchestration.md` |
 
 ## Install
 
@@ -36,8 +36,8 @@ The `merge-ticket` test builds throwaway git repos in a temp directory.
 `merge-ticket`, run from the feature-branch checkout:
 
 ```sh
-merge-ticket merge <child-branch> --scope backend
-merge-ticket cleanup <child-branch> --issue .scratch/<feature>/issues/NN-<slug>.md
+merge-ticket merge --worktree <worker-worktree> --component backend
+merge-ticket cleanup --worktree <worker-worktree> --issue .scratch/<feature>/issues/NN-<slug>.md
 ```
 
-`--scope` is required and can repeat, one per component directory. `merge` refuses on a protected branch (`main`). `cleanup` never forces: if git refuses to remove a dirty worktree or delete an unmerged branch, it stops with git's message so you can report it to the maintainer.
+`--worktree` reads the live branch from the worker's worktree and refuses a detached HEAD, so a branch the harness named or renamed needs no copying by hand. `<child-branch>` works instead when you chose the name, and goes before the flags. `--component` (`backend` or `frontend`, where `frontend` covers `frontend/` and `admin/`) or `--scope <dir>...` is required for `merge`; both take several values and may repeat. `merge` refuses on a protected branch (`main`). `cleanup` never forces: if git refuses to remove a dirty worktree or delete an unmerged branch, it stops with git's message so you can report it to the maintainer.
