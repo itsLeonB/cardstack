@@ -141,11 +141,18 @@ export function CollectionMoveBar({
       ? (collectionsQuery.data.data.data ?? [])
       : []
   // A filter Move states the server's count; an ids Move states its own.
+  // A cached count from an earlier open is not this one: it counts only once
+  // the refetch for this open has settled.
+  const countSettled = !countQuery.isFetching
   const counted =
-    countQuery.data?.status === 200 ? countQuery.data.data.data : undefined
-  const countError = countQuery.isError
-    ? NETWORK_ERROR
-    : errorDetail(countQuery.data, COUNT_FAILED)
+    countSettled && countQuery.data?.status === 200
+      ? countQuery.data.data.data
+      : undefined
+  const countError = !countSettled
+    ? undefined
+    : countQuery.isError
+      ? NETWORK_ERROR
+      : errorDetail(countQuery.data, COUNT_FAILED)
   const shown = picked.matching
     ? counted
     : { cards: picked.cardIds.length, copies: picked.copies }

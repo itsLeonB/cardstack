@@ -54,6 +54,10 @@ interface FakeCollectionApi {
   total?: number
   /** What GET .../entries/count answers with. */
   count: { cards: number; copies: number }
+  /** When set, GET .../entries/count waits for this before it answers. */
+  countGate?: Promise<unknown>
+  /** When set, GET .../entries/count fails with this message. */
+  countError?: string
   moveStatus: number
   moveBody: FakeBody
   /** The binder's Pages, as GET .../binder/pages/N answers. */
@@ -136,8 +140,11 @@ function stubCollectionApi(api: FakeCollectionApi) {
       if (
         method === "GET" &&
         pathname.endsWith("/collections/col-1/entries/count")
-      )
+      ) {
+        if (api.countGate) await api.countGate
+        if (api.countError) return json(500, { detail: api.countError })
         return json(200, { data: api.count })
+      }
       if (method === "GET" && pathname.endsWith("/collections/col-1/entries")) {
         const pageNumber = Number(
           new URL(String(input)).searchParams.get("page") ?? 1
@@ -656,6 +663,103 @@ describe("Collection page: selecting every card matching a filter", () => {
       screen.queryByText("All 250 matching this filter selected")
     ).toBeNull()
     expect(screen.getByText("0 selected")).toBeTruthy()
+  })
+
+  // Selects every loaded card and then Select all matching, so the bar is in filter mode.
+  async function selectEveryMatch() {
+    await selectLoadedPage()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 matching this filter",
+      })
+    )
+  }
+
+  // Opens the confirm dialog for a Move to Deck B from the filter selection.
+  async function openConfirmToDeckB() {
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    return screen.findByRole("alertdialog")
+  }
+
+  it("keeps Confirm disabled while the count is pending, and enables it with the server's numbers", async () => {
+    let release!: () => void
+    await renderCollectionPage(
+      fakeCollectionApi({
+        entries: twoCardsThreeCopies,
+        total: 250,
+        count: { cards: 37, copies: 64 },
+        countGate: new Promise<void>((resolve) => {
+          release = resolve
+        }),
+      })
+    )
+    await selectEveryMatch()
+
+    const confirm = await openConfirmToDeckB()
+    expect(
+      within(confirm).getByText("Counting the matching cards…")
+    ).toBeTruthy()
+    expect(
+      within(confirm).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
+
+    release()
+    expect(
+      await within(confirm).findByText("Move 37 cards to Deck B?")
+    ).toBeTruthy()
+    expect(
+      within(confirm).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(false)
+  })
+
+  it("shows a count error inline and keeps Confirm disabled", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({
+        entries: twoCardsThreeCopies,
+        total: 250,
+        countError: "Could not count right now.",
+      })
+    )
+    await selectEveryMatch()
+
+    const confirm = await openConfirmToDeckB()
+    expect((await within(confirm).findByRole("alert")).textContent).toBe(
+      "Could not count right now."
+    )
+    expect(
+      within(confirm).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
+  })
+
+  it("does not show the previous count when the dialog reopens and the count is fetched again", async () => {
+    const api = fakeCollectionApi({
+      entries: twoCardsThreeCopies,
+      total: 250,
+      count: { cards: 37, copies: 64 },
+    })
+    await renderCollectionPage(api)
+    await selectEveryMatch()
+    const first = await openConfirmToDeckB()
+    await within(first).findByText("Move 37 cards to Deck B?")
+    fireEvent.click(within(first).getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+
+    // The next count call never answers, so anything shown is the cached 37.
+    api.countGate = new Promise(() => {})
+    const second = await openConfirmToDeckB()
+
+    expect(
+      within(second).getByText("Counting the matching cards…")
+    ).toBeTruthy()
+    expect(within(second).queryByText("Move 37 cards to Deck B?")).toBeNull()
+    expect(
+      within(second).getByRole("button", { name: "Move" }).matches(":disabled")
+    ).toBe(true)
   })
 })
 
