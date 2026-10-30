@@ -43,7 +43,7 @@ function tokenPattern(token: string): string {
   return token.endsWith("*") ? "(?:/.*)?" : "/[^/]+"
 }
 
-export function sourceToRegExp(source: string): RegExp {
+function sourceToRegExp(source: string): RegExp {
   // split with a capture group puts the tokens at odd indexes.
   const pattern = source
     .split(TOKEN)
@@ -82,7 +82,7 @@ export function createServeHandler(root: string, config: VercelConfig) {
         headers.append(header.key, header.value)
     }
 
-    // ponytail: the rewrite destination is used literally, since both vercel.json files point at the shell.
+    // ponytail: the rewrite destination is used literally, since both vercel.json files point at the shell. Add capture substitution when one needs it.
     const rewrite = rewriteRules.find((rule) => rule.pattern.test(pathname))
     const file =
       (await findFile(base, pathname)) ??
