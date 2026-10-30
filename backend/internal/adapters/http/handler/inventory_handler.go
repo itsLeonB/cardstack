@@ -57,9 +57,15 @@ type bulkUpdateEntriesInput struct {
 type moveEntriesInput struct {
 	CollectionID uuid.UUID `path:"id" doc:"Source Collection ID"`
 	Body         struct {
-		CardIDs       []uuid.UUID `json:"cardIds" required:"true" minItems:"1" maxItems:"100" doc:"The Cards to move, with every copy of each. Unique within the request (400 otherwise)."`
-		DestinationID uuid.UUID   `json:"destinationId" required:"true" doc:"The Collection to move them to: another of your own plain Collections. A binder is refused."`
+		CardIDs       []uuid.UUID       `json:"cardIds,omitempty" minItems:"1" maxItems:"100" doc:"The Cards to move, with every copy of each. Unique within the request (400 otherwise). Exactly one of cardIds and filter is required."`
+		Filter        *CardFilterParams `json:"filter,omitempty" doc:"Move every Inventory Entry of the source that matches these filters, across all pages; {} moves every entry. Exactly one of cardIds and filter is required."`
+		DestinationID uuid.UUID         `json:"destinationId" required:"true" doc:"The Collection to move them to: another of your own plain Collections. A binder is refused."`
 	}
+}
+
+type countEntriesInput struct {
+	CollectionID uuid.UUID `path:"id" doc:"Collection ID"`
+	CardFilterParams
 }
 
 // listEntriesInput is GET /collections/{id}/entries: the catalog search
@@ -213,13 +219,34 @@ func (h *InventoryHandler) move(ctx context.Context, in moveEntriesInput) (dto.I
 	if err != nil {
 		return dto.InventoryMoveResult{}, err
 	}
-
-	return h.inventorySvc.Move(ctx, dto.InventoryMoveRequest{
+	req := dto.InventoryMoveRequest{
 		ProfileID:     profileID,
 		SourceID:      in.CollectionID,
 		DestinationID: in.Body.DestinationID,
 		CardIDs:       in.Body.CardIDs,
-	})
+	}
+	if in.Body.Filter != nil {
+		filter, err := buildCardFilter(*in.Body.Filter)
+		if err != nil {
+			return dto.InventoryMoveResult{}, err
+		}
+		req.Filter = &filter
+	}
+
+	return h.inventorySvc.Move(ctx, req)
+}
+
+func (h *InventoryHandler) count(ctx context.Context, in countEntriesInput) (dto.InventoryMoveResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+	filter, err := buildCardFilter(in.CardFilterParams)
+	if err != nil {
+		return dto.InventoryMoveResult{}, err
+	}
+
+	return h.inventorySvc.CountEntries(ctx, dto.InventoryListRequest{ProfileID: profileID, CollectionID: in.CollectionID, Filter: filter})
 }
 
 func (h *InventoryHandler) remove(ctx context.Context, in entryInput) error {
@@ -283,6 +310,16 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			Secured:     true,
 			HandlerFunc: h.listHoldings,
 		}),
+		endpoint.New(endpoint.Endpoint[countEntriesInput, dto.InventoryMoveResult]{
+			OperationID: "count-collection-entries",
+			Method:      http.MethodGet,
+			Path:        "/collections/{id}/entries/count",
+			Summary:     "Count the Inventory Entries in one of the current user's own Collections that match the catalog search filters, and the copies in them",
+			Tags:        []string{"inventory"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.count,
+		}),
 		endpoint.New(endpoint.Endpoint[listEntryFacetsInput, dto.CatalogFacets]{
 			OperationID: OpListCollectionFacets,
 			Method:      http.MethodGet,
@@ -327,7 +364,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			OperationID: "move-collection-entries",
 			Method:      http.MethodPost,
 			Path:        "/collections/{id}/entries/move",
-			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
+			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry matching a filter across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
 			Tags:        []string{"inventory"},
 			SuccessCode: http.StatusOK,
 			Secured:     true,

@@ -54,14 +54,17 @@ type InventoryMoveRequest struct {
 	ProfileID     uuid.UUID
 	SourceID      uuid.UUID
 	DestinationID uuid.UUID
-	CardIDs       []uuid.UUID
+	// CardIDs and Filter are mutually exclusive: exactly one is set. Filter
+	// selects every matching Inventory Entry of the source across all pages.
+	CardIDs []uuid.UUID
+	Filter  *CardFilter
 }
 
 // InventoryMoveResult counts what a Move moved: Cards is the number of
 // Inventory Entries, Copies the sum of their quantities.
 type InventoryMoveResult struct {
-	Cards  int `json:"cards" doc:"Inventory Entries moved."`
-	Copies int `json:"copies" doc:"Copies moved, summed across those entries."`
+	Cards  int `json:"cards" doc:"Inventory Entries moved, or counted by the count endpoint."`
+	Copies int `json:"copies" doc:"Copies in those entries, summed."`
 }
 
 // InventoryBulkUpdateRequest applies Items, in order, to one Collection.

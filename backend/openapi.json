@@ -572,6 +572,65 @@
         ],
         "type": "object"
       },
+      "CardFilterParams": {
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "expansionSetIds": {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "localId": {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "type": "string"
+          },
+          "name": {
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+            "maxLength": 64,
+            "type": "string"
+          },
+          "rarityIds": {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tags": {
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "CardHolding": {
         "additionalProperties": false,
         "properties": {
@@ -1521,12 +1580,12 @@
         "additionalProperties": false,
         "properties": {
           "cards": {
-            "description": "Inventory Entries moved.",
+            "description": "Inventory Entries moved, or counted by the count endpoint.",
             "format": "int64",
             "type": "integer"
           },
           "copies": {
-            "description": "Copies moved, summed across those entries.",
+            "description": "Copies in those entries, summed.",
             "format": "int64",
             "type": "integer"
           }
@@ -1589,7 +1648,7 @@
         "additionalProperties": false,
         "properties": {
           "cardIds": {
-            "description": "The Cards to move, with every copy of each. Unique within the request (400 otherwise).",
+            "description": "The Cards to move, with every copy of each. Unique within the request (400 otherwise). Exactly one of cardIds and filter is required.",
             "items": {
               "type": "string"
             },
@@ -1603,10 +1662,13 @@
           "destinationId": {
             "description": "The Collection to move them to: another of your own plain Collections. A binder is refused.",
             "type": "string"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/CardFilterParams",
+            "description": "Move every Inventory Entry of the source that matches these filters, across all pages; {} moves every entry. Exactly one of cardIds and filter is required."
           }
         },
         "required": [
-          "cardIds",
           "destinationId"
         ],
         "type": "object"
@@ -4314,6 +4376,143 @@
         ]
       }
     },
+    "/collections/{id}/entries/count": {
+      "get": {
+        "operationId": "count-collection-entries",
+        "parameters": [
+          {
+            "description": "Collection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Collection ID",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeInventoryMoveResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Count the Inventory Entries in one of the current user's own Collections that match the catalog search filters, and the copies in them",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
     "/collections/{id}/entries/move": {
       "post": {
         "operationId": "move-collection-entries",
@@ -4366,7 +4565,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
+        "summary": "Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry matching a filter across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
         "tags": [
           "inventory"
         ]
