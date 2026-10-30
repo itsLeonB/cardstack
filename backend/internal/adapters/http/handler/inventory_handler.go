@@ -58,7 +58,7 @@ type moveEntriesInput struct {
 	CollectionID uuid.UUID `path:"id" doc:"Source Collection ID"`
 	Body         struct {
 		CardIDs       []uuid.UUID       `json:"cardIds,omitempty" minItems:"1" maxItems:"100" doc:"The Cards to move, with every copy of each. Unique within the request (400 otherwise). Exactly one of cardIds and filter is required."`
-		Filter        *CardFilterParams `json:"filter,omitempty" doc:"Move every Inventory Entry of the source that matches these filters, across all pages; {} moves every entry. Exactly one of cardIds and filter is required."`
+		Filter        *CardFilterParams `json:"filter,omitempty" doc:"Move every Inventory Entry the source's list shows for these filters, across all pages; {} moves every entry the source's list shows. Exactly one of cardIds and filter is required."`
 		DestinationID uuid.UUID         `json:"destinationId" required:"true" doc:"The Collection to move them to: another of your own plain Collections. A binder is refused."`
 	}
 }
@@ -364,7 +364,7 @@ func (h *InventoryHandler) Routes() []endpoint.Registrable {
 			OperationID: "move-collection-entries",
 			Method:      http.MethodPost,
 			Path:        "/collections/{id}/entries/move",
-			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry matching a filter across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
+			Summary:     "Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
 			Tags:        []string{"inventory"},
 			SuccessCode: http.StatusOK,
 			Secured:     true,
