@@ -32,5 +32,6 @@ run_in() {
     [ -z "${!var+x}" ] || args+=(-e "$var")
   done
   echo "+ ${RUN_DIR:+($RUN_DIR) }$*"
-  compose exec -T "${args[@]}" "$service" "$@"
+  # The ${args[@]+...} form keeps an empty array safe under `set -u` on Bash 3.2.
+  compose exec -T ${args[@]+"${args[@]}"} "$service" "$@"
 }
