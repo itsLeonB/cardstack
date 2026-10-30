@@ -1,25 +1,30 @@
 name: Admin CI
 
+# Every job runs the same script an agent runs locally, in the compose
+# stack's tooling container (docs/agents/testing.md).
+
 on:
   push:
     branches: [main]
     paths:
       - "admin/**"
+      - "compose.yaml"
+      - "compose.defaults.env"
+      - "scripts/verification/**"
       - ".github/workflows/admin-ci.yml"
-      - ".github/actions/setup-bun/**"
+      - ".github/actions/compose-images/**"
   pull_request:
     branches: [main]
     paths:
       - "admin/**"
+      - "compose.yaml"
+      - "compose.defaults.env"
+      - "scripts/verification/**"
       - ".github/workflows/admin-ci.yml"
-      - ".github/actions/setup-bun/**"
+      - ".github/actions/compose-images/**"
 
 permissions:
   contents: read
-
-defaults:
-  run:
-    working-directory: admin
 
 jobs:
   lint:
@@ -29,11 +34,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Setup
-        uses: ./.github/actions/setup-bun
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          working-directory: admin
-      - run: bun run lint
+          services: frontend-tools
+          cache: bun
+          lockfiles: admin/bun.lock
+      - run: scripts/verification/frontend.sh --package admin lint
 
   format:
     name: Format
@@ -42,11 +49,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Setup
-        uses: ./.github/actions/setup-bun
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          working-directory: admin
-      - run: bun run check
+          services: frontend-tools
+          cache: bun
+          lockfiles: admin/bun.lock
+      - run: scripts/verification/frontend.sh --package admin format
 
   typecheck:
     name: Typecheck
@@ -55,11 +64,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Setup
-        uses: ./.github/actions/setup-bun
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          working-directory: admin
-      - run: bun run typecheck
+          services: frontend-tools
+          cache: bun
+          lockfiles: admin/bun.lock
+      - run: scripts/verification/frontend.sh --package admin typecheck
 
   test:
     name: Test
@@ -68,11 +79,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Setup
-        uses: ./.github/actions/setup-bun
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          working-directory: admin
-      - run: bun run test
+          services: frontend-tools
+          cache: bun
+          lockfiles: admin/bun.lock
+      - run: scripts/verification/frontend.sh --package admin test
 
   build:
     name: Build
@@ -81,11 +94,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Setup
-        uses: ./.github/actions/setup-bun
+      - name: Set up the stack images
+        uses: ./.github/actions/compose-images
         with:
-          working-directory: admin
-      - run: bun run build
+          services: frontend-tools
+          cache: bun
+          lockfiles: admin/bun.lock
+      - run: scripts/verification/frontend.sh --package admin build
         env:
           # Public. Outside a Vercel production build the app builds without
           # them (it then renders a configuration error or calls localhost).

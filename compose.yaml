@@ -11,6 +11,11 @@ x-backend-env: &backend-env
   - path: backend/.env
     required: false
 
+# Public: it only encodes the dev instance's Frontend API domain (the same
+# fallback the E2E workflow uses for pull requests from forks).
+# yamllint disable-line rule:line-length
+x-clerk-key: &clerk-key ${VITE_CLERK_PUBLISHABLE_KEY:-pk_test_d29ya2luZy1jaGltcC01NzcxLmNsZXJrLmFjY291bnRzLmRldiQ=}
+
 x-tools: &tools
   # Long-lived tooling containers: `docker compose exec` runs every lint,
   # test and build in them. They run as the host user, so no root-owned files
@@ -104,6 +109,49 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # The apps run from production-style images: no hot reload, so a source edit
+  # reaches them only through a rebuild. Vite bakes the build arguments in, so
+  # a changed API address or Clerk key needs a rebuild too.
+  web:
+    build:
+      context: frontend
+      dockerfile: app.Dockerfile
+      args:
+        VITE_API_BASE_URL: http://api:8080
+        VITE_CLERK_PUBLISHABLE_KEY: *clerk-key
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - >-
+          fetch('http://localhost:3000')
+          .then((r) => process.exit(r.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  admin:
+    build:
+      context: admin
+      dockerfile: app.Dockerfile
+      args:
+        VITE_API_BASE_URL: http://api:8080
+        VITE_CLERK_PUBLISHABLE_KEY: *clerk-key
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - >-
+          fetch('http://localhost:3001')
+          .then((r) => process.exit(r.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
   backend-tools:
     <<: *tools
     build:
@@ -116,7 +164,28 @@ services:
       - .:/workspace
       - ${GO_CACHE_DIR:-go-cache}:/cache
 
+  # Lint, tests and builds for both frontend packages, and the Playwright
+  # suite (its browser ships in the image) against the built apps.
+  frontend-tools:
+    <<: *tools
+    build:
+      context: frontend
+      dockerfile: tooling.Dockerfile
+    image: cardstack-frontend-tools:local
+    working_dir: /workspace
+    # Chromium needs the host's shared memory.
+    ipc: host
+    environment:
+      # The build prerenders the shell through a local server that Node binds
+      # on ::1 here, while the request goes to 127.0.0.1 and is refused.
+      NODE_OPTIONS: --dns-result-order=ipv4first
+    volumes:
+      - .:/workspace
+      - ${BUN_CACHE_DIR:-bun-cache}:/cache
+
 volumes:
+  bun-cache:
+    name: cardstack-bun-cache
   # Shared by every worktree: a Go cache is safe to use concurrently.
   go-cache:
     name: cardstack-go-cache

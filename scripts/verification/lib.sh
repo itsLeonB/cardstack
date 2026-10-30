@@ -21,10 +21,16 @@ up() {
   compose up -d "$build" --wait "$@"
 }
 
-# run_in <service> <command>...: runs a command in a started tooling container.
+# run_in <service> <command>...: runs a command in a started tooling container,
+# in $RUN_DIR (relative to the repository root) when it is set, with each
+# variable named in $RUN_ENV passed through from the shell when it is set.
 run_in() {
-  local service=$1
+  local service=$1 args=() var
   shift
-  echo "+ $*"
-  compose exec -T "$service" "$@"
+  [ -z "${RUN_DIR:-}" ] || args+=(-w "/workspace/$RUN_DIR")
+  for var in ${RUN_ENV:-}; do
+    [ -z "${!var+x}" ] || args+=(-e "$var")
+  done
+  echo "+ ${RUN_DIR:+($RUN_DIR) }$*"
+  compose exec -T "${args[@]}" "$service" "$@"
 }
