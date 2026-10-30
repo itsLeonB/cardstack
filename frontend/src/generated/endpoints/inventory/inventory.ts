@@ -538,7 +538,7 @@ export const getMoveCollectionEntriesUrl = (id: string,) => {
 }
 
 /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const moveCollectionEntries = async (id: string,
     moveEntriesInputBody: MoveEntriesInputBody, options?: Parameters<typeof customFetch>[1]): Promise<moveCollectionEntriesResponse> => {
@@ -605,7 +605,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MoveCollectionEntriesMutationVariables = {id: string;data: MoveEntriesInputBody}
 
     /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
  */
 export const useMoveCollectionEntries = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveCollectionEntries>>, TError,MoveCollectionEntriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
