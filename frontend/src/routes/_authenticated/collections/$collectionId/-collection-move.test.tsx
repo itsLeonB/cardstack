@@ -513,7 +513,13 @@ describe("Collection page: selecting every card matching a filter", () => {
     )
   }
 
-  it("offers nothing when the filter fits on one page", async () => {
+  const cards = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      card: { ...pikachu, id: String(i) },
+      quantity: 1,
+    }))
+
+  it("offers nothing when the filter matches 2 cards", async () => {
     await renderCollectionPage(
       fakeCollectionApi({ entries: twoCardsThreeCopies })
     )
@@ -522,6 +528,27 @@ describe("Collection page: selecting every card matching a filter", () => {
     expect(
       screen.queryByRole("button", { name: /matching this filter/ })
     ).toBeNull()
+  })
+
+  it("offers nothing when the filter matches exactly 10 cards, all loaded", async () => {
+    await renderCollectionPage(fakeCollectionApi({ entries: cards(10) }))
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+    await screen.findAllByRole("checkbox")
+
+    expect(
+      screen.queryByRole("button", { name: /matching this filter/ })
+    ).toBeNull()
+  })
+
+  it("offers Select all 11 matching once more than 10 cards match, though they are all loaded", async () => {
+    await renderCollectionPage(fakeCollectionApi({ entries: cards(11) }))
+    fireEvent.click(screen.getByRole("button", { name: "Select" }))
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Select all 11 matching this filter",
+      })
+    ).toBeTruthy()
   })
 
   it("offers Select all N matching as soon as selection mode is on, with nothing ticked", async () => {

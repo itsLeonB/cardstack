@@ -7,6 +7,6 @@
 **Status:** done
 
 - [x] The Move operation also accepts the shared card-filter parameters instead of a list of Card ids, acting on every matching entry of the source across all pages. The two forms are mutually exclusive.
-- [x] The banner appears in selection mode whenever the filter has more results than the loaded pages (no ticks needed, since a page of 100 cannot be fully ticked once a second page loads), shows the total N, and replaces the ticked cards with the filter. Changing the filter or leaving selection mode clears it.
+- [x] The banner appears in selection mode whenever the filter matches more than 10 cards (no ticks needed, and no second page needed, so it is easy to reach), shows the total N, and replaces the ticked cards with the filter. Changing the filter or leaving selection mode clears it.
 - [x] The confirm dialog states the cards and copies the filter selects, as counted by the server.
 - [x] HTTP-boundary tests cover a Move by filter against a Collection holding two sets, including filters combined with name search, and that ids and filter together are refused. Screen tests cover the banner and its reset.

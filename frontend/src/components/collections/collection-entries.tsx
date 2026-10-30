@@ -23,6 +23,8 @@ import { CollectionMoveBar } from "@/components/collections/collection-move"
 
 // The Move request takes at most 100 Card ids.
 const MOVE_LIMIT = 100
+// Select all N matching is offered once the filter matches more Cards than this.
+const SELECT_ALL_MIN = 10
 
 interface CollectionEntriesProps {
   collectionId: string
@@ -165,9 +167,8 @@ export function CollectionEntries({
     })
   }
 
-  // The filter matches more cards than the list has loaded: offer all of them.
   const showSelectAll =
-    selecting && !allMatching && results.total > results.cards.length
+    selecting && !allMatching && results.total > SELECT_ALL_MIN
 
   function selectAllMatching() {
     setSelection({ collectionId, cards: new Map(), allMatching: true })
