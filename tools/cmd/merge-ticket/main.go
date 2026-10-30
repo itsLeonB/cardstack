@@ -1,8 +1,12 @@
 // Command merge-ticket runs the mechanical steps of docs/agents/orchestration.md "Merge and clean up" for one child branch.
 // Run it from the feature-branch checkout.
 //
-//	merge-ticket merge   <branch> --scope <dir>...   clean-worktree check, scope check (step 6), then merge --no-ff (step 8.1)
-//	merge-ticket cleanup <branch> [--issue <file>]   worktree remove, safe branch delete (steps 8.2-8.3), mark the issue done
+//	merge-ticket merge   <branch> --scope <dir>...      clean-worktree check, scope check (step 6), then merge --no-ff (step 7.1)
+//	merge-ticket merge   --worktree <path> --component <name>...   the same, with the branch read from the worktree's live HEAD and the scope from the component map
+//	merge-ticket cleanup <branch> [--issue <file>]      worktree remove, safe branch delete (steps 7.2-7.3), mark the issue done
+//	merge-ticket cleanup --worktree <path> [--issue <file>]
+//
+// --scope and --component take several values (or repeat); give <branch> before them. A detached HEAD in the worktree is refused.
 //
 // Install (from tools/): go install ./cmd/...
 package main
@@ -44,34 +48,92 @@ var (
 )
 
 type opts struct {
-	branch, issue string
-	scopes        []string
+	branch, issue, worktree string
+	scopes, components      []string
+}
+
+// components is the only map from a component name to its directories (ADR-0024: the frontend component covers two packages).
+var components = map[string][]string{
+	"backend":  {"backend"},
+	"frontend": {"frontend", "admin"},
+}
+
+// resolveBranch fills o.branch from the live branch of o.worktree, so a renamed or harness-minted branch needs no copying by hand.
+func resolveBranch(o *opts) error {
+	if o.worktree == "" {
+		return nil
+	}
+	out, err := git("-C", o.worktree, "symbolic-ref", "--short", "HEAD")
+	if err != nil {
+		return fmt.Errorf("%s has a detached HEAD or is not a worktree, refusing: %s", o.worktree, out)
+	}
+	o.branch = out
+	return nil
+}
+
+// expandComponents adds the directories of each --component to o.scopes.
+func expandComponents(o *opts) error {
+	for _, c := range o.components {
+		dirs, ok := components[c]
+		if !ok {
+			return fmt.Errorf("unknown component %s", c)
+		}
+		o.scopes = append(o.scopes, dirs...)
+	}
+	return nil
 }
 
 func parse(args []string) (opts, error) {
-	if len(args) == 0 {
-		return opts{}, errors.New("missing <branch>")
-	}
-	o := opts{branch: args[0]}
-	for i := 1; i < len(args); i += 2 {
-		if i+1 >= len(args) {
-			return o, fmt.Errorf("%s needs a value", args[i])
+	var o opts
+	var multi *[]string // the list a bare value currently extends, nil outside --scope/--component
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if !strings.HasPrefix(a, "--") {
+			switch {
+			case multi != nil:
+				*multi = append(*multi, strings.TrimSuffix(a, "/"))
+			case o.branch == "":
+				o.branch = a
+			default:
+				return o, fmt.Errorf("unexpected arg %s", a)
+			}
+			continue
 		}
-		switch args[i] {
+		multi = nil
+		switch a {
 		case "--scope":
-			o.scopes = append(o.scopes, strings.TrimSuffix(args[i+1], "/"))
-		case "--issue":
-			o.issue = args[i+1]
+			multi = &o.scopes
+		case "--component":
+			multi = &o.components
+		case "--issue", "--worktree":
+			if i+1 >= len(args) {
+				return o, fmt.Errorf("%s needs a value", a)
+			}
+			i++
+			if a == "--issue" {
+				o.issue = args[i]
+			} else {
+				o.worktree = args[i]
+			}
 		default:
-			return o, fmt.Errorf("unknown arg %s", args[i])
+			return o, fmt.Errorf("unknown arg %s", a)
 		}
+		if multi != nil && (i+1 >= len(args) || strings.HasPrefix(args[i+1], "--")) {
+			return o, fmt.Errorf("%s needs a value", a)
+		}
+	}
+	switch {
+	case o.branch != "" && o.worktree != "":
+		return o, errors.New("give <branch> or --worktree, not both")
+	case o.branch == "" && o.worktree == "":
+		return o, errors.New("missing <branch> or --worktree <path>")
 	}
 	return o, nil
 }
 
 func merge(o opts) error {
 	if len(o.scopes) == 0 {
-		return errors.New("--scope <dir> is required: the scope check is not optional")
+		return errors.New("--scope <dir> or --component <name> is required: the scope check is not optional")
 	}
 	target, err := git("symbolic-ref", "--short", "HEAD")
 	if err != nil {
@@ -143,13 +205,19 @@ func cleanup(o opts) error {
 
 func run(args []string) error {
 	if len(args) == 0 || (args[0] != "merge" && args[0] != "cleanup") {
-		return errors.New("usage: merge-ticket merge <branch> --scope <dir>... | merge-ticket cleanup <branch> [--issue <file>]")
+		return errors.New("usage: merge-ticket merge (<branch> | --worktree <path>) (--component <name>... | --scope <dir>...) | merge-ticket cleanup (<branch> | --worktree <path>) [--issue <file>]")
 	}
 	o, err := parse(args[1:])
 	if err != nil {
 		return err
 	}
+	if err := resolveBranch(&o); err != nil {
+		return err
+	}
 	if args[0] == "merge" {
+		if err := expandComponents(&o); err != nil {
+			return err
+		}
 		return merge(o)
 	}
 	return cleanup(o)

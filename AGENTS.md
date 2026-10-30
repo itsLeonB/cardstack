@@ -20,7 +20,7 @@ Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/d
 
 The agent the maintainer talks to is the orchestrator. Multi-component or large single-component tasks are delegated to `backend-agent`/`frontend-agent` in git worktrees; small tasks proceed directly. See `docs/agents/orchestration.md` for the full workflow, commit and branch naming conventions.
 
-Spawn an advisor subagent when unsure: before choosing between approaches, when stuck, and before declaring multi-step work done. Doc, ticket, config and one-line edits go ahead without it. Only the orchestrator spawns the advisor; component agents ask the orchestrator. The mechanism is in `docs/agents/orchestration.md`.
+Code review runs once per implementation loop, by whoever implemented it. The advisor is separate: the orchestrator spawns it only to choose between approaches, to answer a worker question the ticket and ADRs leave open, or after a failure survives two different fixes, never to confirm finished work and never for short tasks. Component agents ask the orchestrator, not the advisor. The rules are in `docs/agents/orchestration.md`.
 
 ### Backend test environment setup
 
