@@ -1,2 +1,3 @@
 .envrc
 .pi/npm/
+compose.override.yaml
