@@ -185,6 +185,16 @@ const twoCardsThreeCopies = [
   { card: pikachu, quantity: 2 },
   { card: eevee, quantity: 1 },
 ]
+const binderA = collection("col-1", "Binder A", {
+  rows: 2,
+  columns: 2,
+  leafCount: 1,
+})
+const binderCollections = [
+  binderA,
+  collection("col-2", "Deck B"),
+  collection("col-3", "Binder", { rows: 2, columns: 2, leafCount: 1 }),
+]
 
 function requestsTo(api: FakeCollectionApi, method: string, suffix: string) {
   return api.requests.filter(
@@ -309,22 +319,37 @@ describe("Collection page: quantity edits made before selecting", () => {
   })
 })
 
-describe("Collection page: plain Collections only", () => {
-  it("shows no Select button for a binder, since its Cards can't be moved yet", async () => {
+describe("Collection page: selecting cards in a binder", () => {
+  it("turns selection mode on for a binder's card list, and Move to… offers plain Collections only", async () => {
     await renderCollectionPage(
       fakeCollectionApi({
-        source: collection("col-1", "Binder A", {
-          rows: 2,
-          columns: 2,
-          leafCount: 1,
-        }),
+        source: binderA,
+        collections: binderCollections,
         entries: twoCardsThreeCopies,
       }),
       "Binder A"
     )
+    fireEvent.click(await screen.findByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+    )
+    expect(screen.getByText("2 selected")).toBeTruthy()
 
-    await screen.findByRole("link", { name: "Pikachu" })
-    expect(screen.queryByRole("button", { name: "Select" })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    const sheet = await screen.findByRole("dialog")
+    expect(
+      within(sheet)
+        .getByRole("button", { name: /Deck B/ })
+        .getAttribute("aria-disabled")
+    ).toBe("false")
+    expect(
+      within(sheet)
+        .getByRole("button", { name: /Binder A/ })
+        .getAttribute("aria-disabled")
+    ).toBe("true")
   })
 })
 
@@ -467,6 +492,79 @@ describe("Collection page: confirming a Move", () => {
         "This moves 2 cards and 3 copies from Deck A to Deck B. There is no undo."
       )
     ).toBeTruthy()
+  })
+
+  it("says the Slots will be emptied when the source is a binder", async () => {
+    await renderCollectionPage(
+      fakeCollectionApi({
+        source: binderA,
+        collections: binderCollections,
+        entries: twoCardsThreeCopies,
+      }),
+      "Binder A"
+    )
+    fireEvent.click(await screen.findByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+
+    const confirm = await screen.findByRole("alertdialog")
+    expect(
+      within(confirm).getByText(
+        "This moves 2 cards and 3 copies from Binder A to Deck B. The Slots holding them will be emptied. There is no undo."
+      )
+    ).toBeTruthy()
+  })
+
+  it("refetches the binder's pages after a Move out of it", async () => {
+    const api = fakeCollectionApi({
+      source: binderA,
+      collections: binderCollections,
+      entries: twoCardsThreeCopies,
+      moveBody: { data: { cards: 2, copies: 3 } },
+    })
+    await renderCollectionPage(api, "Binder A")
+    const binderRequests = () =>
+      api.requests.filter(
+        (request) =>
+          request.method === "GET" &&
+          request.path.startsWith("/collections/col-1/binder")
+      ).length
+    await waitFor(() => expect(binderRequests()).toBeGreaterThan(0))
+    const before = binderRequests()
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select" }))
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Pikachu (BS 025)" })
+    )
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Eevee (BS 133)" })
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /Deck B/,
+      })
+    )
+    fireEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Move",
+      })
+    )
+
+    expect(
+      await screen.findByText("Moved 2 cards (3 copies) to Deck B.")
+    ).toBeTruthy()
+    await waitFor(() => expect(binderRequests()).toBeGreaterThan(before))
   })
 
   it("moves the selected cards, announces the result, and leaves selection mode", async () => {
