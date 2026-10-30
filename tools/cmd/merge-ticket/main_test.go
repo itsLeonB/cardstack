@@ -8,8 +8,8 @@ import (
 )
 
 // repo builds a throwaway repo on feat/int with a backend/ dir and an issue file; commitIn adds a worktree on a new branch with one committed file.
-func repo(t *testing.T) (main, tmp string, g func(dir string, args ...string) string, commitIn func(branch, file string) string) {
-	tmp = t.TempDir()
+func repo(t *testing.T) (main string, g func(dir string, args ...string) string, commitIn func(branch, file string) string) {
+	tmp := t.TempDir()
 	main = filepath.Join(tmp, "main")
 	os.Mkdir(main, 0o755)
 	g = func(dir string, args ...string) string {
@@ -40,7 +40,7 @@ func repo(t *testing.T) (main, tmp string, g func(dir string, args ...string) st
 }
 
 func TestMergeTicket(t *testing.T) {
-	main, _, g, commitIn := repo(t)
+	main, g, commitIn := repo(t)
 	wtBe := commitIn("feat/int-be", "backend/b")
 	commitIn("feat/int-bad", "docs/c")
 	t.Chdir(main)
@@ -81,7 +81,7 @@ func TestMergeTicket(t *testing.T) {
 }
 
 func TestScopeValues(t *testing.T) {
-	main, _, _, commitIn := repo(t)
+	main, _, commitIn := repo(t)
 	commitIn("feat/int-multi", "backend/b")
 	commitIn("feat/int-multi2", "docs/c")
 	commitIn("feat/int-repeat", "docs/d")
@@ -99,7 +99,7 @@ func TestScopeValues(t *testing.T) {
 }
 
 func TestComponentExpansion(t *testing.T) {
-	main, _, _, commitIn := repo(t)
+	main, _, commitIn := repo(t)
 	commitIn("feat/int-fe", "admin/x")
 	commitIn("feat/int-fe2", "frontend/y")
 	commitIn("feat/int-wrong", "backend/z")
@@ -120,7 +120,7 @@ func TestComponentExpansion(t *testing.T) {
 }
 
 func TestWorktreeForm(t *testing.T) {
-	main, _, g, commitIn := repo(t)
+	main, g, commitIn := repo(t)
 	wtRen := commitIn("feat/int-orig", "backend/b")
 	g(wtRen, "branch", "-m", "harness/renamed")
 	wtDet := commitIn("feat/int-det", "backend/c")

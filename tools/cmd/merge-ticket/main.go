@@ -1,10 +1,10 @@
 // Command merge-ticket runs the mechanical steps of docs/agents/orchestration.md "Merge and clean up" for one child branch.
 // Run it from the feature-branch checkout.
 //
-//	merge-ticket merge   <branch> --scope <dir>...      clean-worktree check, scope check (step 6), then merge --no-ff (step 7.1)
-//	merge-ticket merge   --worktree <path> --component <name>...   the same, with the branch read from the worktree's live HEAD and the scope from the component map
-//	merge-ticket cleanup <branch> [--issue <file>]      worktree remove, safe branch delete (steps 7.2-7.3), mark the issue done
-//	merge-ticket cleanup --worktree <path> [--issue <file>]
+//	merge-ticket merge   (<branch> | --worktree <path>) (--scope <dir>... | --component <name>...)
+//	                     clean-worktree check, scope check (step 6), then merge --no-ff (step 7.1)
+//	merge-ticket cleanup (<branch> | --worktree <path>) [--issue <file>]
+//	                     worktree remove, safe branch delete (steps 7.2-7.3), mark the issue done
 //
 // --scope and --component take several values (or repeat); give <branch> before them. A detached HEAD in the worktree is refused.
 //
@@ -179,6 +179,9 @@ func merge(o opts) error {
 }
 
 func cleanup(o opts) error {
+	if len(o.scopes)+len(o.components) > 0 {
+		return errors.New("--scope and --component belong to merge")
+	}
 	if wt := worktreeOf(o.branch); wt != "" {
 		if out, err := git("worktree", "remove", wt); err != nil { // never --force: leftover state goes to the maintainer
 			return fmt.Errorf("worktree remove refused, report to the maintainer instead of forcing: %s", out)
