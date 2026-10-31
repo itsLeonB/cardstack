@@ -22,6 +22,10 @@ A specific printed card design within exactly one Expansion Set — number and r
 The vector that an image-embedding model makes from a Card's hosted image, stored with the name of the model that produced it and a source naming which image was embedded, so a Card can hold several (one per model and source). Card scanning matches a photo to a Card by comparing the photo's vector with Card Embeddings of the same model; a Card with no hosted image has none and cannot be matched.
 _Avoid_: calling it a Card attribute or a Card Variant — it describes the picture, not the print, and changing the model replaces every row.
 
+**User-supplied Embedding**:
+A Card Embedding made from a user's photo instead of the catalog image: the photo of a Correction that an Admin approved, embedded as an extra image of the Card the user chose, so the next photo of the same print scores higher. Only an Admin's approval makes one, and it belongs to the one print the user chose, not to its Reprints.
+_Avoid_: calling the photo a catalog image — it is only ever embedded, never shown as the Card's picture.
+
 **Card Category**:
 The primary, mutually-exclusive structural classification every Card has within its Game — Pokémon TCG's are `Pokémon`/`Trainer`/`Energy`; another Game defines its own vocabulary (e.g. a hypothetical Creature/Land/Spell split). Exactly one Category per Card. Generalizes across Games as a concept even though the vocabulary of values is Game-specific — distinct from Card Tag, which is non-exclusive and secondary.
 
@@ -97,7 +101,7 @@ What the matcher returned for one photographed card (a Scan, or one cell of a Pa
 _Avoid_: using it for the choice itself — the Scan or cell holds what the user chose, the Detection holds what the matcher said.
 
 **Correction**:
-A confirmed Scan or cell whose final choice differs from its Detection: the user chose a Card other than the matcher's top one, marked it Empty (no card is there) or Unidentified (a card is there but no candidate fits), or placed a Card where the Detection was Empty or offered none. Only confirming makes a Correction: a choice changed and changed back, or one in a review that was never confirmed, is none. A confirmed Scan or cell without a Correction is a confirmation. Corrections are kept so the operator can see which Cards the matcher is least sure of and which photos it handles badly.
+A confirmed Scan or cell whose final choice differs from its Detection: the user chose a Card other than the matcher's top one, marked it Empty (no card is there) or Unidentified (a card is there but no candidate fits), or placed a Card where the Detection was Empty or offered none. Only confirming makes a Correction: a choice changed and changed back, or one in a review that was never confirmed, is none. A confirmed Scan or cell without a Correction is a confirmation. Corrections are kept so the operator can see which Cards the matcher is least sure of and which photos it handles badly, and an Admin can approve the photo of one that chose a Card as a User-supplied Embedding.
 
 **Reprint**:
 A Card that shares its name and its art with another Card in a different Expansion Set. The matcher cannot tell Reprints apart by the picture, so it also offers a Card's other Reprints: the printed set is the part the user has to choose.
