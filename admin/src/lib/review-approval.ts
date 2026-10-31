@@ -84,8 +84,13 @@ function refusal(response: {
 }): ApprovalRefused {
   if (response.status === 404) return new ApprovalRefused(GONE, true)
   if (response.status === 409) return new ApprovalRefused(DECIDED, true)
+  // A 500 can carry the raw error of the embedder or the bucket, so only the
+  // API's own reasons (every other status) are shown.
   const { detail } = response.data
-  const reason = detail ? `: ${detail}` : ` (status ${response.status})`
+  const reason =
+    detail && response.status !== 500
+      ? `: ${detail}`
+      : ` (status ${response.status})`
   return new ApprovalRefused(
     `Could not approve the photo${reason}. Try again.`,
     false

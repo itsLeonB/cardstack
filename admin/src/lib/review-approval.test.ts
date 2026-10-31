@@ -231,7 +231,6 @@ describe("approving a Correction's photo", () => {
 
   it.each([
     [422, "the uploaded photo is not a JPEG"],
-    [500, "the embedding service failed"],
     [503, "photo storage is not configured"],
   ])(
     "keeps the photo in the queue and shows the reason when approval answers %i",
@@ -245,4 +244,17 @@ describe("approving a Correction's photo", () => {
       })
     }
   )
+
+  it("does not show a server error's text, which can carry a raw embedder or bucket error", async () => {
+    api.approveReview.mockResolvedValue({
+      status: 500,
+      data: { detail: "dial tcp 10.0.0.4:8080: connection refused" },
+    })
+    stubBucket("scan-bytes")
+
+    await expect(approveCorrection(scan)).rejects.toMatchObject({
+      message: "Could not approve the photo (status 500). Try again.",
+      refresh: false,
+    })
+  })
 })
