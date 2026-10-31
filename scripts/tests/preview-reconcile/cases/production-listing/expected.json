@@ -1,0 +1,21 @@
+{
+  "sets": {
+    "APP_CLIENT_URLS": "https://cardstack-pr-42.vercel.app",
+    "APP_ENV": "preview",
+    "CLERK_ISSUER": "https://dev.clerk.test",
+    "CLERK_SECRET_KEY": "sk_test_dev",
+    "DB_HOST": "pr-host.neon.test",
+    "DB_NAME": "pr_db",
+    "DB_PASSWORD": "pr-secret",
+    "DB_USER": "pr_role"
+  },
+  "removals": [
+    "ADMIN_CLIENT_URLS",
+    "ADMIN_EMAILS",
+    "APP_EDGE_SECRET",
+    "GEMINI_API_KEY",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "SCAN_PHOTO_R2_BUCKET"
+  ]
+}
