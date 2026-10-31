@@ -26,6 +26,65 @@ func (_m *MockUserRepository) EXPECT() *MockUserRepository_Expecter {
 	return &MockUserRepository_Expecter{mock: &_m.Mock}
 }
 
+// AdoptByEmail provides a mock function with given fields: ctx, provider, subject, email
+func (_m *MockUserRepository) AdoptByEmail(ctx context.Context, provider string, subject string, email string) (entity.User, error) {
+	ret := _m.Called(ctx, provider, subject, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AdoptByEmail")
+	}
+
+	var r0 entity.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (entity.User, error)); ok {
+		return rf(ctx, provider, subject, email)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) entity.User); ok {
+		r0 = rf(ctx, provider, subject, email)
+	} else {
+		r0 = ret.Get(0).(entity.User)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, provider, subject, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockUserRepository_AdoptByEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AdoptByEmail'
+type MockUserRepository_AdoptByEmail_Call struct {
+	*mock.Call
+}
+
+// AdoptByEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - provider string
+//   - subject string
+//   - email string
+func (_e *MockUserRepository_Expecter) AdoptByEmail(ctx interface{}, provider interface{}, subject interface{}, email interface{}) *MockUserRepository_AdoptByEmail_Call {
+	return &MockUserRepository_AdoptByEmail_Call{Call: _e.mock.On("AdoptByEmail", ctx, provider, subject, email)}
+}
+
+func (_c *MockUserRepository_AdoptByEmail_Call) Run(run func(ctx context.Context, provider string, subject string, email string)) *MockUserRepository_AdoptByEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_AdoptByEmail_Call) Return(_a0 entity.User, _a1 error) *MockUserRepository_AdoptByEmail_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockUserRepository_AdoptByEmail_Call) RunAndReturn(run func(context.Context, string, string, string) (entity.User, error)) *MockUserRepository_AdoptByEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function with given fields: ctx, model
 func (_m *MockUserRepository) Delete(ctx context.Context, model entity.User) error {
 	ret := _m.Called(ctx, model)

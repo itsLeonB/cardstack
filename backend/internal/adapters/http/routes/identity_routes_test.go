@@ -260,3 +260,97 @@ func TestGetProfileIsSignedInOnly(t *testing.T) {
 	api := newTestAPI(t)
 	assert.Equal(t, unauthorizedOK, api.Get(profilePath).Code, "a Guest on the profile route")
 }
+
+// seedCopiedUser stands for a User copied from production into a preview's
+// database: it has an email, a profile and a Collection, and an Auth Identity
+// no development Clerk account has. Its email is stored in a different case
+// than the token will carry.
+func (a testAPI) seedCopiedUser(t *testing.T, email string) (entity.User, entity.UserProfile, entity.Collection) {
+	t.Helper()
+	user := entity.User{AuthProvider: dto.AuthProviderClerk, AuthSubject: "user_prod_" + uuid.NewString(), Email: email}
+	require.NoError(t, a.db.Create(&user).Error)
+	id := uuid.New()
+	profile := entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}, UserID: user.ID, Name: "Copied", Slug: "copied-" + id.String()[31:]}
+	require.NoError(t, a.db.Create(&profile).Error)
+	collection := entity.Collection{ProfileID: profile.ID, Title: "Copied binder"}
+	require.NoError(t, a.db.Create(&collection).Error)
+	return user, profile, collection
+}
+
+func (a testAPI) usersWithEmail(t *testing.T, email string) []entity.User {
+	t.Helper()
+	var users []entity.User
+	require.NoError(t, a.db.Where("lower(email) = lower(?)", email).Find(&users).Error)
+	return users
+}
+
+func TestPreviewSignInAdoptsTheCopiedUser(t *testing.T) {
+	api := newTestAPIInPreview(t)
+	email := uuid.NewString() + "@example.com"
+	copied, profile, collection := api.seedCopiedUser(t, strings.ToUpper(email))
+	claims := with(validClaims(), "email", email)
+	subject, _ := claims["sub"].(string)
+	token := api.sign(t, claims)
+
+	// A double page load after sign-in: the first requests race.
+	const callers = 12
+	codes := make([]int, callers)
+	var wg sync.WaitGroup
+	for i := range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			codes[i] = api.Get(privatePath, bearer(token)).Code
+		}()
+	}
+	wg.Wait()
+	for i, code := range codes {
+		assert.Equal(t, http.StatusOK, code, "request %d", i)
+	}
+
+	users := api.usersWithEmail(t, email)
+	require.Len(t, users, 1, "no duplicate User")
+	assert.Equal(t, copied.ID, users[0].ID)
+	assert.Equal(t, subject, users[0].AuthSubject, "the User now has the caller's Auth Identity")
+	assert.Len(t, api.profilesOf(t, users[0]), 1)
+
+	resp := api.Get(privatePath, bearer(token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Contains(t, resp.Body.String(), collection.ID.String(), "the copied Collection is still the caller's")
+	resp = api.Get(profilePath, bearer(token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Contains(t, resp.Body.String(), profile.Slug)
+}
+
+func TestPreviewSignInCreatesAUserWhenNoOneOrSeveralMatch(t *testing.T) {
+	api := newTestAPIInPreview(t)
+
+	none := api.newUserToken(t)
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(none)).Code)
+
+	email := uuid.NewString() + "@example.com"
+	api.seedCopiedUser(t, email)
+	api.seedCopiedUser(t, strings.ToUpper(email))
+	claims := with(validClaims(), "email", email)
+	subject, _ := claims["sub"].(string)
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+
+	users := api.usersWithEmail(t, email)
+	assert.Len(t, users, 3, "the two copies are untouched and the caller is a third User")
+	assert.Len(t, api.usersWithSubject(t, subject), 1)
+}
+
+func TestSignInOutsideAPreviewNeverAdopts(t *testing.T) {
+	api := newTestAPI(t)
+	email := uuid.NewString() + "@example.com"
+	copied, _, _ := api.seedCopiedUser(t, email)
+	claims := with(validClaims(), "email", email)
+	subject, _ := claims["sub"].(string)
+
+	require.Equal(t, http.StatusOK, api.Get(privatePath, bearer(api.sign(t, claims))).Code)
+
+	users := api.usersWithSubject(t, subject)
+	require.Len(t, users, 1)
+	assert.NotEqual(t, copied.ID, users[0].ID, "an unknown Auth Identity is a new User")
+	assert.Len(t, api.usersWithEmail(t, email), 2)
+}

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,4 +98,54 @@ func TestUserRepository_LockIdentity(t *testing.T) {
 	close(release)
 	require.NoError(t, <-holderDone)
 	require.NoError(t, <-waiterDone)
+}
+
+func TestUserRepository_AdoptByEmail(t *testing.T) {
+	db := testDB(t)
+	repo := NewUserRepository(crud.NewRepository[entity.User](db))
+	ctx := context.Background()
+
+	t.Run("rewrites the one user with the email, ignoring case, and keeps its profile", func(t *testing.T) {
+		profile := newTestProfile(t, db, "Copied")
+		var copied entity.User
+		require.NoError(t, db.First(&copied, "id = ?", profile.UserID).Error)
+		subject := uuid.NewString()
+
+		adopted, err := repo.AdoptByEmail(ctx, "dev", subject, strings.ToUpper(copied.Email))
+
+		require.NoError(t, err)
+		assert.Equal(t, copied.ID, adopted.ID)
+		assert.Equal(t, "dev", adopted.AuthProvider)
+		assert.Equal(t, subject, adopted.AuthSubject)
+		var stored entity.User
+		require.NoError(t, db.First(&stored, "auth_provider = ? AND auth_subject = ?", "dev", subject).Error)
+		assert.Equal(t, copied.ID, stored.ID)
+		var profiles int64
+		require.NoError(t, db.Model(&entity.UserProfile{}).Where("user_id = ?", copied.ID).Count(&profiles).Error)
+		assert.EqualValues(t, 1, profiles, "the profile stays attached to the same user")
+	})
+
+	t.Run("adopts nothing when no user has the email", func(t *testing.T) {
+		adopted, err := repo.AdoptByEmail(ctx, "dev", uuid.NewString(), uniqueEmail(t))
+
+		require.NoError(t, err)
+		assert.True(t, adopted.IsZero())
+	})
+
+	t.Run("adopts nothing when several users have the email", func(t *testing.T) {
+		email := uniqueEmail(t)
+		for _, e := range []string{email, strings.ToUpper(email)} {
+			_, err := repo.Insert(ctx, entity.User{AuthProvider: "test", AuthSubject: uuid.NewString(), Email: e})
+			require.NoError(t, err)
+		}
+		subject := uuid.NewString()
+
+		adopted, err := repo.AdoptByEmail(ctx, "dev", subject, email)
+
+		require.NoError(t, err)
+		assert.True(t, adopted.IsZero())
+		var rewritten int64
+		require.NoError(t, db.Model(&entity.User{}).Where("auth_subject = ?", subject).Count(&rewritten).Error)
+		assert.Zero(t, rewritten)
+	})
 }

@@ -19,11 +19,23 @@ type UserService interface {
 	// ResolveCaller returns the identity's user and profile, creating both in
 	// one transaction on first use. The profile name comes from the identity's
 	// name, falling back to the local part of its email, and is never changed
-	// afterwards; the stored email is updated only when it differs.
+	// afterwards; the stored email is updated only when it differs. With
+	// AdoptByEmail on, an unknown identity takes over the one existing user
+	// with its email instead of creating a user.
 	ResolveCaller(ctx context.Context, identity dto.AuthIdentity) (dto.CallerIdentity, error)
 	// Profile returns a profile's name and Slug, for the caller's own profile.
 	Profile(ctx context.Context, lookup dto.ProfileLookup) (dto.ProfileSummary, error)
 }
+
+// AdoptByEmail is on only in a preview, whose database is a copy of
+// production's: there the maintainer's development Clerk account has a new
+// subject, and it takes over the copied user with the same email so the copy's
+// Collections stay theirs. The email claim is trusted as verified because the
+// development Clerk instance requires a verified email at sign-up
+// (docs/agents/deployment/clerk.md). Only the new identity is cached after an
+// adoption; the old subject belongs to production's Clerk instance, whose
+// tokens a preview rejects, so it was never cached.
+type AdoptByEmail bool
 
 // IdentityCache lets most requests skip the database. A hit must be for the
 // same email the identity carries now, so a changed email claim misses and
@@ -38,10 +50,11 @@ type userService struct {
 	users    repository.UserRepository
 	profiles crud.Repository[entity.UserProfile]
 	cache    IdentityCache
+	adopt    AdoptByEmail
 }
 
-func NewUserService(tx crud.Transactor, users repository.UserRepository, profiles crud.Repository[entity.UserProfile], cache IdentityCache) UserService {
-	return &userService{tx: tx, users: users, profiles: profiles, cache: cache}
+func NewUserService(tx crud.Transactor, users repository.UserRepository, profiles crud.Repository[entity.UserProfile], cache IdentityCache, adopt AdoptByEmail) UserService {
+	return &userService{tx: tx, users: users, profiles: profiles, cache: cache, adopt: adopt}
 }
 
 func (s *userService) ResolveCaller(ctx context.Context, identity dto.AuthIdentity) (dto.CallerIdentity, error) {
@@ -108,6 +121,13 @@ func (s *userService) provision(ctx context.Context, identity dto.AuthIdentity) 
 	})
 	if err != nil {
 		return dto.CallerIdentity{}, err
+	}
+
+	if user.IsZero() && bool(s.adopt) && identity.Email != "" {
+		user, err = s.users.AdoptByEmail(ctx, identity.Provider, identity.Subject, identity.Email)
+		if err != nil {
+			return dto.CallerIdentity{}, err
+		}
 	}
 
 	switch {

@@ -4,13 +4,13 @@
 
 **Blocked by:** 05 (the first pull request is verified live before this begins).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] With `APP_ENV` not `preview`, an unknown Auth Identity creates a new User exactly as today, even when a User with the same email exists.
-- [ ] With `APP_ENV=preview` and exactly one User whose email matches (case-insensitively), resolving an unknown Auth Identity rewrites that User's auth provider and subject to the caller's and returns that User's profile; its Collections and Inventory Entries are still attached.
-- [ ] With `APP_ENV=preview` and no matching User, a new User is created.
-- [ ] With `APP_ENV=preview` and several matching Users, a new User is created and none is adopted.
-- [ ] Two concurrent first requests for the same identity adopt once and never create a duplicate User or fail, using the existing per-identity advisory lock.
-- [ ] After adoption, a later request with the same identity resolves directly, and the identity cache cannot resolve the old subject to the wrong User.
-- [ ] The behaviour is covered against real Postgres in the style of the existing resolve-caller tests (seam 2).
-- [ ] The Clerk deployment guide documents adoption, that it is preview-only, and that it depends on the development instance requiring a verified email.
+- [x] With `APP_ENV` not `preview`, an unknown Auth Identity creates a new User exactly as today, even when a User with the same email exists.
+- [x] With `APP_ENV=preview` and exactly one User whose email matches (case-insensitively), resolving an unknown Auth Identity rewrites that User's auth provider and subject to the caller's and returns that User's profile; its Collections and Inventory Entries are still attached.
+- [x] With `APP_ENV=preview` and no matching User, a new User is created.
+- [x] With `APP_ENV=preview` and several matching Users, a new User is created and none is adopted.
+- [x] Two concurrent first requests for the same identity adopt once and never create a duplicate User or fail, using the existing per-identity advisory lock.
+- [x] After adoption, a later request with the same identity resolves directly, and the identity cache cannot resolve the old subject to the wrong User.
+- [x] The behaviour is covered against real Postgres in the style of the existing resolve-caller tests (seam 2).
+- [x] The Clerk deployment guide documents adoption, that it is preview-only, and that it depends on the development instance requiring a verified email.
