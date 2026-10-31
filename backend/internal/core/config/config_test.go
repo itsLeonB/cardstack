@@ -245,3 +245,40 @@ func TestConfig_ValidateScanPhotoR2_OnlyWhenConfigured(t *testing.T) {
 	samePublic.Bucket = public.Bucket
 	assert.Error(t, Config{R2: public, ScanPhotoR2: samePublic}.ValidateScanPhotoR2(), "the photo bucket must not be the public image bucket")
 }
+
+func TestLoad_BootGuardRefusesUnprovisionedPreviewEnvironments(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		railwayEnv  string
+		appEnv      string
+		wantErrPart string
+	}{
+		{name: "production loads with a release env", railwayEnv: "production", appEnv: "release"},
+		{name: "production loads even as preview", railwayEnv: "production", appEnv: "preview"},
+		{name: "production loads with APP_ENV unset", railwayEnv: "production"},
+		{name: "provisioned PR environment loads", railwayEnv: "pr-12", appEnv: "preview"},
+		{name: "local development has no Railway environment", appEnv: "debug"},
+		{name: "CI has no Railway environment and APP_ENV unset"},
+		{name: "unprovisioned PR environment inherits production APP_ENV", railwayEnv: "pr-12", appEnv: "release", wantErrPart: `RAILWAY_ENVIRONMENT_NAME is "pr-12" and APP_ENV is "release"`},
+		{name: "PR environment with APP_ENV unset", railwayEnv: "pr-12", wantErrPart: `RAILWAY_ENVIRONMENT_NAME is "pr-12" and APP_ENV is ""`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for key, value := range map[string]string{"DB_HOST": "h", "DB_PORT": "5432", "DB_USER": "u", "DB_PASSWORD": "p"} {
+				t.Setenv(key, value)
+			}
+			t.Setenv("RAILWAY_ENVIRONMENT_NAME", tc.railwayEnv)
+			t.Setenv("APP_ENV", tc.appEnv)
+			t.Cleanup(func() { Global = nil })
+
+			err := Load()
+
+			if tc.wantErrPart == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErrPart)
+			assert.Contains(t, err.Error(), "APP_ENV=preview")
+		})
+	}
+}
