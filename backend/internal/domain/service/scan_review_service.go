@@ -242,6 +242,10 @@ func (s *scanReviewService) embedUpload(ctx context.Context, key string) ([]floa
 	if err != nil {
 		return nil, err
 	}
+	// The object may have been replaced since its size was read.
+	if len(data) > MaxFeedbackPhotoBytes {
+		return nil, ungerr.UnprocessableEntityError(reviewTooLargeMsg)
+	}
 	if !bytes.HasPrefix(data, jpegSignature) {
 		return nil, ungerr.UnprocessableEntityError(reviewNotJPEGMsg)
 	}

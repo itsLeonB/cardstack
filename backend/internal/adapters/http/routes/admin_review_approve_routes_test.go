@@ -176,6 +176,18 @@ func TestAdminReviews_ApproveRefusesAKeyOutsideTheItemOrANonJPEGOrAnOversizedObj
 		assert.Nil(t, storedReview(t, api, row.ID).ReviewStatus)
 	})
 
+	t.Run("an object that grows past the cap after its size was read", func(t *testing.T) {
+		row := insertFeedback(t, api, correctionFor(t, profile, card, "switched", time.Now()))
+		grown := append([]byte{0xff, 0xd8, 0xff}, make([]byte, service.MaxFeedbackPhotoBytes)...)
+		api.photos.EXPECT().Size(mock.Anything, reviewedKey(row.ID)).Return(int64(len(testJPEG)), nil).Once()
+		api.photos.EXPECT().Get(mock.Anything, reviewedKey(row.ID)).Return(grown, nil).Once()
+
+		resp := api.approve(t, token, row.ID, reviewedKey(row.ID))
+		assert.Equal(t, http.StatusUnprocessableEntity, resp.Code, resp.Body.String())
+		assert.Nil(t, storedReview(t, api, row.ID).ReviewStatus)
+		assert.Empty(t, embeddingsOf(t, api, row.ID))
+	})
+
 	t.Run("an object that is not a JPEG", func(t *testing.T) {
 		row := insertFeedback(t, api, correctionFor(t, profile, card, "switched", time.Now()))
 		png := []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a}
