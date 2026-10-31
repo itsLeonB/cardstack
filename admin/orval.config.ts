@@ -16,6 +16,9 @@ const operations = {
   "update-expansion-set": {},
   "list-catalog-rarities": {},
   "list-catalog-series": {},
+  "list-review-queue": {},
+  "get-review-photo": {},
+  "reject-review": {},
 }
 
 interface OpParam {

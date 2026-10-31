@@ -95,6 +95,21 @@ func TestR2Store_PresignPut_SignsKeyContentTypeAndExpiry(t *testing.T) {
 	assert.WithinDuration(t, time.Now().Add(5*time.Minute), expiresAt, 5*time.Second)
 }
 
+func TestR2Store_PresignGet_SignsKeyAndExpiryWithoutContentType(t *testing.T) {
+	store := NewR2Store(r2TestConfig("https://acct.r2.test"))
+
+	rawURL, expiresAt, err := store.PresignGet(context.Background(), "reviewed/abc.jpg", 5*time.Minute)
+
+	require.NoError(t, err)
+	u, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	assert.Equal(t, "acct.r2.test", u.Host)
+	assert.Equal(t, "/images/reviewed/abc.jpg", u.Path)
+	assert.Equal(t, "300", u.Query().Get("X-Amz-Expires"))
+	assert.NotEmpty(t, u.Query().Get("X-Amz-Signature"))
+	assert.WithinDuration(t, time.Now().Add(5*time.Minute), expiresAt, 5*time.Second)
+}
+
 func TestR2Store_ReadHead_RequestsOnlyTheFirstBytes(t *testing.T) {
 	var gotRange string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	crud "github.com/itsLeonB/go-crud"
 	"gorm.io/datatypes"
@@ -9,7 +11,8 @@ import (
 // ScanFeedback is one confirmed Scan or Page Review cell: what the matcher said
 // (Detection) and what the user chose (CardID, with its rank). Kind is the
 // Correction kind, or confirmed (docs/adr/0022). Its Page, slot and grid fields
-// are set only for a binder_page row.
+// are set only for a binder_page row. The review fields are set by an Admin's
+// decision on a Correction's photo (docs/adr/0027); NULL ReviewStatus is pending.
 type ScanFeedback struct {
 	crud.BaseEntity
 	ProfileID      uuid.UUID `gorm:"type:uuid;not null"`
@@ -18,6 +21,7 @@ type ScanFeedback struct {
 	Kind           string    `gorm:"not null"`
 	Detection      datatypes.JSON
 	CardID         *uuid.UUID `gorm:"type:uuid"`
+	Card           *Card      `gorm:"foreignKey:CardID"`
 	CardRank       *int       `gorm:"column:card_rank"`
 	CardRankSource *string    `gorm:"column:card_rank_source"`
 	ImageKey       *string
@@ -27,6 +31,9 @@ type ScanFeedback struct {
 	GridRows       *int
 	GridColumns    *int
 	Corners        datatypes.JSON
+	ReviewStatus   *string    `gorm:"column:review_status"`
+	ReviewedBy     *uuid.UUID `gorm:"type:uuid;column:reviewed_by"`
+	ReviewedAt     *time.Time `gorm:"column:reviewed_at"`
 }
 
 func (ScanFeedback) TableName() string { return "scan_feedback" }

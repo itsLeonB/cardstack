@@ -75,6 +75,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 		endpoint.RegisterAll(api, handler.NewAdminHandler().Routes(), guestsAllowed, perUser, adminOnly)
 		endpoint.RegisterAll(api, handler.NewAdminSetHandler(services.AdminSets).Routes(), guestsAllowed, perUser, adminOnly)
 		endpoint.RegisterAll(api, handler.NewAdminCardsHandler(services.CardAdmin).Routes(), guestsAllowed, perUser, adminOnly)
+		endpoint.RegisterAll(api, handler.NewAdminReviewHandler(services.ScanReview).Routes(), guestsAllowed, perUser, adminOnly)
 	}
 
 	return nil
