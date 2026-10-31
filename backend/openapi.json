@@ -72,6 +72,21 @@
         ],
         "type": "object"
       },
+      "ApproveReviewInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "description": "The key the cut was uploaded to: the key the upload address returned.",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
       "BinderGridBody": {
         "additionalProperties": false,
         "properties": {
@@ -1255,6 +1270,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeReviewUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReviewUpload"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeScanPhotoUploads": {
         "additionalProperties": false,
         "properties": {
@@ -2031,6 +2058,29 @@
         "required": [
           "cardId",
           "score"
+        ],
+        "type": "object"
+      },
+      "ReviewUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "key": {
+            "description": "The object the PUT writes. Approve names this key.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Accepts one PUT of a JPEG, sent with Content-Type image/jpeg, until expiresAt.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "url",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -2899,6 +2949,57 @@
         ]
       }
     },
+    "/admin/reviews/{id}/approve": {
+      "post": {
+        "operationId": "approve-review",
+        "parameters": [
+          {
+            "description": "Correction ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Correction ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveReviewInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 409 when already reviewed or when the chosen Card is gone; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/reviews/{id}/photo": {
       "get": {
         "operationId": "get-review-photo",
@@ -2983,6 +3084,54 @@
           }
         ],
         "summary": "Reject a queued Correction's photo: it leaves the queue for good and embeds nothing. 409 when it was already reviewed",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reviews/{id}/upload": {
+      "post": {
+        "operationId": "request-review-upload",
+        "parameters": [
+          {
+            "description": "Correction ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Correction ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeReviewUpload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign a short-lived PUT address for the Admin's cut of a queued Correction's photo, under the one key approve accepts (409 when already reviewed)",
         "tags": [
           "admin"
         ]

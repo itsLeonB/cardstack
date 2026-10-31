@@ -15,6 +15,8 @@ import type {
 } from "@/generated/models"
 import { paintPixels, readPixels } from "@/lib/photo-pixels"
 import type { Pixels } from "@/lib/photo-pixels"
+import { ApprovalRefused } from "@/lib/review-approval"
+import type * as ReviewApproval from "@/lib/review-approval"
 
 // The queue screen with the generated client mocked (the hooks answer from
 // `api`). The cut itself is tested in `lib/binder-cell.test.ts`; here the
@@ -25,6 +27,7 @@ const api = vi.hoisted(() => ({
   usePhoto: vi.fn(),
   photoRefetch: vi.fn(),
   reject: vi.fn(),
+  approve: vi.fn(),
 }))
 // oxlint-disable-next-line anti-slop/no-module-mocking
 vi.mock("@/generated/endpoints/admin/admin", () => ({
@@ -37,6 +40,13 @@ vi.mock("@/generated/endpoints/admin/admin", () => ({
 vi.mock("@/lib/photo-pixels", () => ({
   readPixels: vi.fn(),
   paintPixels: vi.fn(),
+}))
+// Only the approval call is stubbed; the refusal class stays real, since the
+// queue tells a refusal from a network failure by it.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@/lib/review-approval", async (importOriginal) => ({
+  ...(await importOriginal<typeof ReviewApproval>()),
+  approveCorrection: api.approve,
 }))
 
 const pikachu: CardSummary = {
@@ -309,5 +319,86 @@ describe("the review queue", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }))
 
     expect(api.useQueue).toHaveBeenLastCalledWith({ page: 2, limit: 24 })
+  })
+
+  it("approves a photo, then asks for the queue again so the photo leaves it", async () => {
+    api.approve.mockResolvedValue(undefined)
+    const { invalidate } = renderQueue()
+
+    fireEvent.click(
+      within(itemNamed("Switched to another candidate")).getByRole("button", {
+        name: "Approve",
+      })
+    )
+
+    await vi.waitFor(() => expect(api.approve).toHaveBeenCalledWith(scan))
+    await vi.waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ["review-queue"] })
+    )
+  })
+
+  it("keeps the photo in the queue and says why approval was refused", async () => {
+    api.approve.mockRejectedValue(
+      new ApprovalRefused(
+        "Could not approve the photo: the uploaded photo is not a JPEG. Try again.",
+        false
+      )
+    )
+    const { invalidate } = renderQueue()
+
+    fireEvent.click(
+      within(itemNamed("Switched to another candidate")).getByRole("button", {
+        name: "Approve",
+      })
+    )
+
+    const alert = await within(
+      itemNamed("Switched to another candidate")
+    ).findByRole("alert")
+    expect(alert.textContent).toBe(
+      "Could not approve the photo: the uploaded photo is not a JPEG. Try again."
+    )
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+
+  it("shows the conflict and asks for the queue again when another Admin decided the photo", async () => {
+    const conflict =
+      "Cannot approve: another Admin decided this photo, or its chosen Card was deleted."
+    api.approve.mockRejectedValue(new ApprovalRefused(conflict, true))
+    const { invalidate } = renderQueue()
+
+    fireEvent.click(
+      within(itemNamed("Switched to another candidate")).getByRole("button", {
+        name: "Approve",
+      })
+    )
+
+    const alert = await within(
+      itemNamed("Switched to another candidate")
+    ).findByRole("alert")
+    expect(alert.textContent).toBe(conflict)
+    await vi.waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ["review-queue"] })
+    )
+  })
+
+  it("holds both decisions on the photo while an approval is in flight", async () => {
+    api.approve.mockReturnValue(new Promise(() => {}))
+    renderQueue()
+    const item = itemNamed("Switched to another candidate")
+
+    fireEvent.click(within(item).getByRole("button", { name: "Approve" }))
+
+    await within(item).findByText("Approving the photo…")
+    expect(
+      within(item)
+        .getByRole("button", { name: "Approve" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+    expect(
+      within(item)
+        .getByRole("button", { name: "Reject" })
+        .hasAttribute("disabled")
+    ).toBe(true)
   })
 })

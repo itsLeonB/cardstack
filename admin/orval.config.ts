@@ -19,6 +19,8 @@ const operations = {
   "list-review-queue": {},
   "get-review-photo": {},
   "reject-review": {},
+  "request-review-upload": {},
+  "approve-review": {},
 }
 
 interface OpParam {

@@ -40,6 +40,21 @@ export function paintPixels(canvas: HTMLCanvasElement, image: Pixels) {
   context.putImageData(data, 0, 0)
 }
 
+/** Encodes the pixels as the JPEG the review uploads, at the quality the user app's cut uses (`page-cut.ts`). */
+export function encodePixelsJpeg(image: Pixels): Promise<Blob> {
+  const { canvas, context } = canvasOf(image.width, image.height)
+  const data = context.createImageData(image.width, image.height)
+  data.data.set(image.pixels)
+  context.putImageData(data, 0, 0)
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Encoding failed"))),
+      "image/jpeg",
+      0.9
+    )
+  )
+}
+
 function canvasOf(width: number, height: number) {
   const canvas = document.createElement("canvas")
   canvas.width = width

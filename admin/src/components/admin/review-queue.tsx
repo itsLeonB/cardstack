@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ReviewPhoto } from "@/components/admin/review-photo"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +12,7 @@ import type {
   ReviewItemKind,
   ReviewItemSource,
 } from "@/generated/models"
+import { ApprovalRefused, approveCorrection } from "@/lib/review-approval"
 
 // The API's default page size (ADR-0027 leaves paging to the list endpoint).
 const PAGE_SIZE = 24
@@ -23,6 +24,7 @@ const KIND_LABEL = {
 } satisfies Record<ReviewItemKind, string>
 
 const REJECT_FAILED = "Could not reject the photo. Try again."
+const APPROVE_FAILED = "Could not approve the photo. Try again."
 
 const SOURCE_LABEL = {
   card_scan: "Card scan",
@@ -31,7 +33,7 @@ const SOURCE_LABEL = {
 
 /**
  * The Corrections whose photos wait for review, a page at a time, oldest first
- * (the order the API gives). Only Reject lives here: approval comes later.
+ * (the order the API gives). Approve and Reject both decide a photo here.
  */
 export function ReviewQueue() {
   const [page, setPage] = useState(1)
@@ -90,8 +92,8 @@ export function ReviewQueue() {
 
 /**
  * One waiting photo beside the Card the user chose, with the scores the matcher
- * gave. Rejecting it asks the API; the queue is then fetched again, so the photo
- * leaves the list (or the Admin is told why it is not there to reject).
+ * gave. Approving or rejecting it asks the API; the queue is then fetched again,
+ * so the photo leaves the list (or the Admin is told why it is not there to act on).
  */
 function ReviewItemCard({ item }: { item: ReviewItem }) {
   const queryClient = useQueryClient()
@@ -99,10 +101,31 @@ function ReviewItemCard({ item }: { item: ReviewItem }) {
   const [message, setMessage] = useState<string | null>(null)
   const headingId = `review-${item.id}`
 
+  // Approving uploads the image before it approves, so a photo stays in the
+  // queue until the whole approval has gone through.
+  const approve = useMutation({
+    mutationFn: () => approveCorrection(item),
+    onSuccess: () => refreshQueue(),
+    onError: (error) => {
+      if (!(error instanceof ApprovalRefused)) {
+        setMessage(APPROVE_FAILED)
+        return
+      }
+      setMessage(error.message)
+      if (error.refresh) refreshQueue()
+    },
+  })
+  const busy = approve.isPending || reject.isPending
+
   function refreshQueue() {
     void queryClient.invalidateQueries({
       queryKey: getListReviewQueueQueryKey(),
     })
+  }
+
+  function handleApprove() {
+    setMessage(null)
+    approve.mutate()
   }
 
   function handleReject() {
@@ -156,13 +179,23 @@ function ReviewItemCard({ item }: { item: ReviewItem }) {
         </dl>
         <Scores scores={item.scores} />
         <div className="flex flex-col items-start gap-2">
-          <Button
-            variant="destructive"
-            disabled={reject.isPending}
-            onClick={handleReject}
-          >
-            Reject
-          </Button>
+          <div className="flex gap-2">
+            <Button disabled={busy} onClick={handleApprove}>
+              Approve
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy}
+              onClick={handleReject}
+            >
+              Reject
+            </Button>
+          </div>
+          {approve.isPending && (
+            <p role="status" className="text-sm">
+              Approving the photo…
+            </p>
+          )}
           {message && (
             <p role="alert" className="text-sm">
               {message}

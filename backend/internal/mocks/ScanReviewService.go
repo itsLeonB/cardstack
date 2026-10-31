@@ -22,6 +22,53 @@ func (_m *MockScanReviewService) EXPECT() *MockScanReviewService_Expecter {
 	return &MockScanReviewService_Expecter{mock: &_m.Mock}
 }
 
+// Approve provides a mock function with given fields: ctx, req
+func (_m *MockScanReviewService) Approve(ctx context.Context, req dto.ReviewApproveRequest) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Approve")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.ReviewApproveRequest) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockScanReviewService_Approve_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Approve'
+type MockScanReviewService_Approve_Call struct {
+	*mock.Call
+}
+
+// Approve is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.ReviewApproveRequest
+func (_e *MockScanReviewService_Expecter) Approve(ctx interface{}, req interface{}) *MockScanReviewService_Approve_Call {
+	return &MockScanReviewService_Approve_Call{Call: _e.mock.On("Approve", ctx, req)}
+}
+
+func (_c *MockScanReviewService_Approve_Call) Run(run func(ctx context.Context, req dto.ReviewApproveRequest)) *MockScanReviewService_Approve_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.ReviewApproveRequest))
+	})
+	return _c
+}
+
+func (_c *MockScanReviewService_Approve_Call) Return(_a0 error) *MockScanReviewService_Approve_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockScanReviewService_Approve_Call) RunAndReturn(run func(context.Context, dto.ReviewApproveRequest) error) *MockScanReviewService_Approve_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListQueue provides a mock function with given fields: ctx, req
 func (_m *MockScanReviewService) ListQueue(ctx context.Context, req dto.ReviewQueueRequest) ([]dto.ReviewItem, dto.PaginationMeta, error) {
 	ret := _m.Called(ctx, req)
@@ -188,6 +235,63 @@ func (_c *MockScanReviewService_Reject_Call) Return(_a0 error) *MockScanReviewSe
 }
 
 func (_c *MockScanReviewService_Reject_Call) RunAndReturn(run func(context.Context, dto.ReviewRejectRequest) error) *MockScanReviewService_Reject_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UploadURL provides a mock function with given fields: ctx, req
+func (_m *MockScanReviewService) UploadURL(ctx context.Context, req dto.ReviewLookup) (dto.ReviewUpload, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UploadURL")
+	}
+
+	var r0 dto.ReviewUpload
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.ReviewLookup) (dto.ReviewUpload, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.ReviewLookup) dto.ReviewUpload); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.ReviewUpload)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.ReviewLookup) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockScanReviewService_UploadURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadURL'
+type MockScanReviewService_UploadURL_Call struct {
+	*mock.Call
+}
+
+// UploadURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.ReviewLookup
+func (_e *MockScanReviewService_Expecter) UploadURL(ctx interface{}, req interface{}) *MockScanReviewService_UploadURL_Call {
+	return &MockScanReviewService_UploadURL_Call{Call: _e.mock.On("UploadURL", ctx, req)}
+}
+
+func (_c *MockScanReviewService_UploadURL_Call) Run(run func(ctx context.Context, req dto.ReviewLookup)) *MockScanReviewService_UploadURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.ReviewLookup))
+	})
+	return _c
+}
+
+func (_c *MockScanReviewService_UploadURL_Call) Return(_a0 dto.ReviewUpload, _a1 error) *MockScanReviewService_UploadURL_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockScanReviewService_UploadURL_Call) RunAndReturn(run func(context.Context, dto.ReviewLookup) (dto.ReviewUpload, error)) *MockScanReviewService_UploadURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
