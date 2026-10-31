@@ -1,0 +1,70 @@
+# Every variable the API can have in a pull request preview, by strategy.
+# scripts/preview-reconcile.py reads it: a variable in a PR environment that is
+# listed nowhere here fails the run, so a new production secret cannot reach a
+# preview unclassified. Classify new API settings here (backend/.env.example).
+# Variables Railway provides itself (RAILWAY_*) are not part of this contract.
+
+# Kept at the production value.
+inherit:
+  - APP_PORT
+  - APP_TIMEOUT
+  - DB_CONN_MAX_LIFETIME
+  - DB_MAX_IDLE_CONNS
+  - DB_MAX_OPEN_CONNS
+  - EMBEDDING_MODEL
+  - IMAGE_BASE_URL
+  - MATCH_EMPTY_THRESHOLD
+  - MATCH_MARGIN
+  - MATCH_REPRINT_DELTA
+  - MATCH_THRESHOLD
+  - OTEL_ENABLED
+  - OTEL_SERVICE_NAME
+  - RATE_LIMIT_FACETS_BURST
+  - RATE_LIMIT_FACETS_PER_MINUTE
+  - RATE_LIMIT_SEARCH_BURST
+  - RATE_LIMIT_SEARCH_PER_MINUTE
+  - RATE_LIMIT_SHARED_BURST
+  - RATE_LIMIT_SHARED_PER_MINUTE
+  - RATE_LIMIT_USER_BURST
+  - RATE_LIMIT_USER_PER_MINUTE
+
+# Set to a preview value: a fixed value, or the value of the environment
+# variable named by source in the process that runs the script.
+override:
+  APP_ENV:
+    value: preview
+  CLERK_ISSUER:
+    source: CLERK_DEV_ISSUER
+  CLERK_SECRET_KEY:
+    source: CLERK_DEV_SECRET_KEY
+  DB_HOST:
+    source: NEON_HOST
+  DB_NAME:
+    source: NEON_DATABASE_NAME
+  DB_PASSWORD:
+    source: NEON_PASSWORD
+  DB_PORT:
+    value: "5432"
+  DB_USER:
+    source: NEON_ROLE_NAME
+
+# Computed from the pull request; {pr} is its number.
+derive:
+  APP_CLIENT_URLS: https://cardstack-pr-{pr}.vercel.app
+
+# Must not exist in a preview: production-only secrets and the Admin surface.
+remove:
+  - ADMIN_CLIENT_URLS
+  - ADMIN_EMAILS
+  - APP_EDGE_SECRET
+  - GEMINI_API_KEY
+  - R2_ACCESS_KEY_ID
+  - R2_ACCOUNT_ID
+  - R2_BUCKET
+  - R2_ENDPOINT
+  - R2_SECRET_ACCESS_KEY
+  - SCAN_PHOTO_R2_ACCESS_KEY_ID
+  - SCAN_PHOTO_R2_ACCOUNT_ID
+  - SCAN_PHOTO_R2_BUCKET
+  - SCAN_PHOTO_R2_ENDPOINT
+  - SCAN_PHOTO_R2_SECRET_ACCESS_KEY

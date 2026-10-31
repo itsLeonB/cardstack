@@ -1,0 +1,23 @@
+name: Preview variables CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/infra/.railway/preview-vars.yml"
+      - "scripts/preview-reconcile.py"
+      - "scripts/tests/preview-reconcile/**"
+      - ".github/workflows/preview-vars-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    name: Reconcile script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: scripts/tests/preview-reconcile/run.sh

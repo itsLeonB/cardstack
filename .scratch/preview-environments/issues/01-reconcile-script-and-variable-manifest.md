@@ -12,3 +12,15 @@
 - [ ] A remove-strategy variable that is already absent produces no removal; running the script twice on its own result produces nothing to do.
 - [ ] A fixture-driven check covers the cases above and runs in the repository's existing checks with no new test framework (this sets the shell-test pattern).
 - [ ] Whether the pinned Railway CLI's variable delete can skip deployments is confirmed against the pinned version, and the outcome is recorded in this ticket's comments: either the script emits CLI deletes with the no-redeploy flag, or removals are emitted for Railway's API in the same batch as the sets. Setting a removed variable to empty is not used unless the API is confirmed to treat empty as unset.
+
+## Comments
+
+### Railway CLI removal outcome (pinned `@railway/cli@5.49.3`)
+
+Checked against the pinned binary's `--help` and embedded GraphQL:
+
+- `railway variable set` has `--skip-deploys`. `railway variable delete` has no such flag (options: service, environment, project, json), and its `VariableDelete` mutation takes only project, environment, name and service, so a CLI delete deploys.
+- Not used: setting a removed variable to empty (not confirmed that the API treats empty as unset).
+- Outcome: removals are not emitted as CLI deletes. The script prints `{"sets": {...}, "removals": [...]}`, and ticket 03 must apply both in one batch through Railway's API with `skipDeploys`, or confirm `railway variable edit --yes --skip-deploys --confirm-destructive` (the CLI's bulk edit, which does take `--skip-deploys` and deletes the variables it drops) against a live PR environment. Neither was run live here (no Railway credentials); ticket 05's live run must confirm one deployment per push.
+- `RAILWAY_*` variables Railway provides are ignored by the script (never classified, never removed).
+- The derived value `https://cardstack-pr-{pr}.vercel.app` in the manifest is a placeholder for the alias ticket 03 settles.
