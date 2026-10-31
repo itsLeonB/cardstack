@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (reconcile script and manifest).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The frontend origin for PR `<N>` is computed before Railway deploys, and the Vercel deployment is aliased to it. If aliasing a CLI deployment does not work, Vercel's per-branch address is used instead and the choice is recorded in this ticket's comments.
 - [ ] The API's allowed origins are set to that origin without triggering a deployment, and the API keeps its Railway-provided domain (read before the API deploys, as the workflow already does).

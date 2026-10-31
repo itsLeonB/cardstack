@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Opening a PR creates `preview/pr-<number>` from production when it does not exist; a later push reuses it unchanged and never deletes it.
 - [ ] A reopened PR reuses its branch if it still exists and recreates it only when it is missing.

@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The manifest classifies every variable the API reads, using the four strategies. Image bucket write settings, scan photo bucket settings, the Admin allowlist and origins, the Gemini key and the edge secret are `remove`. Database connection settings, the development Clerk secret key and issuer, and `APP_ENV=preview` are `override`. The allowed frontend origins are `derive`. Ports, timeouts, pool settings, telemetry settings and the image host address are `inherit`. The manifest passes `yamllint`.
 - [ ] Given a variable listing and a PR number, the script prints the sets (overrides and the derived allowed-origins value for that PR number) and the removals (remove-strategy variables that are present).
