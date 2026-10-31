@@ -129,6 +129,71 @@ func (_c *MockObjectStore_Get_Call) RunAndReturn(run func(context.Context, strin
 	return _c
 }
 
+// PresignGet provides a mock function with given fields: ctx, key, ttl
+func (_m *MockObjectStore) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, time.Time, error) {
+	ret := _m.Called(ctx, key, ttl)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PresignGet")
+	}
+
+	var r0 string
+	var r1 time.Time
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) (string, time.Time, error)); ok {
+		return rf(ctx, key, ttl)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) string); ok {
+		r0 = rf(ctx, key, ttl)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, time.Duration) time.Time); ok {
+		r1 = rf(ctx, key, ttl)
+	} else {
+		r1 = ret.Get(1).(time.Time)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, time.Duration) error); ok {
+		r2 = rf(ctx, key, ttl)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockObjectStore_PresignGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PresignGet'
+type MockObjectStore_PresignGet_Call struct {
+	*mock.Call
+}
+
+// PresignGet is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - ttl time.Duration
+func (_e *MockObjectStore_Expecter) PresignGet(ctx interface{}, key interface{}, ttl interface{}) *MockObjectStore_PresignGet_Call {
+	return &MockObjectStore_PresignGet_Call{Call: _e.mock.On("PresignGet", ctx, key, ttl)}
+}
+
+func (_c *MockObjectStore_PresignGet_Call) Run(run func(ctx context.Context, key string, ttl time.Duration)) *MockObjectStore_PresignGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(time.Duration))
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_PresignGet_Call) Return(_a0 string, _a1 time.Time, _a2 error) *MockObjectStore_PresignGet_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockObjectStore_PresignGet_Call) RunAndReturn(run func(context.Context, string, time.Duration) (string, time.Time, error)) *MockObjectStore_PresignGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PresignPut provides a mock function with given fields: ctx, key, contentType, ttl
 func (_m *MockObjectStore) PresignPut(ctx context.Context, key string, contentType string, ttl time.Duration) (string, time.Time, error) {
 	ret := _m.Called(ctx, key, contentType, ttl)
