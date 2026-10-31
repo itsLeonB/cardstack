@@ -69,6 +69,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      # Public; the Clerk development instance's key, which the Railway
+      # issuer and the Vercel build both derive from.
+      CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
     steps:
       # create-branch-action returns an existing branch's details as-is
       # rather than resetting it, which is the persistence this workflow
@@ -92,9 +96,8 @@ jobs:
           database: ${{ secrets.NEON_DATABASE_NAME }}
 
       # The reconcile script and the manifest come from the PR's own checkout,
-      # which only same-repo PRs reach (see the job condition), so the code
-      # that sees the Neon and Clerk secrets is code someone with write access
-      # already controls.
+      # which only same-repo PRs reach (see the job condition). The step that
+      # runs the script holds no secret: see the three Railway steps below.
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -204,27 +207,38 @@ jobs:
             "never got a public domain."
           exit 1
 
-      - name: Configure the Railway PR environment
+      # The next three steps are split by what they hold. The first has the
+      # Railway token and runs no repository code; the second runs the PR's
+      # own scripts/preview-reconcile.py and holds no credential at all; the
+      # third has the Neon password and the Clerk development secret key and
+      # runs no repository code (only jq and curl), so neither secret is ever
+      # exposed to code from the PR checkout.
+      - name: Read the Railway PR environment's variables
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
-          RAILWAY_ENV_ID: ${{ steps.railway-env.outputs.id }}
-          # The sources the manifest's override entries name.
+        run: |
+          # Not piped, so a failed lookup fails the step (the default shell
+          # has no pipefail). Sealed variables list with a null value.
+          railway variable list --service api \
+            --environment "$RAILWAY_ENV" --json > "$RUNNER_TEMP/listing.json"
+          jq -e 'type == "object"' "$RUNNER_TEMP/listing.json" >/dev/null
+          # Every value is a secret or sits next to one, and the next step
+          # reads them. Nothing prints them; the ones long enough to be
+          # secrets are masked first.
+          while IFS= read -r v; do
+            if [[ ${#v} -ge 8 ]]; then echo "::add-mask::$v"; fi
+          done < <(jq -r '.[] | strings' "$RUNNER_TEMP/listing.json")
+
+      - name: Plan the Railway PR environment's variables
+        env:
+          # Connection details, not credentials. The secrets the plan needs
+          # are left out on purpose: the plan names them as placeholders and
+          # the next step fills them in.
           NEON_HOST: ${{ steps.neon.outputs.host }}
-          NEON_PASSWORD: ${{ steps.neon.outputs.password }}
           NEON_ROLE_NAME: ${{ secrets.NEON_ROLE_NAME }}
           NEON_DATABASE_NAME: ${{ secrets.NEON_DATABASE_NAME }}
-          CLERK_DEV_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
-          # The upsert below replaces every variable; never aim it at prod.
-          if [[ -z "$RAILWAY_ENV_ID" || "${RAILWAY_ENV,,}" == production ]]
-          then
-            echo "::error::Refusing to configure Railway environment" \
-              "'$RAILWAY_ENV': not a PR environment."
-            exit 1
-          fi
           # Previews use Clerk's development instance. The API verifies
           # tokens against its issuer, the Frontend API URL, which is the
           # publishable key's base64 payload ("<domain>$").
@@ -237,70 +251,69 @@ jobs:
           fi
           export CLERK_DEV_ISSUER="https://$domain"
 
-          # Every value below is a secret or sits next to one: the listing
-          # holds production's, the plan holds the preview's. Nothing prints
-          # them, and the ones long enough to be secrets are masked first.
-          # The listing is captured on its own line, not piped, so a failed
-          # lookup fails the step (the default shell has no pipefail). Sealed
-          # variables list with a null value.
-          listing=$(railway variable list --service api \
-            --environment "$RAILWAY_ENV" --json)
-          plan=$(python3 -I scripts/preview-reconcile.py \
+          python3 -I scripts/preview-reconcile.py \
             --manifest backend/infra/.railway/preview-vars.yml \
-            --pr "$RAILWAY_PR_NUMBER" <<<"$listing")
+            --pr "$RAILWAY_PR_NUMBER" --frontend-host "$FRONTEND_HOST" \
+            "$RUNNER_TEMP/listing.json" > "$RUNNER_TEMP/plan.json"
 
-          mask_values() {
-            local v
-            while IFS= read -r v; do
-              if [[ ${#v} -ge 8 ]]; then echo "::add-mask::$v"; fi
-            done
-          }
-          # APP_CLIENT_URLS is a derived public origin that later steps pass on.
-          mask_values < <(jq -r '.sets | del(.APP_CLIENT_URLS) | .[]' \
-            <<<"$plan")
-          mask_values < <(jq -rs \
-            '. as [$p, $l] | $p.removals[] | $l[.] | strings' \
-            <(printf '%s' "$plan") <(printf '%s' "$listing"))
+      - name: Apply the plan to the Railway PR environment
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
+          RAILWAY_ENV_ID: ${{ steps.railway-env.outputs.id }}
+          # The sources of the plan's secret placeholders.
+          NEON_PASSWORD: ${{ steps.neon.outputs.password }}
+          CLERK_DEV_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          # The upsert below replaces every variable; never aim it at prod.
+          if [[ -z "$RAILWAY_ENV_ID" || "${RAILWAY_ENV,,}" == production ]]
+          then
+            echo "::error::Refusing to configure Railway environment" \
+              "'$RAILWAY_ENV': not a PR environment."
+            exit 1
+          fi
+          # The plan comes from repository code: it may only ask for these two
+          # secrets, not for any other credential this step holds.
+          if ! jq -e '.secrets | all(.[]; IN("NEON_PASSWORD",
+            "CLERK_DEV_SECRET_KEY"))' "$RUNNER_TEMP/plan.json" >/dev/null
+          then
+            echo "::error::The plan asks for a secret this step does not fill."
+            exit 1
+          fi
+          # Nothing passes a secret on a command line: jq reads it from its
+          # own environment and the result stays in a shell variable.
+          variables=$(jq '. as $p | reduce ($p.secrets | to_entries[]) as $e
+            ($p.variables; .[$e.key] = ((env[$e.value]
+              | select(. != null and . != ""))
+              // error("\($e.value) is not set")))' "$RUNNER_TEMP/plan.json")
 
-          changes=$(jq '(.sets | length) + (.removals | length)' <<<"$plan")
-          if [[ "$changes" == 0 ]]; then
+          # Values that change are secrets or sit next to one; mask the ones
+          # long enough to be secrets. APP_CLIENT_URLS is a derived public
+          # origin that later steps pass on.
+          while IFS= read -r v; do
+            if [[ ${#v} -ge 8 ]]; then echo "::add-mask::$v"; fi
+          done < <(jq -rs '. as [$v, $l] | $v | del(.APP_CLIENT_URLS)
+            | to_entries[] | select(.value != $l[.key]) | .value | strings' \
+            <(printf '%s' "$variables") "$RUNNER_TEMP/listing.json")
+
+          # RAILWAY_* are Railway's own, not user variables: the plan leaves
+          # them out, and so does this comparison.
+          if jq -es '.[0] == (.[1] | with_entries(select(.key
+            | startswith("RAILWAY_") | not)))' \
+            <(printf '%s' "$variables") "$RUNNER_TEMP/listing.json" >/dev/null
+          then
             echo "The Railway PR environment is already configured."
             exit 0
           fi
 
-          # Sets and removals go in one call that skips deployments, so no
-          # deployment ever sees a half-configured set. `railway variable
+          # The sets and the removals go in one call that skips deployments,
+          # so no deployment ever sees a half-configured set. `railway variable
           # delete` cannot skip deployments (Railway's variableDelete takes no
           # such option) and `railway variable edit --skip-deploys` still
           # deletes one variable at a time, so the whole set is written with
-          # replace: the remaining variables plus the sets, minus the removals.
-          # A sealed variable cannot be read back, so it would be lost by a
-          # replace: refuse unless the manifest removes it. Railway's own
-          # RAILWAY_* variables are not user variables and are left out.
-          sealed=$(jq -rs '. as [$p, $l] | $l | to_entries[]
-            | select(.value == null and (.key | startswith("RAILWAY_") | not)
-              and (.key | IN($p.removals[]) | not)) | .key' \
-            <(printf '%s' "$plan") <(printf '%s' "$listing"))
-          if [[ -n "$sealed" ]]; then
-            echo "::error::Sealed variables would be lost by the batched" \
-              "update and are not in the manifest's remove list:" $sealed
-            exit 1
-          fi
-          variables=$(jq -s '. as [$p, $l]
-            | $l | with_entries(select(.key | startswith("RAILWAY_") | not))
-              + $p.sets | del(.[$p.removals[]])' \
-            <(printf '%s' "$plan") <(printf '%s' "$listing"))
-
-          # The alias the Vercel step creates must be the origin the API
-          # allows; a manifest that derives anything else fails here, before
-          # anything is written.
-          if ! jq -e --arg o "https://$FRONTEND_HOST" \
-            '.APP_CLIENT_URLS == $o' <<<"$variables" >/dev/null; then
-            echo "::error::The manifest's derived APP_CLIENT_URLS is not" \
-              "https://$FRONTEND_HOST, the address this workflow aliases."
-            exit 1
-          fi
-
+          # replace (the plan's variables are the remaining ones plus the sets,
+          # minus the removals).
           railway_gql() {
             curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
               -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
@@ -331,8 +344,9 @@ jobs:
               "$(jq -r '[.errors[].message] | join("; ")' <<<"$response")"
             exit 1
           fi
-          echo "Applied $(jq '.sets | length' <<<"$plan") set(s) and" \
-            "$(jq '.removals | length' <<<"$plan") removal(s), no deployment."
+          echo "Applied the variables and" \
+            "$(jq '.removals | length' "$RUNNER_TEMP/plan.json")" \
+            "removal(s), no deployment."
 
       - name: Point this PR's Vercel preview at the Railway API
         id: vercel
@@ -344,7 +358,6 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           RAILWAY_API_URL: ${{ steps.railway-domain.outputs.url }}
-          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
           # PR head ref is attacker-controlled (fork PRs); keep it out of
           # the shell command line entirely and pass it as data instead.
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -405,7 +418,6 @@ jobs:
           # another project holds the name. If aliasing a CLI deployment turns
           # out not to work, the fallback is Vercel's per-branch address.
           vercel_api=https://api.vercel.com
-          team=$VERCEL_ORG_ID
           deployment_id=$(curl -fsS -G \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             "$vercel_api/v13/deployments/${deployment_url#https://}" \
@@ -414,10 +426,11 @@ jobs:
             echo "::error::Could not look up Vercel deployment $deployment_url."
             exit 1
           fi
+          alias_url="$vercel_api/v2/deployments/$deployment_id/aliases"
           curl -fsS -X POST \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            "$vercel_api/v2/deployments/$deployment_id/aliases?teamId=$team" \
+            "$alias_url?teamId=$VERCEL_ORG_ID" \
             --data "$(jq -n --arg a "$FRONTEND_HOST" '{alias: $a}')"
           echo "url=https://$FRONTEND_HOST" >> "$GITHUB_OUTPUT"
 

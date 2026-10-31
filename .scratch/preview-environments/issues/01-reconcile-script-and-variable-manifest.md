@@ -15,12 +15,10 @@
 
 ## Comments
 
-### Railway CLI removal outcome (pinned `@railway/cli@5.49.3`)
+### Railway CLI removal outcome
 
-Checked against the pinned binary's `--help` and embedded GraphQL:
+The rejected removal options (CLI delete, `variable edit --skip-deploys`, setting to empty) and the chosen one are recorded in `docs/adr/0026-preview-variables-are-replaced-in-one-call-and-guarded-by-the-railway-environment-name.md`. Nothing was run live (no Railway credentials); ticket 05 confirms one deployment per push.
 
-- `railway variable set` has `--skip-deploys`. `railway variable delete` has no such flag (options: service, environment, project, json), and its `VariableDelete` mutation takes only project, environment, name and service, so a CLI delete deploys.
-- Not used: setting a removed variable to empty (not confirmed that the API treats empty as unset).
-- Outcome: removals are not emitted as CLI deletes. The script prints `{"sets": {...}, "removals": [...]}`, and ticket 03 must apply both in one batch through Railway's API with `skipDeploys`, or confirm `railway variable edit --yes --skip-deploys --confirm-destructive` (the CLI's bulk edit, which does take `--skip-deploys` and deletes the variables it drops) against a live PR environment. Neither was run live here (no Railway credentials); ticket 05's live run must confirm one deployment per push.
-- `RAILWAY_*` variables Railway provides are ignored by the script (never classified, never removed).
-- The derived value `https://cardstack-pr-{pr}.vercel.app` in the manifest is a placeholder for the alias ticket 03 settles.
+- The script prints the complete replacement set (`variables`), the `removals` and the `secrets` it left as `@@SOURCE@@` placeholders; ticket 03 sends it in one call.
+- `RAILWAY_*` variables Railway provides are ignored by the script (never classified, never removed, left out of the replacement set).
+- The derived value `https://cardstack-pr-{pr}.vercel.app` is the alias ticket 03 settled; the script fails when it differs from `--frontend-host`.

@@ -51,7 +51,8 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 		return nil, nil, err
 	}
 
-	gin.SetMode(configs.Env)
+	mode := ginMode(configs.Env)
+	gin.SetMode(mode)
 	r := gin.New()
 	r.HandleMethodNotAllowed = true
 
@@ -63,7 +64,7 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 		return nil, nil, err
 	}
 
-	api := humagin.New(r, httpapi.NewServerConfig(configs.Env))
+	api := humagin.New(r, httpapi.NewServerConfig(mode))
 	httpapi.UseRecovery(api)
 	if err := routes.RegisterRoutes(api, providers.Services, ratelimit.NewLimits(configs.RateLimit, time.Now), adminEmails(configs)); err != nil {
 		cleanup()
@@ -85,6 +86,15 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	)
 
 	return srv, cleanup, nil
+}
+
+// ginMode maps APP_ENV to a mode gin accepts, which panics on any other value.
+// A preview runs as production does.
+func ginMode(env string) string {
+	if env == config.PreviewAppEnv {
+		return gin.ReleaseMode
+	}
+	return env
 }
 
 // adminEmails returns the Admins when the admin routes may exist: the
