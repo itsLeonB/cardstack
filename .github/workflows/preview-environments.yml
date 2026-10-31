@@ -1,7 +1,10 @@
 name: Preview Environments
 
-# Provisions a temporary preview stack for every pull request:
-#   1. a Neon database branch, forked from the production branch
+# Provisions a preview stack for every pull request:
+#   1. a Neon database branch, forked from the production branch the first
+#      time and then kept: later pushes and a reopened PR reuse it (and its
+#      data) while it exists. Railway's pre-deploy migration is the only
+#      migrator; this workflow never runs migrations
 #   2. Neon's credentials and the Clerk development instance's settings
 #      (CLERK_SECRET_KEY, CLERK_ISSUER) pushed into Railway's PR environment
 #      for this PR (Railway auto-creates that environment once "PR Deploys" is
@@ -13,19 +16,22 @@ name: Preview Environments
 #      a preview is not behind Cloudflare)
 #
 # Railway's own PR environment is torn down automatically by Railway when the
-# PR is merged/closed. This workflow owns the Neon branch lifecycle, the PR's
-# Vercel preview deployments and the branch-scoped VITE_API_BASE_URL and
-# VITE_CLERK_PUBLISHABLE_KEY env vars it adds to the Vercel project (neither
-# is removed by Vercel on its own),
-# and the cross-wiring between all three.
+# PR is merged/closed. This workflow owns the Neon branch lifecycle (deleted on
+# close), the PR's Vercel preview deployments and the branch-scoped
+# VITE_API_BASE_URL and VITE_CLERK_PUBLISHABLE_KEY env vars it adds to the
+# Vercel project (neither is removed by Vercel on its own), and the
+# cross-wiring between all three.
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, closed]
 
+# Provisioning runs for one PR queue behind each other instead of cancelling an
+# in-flight run for an older push. A closing event cancels whatever is in
+# flight so cleanup is not stuck behind a stale provisioning run.
 concurrency:
   group: preview-environment-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event.action == 'closed' }}
 
 # Default to no GITHUB_TOKEN permissions; each job opts into only what it
 # needs.
@@ -52,47 +58,13 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      # The action returns an existing branch's details as-is rather than
-      # resetting it, so a `synchronize` run would otherwise keep stale
-      # schema/data from the branch's first creation. Delete it first so
-      # every run starts from a fresh copy of `production`.
-      #
-      # Check existence first rather than blanket continue-on-error: the
-      # delete action's neonctl call fails identically on "branch not
-      # found" and on real errors (auth, API, conflict), and swallowing
-      # all of those would hide a genuine failure and let the next step
-      # silently reuse an undeleted, stale branch.
-      - name: Check for a stale Neon branch from a previous run
-        id: neon-stale-check
-        env:
-          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
-        run: |
-          url="https://console.neon.tech/api/v2/projects"
-          url="$url/$NEON_PROJECT_ID/branches"
-          # -G/--data-urlencode narrows the API's own branch list to ones
-          # matching NEON_BRANCH_NAME (a substring search, hence the exact
-          # -eq filter below still needed) rather than paging through every
-          # branch in the project — an unfiltered list can paginate past
-          # NEON_BRANCH_NAME, making `exists` false and letting
-          # create-branch-action@v5 silently reuse a stale existing branch
-          # instead of recreating it fresh from production.
-          exists=$(curl -fsS -G \
-            -H "Authorization: Bearer $NEON_API_KEY" \
-            --data-urlencode "search=$NEON_BRANCH_NAME" \
-            "$url" \
-            | jq -r --arg name "$NEON_BRANCH_NAME" \
-              '[.branches[] | select(.name == $name)] | length > 0')
-          echo "exists=$exists" >> "$GITHUB_OUTPUT"
-
-      - name: Delete stale Neon branch
-        if: steps.neon-stale-check.outputs.exists == 'true'
-        uses: neondatabase/delete-branch-action@v3
-        with:
-          project_id: ${{ secrets.NEON_PROJECT_ID }}
-          branch: ${{ env.NEON_BRANCH_NAME }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-
+      # create-branch-action returns an existing branch's details as-is
+      # rather than resetting it, which is the persistence this workflow
+      # relies on: the first run forks `production`, every later push (and a
+      # reopened PR whose branch still exists) reuses the branch and its data,
+      # and a missing branch is recreated. Never delete it here; closing the PR
+      # does (see cleanup), and refreshing a preview is deleting the branch in
+      # the Neon console.
       - name: Create Neon branch
         id: neon
         uses: neondatabase/create-branch-action@v5
@@ -106,34 +78,6 @@ jobs:
           # connection details rather than creating new ones.
           username: ${{ secrets.NEON_ROLE_NAME }}
           database: ${{ secrets.NEON_DATABASE_NAME }}
-
-      # cmd/api never runs migrations itself (that's cmd/job's own binary)
-      # and nothing else in this pipeline did either — a fresh Neon
-      # branch has no tables at all, so every /auth/* request 500s until
-      # this runs. goose migrations are idempotent (tracked by version in
-      # goose_db_version), so running this on every provision/sync is safe
-      # regardless of what production's branch (this one's parent) already
-      # has applied.
-      - name: Checkout backend
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Setup Go with cache
-        uses: ./.github/actions/setup-go
-        with:
-          go-version-file: "backend/go.mod"
-          working-directory: backend
-
-      - name: Run database migrations against the Neon branch
-        working-directory: backend
-        env:
-          DB_HOST: ${{ steps.neon.outputs.host }}
-          DB_PORT: "5432"
-          DB_USER: ${{ secrets.NEON_ROLE_NAME }}
-          DB_PASSWORD: ${{ steps.neon.outputs.password }}
-          DB_NAME: ${{ secrets.NEON_DATABASE_NAME }}
-        run: go run ./cmd/job
 
       - name: Install Railway CLI
         # Pinned + installed through npm's integrity-checked registry

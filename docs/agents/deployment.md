@@ -73,8 +73,10 @@ If production shows stale behavior (missing images, old UI), suspect a failed Ve
 
 `.github/workflows/preview-environments.yml` provisions a stack per pull request, and its header comment is the authority on what it creates and deletes:
 
-- A Neon branch `preview/pr-<number>`, forked from `production`.
+- A Neon branch `preview/pr-<number>`, forked from `production` when it does not exist and reused by every later push and by a reopened PR while it exists, so a preview's data survives pushes. Railway's pre-deploy `/migrate` is the only migrator: it runs against that branch on each deploy, and the workflow runs no migrations.
 - Neon credentials and the Clerk development instance's `CLERK_SECRET_KEY` and `CLERK_ISSUER` pushed into the Railway PR environment, which Railway creates and deletes itself. After the Vercel preview deploys, its URL is set as `APP_CLIENT_URLS` on that API. The workflow also deletes `APP_EDGE_SECRET` from that environment, because Railway forks it from production and a preview is not behind Cloudflare: left in place, the API answers 403 to every route but `/health`, which the browser shows as a CORS error.
 - A Vercel preview deployment with a branch-scoped `VITE_API_BASE_URL` pointing at that Railway environment and a branch-scoped `VITE_CLERK_PUBLISHABLE_KEY` (the development instance's). Closing the PR deletes the Neon branch, the preview deployments and those env vars.
 
-Provisioning skips fork and Dependabot PRs because they get no repo secrets.
+Provisioning skips fork and Dependabot PRs because they get no repo secrets. Provisioning runs for one PR queue instead of cancelling each other, and closing a PR cancels any in-flight run so cleanup is not held up.
+
+To refresh a preview with new production data, delete the `preview/pr-<number>` branch in the Neon console and push. The same fix applies when a preview's pre-deploy migration fails after a rebase onto an older migration than one already applied, or after an edit to an applied migration: delete the branch and push, and the next run recreates it from production.
