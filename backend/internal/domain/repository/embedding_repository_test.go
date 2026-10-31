@@ -182,6 +182,28 @@ func TestEmbeddingRepository_CountAndListPendingCardsByModel(t *testing.T) {
 	assert.ElementsMatch(t, []uuid.UUID{pending.ID, staleModel.ID, embedded.ID}, cardIDs(otherSource), "an embedding of another source does not count")
 }
 
+func TestEmbeddingRepository_AUserSourceRowDoesNotChangeThePendingCatalogQuery(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	repo := NewEmbeddingRepository(crud.NewRepository[entity.CardEmbedding](db))
+	ctx := context.Background()
+	model := "user-pending-" + uuid.NewString()
+	correction := "correction:" + uuid.NewString()
+
+	beside := newHostedCard(t, fixture, db, set.ID, "cards/beside")
+	userOnly := newHostedCard(t, fixture, db, set.ID, "cards/user-only")
+	require.NoError(t, repo.Upsert(ctx, []entity.CardEmbedding{
+		catalogEmbedding(beside, model, unitVector(0)),
+		{CardID: beside.ID, Model: model, Source: correction, Embedding: pgvector.NewVector(unitVector(1))},
+		{CardID: userOnly.ID, Model: model, Source: correction, Embedding: pgvector.NewVector(unitVector(2))},
+	}))
+
+	pending, err := repo.ListPendingCards(ctx, model, "catalog", set.Code)
+	require.NoError(t, err)
+	assert.Equal(t, []uuid.UUID{userOnly.ID}, cardIDs(pending), "a Card with only a user-source row is still pending for the catalog")
+}
+
 func TestEmbeddingRepository_OutstandingBatchCardsAreNotPending(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)

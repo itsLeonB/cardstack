@@ -53,6 +53,19 @@ func TestTuningRepository_HasEmbeddingsIsScopedToTheModel(t *testing.T) {
 	assert.False(t, other, "an embedding of another model does not count")
 }
 
+func TestTuningRepository_AUserSourceRowIsNotACatalogEmbedding(t *testing.T) {
+	db := testDB(t)
+	repo := NewTuningRepository(crud.NewRepository[entity.Card](db))
+	f := newCatalogFixture(t, db)
+	card := f.newCard(t, db, f.newExpansionSet(t, db, nil, nil).ID, nil)
+	model := "tuning-user-" + uuid.NewString()
+	require.NoError(t, db.Create(&entity.CardEmbedding{CardID: card.ID, Model: model, Source: "correction:" + uuid.NewString(), Embedding: pgvector.NewVector(unitVector(0))}).Error)
+
+	has, err := repo.HasEmbeddings(context.Background(), model)
+	require.NoError(t, err)
+	assert.False(t, has, "only a user-source row exists for this model")
+}
+
 func TestTuningRepository_NameGroupsLargestFirstAndOnlyEmbeddedCards(t *testing.T) {
 	db := testDB(t)
 	repo := NewTuningRepository(crud.NewRepository[entity.Card](db))
@@ -135,7 +148,7 @@ func TestTuningRepository_GroupCardsOfOneNameWithTheirSetAndNumber(t *testing.T)
 	}, got)
 }
 
-func TestTuningRepository_PairDistancesUseTheNearestPairOfEmbeddings(t *testing.T) {
+func TestTuningRepository_PairDistancesMeasureCatalogEmbeddingsOnly(t *testing.T) {
 	db := testDB(t)
 	repo := NewTuningRepository(crud.NewRepository[entity.Card](db))
 	f := newCatalogFixture(t, db)
@@ -147,7 +160,7 @@ func TestTuningRepository_PairDistancesUseTheNearestPairOfEmbeddings(t *testing.
 	b := newHostedCard(t, f, db, set.ID, "cards/tuning")
 	c := newHostedCard(t, f, db, set.ID, "cards/tuning")
 	outside := newHostedCard(t, f, db, set.ID, "cards/tuning")
-	// A holds two rows: the pair with B takes the nearer one (0.4), not the farther (1.0).
+	// A's crop row is not catalog art: the pairs are measured by A's catalog row alone.
 	insertTuningEmbedding(t, db, a.ID, model, unitVector(0))
 	require.NoError(t, db.Create(&entity.CardEmbedding{CardID: a.ID, Model: model, Source: "crop", Embedding: pgvector.NewVector(unitVector(2))}).Error)
 	insertTuningEmbedding(t, db, b.ID, model, mixedVector(0, 1))
@@ -159,6 +172,6 @@ func TestTuningRepository_PairDistancesUseTheNearestPairOfEmbeddings(t *testing.
 	require.NoError(t, err)
 	assert.Len(t, pairs, 3, "each pair of the given Cards once, and none with the Card left out")
 	assert.InDelta(t, 0.4, pairDistance(t, pairs, a.ID, b.ID), 1e-4)
-	assert.InDelta(t, 0.0, pairDistance(t, pairs, a.ID, c.ID), 1e-4)
+	assert.InDelta(t, 1.0, pairDistance(t, pairs, a.ID, c.ID), 1e-4, "the crop row would make this pair 0")
 	assert.InDelta(t, 1.0, pairDistance(t, pairs, b.ID, c.ID), 1e-4)
 }

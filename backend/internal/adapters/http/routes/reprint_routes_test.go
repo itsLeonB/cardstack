@@ -136,6 +136,24 @@ func TestScanReprints(t *testing.T) {
 		assert.False(t, got.HasMore)
 	})
 
+	t.Run("a user-source embedding of the source does not count toward its Reprint art", func(t *testing.T) {
+		api := newTestAPI(t)
+		name := "Rp " + uuid.NewString()
+		source := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		src := api.newNamedCard(t, source, name)
+		api.storeEmbeddingFrom(t, src, "catalog", planar(90))
+		api.storeEmbeddingFrom(t, src, "correction:"+uuid.NewString(), planar(0))
+		// The candidate matches the source's user photo, not its catalog art.
+		candidate := api.newNamedCard(t, other, name)
+		api.storeEmbeddingFrom(t, candidate, "catalog", planar(0))
+
+		code, got := api.reprints(t, api.newUserToken(t), reprintQuery(0, src))
+
+		require.Equal(t, http.StatusOK, code)
+		assert.Empty(t, got.Cards)
+	})
+
 	t.Run("name matching folds case and whitespace and is otherwise exact", func(t *testing.T) {
 		api := newTestAPI(t)
 		name := "Rp " + uuid.NewString() + " ex"
@@ -265,21 +283,24 @@ func TestScanReprints(t *testing.T) {
 		assert.Empty(t, got.Cards)
 	})
 
-	t.Run("a Card with several embeddings is judged by its nearest one", func(t *testing.T) {
+	t.Run("a Card is judged by its catalog art, not by another source's row", func(t *testing.T) {
 		api := newTestAPI(t)
 		name := "Rp " + uuid.NewString()
 		source := api.newReprintSet(t, nil, true)
 		other := api.newReprintSet(t, nil, true)
 		src := api.newNamedCard(t, source, name)
 		api.storeEmbeddingFrom(t, src, "catalog", planar(0))
+		// The candidate's photo row sits within the delta; its catalog art is 20 degrees off, outside it.
 		candidate := api.newNamedCard(t, other, name)
 		api.storeEmbeddingFrom(t, candidate, "catalog", planar(20))
 		api.storeEmbeddingFrom(t, candidate, "photo", planar(1))
+		near := api.newNamedCard(t, other, name)
+		api.storeEmbeddingFrom(t, near, "catalog", planar(1))
 
 		code, got := api.reprints(t, api.newUserToken(t), reprintQuery(0, src))
 
 		require.Equal(t, http.StatusOK, code)
-		assert.Equal(t, []uuid.UUID{candidate}, summaryIDs(got.Cards))
+		assert.Equal(t, []uuid.UUID{near}, summaryIDs(got.Cards))
 	})
 
 	t.Run("invalid input is refused and unknown ids are dropped", func(t *testing.T) {
