@@ -1,5 +1,9 @@
 extends: default
 
+# Deliberately invalid: proves preview-reconcile.py rejects duplicate keys.
+ignore: |
+  scripts/tests/preview-reconcile/cases/duplicate-key/manifest.yml
+
 rules:
   document-start: disable
   truthy:

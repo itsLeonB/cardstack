@@ -1,0 +1,8 @@
+---
+override:
+  APP_ENV:
+    value: preview
+  APP_ENV:
+    value: production
+derive:
+  APP_CLIENT_URLS: https://cardstack-pr-{pr}.vercel.app

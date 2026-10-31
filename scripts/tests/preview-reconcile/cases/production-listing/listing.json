@@ -1,0 +1,21 @@
+{
+  "ADMIN_CLIENT_URLS": "https://admin.cardstack.test",
+  "ADMIN_EMAILS": "me@example.com",
+  "APP_CLIENT_URLS": "https://www.cardstack.test",
+  "APP_EDGE_SECRET": "edge",
+  "APP_ENV": "release",
+  "APP_PORT": "8080",
+  "CLERK_ISSUER": "https://prod.clerk.test",
+  "CLERK_SECRET_KEY": "sk_live_prod",
+  "DB_HOST": "prod-host.neon.test",
+  "DB_NAME": "prod_db",
+  "DB_PASSWORD": "prod-secret",
+  "DB_PORT": "5432",
+  "DB_USER": "prod_role",
+  "GEMINI_API_KEY": "gemini",
+  "IMAGE_BASE_URL": "https://img.cardstack.test",
+  "R2_ACCESS_KEY_ID": "r2id",
+  "R2_SECRET_ACCESS_KEY": "r2secret",
+  "RAILWAY_ENVIRONMENT_NAME": "cardstack-pr-42",
+  "SCAN_PHOTO_R2_BUCKET": "scans"
+}

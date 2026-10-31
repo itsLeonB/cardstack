@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (the workflow must set `APP_ENV=preview` first, or every preview would refuse to boot).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] With the Railway environment name `production`, configuration loads regardless of the application environment.
 - [ ] With a non-production Railway environment name and `APP_ENV=preview`, configuration loads.

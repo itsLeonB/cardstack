@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (reconcile script and manifest).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The frontend origin for PR `<N>` is computed before Railway deploys, and the Vercel deployment is aliased to it. If aliasing a CLI deployment does not work, Vercel's per-branch address is used instead and the choice is recorded in this ticket's comments.
 - [ ] The API's allowed origins are set to that origin without triggering a deployment, and the API keeps its Railway-provided domain (read before the API deploys, as the workflow already does).
@@ -16,3 +16,17 @@
 - [ ] Fork and Dependabot PRs are still skipped by provisioning and cleanup.
 - [ ] The deployment guide describes the manifest, the one-deployment flow and the PR comment; the workflow header comment matches.
 - [ ] The workflow passes `yamllint`.
+
+## Comments
+
+### Frontend address: Vercel alias, not verified live
+
+The frontend is aliased to `https://cardstack-pr-<N>.vercel.app` through Vercel's REST API (`POST /v2/deployments/{id}/aliases`), right after `vercel deploy`. The manifest's derive entry for `APP_CLIENT_URLS` is that origin and is no longer a placeholder: the workflow's `FRONTEND_HOST` must match it, and provisioning fails before writing anything when it does not. Not run live (no Vercel credentials), so whether Vercel accepts a free `*.vercel.app` alias for a CLI deployment is unconfirmed; the step fails loudly if not. Fallback if ticket 05's live run shows it does not work: Vercel's per-branch address (`<project>-git-<branch>-<team>.vercel.app`), which needs the branch slug rules reproduced in the workflow.
+
+### Removals without a deployment
+
+Why one `variableCollectionUpsert` with `replace` and `skipDeploys`, and the alternatives rejected, are in `docs/adr/0026-preview-variables-are-replaced-in-one-call-and-guarded-by-the-railway-environment-name.md`.
+
+The workflow does it in three steps so the Neon password and the Clerk development secret key never reach a step that runs repository code: one lists the variables (Railway token, no repository code), one runs the ticket 01 script on that listing with no credential in its environment, and one fills the script's secret placeholders and sends the result (the two secrets, no repository code, only jq and curl). That last step also refuses an empty environment id or a `production` name, and makes no call when the environment already matches. Every value of 8 characters or more in the listing is masked before the script reads it.
+
+Not run live (no Railway credentials). Ticket 05 must confirm on a live PR environment: one API deployment per push, and that `variable list --json` returns raw values (references such as `${{shared.X}}` stay references, not rendered text), since `replace` writes back what the listing returned. If either fails, the alternative is staging the changes with `railway environment edit --stage` and committing with `environmentPatchCommitStaged(skipDeploys: true)`.
