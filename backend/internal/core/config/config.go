@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 
 	"github.com/kelseyhightower/envconfig"
@@ -39,9 +38,13 @@ func (c Config) ValidateAdminOrigins() error {
 	return nil
 }
 
-// previewAppEnv is the APP_ENV the preview workflow sets in every PR
-// environment it provisions.
-const previewAppEnv = "preview"
+const (
+	// PreviewAppEnv is the APP_ENV the preview workflow sets in every PR
+	// environment it provisions.
+	PreviewAppEnv = "preview"
+	// productionRailwayEnv is the name of the production Railway environment.
+	productionRailwayEnv = "production"
+)
 
 // validateProvisioned refuses a Railway environment other than production whose
 // APP_ENV is not "preview": such an environment was never provisioned, so it
@@ -50,7 +53,7 @@ const previewAppEnv = "preview"
 // configuration through Load, so the API and the pre-deploy migration are both
 // covered.
 func validateProvisioned(railwayEnv, appEnv string) error {
-	if railwayEnv == "" || railwayEnv == "production" || appEnv == previewAppEnv {
+	if railwayEnv == "" || railwayEnv == productionRailwayEnv || appEnv == PreviewAppEnv {
 		return nil
 	}
 	return fmt.Errorf("RAILWAY_ENVIRONMENT_NAME is %q and APP_ENV is %q: this Railway environment was never provisioned as a preview (it would use production's database), so refusing to boot; the preview workflow sets APP_ENV=preview, and a push reruns it", railwayEnv, appEnv)
@@ -63,6 +66,11 @@ func Load() error {
 
 	var app App
 	if err := envconfig.Process(app.Prefix(), &app); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
+	var railway Railway
+	if err := envconfig.Process(railway.Prefix(), &railway); err != nil {
 		errs = errors.Join(errs, err)
 	}
 
@@ -121,7 +129,7 @@ func Load() error {
 		errs = errors.Join(errs, err)
 	}
 
-	if err := validateProvisioned(os.Getenv("RAILWAY_ENVIRONMENT_NAME"), app.Env); err != nil {
+	if err := validateProvisioned(railway.EnvironmentName, app.Env); err != nil {
 		errs = errors.Join(errs, err)
 	}
 
