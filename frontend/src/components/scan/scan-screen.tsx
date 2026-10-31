@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { cameraMessage, ChoosePhotoButton } from "./photo-source-controls"
+import { PhotoUseNotice } from "./photo-use-notice"
 import { ReviewStep } from "./review-step"
 import type { CommitResult, Decline } from "./review-step"
 import { ScanSheet } from "./scan-sheet"
@@ -94,6 +95,7 @@ export function ScanScreen({
         <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
           {backLink}
           {status}
+          <PhotoUseNotice />
           <ReviewStep
             collectionId={collectionId}
             rows={summedRows(draft.scans)}
@@ -166,6 +168,7 @@ export function ScanScreen({
             />
           </div>
         </div>
+        <PhotoUseNotice />
         <ScanSheet
           scans={draft.scans}
           seen={draft.seen}

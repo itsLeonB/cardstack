@@ -434,6 +434,31 @@ describe("removing Scans", () => {
   })
 })
 
+describe("the photo-use notice", () => {
+  const notice = "Photos of corrected scans may be used to improve matching."
+
+  it("shows on the viewfinder, where a Correction can be chosen from the sheet", () => {
+    renderScreen()
+
+    expect(screen.getByText(notice)).toBeTruthy()
+  })
+
+  it("stays on the Review step, where a Scan ends in a Correction", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    renderScreen()
+    await capture()
+    await rowOf("Card 1")
+    const review = await screen.findByRole("button", {
+      name: "Review and add",
+    })
+    await waitFor(() => expect(review).toHaveProperty("disabled", false))
+    await userEvent.click(review)
+
+    await screen.findByRole("button", { name: "Add to Collection" })
+    expect(screen.getByText(notice)).toBeTruthy()
+  })
+})
+
 describe("the Review and add gate", () => {
   it("is disabled while a Scan is matching, and says how many", async () => {
     holding = true

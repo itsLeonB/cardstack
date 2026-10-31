@@ -886,6 +886,32 @@ describe("ScanPageFlow", () => {
   })
 })
 
+describe("ScanPageFlow, photo-use notice", () => {
+  const notice = "Photos of corrected scans may be used to improve matching."
+
+  it("is absent on the photo and corner steps, before any Correction can be made", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    expect(screen.queryByText(notice)).toBeNull()
+
+    await user.upload(
+      await screen.findByLabelText("Choose a photo"),
+      new File(["photo"], "page.jpg", { type: "image/jpeg" })
+    )
+    await screen.findByRole("button", { name: "Cut and match" })
+    expect(screen.queryByText(notice)).toBeNull()
+  })
+
+  it("shows on the Page Review, where a cell can end in a Correction", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await scanPhoto(user)
+    await answerAll(fourConfident)
+
+    expect(screen.getByText(notice)).toBeTruthy()
+  })
+})
+
 describe("ScanPageFlow, pending Page Review", () => {
   const key = { userId: "user-1", collectionId: "col-1", page: 1 }
   const reviewOf = (cells: PageCell[]): PendingPageReview => ({
