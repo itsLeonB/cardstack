@@ -25,6 +25,9 @@ type ObjectStore interface {
 	// with exactly the given content type until it expires ttl from now, and
 	// that moment (docs/adr/0019).
 	PresignPut(ctx context.Context, key, contentType string, ttl time.Duration) (string, time.Time, error)
+	// PresignGet returns an address that reads the object under key until it
+	// expires ttl from now, and that moment (docs/adr/0027).
+	PresignGet(ctx context.Context, key string, ttl time.Duration) (string, time.Time, error)
 	// ReadHead reads at most the first n bytes of the object under key. It
 	// returns ErrNotFound when there is no such object.
 	ReadHead(ctx context.Context, key string, n int) ([]byte, error)

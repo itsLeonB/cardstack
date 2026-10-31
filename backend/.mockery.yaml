@@ -26,6 +26,7 @@ packages:
       ExpansionSetRepository:
       InventoryRepository:
       MatchRepository:
+      ScanReviewRepository:
       UserRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
@@ -37,6 +38,7 @@ packages:
       CollectionService:
       InventoryService:
       MatchService:
+      ScanReviewService:
       UserService:
       IdentityCache:
   github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/tcgcollector:

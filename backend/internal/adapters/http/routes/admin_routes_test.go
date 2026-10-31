@@ -79,6 +79,9 @@ func TestAdminRoutes_EveryAdminRouteAnswersAsItDoesToAGuest(t *testing.T) {
 		{http.MethodDelete, "/admin/cards/" + id},
 		{http.MethodPost, "/admin/cards/" + id + "/image-upload"},
 		{http.MethodPost, "/admin/cards/" + id + "/image-confirm"},
+		{http.MethodGet, "/admin/reviews"},
+		{http.MethodGet, "/admin/reviews/" + id + "/photo"},
+		{http.MethodPost, "/admin/reviews/" + id + "/reject"},
 	} {
 		t.Run(route.method+" "+route.path, func(t *testing.T) {
 			guest := api.Do(route.method, route.path)

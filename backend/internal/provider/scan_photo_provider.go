@@ -5,6 +5,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	catalogrepository "github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	crud "github.com/itsLeonB/go-crud"
@@ -37,5 +38,16 @@ func ProvideScanFeedbackService(ds *DataSources, store ScanPhotoStore) service.S
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
 		crud.NewRepository[entity.ScanFeedback](ds.Gorm),
 		store,
+	)
+}
+
+// ProvideScanReviewService builds the Admin's review service over the same
+// store and the catalog image host. A nil store refuses every photo address.
+func ProvideScanReviewService(ds *DataSources, store ScanPhotoStore, images mapper.ImageHost) service.ScanReviewService {
+	return service.NewScanReviewService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewScanReviewRepository(crud.NewRepository[entity.ScanFeedback](ds.Gorm)),
+		store,
+		images,
 	)
 }
