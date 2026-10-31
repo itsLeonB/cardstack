@@ -443,7 +443,7 @@ describe("the photo-use notice", () => {
     expect(screen.getByText(notice)).toBeTruthy()
   })
 
-  it("stays on the Review step, where a Scan ends in a Correction", async () => {
+  it("shows on the Review step, where a Scan ends in a Correction", async () => {
     replies = [{ confident: true, candidates: [candidate(1)] }]
     renderScreen()
     await capture()
