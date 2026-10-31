@@ -25,7 +25,7 @@ Because user photos can lift one print of a Reprint family above its siblings, a
 7. As an Admin, I want to reject a blurry, dark, wrong or unrelated photo, so that it never reaches the matcher
 8. As an Admin, I want a rejected photo to stay rejected, so that I am not shown it again
 9. As an Admin, I want an approved photo to leave the queue, so that I only see work that is left
-10. As an Admin, I want to see who reviewed a photo and when, so that a decision can be traced
+10. As the operator, I want who reviewed a photo and when recorded on its row, so that a decision can be traced in the database
 11. As an Admin, I want the queue to include Corrections recorded before this feature shipped, so that the photos already collected are not wasted
 12. As an Admin, I want the queue to hold only Corrections that carry a photo and a chosen Card, so that I never review something I cannot approve
 13. As an Admin, I want a user who switched to another candidate to be eligible, so that the most common correction teaches the matcher
@@ -62,7 +62,7 @@ Because user photos can lift one print of a Reprint family above its siblings, a
 **Review state**
 - `scan_feedback` gains three nullable columns: a review status (`approved` or `rejected`), the reviewer's profile and a review time. NULL means pending. No other table is added, and nothing already recorded is changed.
 - The queue is the rows of an eligible kind with an image key and no status, oldest first. Rows recorded before this ships are included. Approve and reject move a row only out of pending; a row already reviewed answers conflict, so two Admins cannot both act on one photo.
-- A row whose chosen Card has since been deleted cannot be approved and can only be rejected.
+- A Card that has Corrections cannot be deleted: `scan_feedback.card_id` is a plain foreign key, so the review needs no case for a deleted Card.
 
 **Embedding**
 - A user-supplied embedding is a row in the existing embeddings table with the configured model, a vector from the approved image, and `source` set to `correction:` followed by the `scan_feedback` row's id. One source per Correction keeps the unique key on Card, model and source as it is, so no migration loosens it.
@@ -97,7 +97,7 @@ Because user photos can lift one print of a Reprint family above its siblings, a
 A good test exercises external behaviour only: a request with a token and the response and rows it produces at the backend, a rendered screen and a user interaction at the frontend. It does not assert which helper approves, how the source string is built beyond its observable effect, or the order of internal calls.
 
 Seams, preferring existing ones:
-- **Backend: the Huma HTTP boundary against real Postgres** (ADR-0005), through the existing route test environment, with the embedder faked and the object store faked. It covers, from the outside: an Admin on an admin-origin token lists only pending eligible Corrections (including old ones, excluding confirmations, Empty and Unidentified); a user-origin token and a non-Admin get the not-found; approving inserts one embedding with the `correction:` source for the chosen Card and sets the status; approving the same item twice answers conflict and leaves one row; a failed embedding stores nothing and leaves the item pending; a key outside the item's prefix, a non-JPEG and an oversized object are refused; rejecting sets the status and embeds nothing; an approved photo makes the matcher rank that Card higher for the same photo; the confident rule is never met when the top Card has a Reprint, and still is for a Card without one; the Reprint art distance and the pending-embedding query ignore user rows; and a row whose chosen Card was deleted cannot be approved.
+- **Backend: the Huma HTTP boundary against real Postgres** (ADR-0005), through the existing route test environment, with the embedder faked and the object store faked. It covers, from the outside: an Admin on an admin-origin token lists only pending eligible Corrections (including old ones, excluding confirmations, Empty and Unidentified); a user-origin token and a non-Admin get the not-found; approving inserts one embedding with the `correction:` source for the chosen Card and sets the status; approving the same item twice answers conflict and leaves one row; a failed embedding stores nothing and leaves the item pending; a key outside the item's prefix, a non-JPEG and an oversized object are refused; rejecting sets the status and embeds nothing; an approved photo makes the matcher rank that Card higher for the same photo; the confident rule is never met when the top Card has a Reprint, and still is for a Card without one; the Reprint art distance and the pending-embedding query ignore user rows.
 - **Frontend, Admin app: rendered screens with the generated client mocked**, the existing Vitest and Testing Library pattern. They cover the queue, a binder cell shown as a cut, a card-scan photo shown as stored, Approve calling the upload then approve in order, Reject, an item taken by another Admin (conflict) and a failed approval staying in the queue. The copied cut logic is tested with the same fixtures as the user app's own cut tests.
 - **Frontend, user app: the existing suite.** The notice appears on the card scan and on the Page Review, and on no other screen.
 - No new Playwright spec. No new seam.
@@ -122,4 +122,4 @@ Prior art: the route tests of the scan feedback and the admin routes, the match 
 - `placed` cannot be produced by today's review. It becomes reachable when a manual search lands in the review, and this spec needs no change then.
 - The scan enhancements spec is implemented on its branch and was not yet merged when this was written; this spec reads the data it records and adds only the three review columns.
 - An approved photo of a Card the user chose from "Other prints" teaches that print only. Its Reprints do not gain it, so a photo of a Reprint must be reviewed on its own.
-- The cut kept with an approval is the exact image that was embedded, so a future re-embed with a new model compares like with like.
+- The cut kept with an approval is the exact image that was embedded, so a future re-embed with a new model compares like with like. Approve writes the bytes it embedded to a key no presigned link can reach, so a late upload to `reviewed/<id>.jpg` cannot replace it.
