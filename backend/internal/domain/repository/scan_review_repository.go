@@ -33,6 +33,9 @@ type ScanReviewRepository interface {
 	// or the 404 AppError when it is missing or not reviewable. forUpdate
 	// row-locks it; use it inside crud.Transactor.WithinTransaction.
 	GetReviewable(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.ScanFeedback, error)
+	// CardExists reports whether the Card with id is still there. Approval checks
+	// it, so a Correction whose chosen Card has gone is never embedded.
+	CardExists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 type scanReviewRepository struct {
@@ -71,6 +74,19 @@ func (r *scanReviewRepository) ListPending(ctx context.Context, page, limit int)
 		Find(&rows).
 		Error
 	return rows, total, err
+}
+
+func (r *scanReviewRepository) CardExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	var count int64
+	if err := db.Model(&entity.Card{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		return false, ungerr.Wrap(err, "counting the chosen card")
+	}
+	return count > 0, nil
 }
 
 func (r *scanReviewRepository) GetReviewable(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.ScanFeedback, error) {

@@ -3,6 +3,7 @@ package provider
 import (
 	objectstoreadapter "github.com/itsLeonB/cardstack/backend/internal/adapters/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
+	"github.com/itsLeonB/cardstack/backend/internal/core/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/core/objectstore"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
@@ -42,12 +43,16 @@ func ProvideScanFeedbackService(ds *DataSources, store ScanPhotoStore) service.S
 }
 
 // ProvideScanReviewService builds the Admin's review service over the same
-// store and the catalog image host. A nil store refuses every photo address.
-func ProvideScanReviewService(ds *DataSources, store ScanPhotoStore, images mapper.ImageHost) service.ScanReviewService {
+// store and the catalog image host. An approved photo is embedded with the
+// matcher's embedder and model. A nil store refuses every photo address.
+func ProvideScanReviewService(ds *DataSources, store ScanPhotoStore, images mapper.ImageHost, embedder embedding.ImageEmbedder, settings service.MatchSettings) service.ScanReviewService {
 	return service.NewScanReviewService(
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewScanReviewRepository(crud.NewRepository[entity.ScanFeedback](ds.Gorm)),
+		catalogrepository.NewEmbeddingRepository(crud.NewRepository[entity.CardEmbedding](ds.Gorm)),
 		store,
 		images,
+		embedder,
+		settings.Model,
 	)
 }
