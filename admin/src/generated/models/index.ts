@@ -6,6 +6,7 @@
  */
 
 export * from './adminCard.ts';
+export * from './approveReviewInputBody.ts';
 export * from './cardImageUpload.ts';
 export * from './cardImageUploadInputBody.ts';
 export * from './cardImageUploadInputBodyContentType.ts';
@@ -19,6 +20,7 @@ export * from './envelopeCardImageUpload.ts';
 export * from './envelopeExpansionSetSummary.ts';
 export * from './envelopeListRaritySummary.ts';
 export * from './envelopeReviewPhoto.ts';
+export * from './envelopeReviewUpload.ts';
 export * from './envelopeSeriesBrowseResult.ts';
 export * from './envelopeWithMetaListReviewItemPaginationMeta.ts';
 export * from './errorDetail.ts';
@@ -35,6 +37,7 @@ export * from './reviewItemSource.ts';
 export * from './reviewPhoto.ts';
 export * from './reviewPoint.ts';
 export * from './reviewScore.ts';
+export * from './reviewUpload.ts';
 export * from './seriesBrowseResult.ts';
 export * from './seriesSummary.ts';
 export * from './updateCardInputBody.ts';
