@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideServices)
 
 type Services struct {
 	Health           service.HealthService
@@ -43,8 +43,13 @@ type Services struct {
 // is) because it needs a DataSources — ProvideServices otherwise takes only
 // already-built, DB-free dependencies so cmd/genspec can call it without a DB
 // (see ProvideServices's own doc comment).
-func ProvideUserService(ds *DataSources, users catalogrepository.UserRepository, cache service.IdentityCache) service.UserService {
-	return service.NewUserService(crud.NewTransactor(ds.Gorm), users, crud.NewRepository[entity.UserProfile](ds.Gorm), cache)
+func ProvideUserService(ds *DataSources, users catalogrepository.UserRepository, cache service.IdentityCache, adopt service.AdoptByEmail) service.UserService {
+	return service.NewUserService(crud.NewTransactor(ds.Gorm), users, crud.NewRepository[entity.UserProfile](ds.Gorm), cache, adopt)
+}
+
+// ProvideAdoptByEmail turns sign-in adoption on in a preview and nowhere else.
+func ProvideAdoptByEmail() service.AdoptByEmail {
+	return config.Global.Env == config.PreviewAppEnv
 }
 
 // ProvideImageHost builds the host that turns hosted-image keys into public

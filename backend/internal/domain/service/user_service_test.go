@@ -29,6 +29,11 @@ type userFixture struct {
 // newUserFixture's Transactor mock runs the transaction body inline.
 func newUserFixture(t *testing.T) userFixture {
 	t.Helper()
+	return newUserFixtureAdopting(t, false)
+}
+
+func newUserFixtureAdopting(t *testing.T, adopt AdoptByEmail) userFixture {
+	t.Helper()
 	f := userFixture{
 		ctx:      context.Background(),
 		users:    mocks.NewMockUserRepository(t),
@@ -39,7 +44,7 @@ func newUserFixture(t *testing.T) userFixture {
 	transactor := mocks.NewMockTransactor(t)
 	transactor.EXPECT().WithinTransaction(f.ctx, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewUserService(transactor, f.users, f.profiles, f.cache)
+	f.svc = NewUserService(transactor, f.users, f.profiles, f.cache, adopt)
 	return f
 }
 
@@ -252,4 +257,62 @@ func TestUserService_Profile_RefusesNilIDAndMissingProfile(t *testing.T) {
 	appErr, ok = err.(ungerr.AppError)
 	require.True(t, ok, "%v", err)
 	assert.Equal(t, http.StatusNotFound, appErr.HttpStatus())
+}
+
+func TestUserService_ResolveCaller_AdoptsTheCopiedUserOnlyWhenAdoptionIsOn(t *testing.T) {
+	adopted := entity.User{BaseEntity: baseEntity(uuid.New()), Email: "Ada@Example.com"}
+	profile := entity.UserProfile{BaseEntity: baseEntity(uuid.New()), UserID: adopted.ID, Name: "Ada"}
+
+	t.Run("on: the adopted user and its profile are the caller", func(t *testing.T) {
+		f := newUserFixtureAdopting(t, true)
+		f.expectProvisioning(dto.CallerIdentity{UserID: adopted.ID, ProfileID: profile.ID})
+		f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(entity.User{}, nil).Once()
+		f.users.EXPECT().AdoptByEmail(f.ctx, f.identity.Provider, f.identity.Subject, f.identity.Email).Return(adopted, nil).Once()
+		f.users.EXPECT().Update(f.ctx, entity.User{BaseEntity: adopted.BaseEntity, Email: f.identity.Email}).Return(adopted, nil).Once()
+		f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(adopted.ID)).Return(profile, nil).Once()
+
+		caller, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+		require.NoError(t, err)
+		assert.Equal(t, dto.CallerIdentity{UserID: adopted.ID, ProfileID: profile.ID}, caller)
+	})
+
+	t.Run("on, no unique match: a new user is created", func(t *testing.T) {
+		f := newUserFixtureAdopting(t, true)
+		user := f.existingUser()
+		f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID})
+		f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(entity.User{}, nil).Once()
+		f.users.EXPECT().AdoptByEmail(f.ctx, f.identity.Provider, f.identity.Subject, f.identity.Email).Return(entity.User{}, nil).Once()
+		f.users.EXPECT().Insert(f.ctx, entity.User{AuthProvider: "clerk", AuthSubject: "user_1", Email: "ada@example.com"}).Return(user, nil).Once()
+		f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Once()
+
+		_, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("on, a known identity: nothing is adopted", func(t *testing.T) {
+		f := newUserFixtureAdopting(t, true)
+		user := f.existingUser()
+		f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID})
+		f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(user, nil).Once()
+		f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Once()
+
+		_, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("off: an unknown identity never looks for an email match", func(t *testing.T) {
+		f := newUserFixture(t)
+		user := f.existingUser()
+		f.expectProvisioning(dto.CallerIdentity{UserID: user.ID, ProfileID: profile.ID})
+		f.users.EXPECT().FindFirst(f.ctx, f.userSpec()).Return(entity.User{}, nil).Once()
+		f.users.EXPECT().Insert(f.ctx, entity.User{AuthProvider: "clerk", AuthSubject: "user_1", Email: "ada@example.com"}).Return(user, nil).Once()
+		f.profiles.EXPECT().FindFirst(f.ctx, profileSpec(user.ID)).Return(profile, nil).Once()
+
+		_, err := f.svc.ResolveCaller(f.ctx, f.identity)
+
+		require.NoError(t, err)
+	})
 }

@@ -103,15 +103,24 @@ func newTestAPIWithoutPhotoBucket(t *testing.T) testAPI {
 	t.Helper()
 
 	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
-	return newTestAPIWithPhotoBucket(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now), nil, 0, false)
+	return newTestAPIWithPhotoBucket(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now), nil, 0, false, false)
 }
 
 func newTestAPIWith(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64) testAPI {
 	t.Helper()
-	return newTestAPIWithPhotoBucket(t, limits, adminEmails, emptyThreshold, true)
+	return newTestAPIWithPhotoBucket(t, limits, adminEmails, emptyThreshold, true, false)
 }
 
-func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64, photoBucket bool) testAPI {
+// newTestAPIInPreview is the API as booted with APP_ENV=preview, where an
+// unknown Auth Identity adopts the one User with its email.
+func newTestAPIInPreview(t *testing.T) testAPI {
+	t.Helper()
+
+	unreachable := config.Tier{PerMinute: 1_000_000, Burst: 1_000_000}
+	return newTestAPIWithPhotoBucket(t, ratelimit.NewLimits(config.RateLimit{User: unreachable, Search: unreachable, Facets: unreachable, Shared: unreachable}, time.Now), nil, 0, true, true)
+}
+
+func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmails []string, emptyThreshold float64, photoBucket, adoptByEmail bool) testAPI {
 	t.Helper()
 
 	db, sqlDB := openTestDB(t)
@@ -138,7 +147,7 @@ func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmail
 	binder := provider.ProvideBinderService(ds, images)
 	services := provider.ProvideServices(
 		authpkg.NewClerkVerifier(testIssuer, []string{testOrigin}, []string{testAdminOrigin}, keys),
-		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache()),
+		provider.ProvideUserService(ds, provider.ProvideUserRepository(ds), provider.ProvideIdentityCache(), service.AdoptByEmail(adoptByEmail)),
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
 		provider.ProvideSharedCollectionService(ds, images),
