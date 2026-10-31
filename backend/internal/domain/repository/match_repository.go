@@ -59,16 +59,17 @@ func (r *matchRepository) ReprintsOf(ctx context.Context, model string, source u
 		return nil, err
 	}
 
-	// The art test compares every pair of the two Cards' embeddings for model
-	// and keeps the nearest, so a Card with several rows is judged by its
-	// nearest one.
+	// The art test compares every pair of the two Cards' catalog embeddings for
+	// model and keeps the nearest, so a Card with several rows is judged by its
+	// nearest one. User-source rows (ADR-0027) are not catalog art, so they never
+	// count here.
 	var reprints []CardDistance
 	err = db.Table("cards").
 		Select("cards.id AS card_id, MIN(ce.embedding <=> se.embedding) AS distance").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
-		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ?", model).
+		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ? AND ce.source = 'catalog'", model).
 		Joins("JOIN cards src ON src.id = ?", source).
-		Joins("JOIN card_embeddings se ON se.card_id = src.id AND se.model = ?", model).
+		Joins("JOIN card_embeddings se ON se.card_id = src.id AND se.model = ? AND se.source = 'catalog'", model).
 		Where(normalizedName("cards.name")+" = "+normalizedName("src.name")).
 		Where("cards.id NOT IN ?", exclude).
 		Group("cards.id, expansion_sets.release_date").

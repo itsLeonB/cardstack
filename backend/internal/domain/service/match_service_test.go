@@ -23,7 +23,7 @@ var (
 	gifBytes  = []byte("GIF89a\x01\x00\x01\x00")
 )
 
-var testMatchSettings = MatchSettings{Model: "test-model", Threshold: 0.85, Margin: 0.03}
+var testMatchSettings = MatchSettings{Model: "test-model", Threshold: 0.85, Margin: 0.03, ReprintDelta: 0.05}
 
 // matchFixture wires a MatchService over mocks. Embed answers queryVector.
 type matchFixture struct {
@@ -70,6 +70,12 @@ func (f matchFixture) match(t *testing.T) dto.MatchResult {
 	return got
 }
 
+// reprintsOf makes the Reprint lookup for top, the Card a confident match would
+// pick, answer found.
+func (f matchFixture) reprintsOf(top uuid.UUID, found ...repository.CardDistance) {
+	f.cards.EXPECT().ReprintsOf(mock.Anything, testMatchSettings.Model, top, []uuid.UUID{top}, testMatchSettings.ReprintDelta).Return(found, nil)
+}
+
 func candidateIDs(r dto.MatchResult) []uuid.UUID {
 	ids := make([]uuid.UUID, len(r.Candidates))
 	for i, c := range r.Candidates {
@@ -104,6 +110,7 @@ func TestMatchService_Match_RejectsBadUploads(t *testing.T) {
 func TestMatchService_Match_ClearWinnerIsConfidentAndAloneInTheResult(t *testing.T) {
 	f := newMatchFixture(t)
 	ids := f.search(0.05, 0.30, 0.40) // similarities 0.95, 0.70, 0.60
+	f.reprintsOf(ids[0])
 
 	got := f.match(t)
 
@@ -136,11 +143,23 @@ func TestMatchService_Match_WeakTopScoreIsNotConfidentEvenWithoutARunnerUp(t *te
 func TestMatchService_Match_ASingleCandidateIsConfidentWhenItClearsTheThreshold(t *testing.T) {
 	f := newMatchFixture(t)
 	ids := f.search(0.10) // 0.90
+	f.reprintsOf(ids[0])
 
 	got := f.match(t)
 
 	assert.True(t, got.Confident)
 	assert.Equal(t, ids, candidateIDs(got))
+}
+
+func TestMatchService_Match_ConfidentIsWithheldWhenTheTopCardHasAReprint(t *testing.T) {
+	f := newMatchFixture(t)
+	ids := f.search(0.05, 0.30) // 0.95 clears the margin over 0.70
+	f.reprintsOf(ids[0], repository.CardDistance{CardID: uuid.New(), Distance: 0.01})
+
+	got := f.match(t)
+
+	assert.False(t, got.Confident)
+	assert.Equal(t, ids, candidateIDs(got), "the user picks the print from every candidate")
 }
 
 func TestMatchService_Match_NothingEmbeddedYetIsAnEmptyNonConfidentResult(t *testing.T) {
@@ -163,6 +182,7 @@ func TestMatchService_Match_ACardWithTwoEmbeddingsCountsOnceAtItsBestRow(t *test
 		Return([]repository.CardDistance{{CardID: a, Distance: 0.05}, {CardID: a, Distance: 0.06}, {CardID: b, Distance: 0.30}}, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{a, b}).
 		Return([]repository.CardResult{{ID: b, ImageKey: "cards/b"}, {ID: a, ImageKey: "cards/a"}}, nil)
+	f.reprintsOf(a)
 
 	got := f.match(t)
 
@@ -174,7 +194,8 @@ func TestMatchService_Match_ACardWithTwoEmbeddingsCountsOnceAtItsBestRow(t *test
 func TestMatchService_Match_ScoreStaysInsideZeroToOne(t *testing.T) {
 	t.Run("a distance rounding below zero scores 1", func(t *testing.T) {
 		f := newMatchFixture(t)
-		f.search(-0.0001)
+		ids := f.search(-0.0001)
+		f.reprintsOf(ids[0])
 
 		assert.Equal(t, 1.0, f.match(t).Candidates[0].Score)
 	})
