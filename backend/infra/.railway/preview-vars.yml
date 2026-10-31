@@ -48,7 +48,10 @@ override:
   DB_USER:
     source: NEON_ROLE_NAME
 
-# Computed from the pull request; {pr} is its number.
+# Computed from the pull request; {pr} is its number. APP_CLIENT_URLS is the
+# address the preview workflow aliases the Vercel deployment to
+# (FRONTEND_HOST in .github/workflows/preview-environments.yml); the workflow
+# fails if the two differ.
 derive:
   APP_CLIENT_URLS: https://cardstack-pr-{pr}.vercel.app
 

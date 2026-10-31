@@ -1,26 +1,35 @@
 name: Preview Environments
 
-# Provisions a preview stack for every pull request:
+# Provisions a preview stack for every pull request, so the Railway API deploys
+# once per push, already configured:
 #   1. a Neon database branch, forked from the production branch the first
 #      time and then kept: later pushes and a reopened PR reuse it (and its
 #      data) while it exists. Railway's pre-deploy migration is the only
 #      migrator; this workflow never runs migrations
-#   2. Neon's credentials and the Clerk development instance's settings
-#      (CLERK_SECRET_KEY, CLERK_ISSUER) pushed into Railway's PR environment
-#      for this PR (Railway auto-creates that environment once "PR Deploys" is
-#      enabled on the project)
-#   3. a fresh Vercel preview deployment pointed at that Railway environment,
-#      whose URL is then set as APP_CLIENT_URLS on the Railway API, so the API
-#      accepts tokens minted for that preview
-#      (the inherited APP_EDGE_SECRET is deleted from that environment, since
-#      a preview is not behind Cloudflare)
+#   2. the Railway PR environment (Railway auto-creates it once "PR Deploys" is
+#      enabled on the project) reconciled with
+#      backend/infra/.railway/preview-vars.yml by scripts/preview-reconcile.py:
+#      the overrides (APP_ENV=preview, Neon, the Clerk development instance)
+#      and the derived APP_CLIENT_URLS are set and every production-only
+#      variable is removed, in one API call that skips deployments. The API
+#      keeps its Railway-provided domain
+#   3. a fresh Vercel preview deployment pointed at that API and aliased to
+#      cardstack-pr-<number>.vercel.app, the address the manifest already
+#      allowed as APP_CLIENT_URLS, so it is stable across pushes
+#   4. a PR comment listing the three addresses, updated in place on later
+#      pushes
+#
+# The workflow never waits for the Railway deployment: Railway's Wait for CI
+# holds the API's first deployment until every workflow on the commit has
+# finished, so waiting would deadlock. An environment this workflow never
+# reached keeps production's APP_ENV, which the API's boot guard refuses.
 #
 # Railway's own PR environment is torn down automatically by Railway when the
 # PR is merged/closed. This workflow owns the Neon branch lifecycle (deleted on
-# close), the PR's Vercel preview deployments and the branch-scoped
+# close), the PR's Vercel preview deployments, alias and the branch-scoped
 # VITE_API_BASE_URL and VITE_CLERK_PUBLISHABLE_KEY env vars it adds to the
-# Vercel project (neither is removed by Vercel on its own), and the
-# cross-wiring between all three.
+# Vercel project (none is removed by Vercel on its own), and the cross-wiring
+# between all three.
 
 on:
   pull_request:
@@ -40,6 +49,9 @@ permissions: {}
 env:
   NEON_BRANCH_NAME: preview/pr-${{ github.event.pull_request.number }}
   RAILWAY_PR_NUMBER: ${{ github.event.pull_request.number }}
+  # The preview frontend's stable address. The manifest's derive entry for
+  # APP_CLIENT_URLS must be this origin (provisioning fails if it is not).
+  FRONTEND_HOST: cardstack-pr-${{ github.event.pull_request.number }}.vercel.app
 
 jobs:
   provision:
@@ -79,10 +91,32 @@ jobs:
           username: ${{ secrets.NEON_ROLE_NAME }}
           database: ${{ secrets.NEON_DATABASE_NAME }}
 
+      # The reconcile script and the manifest come from the PR's own checkout,
+      # which only same-repo PRs reach (see the job condition), so the code
+      # that sees the Neon and Clerk secrets is code someone with write access
+      # already controls.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # No later step needs authenticated git commands; avoid
+          # persisting the GITHUB_TOKEN into the checkout while VERCEL_TOKEN
+          # is also in scope for the build that follows.
+          persist-credentials: false
+
       - name: Install Railway CLI
         # Pinned + installed through npm's integrity-checked registry
         # rather than piping the mutable install script through sh.
         run: npm install -g @railway/cli@5.49.3
+
+      - name: Ensure PyYAML for the reconcile script
+        # Not assumed to be on the runner image; the package is an apt install
+        # away when it is missing.
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq python3-yaml
+          }
+          python3 -I -c 'import yaml'
 
       - name: Link Railway CLI to the project
         env:
@@ -129,11 +163,12 @@ jobs:
           last_list=""
           for i in $(seq 1 30); do
             last_list=$(railway environment list --json 2>/dev/null)
-            match=$(echo "$last_list" | jq -r --arg pr "$RAILWAY_PR_NUMBER" \
+            match=$(echo "$last_list" | jq -c --arg pr "$RAILWAY_PR_NUMBER" \
               '[.environments[] | select(.name
-                | test("(^|[^0-9])" + $pr + "([^0-9]|$)"))][0].name // empty')
+                | test("(^|[^0-9])" + $pr + "([^0-9]|$)"))][0] // empty')
             if [[ -n "$match" ]]; then
-              echo "name=$match" >> "$GITHUB_OUTPUT"
+              echo "name=$(jq -r .name <<<"$match")" >> "$GITHUB_OUTPUT"
+              echo "id=$(jq -r .id <<<"$match")" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             sleep 10
@@ -145,72 +180,16 @@ jobs:
           echo "$last_list"
           exit 1
 
-      - name: Push Neon and Clerk settings into the Railway PR environment
-        env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
-        run: |
-          # Variable changes trigger a redeploy by default, so no separate
-          # redeploy step is needed once these are set.
-          #
-          # Only one service (backend/infra/.railway/railway.ts defines
-          # just "api" — cardstack has no worker/job services like cashus
-          # did), so no per-service loop is needed here.
-          #
-          # Previews use Clerk's development instance. The API verifies
-          # tokens against its issuer, the Frontend API URL, which is the
-          # publishable key's base64 payload ("<domain>$"). The API rejects
-          # every token until APP_CLIENT_URLS is set, after the Vercel
-          # preview exists (see "Allow the Vercel preview origin" below).
-          payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
-          domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
-            | tr -d '$') || true
-          if [[ -z "$domain" ]]; then
-            echo "::error::VITE_CLERK_PUBLISHABLE_KEY is missing or invalid."
-            exit 1
-          fi
-          issuer="https://$domain"
-          railway variable set \
-            "DB_HOST=${{ steps.neon.outputs.host }}" \
-            "DB_PORT=5432" \
-            "DB_USER=${{ secrets.NEON_ROLE_NAME }}" \
-            "DB_PASSWORD=${{ steps.neon.outputs.password }}" \
-            "DB_NAME=${{ secrets.NEON_DATABASE_NAME }}" \
-            "CLERK_SECRET_KEY=$CLERK_SECRET_KEY" \
-            "CLERK_ISSUER=$issuer" \
-            --service api \
-            --environment "$RAILWAY_ENV"
-
-          # Railway forks the PR environment from production, so it inherits
-          # APP_EDGE_SECRET. A preview is reached through its own Railway and
-          # Vercel URLs, not Cloudflare, so nothing adds the X-Edge-Secret
-          # header and the API would answer 403 to every route but /health
-          # (the browser reports it as a CORS failure, since the 403
-          # preflight carries no CORS headers). This runs after the variables
-          # above so the redeploy it triggers already has the preview's own
-          # database settings. The listing is captured on its own line, not
-          # piped, so a failed lookup fails the step (the default shell has no
-          # pipefail) instead of reading as "not set"; the listing carries raw
-          # values, so only the true/false answer is ever printed.
-          variables=$(railway variable list --service api \
-            --environment "$RAILWAY_ENV" --json)
-          has_edge_secret=$(jq -r 'has("APP_EDGE_SECRET")' <<<"$variables")
-          if [[ "$has_edge_secret" == "true" ]]; then
-            railway variable delete APP_EDGE_SECRET \
-              --service api \
-              --environment "$RAILWAY_ENV"
-          fi
-
-      - name: Wait for the Railway API's public domain
+      - name: Read the Railway API's public domain
         id: railway-domain
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
         run: |
-          # `domain list --json` wraps the array as {"domains": [...]}
-          # (verified against railwayapp/cli's domain.rs).
+          # The domain exists before the API's first deployment, so reading
+          # it does not wait on Railway's Wait for CI. `domain list --json`
+          # wraps the array as {"domains": [...]} (verified against
+          # railwayapp/cli's domain.rs).
           for i in $(seq 1 30); do
             domain=$(railway domain list --service api \
               --environment "$RAILWAY_ENV" --json 2>/dev/null \
@@ -225,13 +204,128 @@ jobs:
             "never got a public domain."
           exit 1
 
-      - name: Checkout frontend
-        uses: actions/checkout@v7
-        with:
-          # No later step needs authenticated git commands; avoid
-          # persisting the GITHUB_TOKEN into the checkout while VERCEL_TOKEN
-          # is also in scope for the build that follows.
-          persist-credentials: false
+      - name: Configure the Railway PR environment
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
+          RAILWAY_ENV_ID: ${{ steps.railway-env.outputs.id }}
+          # The sources the manifest's override entries name.
+          NEON_HOST: ${{ steps.neon.outputs.host }}
+          NEON_PASSWORD: ${{ steps.neon.outputs.password }}
+          NEON_ROLE_NAME: ${{ secrets.NEON_ROLE_NAME }}
+          NEON_DATABASE_NAME: ${{ secrets.NEON_DATABASE_NAME }}
+          CLERK_DEV_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          # Previews use Clerk's development instance. The API verifies
+          # tokens against its issuer, the Frontend API URL, which is the
+          # publishable key's base64 payload ("<domain>$").
+          payload="${CLERK_PUBLISHABLE_KEY#pk_*_}"
+          domain=$(printf '%s' "$payload" | base64 -d 2>/dev/null \
+            | tr -d '$') || true
+          if [[ -z "$domain" ]]; then
+            echo "::error::VITE_CLERK_PUBLISHABLE_KEY is missing or invalid."
+            exit 1
+          fi
+          export CLERK_DEV_ISSUER="https://$domain"
+
+          # Every value below is a secret or sits next to one: the listing
+          # holds production's, the plan holds the preview's. Nothing prints
+          # them, and the ones long enough to be secrets are masked first.
+          # The listing is captured on its own line, not piped, so a failed
+          # lookup fails the step (the default shell has no pipefail). Sealed
+          # variables list with a null value.
+          listing=$(railway variable list --service api \
+            --environment "$RAILWAY_ENV" --json)
+          plan=$(python3 -I scripts/preview-reconcile.py \
+            --manifest backend/infra/.railway/preview-vars.yml \
+            --pr "$RAILWAY_PR_NUMBER" <<<"$listing")
+
+          mask_values() {
+            local v
+            while IFS= read -r v; do
+              if [[ ${#v} -ge 8 ]]; then echo "::add-mask::$v"; fi
+            done
+          }
+          # APP_CLIENT_URLS is a derived public origin that later steps pass on.
+          mask_values < <(jq -r '.sets | del(.APP_CLIENT_URLS) | .[]' \
+            <<<"$plan")
+          mask_values < <(jq -rs \
+            '. as [$p, $l] | $p.removals[] | $l[.] | strings' \
+            <(printf '%s' "$plan") <(printf '%s' "$listing"))
+
+          changes=$(jq '(.sets | length) + (.removals | length)' <<<"$plan")
+          if [[ "$changes" == 0 ]]; then
+            echo "The Railway PR environment is already configured."
+            exit 0
+          fi
+
+          # Sets and removals go in one call that skips deployments, so no
+          # deployment ever sees a half-configured set. `railway variable
+          # delete` cannot skip deployments (Railway's variableDelete takes no
+          # such option) and `railway variable edit --skip-deploys` still
+          # deletes one variable at a time, so the whole set is written with
+          # replace: the remaining variables plus the sets, minus the removals.
+          # A sealed variable cannot be read back, so it would be lost by a
+          # replace: refuse unless the manifest removes it. Railway's own
+          # RAILWAY_* variables are not user variables and are left out.
+          sealed=$(jq -rs '. as [$p, $l] | $l | to_entries[]
+            | select(.value == null and (.key | startswith("RAILWAY_") | not)
+              and (.key | IN($p.removals[]) | not)) | .key' \
+            <(printf '%s' "$plan") <(printf '%s' "$listing"))
+          if [[ -n "$sealed" ]]; then
+            echo "::error::Sealed variables would be lost by the batched" \
+              "update and are not in the manifest's remove list:" $sealed
+            exit 1
+          fi
+          variables=$(jq -s '. as [$p, $l]
+            | $l | with_entries(select(.key | startswith("RAILWAY_") | not))
+              + $p.sets | del(.[$p.removals[]])' \
+            <(printf '%s' "$plan") <(printf '%s' "$listing"))
+
+          # The alias the Vercel step creates must be the origin the API
+          # allows; a manifest that derives anything else fails here, before
+          # anything is written.
+          if ! jq -e --arg o "https://$FRONTEND_HOST" \
+            '.APP_CLIENT_URLS == $o' <<<"$variables" >/dev/null; then
+            echo "::error::The manifest's derived APP_CLIENT_URLS is not" \
+              "https://$FRONTEND_HOST, the address this workflow aliases."
+            exit 1
+          fi
+
+          railway_gql() {
+            curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+              -H "Content-Type: application/json" --data-binary @-
+          }
+          services_query='query($p: String!) {
+            project(id: $p) { services { edges { node { id name } } } } }'
+          services=$(jq -n --arg q "$services_query" \
+            --arg p "$RAILWAY_PROJECT_ID" \
+            '{query: $q, variables: {p: $p}}' | railway_gql)
+          service_id=$(jq -r '[.data.project.services.edges[].node
+            | select(.name == "api")][0].id // empty' <<<"$services")
+          if [[ -z "$service_id" ]]; then
+            echo "::error::No api service found in the Railway project."
+            exit 1
+          fi
+          upsert_query='mutation($i: VariableCollectionUpsertInput!) {
+            variableCollectionUpsert(input: $i) }'
+          response=$(jq -s --arg q "$upsert_query" \
+            --arg p "$RAILWAY_PROJECT_ID" \
+            --arg e "$RAILWAY_ENV_ID" --arg s "$service_id" \
+            '{query: $q,
+              variables: {i: {projectId: $p, environmentId: $e, serviceId: $s,
+                variables: .[0], replace: true, skipDeploys: true}}}' \
+            <<<"$variables" | railway_gql)
+          if ! jq -e '.errors == null' <<<"$response" >/dev/null; then
+            echo "::error::Railway rejected the variable update:" \
+              "$(jq -r '[.errors[].message] | join("; ")' <<<"$response")"
+            exit 1
+          fi
+          echo "Applied $(jq '.sets | length' <<<"$plan") set(s) and" \
+            "$(jq '.removals | length' <<<"$plan") removal(s), no deployment."
 
       - name: Point this PR's Vercel preview at the Railway API
         id: vercel
@@ -295,37 +389,53 @@ jobs:
             -m "githubDeployment=1" \
             -m "githubCommitRef=$HEAD_REF" \
             -m "githubCommitSha=$HEAD_SHA")
-          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
 
-      - name: Allow the Vercel preview origin on the Railway API
-        env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_ENV: ${{ steps.railway-env.outputs.name }}
-          PREVIEW_ORIGIN: ${{ steps.vercel.outputs.url }}
-        run: |
-          # The API checks each token's authorized party against
-          # APP_CLIENT_URLS, and this is the origin people sign in from. The
-          # variable change redeploys the API.
-          railway variable set "APP_CLIENT_URLS=$PREVIEW_ORIGIN" \
-            --service api \
-            --environment "$RAILWAY_ENV"
+          # Alias the deployment to the address the API already allows. The
+          # REST API is used, as in cleanup, so the team comes from
+          # VERCEL_ORG_ID the same way. Assigning an alias this project
+          # already holds moves it to the new deployment, so every push keeps
+          # the address. The step fails if
+          # another project holds the name. If aliasing a CLI deployment turns
+          # out not to work, the fallback is Vercel's per-branch address.
+          vercel_api=https://api.vercel.com
+          team=$VERCEL_ORG_ID
+          deployment_id=$(curl -fsS -G \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "$vercel_api/v13/deployments/${deployment_url#https://}" \
+            --data-urlencode "teamId=$VERCEL_ORG_ID" | jq -r '.id // empty')
+          if [[ -z "$deployment_id" ]]; then
+            echo "::error::Could not look up Vercel deployment $deployment_url."
+            exit 1
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$vercel_api/v2/deployments/$deployment_id/aliases?teamId=$team" \
+            --data "$(jq -n --arg a "$FRONTEND_HOST" '{alias: $a}')"
+          echo "url=https://$FRONTEND_HOST" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview links on the PR
         uses: actions/github-script@v8
+        env:
+          RAILWAY_API_URL: ${{ steps.railway-domain.outputs.url }}
+          FRONTEND_URL: ${{ steps.vercel.outputs.url }}
         with:
           script: |
+            const marker = "### Preview environment";
             const body = [
-              "### Preview environment ready",
+              marker,
               "",
               `| | |`,
               `|---|---|`,
               `| Neon branch | \`${{ env.NEON_BRANCH_NAME }}\` |`,
-              `| Railway API | ${{ steps.railway-domain.outputs.url }} |`,
-              `| Vercel frontend | ${{ steps.vercel.outputs.url }} |`,
+              `| Railway API | ${process.env.RAILWAY_API_URL} |`,
+              `| Frontend | ${process.env.FRONTEND_URL} |`,
+              "",
+              "The API deploys once, after the checks on this commit pass.",
+              "Sign-in works once that deployment is live.",
               "",
               "Torn down automatically when this PR is merged or closed.",
             ].join("\n");
-            const marker = "### Preview environment ready";
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -367,8 +477,27 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
       # Railway's PR environment is deleted automatically by Railway on
       # PR close/merge — nothing to do here for it. The Vercel steps below
-      # clean up what provision created there: preview deployments and the
-      # branch-scoped VITE_API_BASE_URL env var.
+      # clean up what provision created there: the alias, preview deployments
+      # and the branch-scoped VITE_* env vars.
+
+      - name: Delete this PR's Vercel alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          # Frees cardstack-pr-<number>.vercel.app so it never lingers on a
+          # deployment that is about to be deleted. A 404 means it was never
+          # created (provisioning failed early) or is already gone.
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v2/aliases/$FRONTEND_HOST?teamId=$VERCEL_ORG_ID")
+          if [[ "$status" == 404 ]]; then
+            echo "No Vercel alias $FRONTEND_HOST found."
+          elif [[ "$status" != 200 ]]; then
+            echo "::error::Deleting Vercel alias $FRONTEND_HOST" \
+              "answered $status."
+            exit 1
+          fi
 
       - name: Delete this PR's Vercel preview deployments
         env:
