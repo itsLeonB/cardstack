@@ -2,7 +2,8 @@
 # Runs scripts/preview-reconcile.py against every case directory under cases/.
 # A case holds listing.json (the environment's variables) and either
 # expected.json (the exact output) or expected-error (text the failure names),
-# and optionally frontend-host (default: the one for PR 42).
+# and optionally frontend-host (default: the one for PR 42) and manifest.yml
+# (default: the real manifest).
 # A successful case is also applied to its listing and run again, which must
 # leave nothing to do. The script never sees a secret source: its output holds
 # @@SOURCE@@ placeholders, resolved here the way the workflow resolves them.
@@ -13,7 +14,7 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../../.." && pwd)"
 manifest="$root/backend/infra/.railway/preview-vars.yml"
-reconcile() { python3 -I "$root/scripts/preview-reconcile.py" --manifest "$manifest" --pr 42 "$@"; }
+reconcile() { python3 -I "$root/scripts/preview-reconcile.py" --manifest "$case_manifest" --pr 42 "$@"; }
 
 # The values the non-secret override sources resolve to. The secret ones
 # (NEON_PASSWORD, CLERK_DEV_SECRET_KEY) are deliberately not set here.
@@ -35,6 +36,8 @@ for dir in "$here"/cases/*/; do
   name="$(basename "$dir")"
   host=cardstack-pr-42.vercel.app
   if [ -f "$dir/frontend-host" ]; then host="$(cat "$dir/frontend-host")"; fi
+  case_manifest="$manifest"
+  if [ -f "$dir/manifest.yml" ]; then case_manifest="$dir/manifest.yml"; fi
   if actual="$(reconcile --frontend-host "$host" "$dir/listing.json" 2>"$err")"; then
     if [ ! -f "$dir/expected.json" ]; then fail "succeeded, expected an error"; continue; fi
     diff <(jq -S . <<<"$actual") <(jq -S . "$dir/expected.json") >&2 || fail "output differs"

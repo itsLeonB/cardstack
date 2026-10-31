@@ -26,6 +26,19 @@ import yaml
 PLATFORM_PREFIX = "RAILWAY_"
 
 
+class UniqueKeyLoader(yaml.SafeLoader):
+    """safe_load keeps the last of two equal keys; a manifest must not."""
+
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise ValueError(f"duplicate manifest key {key!r} at line {key_node.start_mark.line + 1}")
+            seen.add(key)
+        return super().construct_mapping(node, deep)
+
+
 def plan(manifest, listing, pr, env, frontend_host):
     groups = {
         "inherit": set(manifest.get("inherit", [])),
@@ -81,10 +94,10 @@ def main():
     p.add_argument("--frontend-host", required=True)
     p.add_argument("listing", nargs="?", default="-")
     args = p.parse_args()
-    with open(args.manifest) as f:
-        manifest = yaml.safe_load(f)
     listing = json.load(sys.stdin if args.listing == "-" else open(args.listing))
     try:
+        with open(args.manifest) as f:
+            manifest = yaml.load(f, Loader=UniqueKeyLoader)
         result = plan(manifest, listing, args.pr, os.environ, args.frontend_host)
     except ValueError as e:
         sys.exit(f"preview-reconcile: {e}")
