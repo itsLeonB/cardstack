@@ -218,6 +218,13 @@ jobs:
           CLERK_DEV_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
+          # The upsert below replaces every variable; never aim it at prod.
+          if [[ -z "$RAILWAY_ENV_ID" || "${RAILWAY_ENV,,}" == production ]]
+          then
+            echo "::error::Refusing to configure Railway environment" \
+              "'$RAILWAY_ENV': not a PR environment."
+            exit 1
+          fi
           # Previews use Clerk's development instance. The API verifies
           # tokens against its issuer, the Frontend API URL, which is the
           # publishable key's base64 payload ("<domain>$").
