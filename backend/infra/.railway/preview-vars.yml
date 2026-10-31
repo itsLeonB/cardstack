@@ -29,7 +29,9 @@ inherit:
   - RATE_LIMIT_USER_PER_MINUTE
 
 # Set to a preview value: a fixed value, or the value of the environment
-# variable named by source in the process that runs the script.
+# variable named by source in the process that runs the script. A secret
+# source is never given to that process: the output holds a @@SOURCE@@
+# placeholder and the workflow fills it in afterwards.
 override:
   APP_ENV:
     value: preview
@@ -37,12 +39,14 @@ override:
     source: CLERK_DEV_ISSUER
   CLERK_SECRET_KEY:
     source: CLERK_DEV_SECRET_KEY
+    secret: true
   DB_HOST:
     source: NEON_HOST
   DB_NAME:
     source: NEON_DATABASE_NAME
   DB_PASSWORD:
     source: NEON_PASSWORD
+    secret: true
   DB_PORT:
     value: "5432"
   DB_USER:

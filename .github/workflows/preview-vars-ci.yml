@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "backend/infra/.railway/preview-vars.yml"
+      - "backend/.env.example"
+      - "backend/internal/core/config/**"
       - "scripts/preview-reconcile.py"
       - "scripts/tests/preview-reconcile/**"
       - ".github/workflows/preview-vars-ci.yml"
