@@ -23,6 +23,14 @@ type ReviewRejectRequest struct {
 	ReviewerProfileID uuid.UUID
 }
 
+// ReviewApproveRequest is an Admin's approval of one Correction's photo, naming
+// the object the Admin uploaded its cut to.
+type ReviewApproveRequest struct {
+	ID                uuid.UUID
+	ReviewerProfileID uuid.UUID
+	Key               string
+}
+
 // ReviewItem is one Correction whose photo waits for the Admin's decision
 // (docs/adr/0027). Its photo is read through ReviewPhoto, not returned here.
 type ReviewItem struct {
@@ -61,5 +69,13 @@ type ReviewPoint struct {
 // ReviewPhoto is a short-lived address that reads one Correction's photo.
 type ReviewPhoto struct {
 	URL       string    `json:"url" doc:"Reads the photo until expiresAt. The Admin app cuts a binder cell from it."`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// ReviewUpload is a short-lived address that accepts the Admin's cut of one
+// Correction's photo. The server picks the key.
+type ReviewUpload struct {
+	Key       string    `json:"key" doc:"The object the PUT writes. Approve names this key."`
+	URL       string    `json:"url" doc:"Accepts one PUT of a JPEG, sent with Content-Type image/jpeg, until expiresAt."`
 	ExpiresAt time.Time `json:"expiresAt"`
 }
