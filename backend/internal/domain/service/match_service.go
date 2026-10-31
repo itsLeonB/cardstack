@@ -113,6 +113,16 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 	}
 	confident := s.settings.confident(candidates)
 	if confident {
+		// A Card with a Reprint is never confident: the user picks the print. The
+		// Card is left out of its own Reprints, which would match it at distance 0.
+		top := candidates[0].Card.ID
+		reprints, err := s.cards.ReprintsOf(ctx, s.settings.Model, top, []uuid.UUID{top}, s.settings.ReprintDelta)
+		if err != nil {
+			return dto.MatchResult{}, err
+		}
+		confident = len(reprints) == 0
+	}
+	if confident {
 		candidates = candidates[:1]
 	}
 	return dto.MatchResult{Confident: confident, Candidates: candidates}, nil
