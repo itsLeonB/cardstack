@@ -14,7 +14,7 @@ function ReviewsPage() {
     <PageContainer>
       <PageHeader
         title="Corrections to review"
-        description="Reject a photo that does not show the chosen Card. Photos stay in the bucket."
+        description="Approve a photo that shows the chosen Card, or reject one that does not. Photos stay in the bucket."
       />
       <ReviewQueue />
     </PageContainer>
