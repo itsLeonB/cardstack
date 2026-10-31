@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { PageCorners } from "@/components/scan/page-corners"
 import { PageReview } from "@/components/scan/page-review"
+import { PhotoUseNotice } from "@/components/scan/photo-use-notice"
 import {
   cameraMessage,
   ChoosePhotoButton,
@@ -352,6 +353,7 @@ export function ScanPageFlow({
                 store it. Leaving this screen discards it.
               </p>
             )}
+            <PhotoUseNotice />
             <PageReview
               cells={matches.cells}
               grid={grid}
