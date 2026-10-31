@@ -13,6 +13,7 @@ import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as AdminIndexRouteImport } from './routes/_admin/index'
 import { Route as AdminCardsRouteImport } from './routes/_admin/cards'
 import { Route as AdminExpansionSetsRouteImport } from './routes/_admin/expansion-sets'
+import { Route as AdminReviewsRouteImport } from './routes/_admin/reviews'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/_admin',
@@ -33,15 +34,22 @@ const AdminExpansionSetsRoute = AdminExpansionSetsRouteImport.update({
   path: '/expansion-sets',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReviewsRoute = AdminReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
   '/cards': typeof AdminCardsRoute
   '/expansion-sets': typeof AdminExpansionSetsRoute
+  '/reviews': typeof AdminReviewsRoute
 }
 export interface FileRoutesByTo {
   '/cards': typeof AdminCardsRoute
   '/expansion-sets': typeof AdminExpansionSetsRoute
+  '/reviews': typeof AdminReviewsRoute
   '/': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -49,18 +57,20 @@ export interface FileRoutesById {
   '/_admin': typeof AdminRouteWithChildren
   '/_admin/cards': typeof AdminCardsRoute
   '/_admin/expansion-sets': typeof AdminExpansionSetsRoute
+  '/_admin/reviews': typeof AdminReviewsRoute
   '/_admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cards' | '/expansion-sets'
+  fullPaths: '/' | '/cards' | '/expansion-sets' | '/reviews'
   fileRoutesByTo: FileRoutesByTo
-  to: '/cards' | '/expansion-sets' | '/'
+  to: '/cards' | '/expansion-sets' | '/reviews' | '/'
   id:
     | '__root__'
     | '/_admin'
     | '/_admin/cards'
     | '/_admin/expansion-sets'
+    | '/_admin/reviews'
     | '/_admin/'
   fileRoutesById: FileRoutesById
 }
@@ -98,18 +108,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminExpansionSetsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_admin/reviews': {
+      id: '/_admin/reviews'
+      path: '/reviews'
+      fullPath: '/reviews'
+      preLoaderRoute: typeof AdminReviewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminCardsRoute: typeof AdminCardsRoute
   AdminExpansionSetsRoute: typeof AdminExpansionSetsRoute
+  AdminReviewsRoute: typeof AdminReviewsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCardsRoute: AdminCardsRoute,
   AdminExpansionSetsRoute: AdminExpansionSetsRoute,
+  AdminReviewsRoute: AdminReviewsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
