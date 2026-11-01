@@ -3,7 +3,7 @@
 Type: task
 Status: open
 
-Should the two `.pi/extensions/` guards share one importable rule module and run their self-checks in CI?
+Should the `.pi/extensions/` guards share one importable rule module and run their self-checks in CI?
 
 ## Problem
 
@@ -12,12 +12,16 @@ Should the two `.pi/extensions/` guards share one importable rule module and run
 - Neither script runs in CI. `preview-reconcile` is the only self-check wired (`.github/workflows/preview-vars-ci.yml`), and nothing enforces node >= 22.6 for `--experimental-strip-types`.
 - `block-commit-on-main.ts` blocks `commit` and `merge` on `main` only. The shell hook it replaced also blocked `git push` on `main` and followed `git -C <path>` to the target checkout's branch. The extension reads `ctx.cwd` only, so `git -C <other-checkout> commit` passes the guard.
 
+## Deferred from the 2026-11-01 retro
+
+- `yamllint` is a stored rule with no check behind it: `AGENTS.md` mandates it, `.yamllint.yaml` is tuned, `scripts/setup-environment.sh` installs it, and no workflow runs it. A job in `.github/workflows/conventions-ci.yml` (same shape as the extension CI this issue adds) closes it.
+
 ## Draft approach
 
 1. Move the pure logic (`decide`, the commit/merge/push classifier) into `.pi/extensions/guard-rules.ts`, imported by both extensions and by the self-checks. No test-only export remains.
 2. Cover push: refuse `git push` while the session is on `main`, and resolve `-C <path>` to that checkout's branch before deciding.
 3. Add `.github/workflows/pi-extensions-ci.yml` shaped like `preview-vars-ci.yml`: `paths` filtered to `.pi/extensions/**`, `scripts/tests/**` and the workflow itself; one `run.sh` per extension; node pinned to a version that supports `--experimental-strip-types`.
-4. Name both scripts in `docs/agents/testing.md`, so a reader can find them.
+4. Name every script in `docs/agents/testing.md`, so a reader can find them. `deny-shell-code-read` (added 2026-11-01) is the third guard and has `scripts/tests/deny-shell-code-read/run.sh`.
 
 ## Open
 

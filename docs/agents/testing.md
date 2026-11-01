@@ -1,6 +1,6 @@
 # Test environment: the compose stack
 
-One compose stack (`compose.yaml` at the repository root) gives agents and CI the same database, API, apps and tooling. Never install a toolchain or provision a database yourself: bring the stack up, then run everything with the verification scripts or `docker compose exec`. How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
+One compose stack (`compose.yaml` at the repository root) gives agents and CI the same database, API, apps and tooling. A host toolchain (`go`, `gofmt`, `bun`) is fine for the inner loop, because it is faster; the rule it must not break is the gate: before any commit or merge, the change passes `scripts/verification/<component>.sh`, and that run's output is what the handoff reports. Never install a toolchain or provision a database of your own: for the gate, and for anything needing Postgres, use the stack (`docker compose exec`, or the script that brings up what the step needs). How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
 
 ## The stack
 
