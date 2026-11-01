@@ -223,8 +223,7 @@ describe("approving a Correction's photo", () => {
     stubBucket("scan-bytes")
 
     await expect(approveCorrection(scan)).rejects.toMatchObject({
-      message:
-        "Cannot approve: another Admin decided this photo, or its chosen Card was deleted.",
+      message: "Another Admin already decided this photo.",
       refresh: true,
     })
   })

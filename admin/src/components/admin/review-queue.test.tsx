@@ -362,8 +362,7 @@ describe("the review queue", () => {
   })
 
   it("shows the conflict and asks for the queue again when another Admin decided the photo", async () => {
-    const conflict =
-      "Cannot approve: another Admin decided this photo, or its chosen Card was deleted."
+    const conflict = "Another Admin already decided this photo."
     api.approve.mockRejectedValue(new ApprovalRefused(conflict, true))
     const { invalidate } = renderQueue()
 

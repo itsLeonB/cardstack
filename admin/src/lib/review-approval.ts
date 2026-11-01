@@ -13,8 +13,7 @@ import { encodePixelsJpeg, readPixels } from "@/lib/photo-pixels"
 // whose object is missing, so the order here is the contract.
 
 const GONE = "This photo is no longer waiting for review."
-const DECIDED =
-  "Cannot approve: another Admin decided this photo, or its chosen Card was deleted."
+const DECIDED = "Another Admin already decided this photo."
 
 /**
  * An approval the API or the bucket turned down, worded for the Admin. `refresh`
@@ -78,12 +77,23 @@ async function imageToEmbed(item: ReviewItem): Promise<Blob> {
   return encodePixelsJpeg(cut)
 }
 
+/**
+ * The message for an answer that the queued photo has left the queue (404) or
+ * another Admin decided it (409), else null. Approve and Reject both show it and
+ * then read the queue again.
+ */
+export function staleDecisionMessage(status: number): string | null {
+  if (status === 404) return GONE
+  if (status === 409) return DECIDED
+  return null
+}
+
 function refusal(response: {
   status: number
   data: { detail?: string }
 }): ApprovalRefused {
-  if (response.status === 404) return new ApprovalRefused(GONE, true)
-  if (response.status === 409) return new ApprovalRefused(DECIDED, true)
+  const stale = staleDecisionMessage(response.status)
+  if (stale) return new ApprovalRefused(stale, true)
   // A 500 can carry the raw error of the embedder or the bucket, so only the
   // API's own reasons (every other status) are shown.
   const { detail } = response.data
