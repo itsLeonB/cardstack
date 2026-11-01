@@ -33,9 +33,6 @@ type ScanReviewRepository interface {
 	// or the 404 AppError when it is missing or not reviewable. forUpdate
 	// row-locks it; use it inside crud.Transactor.WithinTransaction.
 	GetReviewable(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.ScanFeedback, error)
-	// CardExists reports whether the Card with id is still there. Approval checks
-	// it, so a Correction whose chosen Card has gone is never embedded.
-	CardExists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 type scanReviewRepository struct {
@@ -60,7 +57,7 @@ func (r *scanReviewRepository) ListPending(ctx context.Context, page, limit int)
 
 	var total int64
 	if err := pendingReviews(db).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, ungerr.Wrap(err, "counting the review queue")
 	}
 
 	var rows []entity.ScanFeedback
@@ -73,20 +70,10 @@ func (r *scanReviewRepository) ListPending(ctx context.Context, page, limit int)
 		Offset((page - 1) * limit).
 		Find(&rows).
 		Error
-	return rows, total, err
-}
-
-func (r *scanReviewRepository) CardExists(ctx context.Context, id uuid.UUID) (bool, error) {
-	db, err := r.GetGormInstance(ctx)
 	if err != nil {
-		return false, err
+		return nil, 0, ungerr.Wrap(err, "listing the review queue")
 	}
-
-	var count int64
-	if err := db.Model(&entity.Card{}).Where("id = ?", id).Count(&count).Error; err != nil {
-		return false, ungerr.Wrap(err, "counting the chosen card")
-	}
-	return count > 0, nil
+	return rows, total, nil
 }
 
 func (r *scanReviewRepository) GetReviewable(ctx context.Context, id uuid.UUID, forUpdate bool) (entity.ScanFeedback, error) {
@@ -105,5 +92,8 @@ func (r *scanReviewRepository) GetReviewable(ctx context.Context, id uuid.UUID, 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return entity.ScanFeedback{}, ungerr.NotFoundError(reviewNotFoundMsg)
 	}
-	return row, err
+	if err != nil {
+		return entity.ScanFeedback{}, ungerr.Wrap(err, "finding the reviewable correction")
+	}
+	return row, nil
 }
