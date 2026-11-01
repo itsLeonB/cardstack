@@ -37,6 +37,8 @@ A bullet marked **(user app)** names modules that exist only in `frontend/`; `ad
 - **(user app)** Edit quantities through `useQuantityBatch` + `QuantityControl`, and after a save patch the cached infinite list (`patchCollectionEntryQuantities`) instead of refetching it.
 - **(user app)** Build a long list on the shared infinite-list stack (`lib/infinite-pages.ts`, `lib/infinite-*.ts`, `components/catalog/virtual-grid.tsx`) and read those files' header comments first. The URL carries filters only, never `page`.
 - **(user app)** Infinite query keys start with `'infinite'`, so the plain key helper misses them. To invalidate a list, call `invalidateMasterInventory`, `invalidateCollectionEntries` or `invalidateCollectionCounts` (`lib/collections.ts`), and call `invalidateCollectionCounts` next to `invalidateMasterInventory` on every Inventory Entry change. Never invalidate with a bare key helper (a cache patch targets the infinite key on purpose).
+- Bound every retry that an error starts (refetch on image error, reconnect, resubmit): cap the attempts or stop after the first failure, so a persistent error cannot loop.
+- Clamp the current page into range whenever the total can shrink (delete, filter, refetch), so a page past the last page never renders empty.
 - A `select` result must be a plain object or array, never a `Map` or `Set`: structural sharing only preserves identity for plain values, and an effect keyed on `query.data` loops forever on a fresh `Map` each render.
 
 ## Testing

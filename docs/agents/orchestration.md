@@ -50,6 +50,10 @@ A **loop** is one implementation pass, started by a task or by a user input: imp
 
 The [advisor](#advisor) is not a reviewer and is not part of any loop.
 
+**Delegate the review.** The implementer runs the skill's Standards and Spec axes as two separate children (`delegate_task`, role `review`, `isolation: "shared"`), never both in its own context, because an implementer reviewing itself is the agent under the most context pressure marking its own work. A child spawning children is allowed for this.
+
+**Removed behaviour.** A fix that removes behaviour (a guard, a retry, a code path) greps for that behaviour's wording in handler summaries, `openapi.json` and `docs/` before it is committed, and updates every hit. Fixes are not reviewed again, so a description left behind goes unseen.
+
 ### Failure recovery
 
 A child needs recovery when its run ends failed or without a report. Recover in this order:
@@ -71,7 +75,7 @@ Every delegate gets the same message, in this order:
 4. **Scope.** The component directories you may edit (`backend/`, or `frontend/` and `admin/` for the frontend component), and the read-only files the role file lists.
 5. **Verification.** `scripts/bootstrap-worktree/<component>.sh` once, then `scripts/verification/<component>.sh`.
 6. **Commit.** The [commit naming convention](#commit-naming-conventions), on your own branch.
-7. **Review.** Run the `code-review` skill once on your own diff before you report: fix the findings that hold, discard the ones that do not, and do not review the fixes again. Rerun the verification after fixing.
+7. **Review.** Run the `code-review` skill once on your own diff before you report. You may spawn subagents for it: run its Standards and Spec axes as two separate `delegate_task` children (role `review`, `isolation: "shared"`), never both in your own context. Fix the findings that hold, discard the ones that do not, and do not review the fixes again, except that a fix which removes behaviour first greps for that behaviour's wording in handler summaries, `openapi.json` and `docs/` and updates every hit. Rerun the verification after fixing.
 8. **Never.** Never push.
 9. **Report.** The [report protocol](#report-protocol), as your final message.
 
