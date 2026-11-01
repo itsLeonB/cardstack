@@ -4,7 +4,7 @@ Small Go commands that make agent workflow steps deterministic. This is a separa
 
 | Command | What it does | Used by |
 | --- | --- | --- |
-| `merge-ticket` | `merge` checks a child worktree is clean and in scope, then runs `git merge --no-ff`; `cleanup` removes the worktree, runs `git branch -d` and marks the issue done | The orchestrator, step 7 of `docs/agents/workflows/implement.md` |
+| `merge-ticket` | `merge` checks a child worktree is clean and in scope, then runs `git merge --no-ff`; `cleanup` removes the worktree, runs `git branch -d` and marks the issue done | The orchestrator, `Merge and clean up` in `docs/agents/workflows/implement.md` |
 
 ## Install
 

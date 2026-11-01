@@ -6,7 +6,7 @@
 
 - [`docs/environment.md`](./docs/environment.md): first-time setup (direnv, `.envrc`, Serena) and running the Admin app locally.
 - [`docs/security.md`](./docs/security.md): hooks, permissions and plugins in `.claude/settings.json`, and how to add a hookify rule.
-- [`docs/serena.md`](./docs/serena.md): how Serena is wired across clients.
+- [`docs/serena.md`](./docs/serena.md): how Serena is wired for agents.
 - Language servers for Serena: `scripts/lsp/install.sh` (`--check` only reports what is missing).
 
 ### Linters

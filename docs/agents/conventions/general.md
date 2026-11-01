@@ -3,11 +3,11 @@
 These apply to every change, backend and frontend, whether made by the orchestrator or a component agent. Component-specific rules live in `backend.md` and `frontend.md` next to this file.
 
 - Make the smallest change that satisfies the request: no cleanup around a bug fix, no abstractions for hypothetical needs, no handling for cases that can't happen.
-- Comment only the non-obvious WHY: a hidden constraint, a workaround, a subtle invariant.
+- Comment only the non-obvious WHY, and keep comments and docs minimal, brief and simple: the why and the how-to, with the code stating what it does. Name the concept rather than a file or path, which can move.
 - Fix security issues when you spot them: injection, path traversal, XSS, secret leaks.
 - Give each test layer its own job: unit tests own branches and edge cases of one unit; feature (backend) and end-to-end (frontend) tests own the functional correctness of one feature or of several that form one user flow, so they cover the happy path and the flow's key failure, not every branch again.
-- Update the doc in the same change when it alters behavior that `docs/agents/conventions/*.md` or `GLOSSARY.md` describes, so those docs never go stale.
-- Keep code that only tests call (helpers, seams) in `_test.go` files, never in production packages.
+- Update every reference in the same change as the behaviour: a fix that removes behaviour (a guard, a retry, a code path) greps for its wording in handler summaries, `openapi.json` and `docs/` and updates each hit, as it does for anything `docs/agents/conventions/*.md` or `GLOSSARY.md` describes.
+- Give every production seam a production caller: a helper, export or injected dependency that only tests call moves into the test or into a module both sides import. In Go, test-only helpers stay in `_test.go`.
 
 ## Convention docs
 

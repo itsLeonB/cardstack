@@ -1,10 +1,10 @@
-// Command merge-ticket runs the mechanical steps of docs/agents/workflows/implement.md "Delegating" step 7 (merge and clean up) for one child branch.
+// Command merge-ticket runs the mechanical steps of docs/agents/workflows/implement.md "Delegating" > "Merge and clean up" for one child branch.
 // Run it from the feature-branch checkout.
 //
 //	merge-ticket merge   (<branch> | --worktree <path>) (--scope <dir>... | --component <name>...)
-//	                     clean-worktree check, scope check (step 6), then merge --no-ff (step 7.1)
+//	                     clean-worktree check, scope check, then merge --no-ff
 //	merge-ticket cleanup (<branch> | --worktree <path>) [--issue <file>]
-//	                     worktree remove, safe branch delete (steps 7.2-7.3), mark the issue done
+//	                     worktree remove, safe branch delete, mark the issue done
 //
 // --scope and --component take several values (or repeat); give <branch> before them. A detached HEAD in the worktree is refused.
 //

@@ -3,7 +3,7 @@ import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// Blocks calls that would dump large output into context (tools/cmd/deny-big-output is the Claude Code version).
+// Blocks calls that would dump large output into context.
 // Escape hatch: prefix a bash command with "BIG_OK=1 "; for read, pass offset or limit.
 const GIT_DIFF = /^git (-C \S+ )?diff($| )/;
 const SHAPED = /--stat|--shortstat|--numstat|--name-only|--name-status|--quiet|-q/;

@@ -30,14 +30,12 @@ Run `scripts/verification/<component>.sh [step]` for each component touched, and
 
 ## Review
 
-A **loop** is one implementation pass, started by a task or by a user input: implement, review once, fix the findings, done. `/code-review` (managed outside this repo, so never edit it) runs once per loop, by whoever implemented it, on that implementer's own model, through the skill and never as an inline read of its own diff. The reviewer evaluates the findings, discards the ones that do not hold, and fixes the rest. Fixes made from a finding are not reviewed again, so a loop ends. A new request from the maintainer starts a new loop with its own review.
+A **loop** is one implementation pass, started by a task or by a user input: implement, review once, fix the findings, done. `/code-review` (managed outside this repo, so never edit it) runs once per loop, by whoever implemented it, on that implementer's own model, through the skill and never as an inline read of its own diff. The reviewer evaluates the findings, discards the ones that do not hold, and fixes the rest. A delegated worker runs the review itself and spawns the review children; a child may spawn children for review. Fixes made from a finding are not reviewed again, so a loop ends. A new request from the maintainer starts a new loop with its own review.
 
 - A [small](#small-or-big) task is one loop, reviewed by the orchestrator.
 - A big task is one loop per worker, reviewed by that worker before it reports, plus one orchestrator loop on the merged feature branch ([Delegating](#delegating), step 8). Two components make three loops; a single-component big task makes two.
 
 The advisor (`.claude/agents/advisor.md`) is not a reviewer and is not part of any loop.
-
-**Removed behaviour.** A fix that removes behaviour (a guard, a retry, a code path) greps for that behaviour's wording in handler summaries, `openapi.json` and `docs/` before it is committed, and updates every hit. Fixes are not reviewed again, so a description left behind goes unseen.
 
 ## Delegating
 
@@ -72,11 +70,12 @@ The replacement is the child from then on.
 
 ### Task message
 
-Every delegate gets the same three-line message. The role file is the single source for workspace, scope, verification, commit, review and report, so the message does not restate them.
+Every delegate gets the same four-line message. The role file is the single source for workspace, scope, verification, commit, review and report, so the message does not restate them; the one exception is the review-children line, which a harness reads before the role file.
 
 1. **Directive.** The line `/implement`, so the worker runs the skill as if the maintainer had invoked it.
 2. **Role.** Read `.claude/agents/<component>-agent.md` and follow it.
 3. **Task.** The ticket path under `.scratch/`, or the task text.
+4. **Review children.** One line saying the worker runs the review itself and may spawn its review children; a harness allows a child subagents only when its task says so.
 
 ### Report protocol
 

@@ -22,7 +22,7 @@ Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/d
 
 ### Advisor
 
-Spawn `.claude/agents/advisor.md` to choose between approaches, to answer a question the ticket and ADRs leave open, or after a failure survives two different fixes; never to confirm finished work, never for a short task.
+Spawn `.claude/agents/advisor.md` when the triggers in its description fit; never to confirm finished work, never for a short task.
 
 ### Test environment
 

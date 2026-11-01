@@ -1,6 +1,6 @@
 # Hooks, permissions and security
 
-`.claude/settings.json` enforces the hooks and permissions below. Put personal overrides in `.claude/settings.local.json`, which isn't shared.
+The Pi extensions in `.pi/extensions/` and `.claude/settings.json` enforce the hooks and permissions below. Put personal overrides in `.claude/settings.local.json`, which isn't shared.
 
 ## Enforced settings
 
