@@ -21,6 +21,20 @@ up() {
   compose up -d "$build" --wait "$@"
 }
 
+# serialized <command>...: runs a CPU-bound command holding a host-wide lock,
+# so suites from several worktrees queue instead of oversubscribing the cores:
+# the timing-sensitive frontend tests time out when stacks run them at once.
+# Without flock (macOS) it runs unlocked.
+serialized() {
+  (
+    if command -v flock >/dev/null; then
+      flock -n 9 || echo "waiting for another worktree's run to finish..."
+      flock 9
+    fi
+    "$@"
+  ) 9>"${TMPDIR:-/tmp}/cardstack-verification.lock"
+}
+
 # run_in <service> <command>...: runs a command in a started tooling container,
 # in $RUN_DIR (relative to the repository root) when it is set, with each
 # variable named in $RUN_ENV passed through from the shell when it is set.

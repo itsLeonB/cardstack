@@ -26,6 +26,8 @@ Each worktree gets its own stack (the built images carry fixed tags such as `car
 
 Only `test` (the backend) and `e2e` need the database; every other step starts just its tooling container. Lint, typecheck and unit tests run against the bind-mounted source, so they never need a rebuild. `e2e` rebuilds the `web` image, because the app runs from a built image with no hot reload: a source edit reaches a running app only through a rebuild. `scripts/bootstrap-worktree/<component>.sh` copies the gitignored env files and starts the tooling container; run it once in a fresh worktree.
 
+The frontend `test` step takes a host-wide lock (`serialized` in `scripts/verification/lib.sh`), so runs from several worktrees queue and print `waiting for another worktree's run to finish...` instead of competing for the cores: Vitest sizes its workers to the host's cores per run, and with three runs at once the route-page tests passed their 15 s timeout. Queuing costs no total time (three at once took 160 s, three queued 190 s).
+
 The first run on a machine pulls images and takes several minutes; a warm run adds a few seconds of image checks. Calls to the stack by hand: `docker compose exec backend-tools go test ./internal/domain/repository/...`. The `DB_*` values the tests read are already set in `backend-tools`.
 
 If Docker is unavailable, fall back to a Postgres 18 with the `vector` extension reachable through the `DB_*` variables of `backend/.env.example`; the schema relies on PostgreSQL 18's native `uuidv7()`, so an older major version does not work.

@@ -27,7 +27,7 @@ install() {
 step_lint() { RUN_DIR=$pkg run bun run lint; }
 step_format() { RUN_DIR=$pkg run bun run check; }
 step_typecheck() { RUN_DIR=$pkg run bun run typecheck; }
-step_test() { RUN_DIR=$pkg run bun run test; }
+step_test() { RUN_DIR=$pkg serialized run bun run test; }
 step_build() {
   RUN_DIR=$pkg RUN_ENV="VITE_API_BASE_URL VITE_CLERK_PUBLISHABLE_KEY" \
     run bun run build
