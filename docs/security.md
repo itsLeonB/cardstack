@@ -1,36 +1,14 @@
 # Hooks, permissions and security
 
-The Pi extensions in `.pi/extensions/` and `.claude/settings.json` enforce the hooks and permissions below. Put personal overrides in `.claude/settings.local.json`, which isn't shared.
+The Pi extensions in `.pi/extensions/` and the `@lystran/pi-serena-hooks` package enforce the rules below. Pi does not ask for approval before a tool call, so these extensions and the role files are the enforcement, not a settings allowlist.
 
 ## Enforced settings
 
-- **Serena hooks**: `serena-hooks remind` nudges an agent that reads code with built-in tools; `activate`, `auto-approve` and `cleanup` manage the Serena session. See `docs/agents/conventions/serena.md`.
-- **`.pi/extensions/block-commit-on-main.ts`** (Pi only): refuses `git commit` and `git merge` while the session is on `main`. Claude Code has no equivalent.
-- **`.pi/extensions/deny-big-output.ts`** (Pi only): refuses `cat` or `git diff` output over 20 KB, and a `read` over 40 KB without `offset` or `limit`. The message names the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a bash command with `BIG_OK=1 ` to override; change thresholds with `DENY_BIG_BASH_MAX` and `DENY_BIG_READ_MAX` (bytes). Claude Code has no equivalent.
-- **`permissions.deny`**: patterns the harness refuses. A wider allow in `settings.local.json` doesn't override a deny.
-- **`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`**: turns off the native advisor tool, so the advisor subagent is the only advisor.
-- **hookify** (`hookify@claude-plugins-official`): turns a mistake into a rule file.
-- **security-guidance** (`security-guidance@claude-plugins-official`): reviews code in three layers, configured under `env` in `.claude/settings.json`. The plugin sends diffs and the files it reads to your model endpoint. The plugin's README lists every variable.
+- **Serena hooks** (`npm:@lystran/pi-serena-hooks`, declared in `.pi/settings.json`): `serena-hooks remind` nudges an agent that reads code with built-in tools; `activate`, `auto-approve` and `cleanup` manage the Serena session. See `docs/agents/conventions/serena.md`.
+- **`.pi/extensions/block-commit-on-main.ts`**: refuses `git commit` and `git merge` while the session is on `main`.
+- **`.pi/extensions/deny-big-output.ts`**: refuses `cat` or `git diff` output over 20 KB, and a `read` over 40 KB without `offset` or `limit`. The message names the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a bash command with `BIG_OK=1 ` to override; change thresholds with `DENY_BIG_BASH_MAX` and `DENY_BIG_READ_MAX` (bytes).
 
-## security-guidance layers
-
-| Layer | Variable | State |
-|---|---|---|
-| Pattern warnings on `Edit` and `Write` | `ENABLE_PATTERN_RULES` | on |
-| LLM review of the diff at turn end | `ENABLE_STOP_REVIEW`, `SECURITY_REVIEW_MODEL` | off |
-| Agentic review at commit | `ENABLE_COMMIT_REVIEW`, `SG_AGENTIC_MODEL` | on, `claude-sonnet-5-5` |
-| Doubled reviews for higher recall | `SG_DUAL_OR` | off |
-
-Both reviews cost tokens: they use the newest Opus unless pinned. Project-specific rules go in `.claude/claude-security-guidance.md`, which the turn-end review reads.
-
-## Add a hookify rule
-
-1. Run `/hookify` right after an agent repeats a mistake. With no argument it reads the conversation and proposes rules.
-2. Check the rule file at `.claude/hookify.<name>.local.md`: markdown with YAML frontmatter that matches a tool call by event and regex, then warns or blocks.
-
-A new rule applies on the next tool use, with no restart. `/hookify:list` shows rules; `/hookify:configure` toggles them.
-
-Target mistakes that tooling can't catch and that have a precise textual signature (a command, a path, a string in an edit). Don't duplicate Serena's `remind` (built-in code reads) or `block-commit-on-main` (commits on protected branches).
+A tool an agent can reach, it can run. Scope comes from the role files under `docs/agents/roles/` and from the scope check in [`Delegating`](agents/workflows/implement.md#delegating), which inspects a worker's diff instead of restricting its tools. Project trust gates `.pi/settings.json`, `.pi/mcp.json`, `.pi/extensions/` and project `.agents/skills/`: grant it per folder with `/trust`, which is why a fresh checkout asks before loading them.
 
 ## Secrets
 

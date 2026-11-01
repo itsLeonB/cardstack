@@ -30,16 +30,16 @@ Run `scripts/verification/<component>.sh [step]` for each component touched, and
 
 ## Review
 
-A **loop** is one implementation pass, started by a task or by a user input: implement, review once, fix the findings, done. `/code-review` (managed outside this repo, so never edit it) runs once per loop, by whoever implemented it, on that implementer's own model, through the skill and never as an inline read of its own diff. The reviewer evaluates the findings, discards the ones that do not hold, and fixes the rest. A delegated worker runs the review itself and spawns the review children; a child may spawn children for review. Fixes made from a finding are not reviewed again, so a loop ends. A new request from the maintainer starts a new loop with its own review.
+Every loop ends in a review and closes with a report; both are defined in [Hand-off](../handoff.md). This section holds only how many loops a task makes.
 
 - A [small](#small-or-big) task is one loop, reviewed by the orchestrator.
 - A big task is one loop per worker, reviewed by that worker before it reports, plus one orchestrator loop on the merged feature branch ([Delegating](#delegating), step 8). Two components make three loops; a single-component big task makes two.
 
-The advisor (`.claude/agents/advisor.md`) is not a reviewer and is not part of any loop.
+The advisor (`docs/agents/roles/advisor.md`) is not a reviewer and is not part of any loop.
 
 ## Delegating
 
-The orchestrator stays on its current checkout and the feature branch, delegates one component task per component touched (only those), and never edits a component directory itself during a big task. Each worker is `deepseek-flash` with `high` thinking, works in its own worktree with its own Serena rooted there, from the role file `.claude/agents/<component>-agent.md`.
+The orchestrator stays on its current checkout and the feature branch, delegates one component task per component touched (only those), and never edits a component directory itself during a big task. Each worker is `deepseek-flash` with `high` thinking, works in its own worktree with its own Serena rooted there, from the role file `docs/agents/roles/<component>-agent.md`.
 
 1. **Commit first.** Inspect the worktree (`git status`) and commit only the changes the current task requires (tasks, docs, earlier merges) on the feature branch before delegating; leave unrelated changes uncommitted. A new worktree contains only commits, so uncommitted changes never reach the delegate.
 2. **Order.** Delegate all components at once.
@@ -70,21 +70,13 @@ The replacement is the child from then on.
 
 ### Task message
 
-Every delegate gets the same four-line message. The role file is the single source for workspace, scope, verification, commit, review and report, so the message does not restate them; the one exception is the review-children line, which a harness reads before the role file.
+Every delegate gets the same four-line message. The role file is the single source for workspace, scope, verification and commit, and it names the review and report contract, so the message does not restate them; the one exception is the review-children line, which a harness reads before the role file.
 
 1. **Directive.** The line `/implement`, so the worker runs the skill as if the maintainer had invoked it.
-2. **Role.** Read `.claude/agents/<component>-agent.md` and follow it.
+2. **Role.** Read `docs/agents/roles/<component>-agent.md` and follow it.
 3. **Task.** The ticket path under `.scratch/`, or the task text.
 4. **Review children.** One line saying the worker runs the review itself and may spawn its review children; a harness allows a child subagents only when its task says so.
 
 ### Report protocol
 
-A delegate reports in its final message. A report has five parts:
-
-1. **Status**: done, or blocked.
-2. **Commit SHAs**: every commit on the branch since the base.
-3. **Verification results**: each command and whether it passed.
-4. **Review**: which code review findings were fixed and which were discarded, with the reason for each discard.
-5. **Deviations or questions**: anything done differently from the task, or what is needed from the orchestrator.
-
-A blocking question goes the same way, with the question in part 5, and the delegate then ends its run. The orchestrator answers from the ticket and the ADRs first, and asks the maintainer only when they do not cover it. It continues the same delegate with the answer.
+A delegate reports in its final message, in the five parts [Hand-off](../handoff.md#report) lists, with a blocking question in part 5. The orchestrator answers from the ticket and the ADRs first, asks the maintainer only when they do not cover it, and continues the same delegate with the answer.
