@@ -1,9 +1,3 @@
 {
-  "packages": ["npm:@lystran/pi-serena-hooks"],
-  "subagents": {
-    "agentOverrides": {
-      "backend-agent": { "model": false },
-      "frontend-agent": { "model": false }
-    }
-  }
+  "packages": ["npm:@lystran/pi-serena-hooks"]
 }
