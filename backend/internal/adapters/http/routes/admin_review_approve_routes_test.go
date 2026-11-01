@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,12 +17,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 // reviewedKey is the one key the Admin's cut of a Correction may be uploaded to
 // and approved from (docs/adr/0027).
 func reviewedKey(id uuid.UUID) string { return "reviewed/" + id.String() + ".jpg" }
+
+// approvedKey is the server-only key the bytes embedded on approval are kept
+// under. No presigned address is ever minted for it (docs/adr/0027).
+func approvedKey(id uuid.UUID) string { return "approved/" + id.String() + ".jpg" }
 
 func approveBody(t *testing.T, key string) string {
 	t.Helper()
@@ -34,13 +38,15 @@ func (a testAPI) approve(t *testing.T, token string, id uuid.UUID, key string) *
 	return a.Post(reviewQueuePath+"/"+id.String()+"/approve", "Content-Type: application/json", bearer(token), strings.NewReader(approveBody(t, key)))
 }
 
-// expectCut sets the bucket and embedder expectations of one approval of key:
-// the object's size, its bytes, and the vector those bytes embed to.
-func (a testAPI) expectCut(t *testing.T, key string, data []byte, vector []float32) {
+// expectCut sets the bucket and embedder expectations of one approval of the
+// Correction id: the cut's size and bytes, the vector those bytes embed to, and
+// the write of those bytes under the kept key.
+func (a testAPI) expectCut(t *testing.T, id uuid.UUID, data []byte, vector []float32) {
 	t.Helper()
-	a.photos.EXPECT().Size(mock.Anything, key).Return(int64(len(data)), nil).Once()
-	a.photos.EXPECT().Get(mock.Anything, key).Return(data, nil).Once()
+	a.photos.EXPECT().Size(mock.Anything, reviewedKey(id)).Return(int64(len(data)), nil).Once()
+	a.photos.EXPECT().Get(mock.Anything, reviewedKey(id)).Return(data, nil).Once()
 	a.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", data).Return(vector, nil).Once()
+	a.photos.EXPECT().Put(mock.Anything, approvedKey(id), "image/jpeg", data).Return(nil).Once()
 }
 
 // reviewFixture is a user who has Corrections and one Card they chose.
@@ -110,7 +116,7 @@ func TestAdminReviews_ApproveEmbedsTheCutForTheChosenCardOnly(t *testing.T) {
 	other := seedFeedbackCard(t, api)
 	row := insertFeedback(t, api, correctionFor(t, profile, card, "switched", time.Now()))
 	key := reviewedKey(row.ID)
-	api.expectCut(t, key, testJPEG, axisVector(0))
+	api.expectCut(t, row.ID, testJPEG, axisVector(0))
 
 	// The bucket has no delete expectation: the cut stays in the bucket.
 	assert.Equal(t, http.StatusNotFound, api.approve(t, api.newUserToken(t), row.ID, key).Code, "a user-origin token gets the Admin not-found")
@@ -212,6 +218,7 @@ func TestAdminReviews_AFailedEmbeddingStoresNothingAndTheItemCanBeRetried(t *tes
 	api.photos.EXPECT().Get(mock.Anything, key).Return(testJPEG, nil).Twice()
 	api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(nil, errors.New("embedding service down")).Once()
 	api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil).Once()
+	api.photos.EXPECT().Put(mock.Anything, approvedKey(row.ID), "image/jpeg", testJPEG).Return(nil).Once()
 
 	failed := api.approve(t, token, row.ID, key)
 	assert.Equal(t, http.StatusInternalServerError, failed.Code, failed.Body.String())
@@ -230,7 +237,7 @@ func TestAdminReviews_ApprovingAgainAnswersConflictAndEmbedsNothingMore(t *testi
 	profile, card := reviewFixture(t, api)
 	row := insertFeedback(t, api, correctionFor(t, profile, card, "switched", time.Now()))
 	key := reviewedKey(row.ID)
-	api.expectCut(t, key, testJPEG, axisVector(0))
+	api.expectCut(t, row.ID, testJPEG, axisVector(0))
 	require.Equal(t, http.StatusNoContent, api.approve(t, token, row.ID, key).Code)
 
 	// The second approval, and a rejection after it, read no bucket and embed nothing.
@@ -241,29 +248,54 @@ func TestAdminReviews_ApprovingAgainAnswersConflictAndEmbedsNothingMore(t *testi
 	assert.Equal(t, "approved", *storedReview(t, api, row.ID).ReviewStatus, "the first decision stands")
 }
 
-func TestAdminReviews_ACorrectionWhoseChosenCardIsGoneCannotBeApproved(t *testing.T) {
+func TestAdminReviews_TheKeptCutIsTheEmbeddedBytesAndALaterUploadDoesNotChangeIt(t *testing.T) {
 	api := newTestAPIWithAdmins(t, []string{adminEmail})
 	token, _ := adminCaller(t, api)
 	profile, card := reviewFixture(t, api)
 	row := insertFeedback(t, api, correctionFor(t, profile, card, "switched", time.Now()))
+	key := reviewedKey(row.ID)
 
-	// The foreign key on scan_feedback.card_id stops a Card with a Correction
-	// from being deleted, so the test deletes it with the foreign key checks
-	// off, in its own transaction, to reach the state the rule guards against.
-	require.NoError(t, api.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("SET LOCAL session_replication_role = replica").Error; err != nil {
-			return err
-		}
-		return tx.Exec("DELETE FROM cards WHERE id = ?", card).Error
-	}))
+	// A map stands in for the private bucket, keyed as the service keys it. No
+	// presigned address is minted for the kept key: no expectation covers one.
+	bucket := map[string][]byte{key: testJPEG}
+	api.photos.EXPECT().Size(mock.Anything, key).Return(int64(len(testJPEG)), nil).Once()
+	api.photos.EXPECT().Get(mock.Anything, key).Return(testJPEG, nil).Once()
+	api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil).Once()
+	api.photos.EXPECT().Put(mock.Anything, approvedKey(row.ID), "image/jpeg", testJPEG).RunAndReturn(func(_ context.Context, k, _ string, body []byte) error {
+		bucket[k] = body
+		return nil
+	}).Once()
 
-	// No bucket or embedder expectation is set: the refusal comes before either.
-	resp := api.approve(t, token, row.ID, reviewedKey(row.ID))
-	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
-	assert.Nil(t, storedReview(t, api, row.ID).ReviewStatus, "still pending")
-	assert.Empty(t, embeddingsOf(t, api, row.ID))
+	require.Equal(t, http.StatusNoContent, api.approve(t, token, row.ID, key).Code)
 
-	assert.Equal(t, http.StatusNoContent, api.Post(reviewQueuePath+"/"+row.ID.String()+"/reject", bearer(token)).Code, "it can only be rejected")
+	// A late upload to the reviewed key after approval replaces the Admin's cut.
+	bucket[key] = append([]byte{0xff, 0xd8, 0xff}, []byte("a later upload")...)
+
+	assert.Equal(t, testJPEG, bucket[approvedKey(row.ID)], "the kept cut is the bytes that were embedded")
+}
+
+func TestAdminReviews_AFailedKeptCutWriteStoresNothingAndTheItemStaysPending(t *testing.T) {
+	api := newTestAPIWithAdmins(t, []string{adminEmail})
+	token, _ := adminCaller(t, api)
+	profile, card := reviewFixture(t, api)
+	row := insertFeedback(t, api, correctionFor(t, profile, card, "switched", time.Now()))
+	key := reviewedKey(row.ID)
+
+	api.photos.EXPECT().Size(mock.Anything, key).Return(int64(len(testJPEG)), nil).Twice()
+	api.photos.EXPECT().Get(mock.Anything, key).Return(testJPEG, nil).Twice()
+	api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil).Twice()
+	api.photos.EXPECT().Put(mock.Anything, approvedKey(row.ID), "image/jpeg", testJPEG).Return(errors.New("bucket write failed")).Once()
+	api.photos.EXPECT().Put(mock.Anything, approvedKey(row.ID), "image/jpeg", testJPEG).Return(nil).Once()
+
+	failed := api.approve(t, token, row.ID, key)
+	assert.Equal(t, http.StatusInternalServerError, failed.Code, failed.Body.String())
+	assert.Nil(t, storedReview(t, api, row.ID).ReviewStatus, "the item stays pending")
+	assert.Empty(t, embeddingsOf(t, api, row.ID), "nothing is stored")
+	assert.Contains(t, queueIDs(t, api, token), row.ID, "the item stays in the queue")
+
+	retried := api.approve(t, token, row.ID, key)
+	require.Equal(t, http.StatusNoContent, retried.Code, retried.Body.String())
+	assert.Len(t, embeddingsOf(t, api, row.ID), 1)
 }
 
 func TestAdminReviews_AnApprovedPhotoRanksItsCardHigherForTheSamePhoto(t *testing.T) {
@@ -281,6 +313,7 @@ func TestAdminReviews_AnApprovedPhotoRanksItsCardHigherForTheSamePhoto(t *testin
 	api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil).Times(3)
 	api.photos.EXPECT().Size(mock.Anything, key).Return(int64(len(testJPEG)), nil).Once()
 	api.photos.EXPECT().Get(mock.Anything, key).Return(testJPEG, nil).Once()
+	api.photos.EXPECT().Put(mock.Anything, approvedKey(row.ID), "image/jpeg", testJPEG).Return(nil).Once()
 
 	userToken := api.newUserToken(t)
 	code, before := api.scan(t, userToken)
