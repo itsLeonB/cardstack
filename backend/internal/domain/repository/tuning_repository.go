@@ -10,20 +10,21 @@ import (
 )
 
 // TuningRepository is the read-only access the tune-scan report needs. Every
-// method is a SELECT; the report never writes.
+// method is a SELECT; the report never writes. Its queries read catalog
+// embeddings only: a user-source row (ADR-0027) is not a catalog image.
 type TuningRepository interface {
-	// HasEmbeddings reports whether any Card has an embedding of model.
+	// HasEmbeddings reports whether any Card has a catalog embedding of model.
 	HasEmbeddings(ctx context.Context, model string) (bool, error)
-	// NameGroups returns the normalized names that at least two Cards with an
-	// embedding of model share, largest group first, ties by name.
+	// NameGroups returns the normalized names that at least two Cards with a
+	// catalog embedding of model share, largest group first, ties by name.
 	NameGroups(ctx context.Context, model string) ([]NameGroup, error)
-	// GroupCards returns the Cards with an embedding of model whose normalized
-	// name is name, ordered by set code, then local id.
+	// GroupCards returns the Cards with a catalog embedding of model whose
+	// normalized name is name, ordered by set code, then local id.
 	GroupCards(ctx context.Context, model, name string) ([]GroupCard, error)
-	// PairDistances returns each pair of the given Cards that both have an
-	// embedding of model, once, with the nearest distance between their
-	// embeddings: the rule ReprintsOf applies. A Card with no embedding of
-	// model forms no pair.
+	// PairDistances returns each pair of the given Cards that both have a
+	// catalog embedding of model, once, with the nearest distance between their
+	// embeddings: the rule ReprintsOf applies. A Card with no catalog embedding
+	// of model forms no pair.
 	PairDistances(ctx context.Context, model string, cardIDs []uuid.UUID) ([]CardPair, error)
 }
 
@@ -66,7 +67,7 @@ func (r *tuningRepository) HasEmbeddings(ctx context.Context, model string) (boo
 	}
 
 	var exists bool
-	err = db.Raw("SELECT EXISTS (SELECT 1 FROM card_embeddings WHERE model = ?)", model).
+	err = db.Raw("SELECT EXISTS (SELECT 1 FROM card_embeddings WHERE model = ? AND source = 'catalog')", model).
 		Scan(&exists).
 		Error
 	if err != nil {
@@ -85,7 +86,7 @@ func (r *tuningRepository) NameGroups(ctx context.Context, model string) ([]Name
 	err = db.Table("cards").
 		Select(normalizedName("cards.name")+" AS name, COUNT(DISTINCT cards.id) AS size").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
-		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ?", model).
+		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ? AND ce.source = 'catalog'", model).
 		Group(normalizedName("cards.name")).
 		Having("COUNT(DISTINCT cards.id) >= 2").
 		Order("size DESC, name ASC").
@@ -108,7 +109,7 @@ func (r *tuningRepository) GroupCards(ctx context.Context, model, name string) (
 		Select("cards.id AS id, expansion_sets.code AS set_code, cards.local_id AS local_id").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
 		Where(normalizedName("cards.name")+" = ?", name).
-		Where("EXISTS (SELECT 1 FROM card_embeddings ce WHERE ce.card_id = cards.id AND ce.model = ?)", model).
+		Where("EXISTS (SELECT 1 FROM card_embeddings ce WHERE ce.card_id = cards.id AND ce.model = ? AND ce.source = 'catalog')", model).
 		Order("expansion_sets.code, cards.local_id, cards.id").
 		Scan(&cards).
 		Error
@@ -129,8 +130,8 @@ func (r *tuningRepository) PairDistances(ctx context.Context, model string, card
 	var pairs []CardPair
 	err = db.Table("card_embeddings AS ea").
 		Select("ea.card_id AS a, eb.card_id AS b, MIN(ea.embedding <=> eb.embedding) AS distance").
-		Joins("JOIN card_embeddings eb ON eb.model = ea.model AND eb.card_id > ea.card_id").
-		Where("ea.model = ? AND ea.card_id IN ? AND eb.card_id IN ?", model, cardIDs, cardIDs).
+		Joins("JOIN card_embeddings eb ON eb.model = ea.model AND eb.source = 'catalog' AND eb.card_id > ea.card_id").
+		Where("ea.model = ? AND ea.source = 'catalog' AND ea.card_id IN ? AND eb.card_id IN ?", model, cardIDs, cardIDs).
 		Group("ea.card_id, eb.card_id").
 		Scan(&pairs).
 		Error

@@ -20,6 +20,9 @@ type MatchRepository interface {
 	// with the nearest distance of its embeddings, ordered by distance, then
 	// newest Expansion Set first. A source without an embedding returns nothing.
 	ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64) ([]CardDistance, error)
+	// HasCatalogArt reports whether card has a catalog embedding of model, the
+	// only art ReprintsOf compares (docs/adr/0027).
+	HasCatalogArt(ctx context.Context, model string, card uuid.UUID) (bool, error)
 }
 
 // matchRepository embeds a crud.Repository only for GetGormInstance.
@@ -59,16 +62,17 @@ func (r *matchRepository) ReprintsOf(ctx context.Context, model string, source u
 		return nil, err
 	}
 
-	// The art test compares every pair of the two Cards' embeddings for model
-	// and keeps the nearest, so a Card with several rows is judged by its
-	// nearest one.
+	// The art test compares every pair of the two Cards' catalog embeddings for
+	// model and keeps the nearest, so a Card with several rows is judged by its
+	// nearest one. User-source rows (ADR-0027) are not catalog art, so they never
+	// count here.
 	var reprints []CardDistance
 	err = db.Table("cards").
 		Select("cards.id AS card_id, MIN(ce.embedding <=> se.embedding) AS distance").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
-		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ?", model).
+		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ? AND ce.source = 'catalog'", model).
 		Joins("JOIN cards src ON src.id = ?", source).
-		Joins("JOIN card_embeddings se ON se.card_id = src.id AND se.model = ?", model).
+		Joins("JOIN card_embeddings se ON se.card_id = src.id AND se.model = ? AND se.source = 'catalog'", model).
 		Where(normalizedName("cards.name")+" = "+normalizedName("src.name")).
 		Where("cards.id NOT IN ?", exclude).
 		Group("cards.id, expansion_sets.release_date").
@@ -80,6 +84,22 @@ func (r *matchRepository) ReprintsOf(ctx context.Context, model string, source u
 		return nil, ungerr.Wrap(err, "searching reprints")
 	}
 	return reprints, nil
+}
+
+func (r *matchRepository) HasCatalogArt(ctx context.Context, model string, card uuid.UUID) (bool, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	var found bool
+	err = db.Raw("SELECT EXISTS (SELECT 1 FROM card_embeddings WHERE card_id = ? AND model = ? AND source = 'catalog')", card, model).
+		Scan(&found).
+		Error
+	if err != nil {
+		return false, ungerr.Wrap(err, "checking catalog art")
+	}
+	return found, nil
 }
 
 // normalizedName is the Card name the Reprint rule compares: case and runs of

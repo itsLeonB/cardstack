@@ -24,14 +24,19 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApproveReviewInputBody,
   CardImageUploadInputBody,
   CreateCardInputBody,
   CreateExpansionSetInputBody,
   EnvelopeAdminCard,
   EnvelopeCardImageUpload,
   EnvelopeExpansionSetSummary,
+  EnvelopeReviewPhoto,
+  EnvelopeReviewUpload,
+  EnvelopeWithMetaListReviewItemPaginationMeta,
   ErrorModel,
   GetAdminCardParams,
+  ListReviewQueueParams,
   UpdateCardInputBody,
   UpdateExpansionSetInputBody
 } from '../../models';
@@ -1026,4 +1031,540 @@ export const useUpdateExpansionSet = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getUpdateExpansionSetMutationOptions(options), queryClient);
+    }
+    export type listReviewQueueResponse200 = {
+  data: EnvelopeWithMetaListReviewItemPaginationMeta
+  status: 200
+}
+
+export type listReviewQueueResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listReviewQueueResponseSuccess = (listReviewQueueResponse200) & {
+  headers: Headers;
+};
+export type listReviewQueueResponseError = (listReviewQueueResponseDefault) & {
+  headers: Headers;
+};
+
+export type listReviewQueueResponse = (listReviewQueueResponseSuccess | listReviewQueueResponseError)
+
+export const getListReviewQueueUrl = (params?: ListReviewQueueParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews`
+}
+
+/**
+ * @summary List the Corrections whose photos wait for review, oldest first: a switched, reprint or placed Correction with a photo and a chosen Card, not yet approved or rejected
+ */
+export const listReviewQueue = async (params?: ListReviewQueueParams, options?: Parameters<typeof customFetch>[1]): Promise<listReviewQueueResponse> => {
+
+  return customFetch<listReviewQueueResponse>(getListReviewQueueUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReviewQueueQueryKey = (params?: ListReviewQueueParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListReviewQueueQueryOptions = <TData = Awaited<ReturnType<typeof listReviewQueue>>, TError = ErrorModel>(params?: ListReviewQueueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewQueue>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReviewQueueQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReviewQueue>>> = ({ signal }) => listReviewQueue(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReviewQueue>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReviewQueueQueryResult = NonNullable<Awaited<ReturnType<typeof listReviewQueue>>>
+export type ListReviewQueueQueryError = ErrorModel
+
+
+export function useListReviewQueue<TData = Awaited<ReturnType<typeof listReviewQueue>>, TError = ErrorModel>(
+ params: undefined |  ListReviewQueueParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewQueue>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReviewQueue>>,
+          TError,
+          Awaited<ReturnType<typeof listReviewQueue>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReviewQueue<TData = Awaited<ReturnType<typeof listReviewQueue>>, TError = ErrorModel>(
+ params?: ListReviewQueueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewQueue>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReviewQueue>>,
+          TError,
+          Awaited<ReturnType<typeof listReviewQueue>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReviewQueue<TData = Awaited<ReturnType<typeof listReviewQueue>>, TError = ErrorModel>(
+ params?: ListReviewQueueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewQueue>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List the Corrections whose photos wait for review, oldest first: a switched, reprint or placed Correction with a photo and a chosen Card, not yet approved or rejected
+ */
+
+export function useListReviewQueue<TData = Awaited<ReturnType<typeof listReviewQueue>>, TError = ErrorModel>(
+ params?: ListReviewQueueParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReviewQueue>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReviewQueueQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type approveReviewResponse204 = {
+  data: void
+  status: 204
+}
+
+export type approveReviewResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type approveReviewResponseSuccess = (approveReviewResponse204) & {
+  headers: Headers;
+};
+export type approveReviewResponseError = (approveReviewResponseDefault) & {
+  headers: Headers;
+};
+
+export type approveReviewResponse = (approveReviewResponseSuccess | approveReviewResponseError)
+
+export const getApproveReviewUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews/${id}/approve`
+}
+
+/**
+ * @summary Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 404 when the Correction is missing or not waiting for review; 409 when already reviewed; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key
+ */
+export const approveReview = async (id: string,
+    approveReviewInputBody: ApproveReviewInputBody, options?: Parameters<typeof customFetch>[1]): Promise<approveReviewResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<approveReviewResponse>(getApproveReviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approveReviewInputBody)
+  }
+);}
+
+
+
+
+
+export const getApproveReviewMutationKey = () => ['approveReview'] as const;
+
+export const getApproveReviewMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveReview>>, TError,ApproveReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveReview>>, TError,ApproveReviewMutationVariables, TContext> => {
+
+const mutationKey = getApproveReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveReview>>, ApproveReviewMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveReview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveReviewMutationResult = NonNullable<Awaited<ReturnType<typeof approveReview>>>
+    export type ApproveReviewMutationBody = ApproveReviewInputBody
+    export type ApproveReviewMutationError = ErrorModel
+    export type ApproveReviewMutationVariables = {id: string;data: ApproveReviewInputBody}
+
+    /**
+ * @summary Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 404 when the Correction is missing or not waiting for review; 409 when already reviewed; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key
+ */
+export const useApproveReview = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveReview>>, TError,ApproveReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveReview>>,
+        TError,
+        ApproveReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveReviewMutationOptions(options), queryClient);
+    }
+    export type getReviewPhotoResponse200 = {
+  data: EnvelopeReviewPhoto
+  status: 200
+}
+
+export type getReviewPhotoResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getReviewPhotoResponseSuccess = (getReviewPhotoResponse200) & {
+  headers: Headers;
+};
+export type getReviewPhotoResponseError = (getReviewPhotoResponseDefault) & {
+  headers: Headers;
+};
+
+export type getReviewPhotoResponse = (getReviewPhotoResponseSuccess | getReviewPhotoResponseError)
+
+export const getGetReviewPhotoUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews/${id}/photo`
+}
+
+/**
+ * @summary Sign a short-lived address that reads a queued Correction's photo (404 when the Correction is not waiting for review)
+ */
+export const getReviewPhoto = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<getReviewPhotoResponse> => {
+
+  return customFetch<getReviewPhotoResponse>(getGetReviewPhotoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReviewPhotoQueryKey = (id: string,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews/${id}/photo`
+    ] as const;
+    }
+
+
+export const getGetReviewPhotoQueryOptions = <TData = Awaited<ReturnType<typeof getReviewPhoto>>, TError = ErrorModel>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewPhoto>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReviewPhotoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReviewPhoto>>> = ({ signal }) => getReviewPhoto(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReviewPhoto>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReviewPhotoQueryResult = NonNullable<Awaited<ReturnType<typeof getReviewPhoto>>>
+export type GetReviewPhotoQueryError = ErrorModel
+
+
+export function useGetReviewPhoto<TData = Awaited<ReturnType<typeof getReviewPhoto>>, TError = ErrorModel>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewPhoto>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewPhoto>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewPhoto>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReviewPhoto<TData = Awaited<ReturnType<typeof getReviewPhoto>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewPhoto>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewPhoto>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewPhoto>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReviewPhoto<TData = Awaited<ReturnType<typeof getReviewPhoto>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewPhoto>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Sign a short-lived address that reads a queued Correction's photo (404 when the Correction is not waiting for review)
+ */
+
+export function useGetReviewPhoto<TData = Awaited<ReturnType<typeof getReviewPhoto>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewPhoto>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReviewPhotoQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type rejectReviewResponse204 = {
+  data: void
+  status: 204
+}
+
+export type rejectReviewResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type rejectReviewResponseSuccess = (rejectReviewResponse204) & {
+  headers: Headers;
+};
+export type rejectReviewResponseError = (rejectReviewResponseDefault) & {
+  headers: Headers;
+};
+
+export type rejectReviewResponse = (rejectReviewResponseSuccess | rejectReviewResponseError)
+
+export const getRejectReviewUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews/${id}/reject`
+}
+
+/**
+ * @summary Reject a queued Correction's photo: it leaves the queue for good and embeds nothing. 409 when it was already reviewed
+ */
+export const rejectReview = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<rejectReviewResponse> => {
+
+  return customFetch<rejectReviewResponse>(getRejectReviewUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRejectReviewMutationKey = () => ['rejectReview'] as const;
+
+export const getRejectReviewMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectReview>>, TError,RejectReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectReview>>, TError,RejectReviewMutationVariables, TContext> => {
+
+const mutationKey = getRejectReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectReview>>, RejectReviewMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  rejectReview(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectReviewMutationResult = NonNullable<Awaited<ReturnType<typeof rejectReview>>>
+
+    export type RejectReviewMutationError = ErrorModel
+    export type RejectReviewMutationVariables = {id: string}
+
+    /**
+ * @summary Reject a queued Correction's photo: it leaves the queue for good and embeds nothing. 409 when it was already reviewed
+ */
+export const useRejectReview = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectReview>>, TError,RejectReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectReview>>,
+        TError,
+        RejectReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectReviewMutationOptions(options), queryClient);
+    }
+    export type requestReviewUploadResponse200 = {
+  data: EnvelopeReviewUpload
+  status: 200
+}
+
+export type requestReviewUploadResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type requestReviewUploadResponseSuccess = (requestReviewUploadResponse200) & {
+  headers: Headers;
+};
+export type requestReviewUploadResponseError = (requestReviewUploadResponseDefault) & {
+  headers: Headers;
+};
+
+export type requestReviewUploadResponse = (requestReviewUploadResponseSuccess | requestReviewUploadResponseError)
+
+export const getRequestReviewUploadUrl = (id: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/admin/reviews/${id}/upload`
+}
+
+/**
+ * @summary Sign a short-lived PUT address for the Admin's cut of a queued Correction's photo, under the one key approve accepts (409 when already reviewed)
+ */
+export const requestReviewUpload = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<requestReviewUploadResponse> => {
+
+  return customFetch<requestReviewUploadResponse>(getRequestReviewUploadUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRequestReviewUploadMutationKey = () => ['requestReviewUpload'] as const;
+
+export const getRequestReviewUploadMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestReviewUpload>>, TError,RequestReviewUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestReviewUpload>>, TError,RequestReviewUploadMutationVariables, TContext> => {
+
+const mutationKey = getRequestReviewUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestReviewUpload>>, RequestReviewUploadMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  requestReviewUpload(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestReviewUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestReviewUpload>>>
+
+    export type RequestReviewUploadMutationError = ErrorModel
+    export type RequestReviewUploadMutationVariables = {id: string}
+
+    /**
+ * @summary Sign a short-lived PUT address for the Admin's cut of a queued Correction's photo, under the one key approve accepts (409 when already reviewed)
+ */
+export const useRequestReviewUpload = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestReviewUpload>>, TError,RequestReviewUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof requestReviewUpload>>,
+        TError,
+        RequestReviewUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestReviewUploadMutationOptions(options), queryClient);
     }

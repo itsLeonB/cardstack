@@ -32,6 +32,9 @@ function AdminHome() {
       <Link to="/cards" className="text-foreground underline">
         Cards
       </Link>
+      <Link to="/reviews" className="text-foreground underline">
+        Corrections to review
+      </Link>
     </PageContainer>
   )
 }

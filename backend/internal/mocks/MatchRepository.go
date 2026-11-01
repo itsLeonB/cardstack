@@ -83,6 +83,64 @@ func (_c *MockMatchRepository_CardsByIDs_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// HasCatalogArt provides a mock function with given fields: ctx, model, card
+func (_m *MockMatchRepository) HasCatalogArt(ctx context.Context, model string, card uuid.UUID) (bool, error) {
+	ret := _m.Called(ctx, model, card)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasCatalogArt")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) (bool, error)); ok {
+		return rf(ctx, model, card)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) bool); ok {
+		r0 = rf(ctx, model, card)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID) error); ok {
+		r1 = rf(ctx, model, card)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockMatchRepository_HasCatalogArt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasCatalogArt'
+type MockMatchRepository_HasCatalogArt_Call struct {
+	*mock.Call
+}
+
+// HasCatalogArt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - model string
+//   - card uuid.UUID
+func (_e *MockMatchRepository_Expecter) HasCatalogArt(ctx interface{}, model interface{}, card interface{}) *MockMatchRepository_HasCatalogArt_Call {
+	return &MockMatchRepository_HasCatalogArt_Call{Call: _e.mock.On("HasCatalogArt", ctx, model, card)}
+}
+
+func (_c *MockMatchRepository_HasCatalogArt_Call) Run(run func(ctx context.Context, model string, card uuid.UUID)) *MockMatchRepository_HasCatalogArt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockMatchRepository_HasCatalogArt_Call) Return(_a0 bool, _a1 error) *MockMatchRepository_HasCatalogArt_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockMatchRepository_HasCatalogArt_Call) RunAndReturn(run func(context.Context, string, uuid.UUID) (bool, error)) *MockMatchRepository_HasCatalogArt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReprintsOf provides a mock function with given fields: ctx, model, source, exclude, maxDistance
 func (_m *MockMatchRepository) ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64) ([]repository.CardDistance, error) {
 	ret := _m.Called(ctx, model, source, exclude, maxDistance)

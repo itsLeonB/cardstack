@@ -84,6 +84,19 @@ func (s *R2Store) PresignPut(ctx context.Context, key, contentType string, ttl t
 	return req.URL, time.Now().Add(ttl), nil
 }
 
+// PresignGet signs a GET of key. The address is good for ttl and then stops
+// working, so an Admin reads a private photo without a bucket credential.
+func (s *R2Store) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, time.Time, error) {
+	req, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", time.Time{}, ungerr.Wrapf(err, "presigning get of %q", key)
+	}
+	return req.URL, time.Now().Add(ttl), nil
+}
+
 func (s *R2Store) ReadHead(ctx context.Context, key string, n int) ([]byte, error) {
 	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),

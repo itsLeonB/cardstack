@@ -72,6 +72,21 @@
         ],
         "type": "object"
       },
+      "ApproveReviewInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "description": "The key the cut was uploaded to: the key the upload address returned.",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
       "BinderGridBody": {
         "additionalProperties": false,
         "properties": {
@@ -1243,6 +1258,30 @@
         ],
         "type": "object"
       },
+      "EnvelopeReviewPhoto": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReviewPhoto"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeReviewUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReviewUpload"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeScanPhotoUploads": {
         "additionalProperties": false,
         "properties": {
@@ -1307,6 +1346,28 @@
           "data": {
             "items": {
               "$ref": "#/components/schemas/InventoryItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
+      },
+      "EnvelopeWithMetaListReviewItemPaginationMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewItem"
             },
             "type": [
               "array",
@@ -1836,6 +1897,190 @@
         },
         "required": [
           "count"
+        ],
+        "type": "object"
+      },
+      "ReviewBinderCell": {
+        "additionalProperties": false,
+        "properties": {
+          "corners": {
+            "description": "Top-left, top-right, bottom-right, bottom-left: the grid's outer corners, each axis 0 to 1 across the photo.",
+            "items": {
+              "$ref": "#/components/schemas/ReviewPoint"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "gridColumns": {
+            "description": "Columns in the Page's grid, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "gridRows": {
+            "description": "Rows in the Page's grid, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page number in turning order, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "slotColumn": {
+            "description": "The cell's column on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "slotRow": {
+            "description": "The cell's row on its Page, from 1.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "slotRow",
+          "slotColumn",
+          "gridRows",
+          "gridColumns",
+          "corners"
+        ],
+        "type": "object"
+      },
+      "ReviewItem": {
+        "additionalProperties": false,
+        "properties": {
+          "binder": {
+            "$ref": "#/components/schemas/ReviewBinderCell",
+            "description": "Set for a binder_page item: the cell's place on its Page, and the Page's grid in the photo."
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardSummary",
+            "description": "The Card the user chose, with its catalog image."
+          },
+          "createdAt": {
+            "description": "When the Correction was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "What the user did: switched to another candidate, picked a print from Other prints, or placed a Card the matcher offered nothing for.",
+            "enum": [
+              "switched",
+              "reprint",
+              "placed"
+            ],
+            "type": "string"
+          },
+          "scores": {
+            "description": "The scores the matcher gave, in the order it offered them.",
+            "items": {
+              "$ref": "#/components/schemas/ReviewScore"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "Where the photo came from: a single card scan, or a binder Page cell.",
+            "enum": [
+              "card_scan",
+              "binder_page"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source",
+          "createdAt",
+          "card",
+          "scores"
+        ],
+        "type": "object"
+      },
+      "ReviewPhoto": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "description": "Reads the photo until expiresAt. The Admin app cuts a binder cell from it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "ReviewPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "format": "double",
+            "type": "number"
+          },
+          "y": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ReviewScore": {
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "string"
+          },
+          "score": {
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "cardId",
+          "score"
+        ],
+        "type": "object"
+      },
+      "ReviewUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "key": {
+            "description": "The object the PUT writes. Approve names this key.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Accepts one PUT of a JPEG, sent with Content-Type image/jpeg, until expiresAt.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "url",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -2634,6 +2879,259 @@
           }
         ],
         "summary": "Replace an Expansion Set's name, release date and Series and mark it Curated; the code stays",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reviews": {
+      "get": {
+        "operationId": "list-review-queue",
+        "parameters": [
+          {
+            "description": "1-indexed page number.",
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "description": "1-indexed page number.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 24,
+              "description": "Page size.",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListReviewItemPaginationMeta"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the Corrections whose photos wait for review, oldest first: a switched, reprint or placed Correction with a photo and a chosen Card, not yet approved or rejected",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reviews/{id}/approve": {
+      "post": {
+        "operationId": "approve-review",
+        "parameters": [
+          {
+            "description": "Correction ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Correction ID",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveReviewInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 404 when the Correction is missing or not waiting for review; 409 when already reviewed; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reviews/{id}/photo": {
+      "get": {
+        "operationId": "get-review-photo",
+        "parameters": [
+          {
+            "description": "Correction ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Correction ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeReviewPhoto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign a short-lived address that reads a queued Correction's photo (404 when the Correction is not waiting for review)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reviews/{id}/reject": {
+      "post": {
+        "operationId": "reject-review",
+        "parameters": [
+          {
+            "description": "Correction ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Correction ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Reject a queued Correction's photo: it leaves the queue for good and embeds nothing. 409 when it was already reviewed",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reviews/{id}/upload": {
+      "post": {
+        "operationId": "request-review-upload",
+        "parameters": [
+          {
+            "description": "Correction ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Correction ID",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeReviewUpload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign a short-lived PUT address for the Admin's cut of a queued Correction's photo, under the one key approve accepts (409 when already reviewed)",
         "tags": [
           "admin"
         ]

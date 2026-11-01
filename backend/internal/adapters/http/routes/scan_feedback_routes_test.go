@@ -442,6 +442,7 @@ func TestScanFeedbackMigration_IndexesServeTheOperatorQueries(t *testing.T) {
 		"idx_scan_feedback_card_kind",
 		"idx_scan_feedback_kind_created_at",
 		"idx_scan_feedback_profile_id",
+		"idx_scan_feedback_review_queue",
 	}, names)
 }
 

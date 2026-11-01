@@ -13,11 +13,11 @@
 //
 // cells cuts each Page photo in DIR into its grid and embeds every cell with
 // Gemini. For each cell it prints the top similarity the matcher would report
-// for it: 1 minus the cosine distance to the nearest catalog image of the
-// configured model, among published Expansion Sets, one row per Card. The line
-// also names that top Card and its set code. Compare the top scores of the
-// empty cells with those of the filled ones to choose the threshold. Each photo
-// then gets a summary: the lowest and
+// for it: 1 minus the cosine distance to the nearest image of the configured
+// model from any source, catalog or approved photo, among published Expansion
+// Sets, one row per Card. The line also names that top Card and its set code.
+// Compare the top scores of the empty cells with those of the filled ones to
+// choose the threshold. Each photo then gets a summary: the lowest and
 // highest similarity and, with --threshold, how many scored cells are strictly
 // below it. Set MATCH_EMPTY_THRESHOLD between the top of the empty cells and the
 // bottom of the filled ones. --cut-dir keeps the cut cell JPEGs; otherwise they
