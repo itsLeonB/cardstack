@@ -5,8 +5,8 @@
 ## Enforced settings
 
 - **Serena hooks**: `serena-hooks remind` nudges an agent that reads code with built-in tools; `activate`, `auto-approve` and `cleanup` manage the Serena session. See `docs/agents/conventions/serena.md`.
-- **`.claude/hooks/block-commit-on-main.sh`**: refuses `git commit` and `git merge` on a protected branch, and `git push` from or to one. A command that creates a branch first is allowed. The `PROTECTED` variable at the top of the script lists the branches (main).
-- **`deny-big-output`**: refuses `cat` or `git diff` output over 20 KB, and a `Read` over 40 KB without `offset` or `limit`. The message names the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a Bash command with `BIG_OK=1 ` to override. Source: `tools/cmd/deny-big-output`; install: `tools/README.md`. Without the binary the hook errors but doesn't block.
+- **`.pi/extensions/block-commit-on-main.ts`** (Pi only): refuses `git commit` and `git merge` while the session is on `main`. Claude Code has no equivalent.
+- **`.pi/extensions/deny-big-output.ts`** (Pi only): refuses `cat` or `git diff` output over 20 KB, and a `read` over 40 KB without `offset` or `limit`. The message names the cheaper route (`--stat`, `offset`/`limit`, `ctx_execute_file`). Prefix a bash command with `BIG_OK=1 ` to override; change thresholds with `DENY_BIG_BASH_MAX` and `DENY_BIG_READ_MAX` (bytes). Claude Code has no equivalent.
 - **`permissions.deny`**: patterns the harness refuses. A wider allow in `settings.local.json` doesn't override a deny.
 - **`CLAUDE_CODE_DISABLE_ADVISOR_TOOL`**: turns off the native advisor tool, so the advisor subagent is the only advisor.
 - **hookify** (`hookify@claude-plugins-official`): turns a mistake into a rule file.

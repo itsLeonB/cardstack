@@ -1,10 +1,8 @@
 import { execFileSync } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// Pi counterpart of .claude/hooks/block-commit-on-main.sh. Implemented natively so Pi
-// blocks the call up front instead of running the command and reporting the failure after.
-// Keep the pattern in sync with that script if the rule ever widens.
-const COMMIT_OR_MERGE = /(^|\s)git(\s+-C\s+\S+)?\s+(commit|merge)\b/;
+// Blocks the call up front instead of running the command and reporting the failure after.
+const COMMIT_OR_MERGE = /(^|\s)git(\s+-C\s+\S+)?\s+(commit|merge)(?=\s|$)/;
 
 export default function (pi: ExtensionAPI) {
   pi.on("tool_call", async (event, ctx) => {

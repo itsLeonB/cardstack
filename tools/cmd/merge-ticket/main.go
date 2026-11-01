@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-// protected mirrors PROTECTED in .claude/hooks/block-commit-on-main.sh.
+// protected mirrors the branch blocked in .pi/extensions/block-commit-on-main.ts.
 var protected = []string{"main"}
 
 func git(args ...string) (string, error) {
