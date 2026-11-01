@@ -12,7 +12,11 @@ import type {
   ReviewItemKind,
   ReviewItemSource,
 } from "@/generated/models"
-import { ApprovalRefused, approveCorrection } from "@/lib/review-approval"
+import {
+  ApprovalRefused,
+  approveCorrection,
+  staleDecisionMessage,
+} from "@/lib/review-approval"
 
 // The API's default page size (ADR-0027 leaves paging to the list endpoint).
 const PAGE_SIZE = 24
@@ -135,12 +139,9 @@ function ReviewItemCard({ item }: { item: ReviewItem }) {
       {
         onSuccess: ({ status }) => {
           if (status === 204) return refreshQueue()
-          if (status === 404) {
-            setMessage("This photo is no longer waiting for review.")
-            return refreshQueue()
-          }
-          if (status === 409) {
-            setMessage("Another Admin already decided this photo.")
+          const stale = staleDecisionMessage(status)
+          if (stale) {
+            setMessage(stale)
             return refreshQueue()
           }
           setMessage(REJECT_FAILED)

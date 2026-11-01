@@ -27,7 +27,6 @@ const reviewPhotoTTL = 5 * time.Minute
 const (
 	reviewedMsg          = "this Correction is already reviewed"
 	reviewNotPendingMsg  = "this Correction is not waiting for review"
-	reviewCardGoneMsg    = "the Card this Correction chose no longer exists, so it can only be rejected"
 	reviewKeyMsg         = "the key is not the one this Correction's upload address returned"
 	reviewMissingMsg     = "no photo was uploaded under the key"
 	reviewTooLargeMsg    = "the uploaded photo is over the size cap"
@@ -41,6 +40,13 @@ const (
 // bucket (docs/adr/0027).
 func reviewedKey(id uuid.UUID) string {
 	return "reviewed/" + id.String() + ".jpg"
+}
+
+// approvedKey is where Approve keeps the exact bytes it embedded. No presigned
+// address is ever minted for it, so a late upload to reviewedKey cannot replace
+// it (docs/adr/0027).
+func approvedKey(id uuid.UUID) string {
+	return "approved/" + id.String() + ".jpg"
 }
 
 // ScanReviewService is the Admin's review of the photos kept from Corrections
@@ -170,8 +176,8 @@ func (s *scanReviewService) Approve(ctx context.Context, req dto.ReviewApproveRe
 	if err != nil {
 		return err
 	}
-	if err := s.checkApprovable(ctx, row); err != nil {
-		return err
+	if row.ReviewStatus != nil {
+		return ungerr.ConflictError(reviewedMsg)
 	}
 	if req.Key != reviewedKey(req.ID) {
 		return ungerr.UnprocessableEntityError(reviewKeyMsg)
@@ -179,7 +185,7 @@ func (s *scanReviewService) Approve(ctx context.Context, req dto.ReviewApproveRe
 
 	// The embedder is a network call, so it runs outside the transaction and
 	// holds no row lock. A failure here stores nothing.
-	vector, err := s.embedUpload(ctx, req.Key)
+	data, vector, err := s.embedUpload(ctx, req.Key)
 	if err != nil {
 		return err
 	}
@@ -189,7 +195,13 @@ func (s *scanReviewService) Approve(ctx context.Context, req dto.ReviewApproveRe
 		if err != nil {
 			return err
 		}
-		if err := s.checkApprovable(ctx, locked); err != nil {
+		if locked.ReviewStatus != nil {
+			return ungerr.ConflictError(reviewedMsg)
+		}
+
+		// Written under the row lock, so a racing approval can never leave another
+		// photo under the kept key. A failed write rolls the transaction back.
+		if err := s.photos.Put(ctx, approvedKey(req.ID), jpegMIME, data); err != nil {
 			return err
 		}
 
@@ -206,50 +218,38 @@ func (s *scanReviewService) Approve(ctx context.Context, req dto.ReviewApproveRe
 	})
 }
 
-// checkApprovable refuses a Correction that is decided, or whose chosen Card has
-// gone. Both are checked again under the row lock in Approve.
-func (s *scanReviewService) checkApprovable(ctx context.Context, row entity.ScanFeedback) error {
-	if row.ReviewStatus != nil {
-		return ungerr.ConflictError(reviewedMsg)
-	}
-	live, err := s.reviews.CardExists(ctx, *row.CardID)
-	if err != nil {
-		return err
-	}
-	if !live {
-		return ungerr.ConflictError(reviewCardGoneMsg)
-	}
-	return nil
-}
-
 // embedUpload checks the object uploaded under key and embeds it. The object
-// must be within the size cap and start with a JPEG signature. A refused object
-// stays in the bucket: photos are kept until the operator deletes them
-// (docs/adr/0022).
-func (s *scanReviewService) embedUpload(ctx context.Context, key string) ([]float32, error) {
+// must be within the size cap and start with a JPEG signature. It returns the
+// bytes it embedded, so Approve keeps exactly those. A refused object stays in
+// the bucket: photos are kept until the operator deletes them (docs/adr/0022).
+func (s *scanReviewService) embedUpload(ctx context.Context, key string) ([]byte, []float32, error) {
 	size, err := s.photos.Size(ctx, key)
 	if errors.Is(err, objectstore.ErrNotFound) {
-		return nil, ungerr.UnprocessableEntityError(reviewMissingMsg)
+		return nil, nil, ungerr.UnprocessableEntityError(reviewMissingMsg)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if size > MaxFeedbackPhotoBytes {
-		return nil, ungerr.UnprocessableEntityError(reviewTooLargeMsg)
+		return nil, nil, ungerr.UnprocessableEntityError(reviewTooLargeMsg)
 	}
 
 	data, err := s.photos.Get(ctx, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// The object may have been replaced since its size was read.
 	if len(data) > MaxFeedbackPhotoBytes {
-		return nil, ungerr.UnprocessableEntityError(reviewTooLargeMsg)
+		return nil, nil, ungerr.UnprocessableEntityError(reviewTooLargeMsg)
 	}
 	if !bytes.HasPrefix(data, jpegSignature) {
-		return nil, ungerr.UnprocessableEntityError(reviewNotJPEGMsg)
+		return nil, nil, ungerr.UnprocessableEntityError(reviewNotJPEGMsg)
 	}
-	return s.embedder.Embed(ctx, jpegMIME, data)
+	vector, err := s.embedder.Embed(ctx, jpegMIME, data)
+	if err != nil {
+		return nil, nil, err
+	}
+	return data, vector, nil
 }
 
 func (s *scanReviewService) Reject(ctx context.Context, req dto.ReviewRejectRequest) error {
