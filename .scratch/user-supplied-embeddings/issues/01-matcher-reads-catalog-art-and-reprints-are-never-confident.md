@@ -6,7 +6,7 @@ Spec: `.scratch/user-supplied-embeddings/spec.md` (Embedding, Matcher). ADR-0027
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/user-supplied-embeddings`, merge `f14df81`, review fixes in `e0eb1c4`.
 
 - [ ] The Reprint art distance (ADR-0023) ignores any embedding whose source is not `catalog`
 - [ ] The tuning script's reports ignore any embedding whose source is not `catalog`

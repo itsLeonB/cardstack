@@ -1,6 +1,6 @@
 # User-supplied embeddings
 
-Status: ready-for-agent
+Status: done
 
 Depends on the scan enhancements spec (`.scratch/scan-enhancements/spec.md`), which records each Correction with its photo, and on the admin app extraction spec (`.scratch/admin-app-extraction/spec.md`), which gives the Admin its own app. Decisions are recorded in ADR-0027, which this spec follows and does not repeat in full.
 

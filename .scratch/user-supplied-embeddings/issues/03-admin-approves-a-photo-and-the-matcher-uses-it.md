@@ -6,7 +6,7 @@ Spec: `.scratch/user-supplied-embeddings/spec.md` (Embedding, Photo access and a
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/user-supplied-embeddings`, merge `b2ab432`, review fixes in `e0eb1c4`.
 
 - [ ] The API mints a presigned PUT for a server-chosen key under a reviewed prefix of that item, with a signed content type and a short expiry, for an Admin only
 - [ ] Approve names that key; the API refuses a key outside that item's prefix, a non-JPEG first bytes and an object over the size cap

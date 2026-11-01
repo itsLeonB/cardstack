@@ -6,7 +6,7 @@ Spec: `.scratch/user-supplied-embeddings/spec.md` (User app). ADR-0027, ADR-0022
 
 **Blocked by:** None (can start immediately). Release order, not a code dependency: merge before ticket 03 ships to production.
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/user-supplied-embeddings`, merge `d8bf611`, review fixes in `e0eb1c4`.
 
 - [ ] The card scan screen shows the notice
 - [ ] The Page Review shows the notice

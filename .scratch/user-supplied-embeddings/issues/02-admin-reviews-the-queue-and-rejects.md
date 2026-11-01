@@ -6,7 +6,7 @@ Spec: `.scratch/user-supplied-embeddings/spec.md` (Review state, Photo access, A
 
 **Blocked by:** None (can start immediately). The admin app extraction (`.scratch/admin-app-extraction/spec.md`) and the scan enhancements (`.scratch/scan-enhancements/spec.md`) must be merged first.
 
-**Status:** ready-for-agent
+**Status:** done — implemented on `feat/user-supplied-embeddings`, merge `0c38e4c`, review fixes in `e0eb1c4`.
 
 - [ ] `scan_feedback` gains a nullable review status (`approved` or `rejected`), reviewer and review time; NULL means pending, and nothing already recorded changes
 - [ ] The queue lists rows of kind `switched`, `reprint` or `placed` that have an image key and a chosen Card and no status, oldest first, paged; rows recorded before this ships are included
