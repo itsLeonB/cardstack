@@ -20,7 +20,7 @@ export default function (pi: ExtensionAPI) {
     return {
       block: true,
       reason:
-        "Never commit or merge on main. Create a feature branch first: git switch -c <type>/<name> (docs/agents/orchestration.md).",
+        "Never commit or merge on main. Create a feature branch first: git switch -c <type>/<name> (docs/git.md).",
     };
   });
 }

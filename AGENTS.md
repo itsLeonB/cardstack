@@ -16,11 +16,13 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-### Development orchestration
+### Workflows
 
-The agent the maintainer talks to is the orchestrator. Multi-component or large single-component tasks are delegated to `backend-agent`/`frontend-agent` in git worktrees; small tasks proceed directly. See `docs/agents/orchestration.md` for the full workflow, commit and branch naming conventions.
+`/implement`, `/implement-spec`, or a multi-step pattern you keep repeating: `docs/agents/workflows.md`. Commit and branch names: `docs/git.md`.
 
-Code review runs once per implementation loop, by whoever implemented it. The advisor is separate: the orchestrator spawns it only to choose between approaches, to answer a worker question the ticket and ADRs leave open, or after a failure survives two different fixes, never to confirm finished work and never for short tasks. Component agents ask the orchestrator, not the advisor. The rules are in `docs/agents/orchestration.md`.
+### Advisor
+
+Spawn `.claude/agents/advisor.md` to choose between approaches, to answer a question the ticket and ADRs leave open, or after a failure survives two different fixes; never to confirm finished work, never for a short task.
 
 ### Test environment
 

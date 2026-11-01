@@ -1,4 +1,4 @@
-// Command merge-ticket runs the mechanical steps of docs/agents/orchestration.md "Merge and clean up" for one child branch.
+// Command merge-ticket runs the mechanical steps of docs/agents/workflows/implement.md "Delegating" step 7 (merge and clean up) for one child branch.
 // Run it from the feature-branch checkout.
 //
 //	merge-ticket merge   (<branch> | --worktree <path>) (--scope <dir>... | --component <name>...)

@@ -6,9 +6,9 @@ Serena is an MCP server that exposes semantic, symbol-aware tools for reading, s
 
 Everyone uses Serena: the orchestrator, the component agents and the advisor. Read this file before your first tool call on a code file.
 
-- The orchestrator's Serena is rooted at the main checkout.
-- A component agent works in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the main checkout.
-- The advisor uses Serena for reads in the main checkout, and reads a child's worktree by absolute path with the built-in tools, because its Serena is rooted at the main checkout.
+- The orchestrator's Serena is rooted at its own checkout.
+- A component agent works in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the orchestrator's checkout.
+- The advisor uses Serena for reads in its own checkout, and reads another worktree by absolute path with the built-in tools, because its Serena is rooted at its own checkout.
 
 Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md`.
 
