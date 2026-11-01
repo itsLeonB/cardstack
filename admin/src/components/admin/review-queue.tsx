@@ -18,8 +18,8 @@ import {
   staleDecisionMessage,
 } from "@/lib/review-approval"
 
-// The API's default page size (ADR-0027 leaves paging to the list endpoint).
-const PAGE_SIZE = 24
+// Small, since every binder item decodes its whole Page photo to cut its cell.
+const PAGE_SIZE = 8
 
 const KIND_LABEL = {
   switched: "Switched to another candidate",
@@ -59,6 +59,12 @@ export function ReviewQueue() {
   const items = envelope.data ?? []
   const { total, limit } = envelope.meta
   const pages = Math.max(1, Math.ceil(total / limit))
+  // The queue shrank under this page (its last photos were decided): go to the
+  // last page there is, without showing this one's empty results.
+  if (page > pages) {
+    setPage(pages)
+    return <p role="status">Loading the queue…</p>
+  }
 
   return (
     <div className="flex flex-col gap-6">

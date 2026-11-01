@@ -1186,7 +1186,7 @@ export const getApproveReviewUrl = (id: string,) => {
 }
 
 /**
- * @summary Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 409 when already reviewed or when the chosen Card is gone; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key
+ * @summary Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 404 when the Correction is missing or not waiting for review; 409 when already reviewed; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key
  */
 export const approveReview = async (id: string,
     approveReviewInputBody: ApproveReviewInputBody, options?: Parameters<typeof customFetch>[1]): Promise<approveReviewResponse> => {
@@ -1253,7 +1253,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ApproveReviewMutationVariables = {id: string;data: ApproveReviewInputBody}
 
     /**
- * @summary Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 409 when already reviewed or when the chosen Card is gone; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key
+ * @summary Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 404 when the Correction is missing or not waiting for review; 409 when already reviewed; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key
  */
 export const useApproveReview = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveReview>>, TError,ApproveReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

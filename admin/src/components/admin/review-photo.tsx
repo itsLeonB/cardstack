@@ -9,10 +9,12 @@ import { paintPixels, readPixels } from "@/lib/photo-pixels"
  * The user's photo for one item, read through its short-lived presigned
  * address. A card scan is shown as stored; a binder cell is cut from its Page
  * photo as the matcher would embed it. A stored address that has expired fails
- * to load, so the photo is asked for again.
+ * to load, so the photo is asked for again, once: a fresh address that fails too
+ * shows Retry instead of asking again and again.
  */
 export function ReviewPhoto({ item }: { item: ReviewItem }) {
   const photo = useGetReviewPhoto(item.id)
+  const [load, setLoad] = useState<"first" | "refetched" | "failed">("first")
   const url = photo.data?.status === 200 ? photo.data.data.data.url : undefined
 
   if (!url) {
@@ -20,11 +22,26 @@ export function ReviewPhoto({ item }: { item: ReviewItem }) {
     return <RetryPhoto onRetry={() => photo.refetch()} />
   }
   if (item.source === "card_scan") {
+    if (load === "failed") {
+      return (
+        <RetryPhoto
+          onRetry={() => {
+            setLoad("first")
+            void photo.refetch()
+          }}
+        />
+      )
+    }
     return (
       <img
         src={url}
         alt="Photo from the scan"
-        onError={() => photo.refetch()}
+        onLoad={() => setLoad("first")}
+        onError={() => {
+          if (load === "refetched") return setLoad("failed")
+          setLoad("refetched")
+          void photo.refetch()
+        }}
         className="max-h-96 rounded-md object-contain"
       />
     )

@@ -122,7 +122,7 @@ function queue(items: ReviewItem[], total = items.length, pageNumber = 1) {
   return {
     data: {
       status: 200,
-      data: { data: items, meta: { total, page: pageNumber, limit: 24 } },
+      data: { data: items, meta: { total, page: pageNumber, limit: 8 } },
     },
     isPending: false,
     isError: false,
@@ -144,6 +144,12 @@ function renderQueue() {
 
 function itemNamed(kindLabel: string) {
   return screen.getByRole("region", { name: kindLabel })
+}
+
+function scanPhoto() {
+  return within(itemNamed("Switched to another candidate")).getByRole("img", {
+    name: "Photo from the scan",
+  })
 }
 
 beforeEach(() => {
@@ -300,25 +306,62 @@ describe("the review queue", () => {
   it("asks for a fresh photo address when the stored one has expired", () => {
     renderQueue()
 
-    fireEvent.error(
-      within(itemNamed("Switched to another candidate")).getByRole("img", {
-        name: "Photo from the scan",
-      })
-    )
+    fireEvent.error(scanPhoto())
 
     expect(api.photoRefetch).toHaveBeenCalledTimes(1)
   })
 
-  it("pages through the queue, 24 at a time", () => {
-    api.useQueue.mockReturnValue(queue([scan, cell], 30))
+  it("offers Retry, not another fresh address, when the fresh one fails too", () => {
     renderQueue()
 
-    expect(api.useQueue).toHaveBeenLastCalledWith({ page: 1, limit: 24 })
+    fireEvent.error(scanPhoto())
+    fireEvent.error(scanPhoto())
+
+    expect(api.photoRefetch).toHaveBeenCalledTimes(1)
+    const item = itemNamed("Switched to another candidate")
+    within(item).getByText("The photo could not be loaded.")
+
+    fireEvent.click(within(item).getByRole("button", { name: "Retry" }))
+    fireEvent.error(scanPhoto())
+
+    expect(api.photoRefetch).toHaveBeenCalledTimes(3)
+  })
+
+  it("asks for a fresh address again once a photo has loaded", () => {
+    renderQueue()
+
+    fireEvent.error(scanPhoto())
+    fireEvent.load(scanPhoto())
+    fireEvent.error(scanPhoto())
+
+    expect(api.photoRefetch).toHaveBeenCalledTimes(2)
+  })
+
+  it("pages through the queue, 8 at a time", () => {
+    api.useQueue.mockReturnValue(queue([scan, cell], 10))
+    renderQueue()
+
+    expect(api.useQueue).toHaveBeenLastCalledWith({ page: 1, limit: 8 })
     screen.getByText("Page 1 of 2")
 
     fireEvent.click(screen.getByRole("button", { name: "Next" }))
 
-    expect(api.useQueue).toHaveBeenLastCalledWith({ page: 2, limit: 24 })
+    expect(api.useQueue).toHaveBeenLastCalledWith({ page: 2, limit: 8 })
+  })
+
+  it("goes back to the last page when the queue shrinks under the one shown", () => {
+    // The last photo of page 2 was decided: page 2 now answers empty, and the
+    // queue fits on one page.
+    api.useQueue.mockImplementation((params?: ListReviewQueueParams) =>
+      params?.page === 2 ? queue([], 8, 2) : queue([scan, cell], 10)
+    )
+    renderQueue()
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }))
+
+    expect(api.useQueue).toHaveBeenLastCalledWith({ page: 1, limit: 8 })
+    screen.getByText("Page 1 of 2")
+    expect(screen.queryByText("Nothing is waiting for review.")).toBeNull()
   })
 
   it("approves a photo, then asks for the queue again so the photo leaves it", async () => {
