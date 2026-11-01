@@ -113,19 +113,32 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 	}
 	confident := s.settings.confident(candidates)
 	if confident {
-		// A Card with a Reprint is never confident: the user picks the print. The
-		// Card is left out of its own Reprints, which would match it at distance 0.
-		top := candidates[0].Card.ID
-		reprints, err := s.cards.ReprintsOf(ctx, s.settings.Model, top, []uuid.UUID{top}, s.settings.ReprintDelta)
-		if err != nil {
+		var err error
+		if confident, err = s.hasNoReprint(ctx, candidates[0].Card.ID); err != nil {
 			return dto.MatchResult{}, err
 		}
-		confident = len(reprints) == 0
 	}
 	if confident {
 		candidates = candidates[:1]
 	}
 	return dto.MatchResult{Confident: confident, Candidates: candidates}, nil
+}
+
+// hasNoReprint reports whether top is known to have no Reprint, the rule a
+// confident match must also meet: the user picks the print otherwise. A Card
+// with no catalog art (only user-supplied embeddings, docs/adr/0027) cannot be
+// judged, so it counts as having one. The Card is left out of its own Reprints,
+// which would match it at distance 0.
+func (s *matchService) hasNoReprint(ctx context.Context, top uuid.UUID) (bool, error) {
+	hasArt, err := s.cards.HasCatalogArt(ctx, s.settings.Model, top)
+	if err != nil || !hasArt {
+		return false, err
+	}
+	reprints, err := s.cards.ReprintsOf(ctx, s.settings.Model, top, []uuid.UUID{top}, s.settings.ReprintDelta)
+	if err != nil {
+		return false, err
+	}
+	return len(reprints) == 0, nil
 }
 
 // confident is true when the top candidate clears the threshold and the

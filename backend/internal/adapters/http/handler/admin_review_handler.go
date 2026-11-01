@@ -104,7 +104,7 @@ func (h *AdminReviewHandler) Routes() []endpoint.Registrable {
 			OperationID: OpApproveReview,
 			Method:      http.MethodPost,
 			Path:        "/admin/reviews/{id}/approve",
-			Summary:     "Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 409 when already reviewed or when the chosen Card is gone; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key",
+			Summary:     "Approve a queued Correction's photo from its uploaded cut: embed it as an extra image of the Card the user chose and mark it approved, in one step. A failed embedding stores nothing and leaves it queued. 404 when the Correction is missing or not waiting for review; 409 when already reviewed; 422 when the upload is missing, not a JPEG, over the size cap or not this Correction's key",
 			Tags:        []string{"admin"},
 			Secured:     true,
 			HandlerFunc: h.approve,

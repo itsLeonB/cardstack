@@ -148,6 +148,20 @@ func TestScanMatchFlow(t *testing.T) {
 		assert.Equal(t, []uuid.UUID{top, reprint, runnerUp}, matchedIDs(got))
 	})
 
+	t.Run("a Card with only a user-supplied embedding is not confident, since its Reprints cannot be judged", func(t *testing.T) {
+		api := newTestAPI(t)
+		cards := newTestCards(t, 2)
+		api.storeEmbeddingFrom(t, cards[0], "correction:"+uuid.NewString(), similarTo(0.95))
+		api.storeEmbedding(t, cards[1], api.model, similarTo(0.60))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		code, got := api.scan(t, api.newUserToken(t))
+
+		require.Equal(t, http.StatusOK, code)
+		assert.False(t, got.Confident)
+		assert.Equal(t, cards, matchedIDs(got))
+	})
+
 	t.Run("a catalog with nothing embedded matches nothing", func(t *testing.T) {
 		api := newTestAPI(t)
 		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)

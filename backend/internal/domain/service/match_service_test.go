@@ -70,9 +70,10 @@ func (f matchFixture) match(t *testing.T) dto.MatchResult {
 	return got
 }
 
-// reprintsOf makes the Reprint lookup for top, the Card a confident match would
-// pick, answer found.
+// reprintsOf gives top, the Card a confident match would pick, catalog art and
+// makes its Reprint lookup answer found.
 func (f matchFixture) reprintsOf(top uuid.UUID, found ...repository.CardDistance) {
+	f.cards.EXPECT().HasCatalogArt(mock.Anything, testMatchSettings.Model, top).Return(true, nil)
 	f.cards.EXPECT().ReprintsOf(mock.Anything, testMatchSettings.Model, top, []uuid.UUID{top}, testMatchSettings.ReprintDelta).Return(found, nil)
 }
 
@@ -160,6 +161,19 @@ func TestMatchService_Match_ConfidentIsWithheldWhenTheTopCardHasAReprint(t *test
 
 	assert.False(t, got.Confident)
 	assert.Equal(t, ids, candidateIDs(got), "the user picks the print from every candidate")
+}
+
+func TestMatchService_Match_ATopCardWithNoCatalogArtIsNotConfident(t *testing.T) {
+	f := newMatchFixture(t)
+	ids := f.search(0.05, 0.30) // 0.95 clears the margin over 0.70
+	// Only user-supplied embeddings: its Reprints cannot be judged, and the
+	// strict mock fails if ReprintsOf is asked anyway.
+	f.cards.EXPECT().HasCatalogArt(mock.Anything, testMatchSettings.Model, ids[0]).Return(false, nil)
+
+	got := f.match(t)
+
+	assert.False(t, got.Confident)
+	assert.Equal(t, ids, candidateIDs(got))
 }
 
 func TestMatchService_Match_NothingEmbeddedYetIsAnEmptyNonConfidentResult(t *testing.T) {
