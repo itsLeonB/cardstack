@@ -22,5 +22,8 @@ if [ -e "$root/.envrc" ] && command -v direnv >/dev/null 2>&1; then
 fi
 
 cd "$root"
+# The pre-commit checks live in .githooks (docs/git.md); a worktree inherits no
+# local git config from the main checkout.
+git config core.hooksPath .githooks
 # Starts the tooling container and installs both packages' dependencies in it.
 scripts/verification/frontend.sh install

@@ -21,5 +21,8 @@ if [ -e "$root/.envrc" ] && command -v direnv >/dev/null 2>&1; then
 fi
 
 cd "$root"
+# The pre-commit checks live in .githooks (docs/git.md); a worktree inherits no
+# local git config from the main checkout.
+git config core.hooksPath .githooks
 source scripts/verification/lib.sh
 up backend-tools db
