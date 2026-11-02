@@ -171,6 +171,29 @@ func (h *WishlistHandler) applyPreset(ctx context.Context, in wishlistPresetInpu
 	})
 }
 
+func (h *WishlistHandler) share(ctx context.Context, _ clearFulfilledWishlistInput) (dto.WishlistShareResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.WishlistShareResult{}, err
+	}
+
+	slug, err := h.wishlistSvc.Share(ctx, dto.WishlistLookup{ProfileID: profileID})
+	if err != nil {
+		return dto.WishlistShareResult{}, err
+	}
+
+	return dto.WishlistShareResult{Slug: slug}, nil
+}
+
+func (h *WishlistHandler) unshare(ctx context.Context, _ clearFulfilledWishlistInput) error {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return err
+	}
+
+	return h.wishlistSvc.Unshare(ctx, dto.WishlistLookup{ProfileID: profileID})
+}
+
 func wishlistRequest(ctx context.Context, params CardFilterParams, cardIDs []string, status string) (dto.WishlistListRequest, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -257,6 +280,25 @@ func (h *WishlistHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.applyPreset,
+		}),
+		endpoint.New(endpoint.Endpoint[clearFulfilledWishlistInput, dto.WishlistShareResult]{
+			OperationID: "share-wishlist",
+			Method:      http.MethodPost,
+			Path:        "/wishlist/share",
+			Summary:     "Share the current user's Wishlist: anyone with the link can view it. Sharing an already-shared Wishlist keeps its link",
+			Tags:        []string{"wishlist"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.share,
+		}),
+		endpoint.NewNoBody(endpoint.NoBodyEndpoint[clearFulfilledWishlistInput]{
+			OperationID: "unshare-wishlist",
+			Method:      http.MethodDelete,
+			Path:        "/wishlist/share",
+			Summary:     "Stop sharing the current user's Wishlist; its link stops working at once",
+			Tags:        []string{"wishlist"},
+			Secured:     true,
+			HandlerFunc: h.unshare,
 		}),
 	}
 }

@@ -24,6 +24,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	profileHandler := handler.NewProfileHandler(services.Users)
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 	sharedCollectionHandler := handler.NewSharedCollectionHandler(services.SharedCollection)
+	sharedWishlistHandler := handler.NewSharedWishlistHandler(services.SharedWishlist)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
 	wishlistHandler := handler.NewWishlistHandler(services.Wishlist)
 	binderHandler := handler.NewBinderHandler(services.Binder, services.BinderSlot)
@@ -59,6 +60,10 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	endpoint.RegisterAll(api, collectionHandler.Routes(), private, perUser)
 	// A shared page is read by Guests too, so it is guest-allowed and limited per
 	// client address instead of per user (docs/adr/0025).
+	// Wishlist routes must be registered before Collection routes because
+	// /shared/{profileSlug}/{collectionSlug} would otherwise match
+	// /shared/{profileSlug}/wishlist with collectionSlug="wishlist".
+	endpoint.RegisterAll(api, sharedWishlistHandler.Routes(), guestsAllowed, ratelimit.PerIP(api, limits.Shared, limits.Now))
 	endpoint.RegisterAll(api, sharedCollectionHandler.Routes(), guestsAllowed, ratelimit.PerIP(api, limits.Shared, limits.Now))
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, wishlistHandler.Routes(), private, perUser)

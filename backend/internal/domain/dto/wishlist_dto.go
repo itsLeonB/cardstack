@@ -67,3 +67,9 @@ type WishlistPresetResult struct {
 	Count int           `json:"count"`
 	Cards []CardSummary `json:"cards"`
 }
+
+// WishlistShareResult is the response to sharing a Wishlist: the profile's Slug
+// for the shared link.
+type WishlistShareResult struct {
+	Slug string `json:"slug" doc:"The profile's Slug for the shared link at /s/{slug}/wishlist."`
+}
