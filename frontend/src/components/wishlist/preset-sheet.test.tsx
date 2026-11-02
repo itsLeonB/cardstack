@@ -9,8 +9,8 @@ import type {
 } from "@/generated/models"
 
 const expansionSets: ExpansionSetFacetOption[] = [
-  { id: "set-1", code: "S1", name: "Set 1", imageUrl: "", available: true, seriesId: null },
-  { id: "set-2", code: "S2", name: "Set 2", imageUrl: "", available: true, seriesId: null },
+  { id: "set-1", code: "S1", name: "Set 1", imageUrl: "", available: true },
+  { id: "set-2", code: "S2", name: "Set 2", imageUrl: "", available: true },
 ]
 
 const rarities: RarityFacetOption[] = [
@@ -31,7 +31,9 @@ function renderWithQuery(ui: React.ReactElement) {
       mutations: { retry: false },
     },
   })
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  )
 }
 
 describe("PresetSheet", () => {
@@ -49,7 +51,9 @@ describe("PresetSheet", () => {
       />
     )
 
-    expect(screen.getByRole("heading", { name: "Fill from sets" })).toBeDefined()
+    expect(
+      screen.getByRole("heading", { name: "Fill from sets" })
+    ).toBeDefined()
   })
 
   it("shows expansion sets as wrapping chips", () => {

@@ -160,7 +160,7 @@ func (r *wishlistRepository) FindOwnedNoneCards(ctx context.Context, profileID u
 	}
 
 	// Cards the user owns none of: left join Master Inventory, keep only null
-	query := cardsWithoutAdminDrafts(db).
+	query := visibleCards(cardsWithoutAdminDrafts(db), false).
 		Joins("LEFT JOIN "+masterInventorySubquery+" AS master_inventory ON master_inventory.card_id = cards.id", profileID).
 		Where("master_inventory.quantity IS NULL").
 		// Exclude Cards already on the Wishlist

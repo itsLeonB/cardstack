@@ -279,6 +279,17 @@ func TestWishlistService_PreviewPreset_RefusesNonPositiveQuantity(t *testing.T) 
 	require.Error(t, err)
 }
 
+func TestWishlistService_PreviewPreset_RefusesEmptyExpansionSets(t *testing.T) {
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.PreviewPreset(context.Background(), dto.WishlistPresetRequest{
+		ProfileID: uuid.New(),
+		Quantity:  1,
+	})
+
+	require.Error(t, err)
+}
+
 func TestWishlistService_PreviewPreset_AnonymousIsRefused(t *testing.T) {
 	ctx := context.Background()
 	f := newWishlistFixture(t)
@@ -325,7 +336,18 @@ func TestWishlistService_ApplyPreset_RefusesNonPositiveQuantity(t *testing.T) {
 
 	_, err := f.svc.ApplyPreset(ctx, dto.WishlistPresetRequest{
 		ProfileID: uuid.New(),
-		Quantity: 0,
+		Quantity:  0,
+	})
+
+	require.Error(t, err)
+}
+
+func TestWishlistService_ApplyPreset_RefusesEmptyExpansionSets(t *testing.T) {
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.ApplyPreset(context.Background(), dto.WishlistPresetRequest{
+		ProfileID: uuid.New(),
+		Quantity:  1,
 	})
 
 	require.Error(t, err)

@@ -17,6 +17,7 @@ const (
 	wishlistQuantityNotPositiveMsg = "wanted quantity must be at least 1"
 	wishlistItemNotFoundMsg        = "card is not on this wishlist"
 	wishlistPresetQuantityMsg      = "preset quantity must be at least 1"
+	wishlistPresetExpansionSetsMsg = "preset requires at least one Expansion Set"
 )
 
 // WishlistService owns a profile's Wishlist: the Cards it wants, each against
@@ -160,6 +161,9 @@ func (s *wishlistService) PreviewPreset(ctx context.Context, req dto.WishlistPre
 	if req.Quantity <= 0 {
 		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetQuantityMsg)
 	}
+	if len(req.ExpansionSetIDs) == 0 {
+		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetExpansionSetsMsg)
+	}
 	if req.ProfileID == uuid.Nil {
 		return dto.WishlistPresetResult{}, ungerr.UnauthorizedError("missing profile")
 	}
@@ -178,6 +182,9 @@ func (s *wishlistService) PreviewPreset(ctx context.Context, req dto.WishlistPre
 func (s *wishlistService) ApplyPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error) {
 	if req.Quantity <= 0 {
 		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetQuantityMsg)
+	}
+	if len(req.ExpansionSetIDs) == 0 {
+		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetExpansionSetsMsg)
 	}
 	if req.ProfileID == uuid.Nil {
 		return dto.WishlistPresetResult{}, ungerr.UnauthorizedError("missing profile")

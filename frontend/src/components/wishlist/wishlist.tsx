@@ -5,7 +5,10 @@ import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { Button } from "@/components/ui/button"
 import { PresetSheet } from "@/components/wishlist/preset-sheet"
-import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
+import {
+  useListCatalogFacets,
+  useListCatalogSeries,
+} from "@/generated/endpoints/catalog/catalog"
 import {
   useClearFulfilledWishlist,
   useListWishlistFacets,
@@ -48,6 +51,12 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
     { query: { placeholderData: keepPreviousData } }
   )
   const seriesQuery = useListCatalogSeries()
+  // The Preset adds Cards that are NOT on the Wishlist yet, so its options come
+  // from the whole catalog: a Wishlist facet is computed from the Cards already
+  // on it, which the Preset excludes anyway.
+  const presetFacetsQuery = useListCatalogFacets(undefined, {
+    query: { placeholderData: keepPreviousData },
+  })
   const clearFulfilled = useClearFulfilledWishlist()
 
   const results = useInfiniteCardResultsProps(query)
@@ -58,6 +67,10 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
     seriesQuery.data?.status === 200
       ? (seriesQuery.data.data.data?.series ?? [])
       : []
+  const presetFacets =
+    presetFacetsQuery.data?.status === 200
+      ? presetFacetsQuery.data.data.data
+      : undefined
   // Always mounted: a live region that appears together with its text is often not announced.
   const [announcement, setAnnouncement] = useState("")
   const [clearError, setClearError] = useState("")
@@ -155,10 +168,10 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
       <PresetSheet
         open={presetOpen}
         onOpenChange={setPresetOpen}
-        expansionSets={facets?.expansionSets ?? []}
-        rarities={facets?.rarities ?? []}
-        categories={facets?.categories ?? []}
-        tags={facets?.tags ?? []}
+        expansionSets={presetFacets?.expansionSets ?? []}
+        rarities={presetFacets?.rarities ?? []}
+        categories={presetFacets?.categories ?? []}
+        tags={presetFacets?.tags ?? []}
       />
     </section>
   )

@@ -373,7 +373,7 @@ func TestWishlistPreset(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &applied))
 	assert.Equal(t, 0, applied.Data.Count)
-	items, total = api.wishlist(t, owner, "")
+	_, total = api.wishlist(t, owner, "")
 	assert.Equal(t, 2, total)
 }
 

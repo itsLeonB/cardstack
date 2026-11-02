@@ -61,9 +61,9 @@ type wishlistPresetInput struct {
 	Body struct {
 		ExpansionSetIDs []string `json:"expansionSetIds" required:"true" minItems:"1" doc:"Expansion Sets to include."`
 		Quantity        int      `json:"quantity" required:"true" minimum:"1" maximum:"2147483647" doc:"Quantity to add for each Card."`
-		RarityIDs       []string `json:"rarityIds" doc:"Narrow by rarity (repeatable)."`
-		Categories      []string `json:"categories" doc:"Narrow by category (repeatable)."`
-		Tags            []string `json:"tags" doc:"Narrow by tag (repeatable)."`
+		RarityIDs       []string `json:"rarityIds,omitempty" doc:"Narrow by rarity (repeatable)."`
+		Categories      []string `json:"categories,omitempty" doc:"Narrow by category (repeatable)."`
+		Tags            []string `json:"tags,omitempty" doc:"Narrow by tag (repeatable)."`
 	}
 }
 

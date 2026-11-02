@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => {
     responses,
     list: vi.fn(),
     facets: vi.fn(),
+    catalogFacets: vi.fn(),
     setItem: vi.fn(),
     removeItem: vi.fn(),
     clear: vi.fn(),
@@ -70,6 +71,7 @@ vi.mock("@/generated/endpoints/wishlist/wishlist", async (importOriginal) => ({
 vi.mock("@/generated/endpoints/catalog/catalog", async (importOriginal) => ({
   ...(await importOriginal<typeof Catalog>()),
   useListCatalogSeries: vi.fn(),
+  useListCatalogFacets: mocks.catalogFacets,
 }))
 
 // CardTile links via TanStack Router's `Link`, which needs a router in the tree.
@@ -173,6 +175,20 @@ describe("Wishlist", () => {
     vi.mocked(useListCatalogSeries).mockReturnValue({} as any)
     // SAFETY: partial mock; only status/data are read.
     mocks.facets.mockReturnValue({
+      data: {
+        status: 200,
+        data: {
+          data: {
+            expansionSets: [],
+            rarities: [],
+            categories: [],
+            tags: [],
+          },
+        },
+      },
+    })
+    // SAFETY: partial mock; only status/data are read.
+    mocks.catalogFacets.mockReturnValue({
       data: {
         status: 200,
         data: {
