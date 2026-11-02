@@ -32,7 +32,7 @@ type WishlistFilter struct {
 // WishlistRepository is crud.Repository[entity.WishlistItem] plus the queries
 // go-crud has no equivalent for: the Card listing with the owner's Master
 // Inventory quantity (an aggregate and a join), the facets over that listing,
-// an upsert, and the conditional delete behind Clear fulfilled.
+// and the conditional delete behind Clear fulfilled.
 type WishlistRepository interface {
 	crud.Repository[entity.WishlistItem]
 	// List pages the profile's Wishlist Items matching filter, each with its

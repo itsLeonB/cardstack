@@ -653,53 +653,6 @@ func (_c *MockWishlistRepository_SaveMany_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// SetQuantity provides a mock function with given fields: ctx, item
-func (_m *MockWishlistRepository) SetQuantity(ctx context.Context, item entity.WishlistItem) error {
-	ret := _m.Called(ctx, item)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetQuantity")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, entity.WishlistItem) error); ok {
-		r0 = rf(ctx, item)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockWishlistRepository_SetQuantity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetQuantity'
-type MockWishlistRepository_SetQuantity_Call struct {
-	*mock.Call
-}
-
-// SetQuantity is a helper method to define mock.On call
-//   - ctx context.Context
-//   - item entity.WishlistItem
-func (_e *MockWishlistRepository_Expecter) SetQuantity(ctx interface{}, item interface{}) *MockWishlistRepository_SetQuantity_Call {
-	return &MockWishlistRepository_SetQuantity_Call{Call: _e.mock.On("SetQuantity", ctx, item)}
-}
-
-func (_c *MockWishlistRepository_SetQuantity_Call) Run(run func(ctx context.Context, item entity.WishlistItem)) *MockWishlistRepository_SetQuantity_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(entity.WishlistItem))
-	})
-	return _c
-}
-
-func (_c *MockWishlistRepository_SetQuantity_Call) Return(_a0 error) *MockWishlistRepository_SetQuantity_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockWishlistRepository_SetQuantity_Call) RunAndReturn(run func(context.Context, entity.WishlistItem) error) *MockWishlistRepository_SetQuantity_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Update provides a mock function with given fields: ctx, model
 func (_m *MockWishlistRepository) Update(ctx context.Context, model entity.WishlistItem) (entity.WishlistItem, error) {
 	ret := _m.Called(ctx, model)

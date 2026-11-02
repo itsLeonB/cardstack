@@ -175,8 +175,14 @@ func (s *wishlistService) lockOwner(ctx context.Context, profileID uuid.UUID) er
 }
 
 // findItem returns the profile's item for the Card, or the zero value when
-// there is none, holding its row lock until the transaction ends.
+// there is none, holding its row lock until the transaction ends. A nil CardID
+// would drop the card condition from the query (see crud.WhereBySpec) and match
+// any of the profile's items, so it is refused as not found.
 func (s *wishlistService) findItem(ctx context.Context, profileID, cardID uuid.UUID) (entity.WishlistItem, error) {
+	if cardID == uuid.Nil {
+		return entity.WishlistItem{}, ungerr.NotFoundError(wishlistItemNotFoundMsg)
+	}
+
 	return s.items.FindFirst(ctx, crud.Specification[entity.WishlistItem]{
 		Model:     entity.WishlistItem{ProfileID: profileID, CardID: cardID},
 		ForUpdate: true,

@@ -172,6 +172,12 @@ func TestWishlistFlow(t *testing.T) {
 	_, total = api.wishlist(t, owner, "")
 	assert.Equal(t, 2, total)
 
+	// Addressing the zero Card deletes nothing: the nil id would drop the card
+	// condition and match an arbitrary item.
+	assert.Equal(t, http.StatusNotFound, api.Delete("/wishlist/items/"+uuid.Nil.String(), bearer(owner)).Code)
+	_, total = api.wishlist(t, owner, "")
+	assert.Equal(t, 2, total)
+
 	// Clear fulfilled removes the fulfilled item only, and says how many went.
 	resp = api.Delete("/wishlist/fulfilled", bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())

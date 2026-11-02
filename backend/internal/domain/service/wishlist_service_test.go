@@ -208,6 +208,18 @@ func TestWishlistService_Remove_RefusesAMissingItem(t *testing.T) {
 	require.Error(t, f.svc.Remove(ctx, dto.WishlistItemLookup{ProfileID: profileID, CardID: uuid.New()}))
 }
 
+// The zero Card must not match an arbitrary item: a nil CardID drops the card
+// condition from the query, so the service refuses it before the lookup.
+func TestWishlistService_Remove_RefusesTheZeroCard(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	f := newWishlistFixture(t)
+
+	f.expectLock(ctx, profileID)
+
+	require.Error(t, f.svc.Remove(ctx, dto.WishlistItemLookup{ProfileID: profileID, CardID: uuid.Nil}))
+}
+
 func TestWishlistService_ClearFulfilled(t *testing.T) {
 	ctx := context.Background()
 	profileID := uuid.New()
