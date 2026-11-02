@@ -28,10 +28,14 @@ import type {
   EnvelopeBinderPage,
   EnvelopeCatalogFacets,
   EnvelopeSharedCollectionSummary,
+  EnvelopeSharedWishlistSummary,
   EnvelopeWithMetaListInventoryItemPaginationMeta,
+  EnvelopeWithMetaListWishlistItemPaginationMeta,
   ErrorModel,
   ListSharedCollectionEntriesParams,
-  ListSharedCollectionFacetsParams
+  ListSharedCollectionFacetsParams,
+  ListSharedWishlistEntriesParams,
+  ListSharedWishlistFacetsParams
 } from '../../models';
 
 import { customFetch } from '../../../lib/http.ts';
@@ -62,6 +66,488 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export type getSharedWishlistResponse200 = {
+  data: EnvelopeSharedWishlistSummary
+  status: 200
+}
+
+export type getSharedWishlistResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getSharedWishlistResponseSuccess = (getSharedWishlistResponse200) & {
+  headers: Headers;
+};
+export type getSharedWishlistResponseError = (getSharedWishlistResponseDefault) & {
+  headers: Headers;
+};
+
+export type getSharedWishlistResponse = (getSharedWishlistResponseSuccess | getSharedWishlistResponseError)
+
+export const getGetSharedWishlistUrl = (profileSlug: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist`
+}
+
+/**
+ * @summary Get a Shared Wishlist's header (owner's display name) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
+ */
+export const getSharedWishlist = async (profileSlug: string, options?: Parameters<typeof customFetch>[1]): Promise<getSharedWishlistResponse> => {
+
+  return customFetch<getSharedWishlistResponse>(getGetSharedWishlistUrl(profileSlug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSharedWishlistQueryKey = (profileSlug: string,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist`
+    ] as const;
+    }
+
+
+export const getGetSharedWishlistQueryOptions = <TData = Awaited<ReturnType<typeof getSharedWishlist>>, TError = ErrorModel>(profileSlug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSharedWishlistQueryKey(profileSlug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSharedWishlist>>> = ({ signal }) => getSharedWishlist(profileSlug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: profileSlug !== null && profileSlug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSharedWishlist>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSharedWishlistQueryResult = NonNullable<Awaited<ReturnType<typeof getSharedWishlist>>>
+export type GetSharedWishlistQueryError = ErrorModel
+
+
+export function useGetSharedWishlist<TData = Awaited<ReturnType<typeof getSharedWishlist>>, TError = ErrorModel>(
+ profileSlug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedWishlist>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSharedWishlist>>,
+          TError,
+          Awaited<ReturnType<typeof getSharedWishlist>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSharedWishlist<TData = Awaited<ReturnType<typeof getSharedWishlist>>, TError = ErrorModel>(
+ profileSlug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedWishlist>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSharedWishlist>>,
+          TError,
+          Awaited<ReturnType<typeof getSharedWishlist>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSharedWishlist<TData = Awaited<ReturnType<typeof getSharedWishlist>>, TError = ErrorModel>(
+ profileSlug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get a Shared Wishlist's header (owner's display name) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
+ */
+
+export function useGetSharedWishlist<TData = Awaited<ReturnType<typeof getSharedWishlist>>, TError = ErrorModel>(
+ profileSlug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSharedWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSharedWishlistQueryOptions(profileSlug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listSharedWishlistEntriesResponse200 = {
+  data: EnvelopeWithMetaListWishlistItemPaginationMeta
+  status: 200
+}
+
+export type listSharedWishlistEntriesResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listSharedWishlistEntriesResponseSuccess = (listSharedWishlistEntriesResponse200) & {
+  headers: Headers;
+};
+export type listSharedWishlistEntriesResponseError = (listSharedWishlistEntriesResponseDefault) & {
+  headers: Headers;
+};
+
+export type listSharedWishlistEntriesResponse = (listSharedWishlistEntriesResponseSuccess | listSharedWishlistEntriesResponseError)
+
+export const getListSharedWishlistEntriesUrl = (profileSlug: string,
+    params?: ListSharedWishlistEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag","cardId"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/entries?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/entries`
+}
+
+/**
+ * @summary Search/page the Cards and quantities of a Shared Wishlist, with the owner's listing's filters and the All/Still needed/Fulfilled status filter; any viewer, a Guest included
+ */
+export const listSharedWishlistEntries = async (profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<listSharedWishlistEntriesResponse> => {
+
+  return customFetch<listSharedWishlistEntriesResponse>(getListSharedWishlistEntriesUrl(profileSlug,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSharedWishlistEntriesInfiniteQueryKey = (profileSlug: string,
+    params?: ListSharedWishlistEntriesParams,) => {
+    return [
+    'infinite', `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/entries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+export const getListSharedWishlistEntriesQueryKey = (profileSlug: string,
+    params?: ListSharedWishlistEntriesParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/entries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSharedWishlistEntriesInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listSharedWishlistEntries>>, ListSharedWishlistEntriesParams['page']>, TError = ErrorModel>(profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData, QueryKey, ListSharedWishlistEntriesParams['page']>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSharedWishlistEntriesInfiniteQueryKey(profileSlug,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSharedWishlistEntries>>, QueryKey, ListSharedWishlistEntriesParams['page']> = ({ signal, pageParam }) => listSharedWishlistEntries(profileSlug,{...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: profileSlug !== null && profileSlug !== undefined, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData, QueryKey, ListSharedWishlistEntriesParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSharedWishlistEntriesInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listSharedWishlistEntries>>>
+export type ListSharedWishlistEntriesInfiniteQueryError = ErrorModel
+
+
+export function useListSharedWishlistEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listSharedWishlistEntries>>, ListSharedWishlistEntriesParams['page']>, TError = ErrorModel>(
+ profileSlug: string,
+    params: undefined |  ListSharedWishlistEntriesParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData, QueryKey, ListSharedWishlistEntriesParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSharedWishlistEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listSharedWishlistEntries>>, ListSharedWishlistEntriesParams['page']>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData, QueryKey, ListSharedWishlistEntriesParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSharedWishlistEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listSharedWishlistEntries>>, ListSharedWishlistEntriesParams['page']>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData, QueryKey, ListSharedWishlistEntriesParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search/page the Cards and quantities of a Shared Wishlist, with the owner's listing's filters and the All/Still needed/Fulfilled status filter; any viewer, a Guest included
+ */
+
+export function useListSharedWishlistEntriesInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listSharedWishlistEntries>>, ListSharedWishlistEntriesParams['page']>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData, QueryKey, ListSharedWishlistEntriesParams['page']>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSharedWishlistEntriesInfiniteQueryOptions(profileSlug,params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getListSharedWishlistEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError = ErrorModel>(profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSharedWishlistEntriesQueryKey(profileSlug,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSharedWishlistEntries>>> = ({ signal }) => listSharedWishlistEntries(profileSlug,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: profileSlug !== null && profileSlug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSharedWishlistEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listSharedWishlistEntries>>>
+export type ListSharedWishlistEntriesQueryError = ErrorModel
+
+
+export function useListSharedWishlistEntries<TData = Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError = ErrorModel>(
+ profileSlug: string,
+    params: undefined |  ListSharedWishlistEntriesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSharedWishlistEntries<TData = Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>,
+          TError,
+          Awaited<ReturnType<typeof listSharedWishlistEntries>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSharedWishlistEntries<TData = Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search/page the Cards and quantities of a Shared Wishlist, with the owner's listing's filters and the All/Still needed/Fulfilled status filter; any viewer, a Guest included
+ */
+
+export function useListSharedWishlistEntries<TData = Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistEntriesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistEntries>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSharedWishlistEntriesQueryOptions(profileSlug,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type listSharedWishlistFacetsResponse200 = {
+  data: EnvelopeCatalogFacets
+  status: 200
+}
+
+export type listSharedWishlistFacetsResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type listSharedWishlistFacetsResponseSuccess = (listSharedWishlistFacetsResponse200) & {
+  headers: Headers;
+};
+export type listSharedWishlistFacetsResponseError = (listSharedWishlistFacetsResponseDefault) & {
+  headers: Headers;
+};
+
+export type listSharedWishlistFacetsResponse = (listSharedWishlistFacetsResponseSuccess | listSharedWishlistFacetsResponseError)
+
+export const getListSharedWishlistFacetsUrl = (profileSlug: string,
+    params?: ListSharedWishlistFacetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId","category","tag","cardId"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/facets?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/facets`
+}
+
+/**
+ * @summary List each filter's available options computed only from the Cards of a Shared Wishlist; any viewer, a Guest included
+ */
+export const listSharedWishlistFacets = async (profileSlug: string,
+    params?: ListSharedWishlistFacetsParams, options?: Parameters<typeof customFetch>[1]): Promise<listSharedWishlistFacetsResponse> => {
+
+  return customFetch<listSharedWishlistFacetsResponse>(getListSharedWishlistFacetsUrl(profileSlug,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSharedWishlistFacetsQueryKey = (profileSlug: string,
+    params?: ListSharedWishlistFacetsParams,) => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/shared/${profileSlug}/wishlist/facets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSharedWishlistFacetsQueryOptions = <TData = Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError = ErrorModel>(profileSlug: string,
+    params?: ListSharedWishlistFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSharedWishlistFacetsQueryKey(profileSlug,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSharedWishlistFacets>>> = ({ signal }) => listSharedWishlistFacets(profileSlug,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: profileSlug !== null && profileSlug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSharedWishlistFacetsQueryResult = NonNullable<Awaited<ReturnType<typeof listSharedWishlistFacets>>>
+export type ListSharedWishlistFacetsQueryError = ErrorModel
+
+
+export function useListSharedWishlistFacets<TData = Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError = ErrorModel>(
+ profileSlug: string,
+    params: undefined |  ListSharedWishlistFacetsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSharedWishlistFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listSharedWishlistFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSharedWishlistFacets<TData = Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSharedWishlistFacets>>,
+          TError,
+          Awaited<ReturnType<typeof listSharedWishlistFacets>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSharedWishlistFacets<TData = Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List each filter's available options computed only from the Cards of a Shared Wishlist; any viewer, a Guest included
+ */
+
+export function useListSharedWishlistFacets<TData = Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError = ErrorModel>(
+ profileSlug: string,
+    params?: ListSharedWishlistFacetsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSharedWishlistFacets>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSharedWishlistFacetsQueryOptions(profileSlug,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
 
 export type getSharedCollectionResponse200 = {
   data: EnvelopeSharedCollectionSummary

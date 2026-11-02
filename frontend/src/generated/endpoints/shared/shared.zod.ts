@@ -8,6 +8,153 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get a Shared Wishlist's header (owner's display name) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
+ */
+export const GetSharedWishlistParams = zod.object({
+  "profileSlug": zod.string().describe('The owner\'s profile Slug.')
+})
+
+export const GetSharedWishlistResponse = zod.object({
+  "data": zod.object({
+  "ownerName": zod.string().describe('The owner\'s display name, never their email.')
+})
+})
+
+/**
+ * @summary Search/page the Cards and quantities of a Shared Wishlist, with the owner's listing's filters and the All/Still needed/Fulfilled status filter; any viewer, a Guest included
+ */
+export const ListSharedWishlistEntriesParams = zod.object({
+  "profileSlug": zod.string().describe('The owner\'s profile Slug.')
+})
+
+export const listSharedWishlistEntriesQueryNameMax = 64;
+
+export const listSharedWishlistEntriesQueryExpansionSetIdMax = 20;
+
+export const listSharedWishlistEntriesQueryRarityIdMax = 20;
+
+export const listSharedWishlistEntriesQueryCategoryMax = 20;
+
+export const listSharedWishlistEntriesQueryTagMax = 20;
+
+export const listSharedWishlistEntriesQueryCardIdMax = 100;
+
+export const listSharedWishlistEntriesQueryStatusDefault = `all`;
+export const listSharedWishlistEntriesQueryPageDefault = 1;
+
+export const listSharedWishlistEntriesQueryLimitDefault = 24;
+export const listSharedWishlistEntriesQueryLimitMax = 100;
+
+
+
+export const ListSharedWishlistEntriesQueryParams = zod.object({
+  "name": zod.string().max(listSharedWishlistEntriesQueryNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
+  "expansionSetId": zod.array(zod.string()).max(listSharedWishlistEntriesQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).max(listSharedWishlistEntriesQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
+  "category": zod.array(zod.string()).max(listSharedWishlistEntriesQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).max(listSharedWishlistEntriesQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).'),
+  "cardId": zod.array(zod.string()).max(listSharedWishlistEntriesQueryCardIdMax).optional().describe('Only these Cards (repeatable, at most 100), combined with the other filters.'),
+  "status": zod.enum(['all', 'needed', 'fulfilled']).default(listSharedWishlistEntriesQueryStatusDefault).describe('All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.'),
+  "page": zod.int().min(1).default(listSharedWishlistEntriesQueryPageDefault).describe('1-indexed page number.'),
+  "limit": zod.int().min(1).max(listSharedWishlistEntriesQueryLimitMax).default(listSharedWishlistEntriesQueryLimitDefault).describe('Page size.')
+})
+
+export const ListSharedWishlistEntriesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}),
+  "fulfilled": zod.boolean().describe('Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored.'),
+  "ownedQuantity": zod.int(),
+  "wantedQuantity": zod.int()
+})).nullable(),
+  "meta": zod.object({
+  "limit": zod.int(),
+  "page": zod.int(),
+  "total": zod.int()
+})
+})
+
+/**
+ * @summary List each filter's available options computed only from the Cards of a Shared Wishlist; any viewer, a Guest included
+ */
+export const ListSharedWishlistFacetsParams = zod.object({
+  "profileSlug": zod.string().describe('The owner\'s profile Slug.')
+})
+
+export const listSharedWishlistFacetsQueryNameMax = 64;
+
+export const listSharedWishlistFacetsQueryExpansionSetIdMax = 20;
+
+export const listSharedWishlistFacetsQueryRarityIdMax = 20;
+
+export const listSharedWishlistFacetsQueryCategoryMax = 20;
+
+export const listSharedWishlistFacetsQueryTagMax = 20;
+
+export const listSharedWishlistFacetsQueryCardIdMax = 100;
+
+export const listSharedWishlistFacetsQueryStatusDefault = `all`;
+
+export const ListSharedWishlistFacetsQueryParams = zod.object({
+  "name": zod.string().max(listSharedWishlistFacetsQueryNameMax).optional().describe('Case-insensitive substring match on the Card\'s name (at most 64 characters).'),
+  "expansionSetId": zod.array(zod.string()).max(listSharedWishlistFacetsQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
+  "localId": zod.string().optional().describe('Only the Card with this number within its Expansion Set (e.g. "001").'),
+  "rarityId": zod.array(zod.string()).max(listSharedWishlistFacetsQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
+  "category": zod.array(zod.string()).max(listSharedWishlistFacetsQueryCategoryMax).optional().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
+  "tag": zod.array(zod.string()).max(listSharedWishlistFacetsQueryTagMax).optional().describe('Only Cards carrying any of these tags (repeatable, at most 20).'),
+  "cardId": zod.array(zod.string()).max(listSharedWishlistFacetsQueryCardIdMax).optional().describe('Only these Cards (repeatable, at most 100), combined with the other filters.'),
+  "status": zod.enum(['all', 'needed', 'fulfilled']).default(listSharedWishlistFacetsQueryStatusDefault).describe('All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.')
+})
+
+export const ListSharedWishlistFacetsResponse = zod.object({
+  "data": zod.object({
+  "categories": zod.array(zod.object({
+  "available": zod.boolean(),
+  "value": zod.string()
+})).nullable(),
+  "expansionSets": zod.array(zod.object({
+  "available": zod.boolean(),
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional(),
+  "seriesId": zod.string().optional()
+})).nullable(),
+  "rarities": zod.array(zod.object({
+  "available": zod.boolean(),
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+})).nullable(),
+  "tags": zod.array(zod.object({
+  "available": zod.boolean(),
+  "value": zod.string()
+})).nullable()
+})
+})
+
+/**
  * @summary Get a Shared Collection's header (owner's display name, title, description, and a binder's Layout and Unidentified count) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404
  */
 export const GetSharedCollectionParams = zod.object({

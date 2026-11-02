@@ -177,11 +177,11 @@ export const applyWishlistPresetBodyQuantityMax = 2147483647;
 
 
 export const ApplyWishlistPresetBody = zod.object({
-  "categories": zod.array(zod.string()).nullable().describe('Narrow by category (repeatable).'),
+  "categories": zod.array(zod.string()).nullish().describe('Narrow by category (repeatable).'),
   "expansionSetIds": zod.array(zod.string()).min(1).nullable().describe('Expansion Sets to include.'),
   "quantity": zod.int().min(1).max(applyWishlistPresetBodyQuantityMax).describe('Quantity to add for each Card.'),
-  "rarityIds": zod.array(zod.string()).nullable().describe('Narrow by rarity (repeatable).'),
-  "tags": zod.array(zod.string()).nullable().describe('Narrow by tag (repeatable).')
+  "rarityIds": zod.array(zod.string()).nullish().describe('Narrow by rarity (repeatable).'),
+  "tags": zod.array(zod.string()).nullish().describe('Narrow by tag (repeatable).')
 })
 
 export const ApplyWishlistPresetResponse = zod.object({
@@ -220,11 +220,11 @@ export const previewWishlistPresetBodyQuantityMax = 2147483647;
 
 
 export const PreviewWishlistPresetBody = zod.object({
-  "categories": zod.array(zod.string()).nullable().describe('Narrow by category (repeatable).'),
+  "categories": zod.array(zod.string()).nullish().describe('Narrow by category (repeatable).'),
   "expansionSetIds": zod.array(zod.string()).min(1).nullable().describe('Expansion Sets to include.'),
   "quantity": zod.int().min(1).max(previewWishlistPresetBodyQuantityMax).describe('Quantity to add for each Card.'),
-  "rarityIds": zod.array(zod.string()).nullable().describe('Narrow by rarity (repeatable).'),
-  "tags": zod.array(zod.string()).nullable().describe('Narrow by tag (repeatable).')
+  "rarityIds": zod.array(zod.string()).nullish().describe('Narrow by rarity (repeatable).'),
+  "tags": zod.array(zod.string()).nullish().describe('Narrow by tag (repeatable).')
 })
 
 export const PreviewWishlistPresetResponse = zod.object({
@@ -251,6 +251,20 @@ export const PreviewWishlistPresetResponse = zod.object({
   "tags": zod.array(zod.string()).nullable()
 })).nullable(),
   "count": zod.int()
+})
+})
+
+/**
+ * @summary Stop sharing the current user's Wishlist; its link stops working at once
+ */
+export const UnshareWishlistResponse = zod.void()
+
+/**
+ * @summary Share the current user's Wishlist: anyone with the link can view it. Sharing an already-shared Wishlist keeps its link
+ */
+export const ShareWishlistResponse = zod.object({
+  "data": zod.object({
+  "slug": zod.string().describe('The profile\'s Slug for the shared link at /s/{slug}/wishlist.')
 })
 })
 
