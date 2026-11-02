@@ -12,12 +12,16 @@ cd "$root"
 # Nothing staged: a merge, a rebase or an empty commit.
 git diff --cached --quiet && exit 0
 
-if ! docker compose version >/dev/null 2>&1; then
-  echo "pre-commit: docker compose is unavailable, skipping the checks" >&2
+# The compose CLI alone is not enough: without a daemon every exec below fails
+# with a connection error, which reads as a broken change rather than a skip.
+if ! docker compose version >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+  echo "pre-commit: docker compose or the daemon is unavailable, skipping the checks" >&2
   exit 0
 fi
 
-staged=$(git diff --cached --name-only)
+# --no-renames: a rename reports only its new path, which would leave the old
+# path's package unchecked.
+staged=$(git diff --cached --name-only --no-renames)
 failed=0
 
 # Each check on its own: one failing check must not hide the others.

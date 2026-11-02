@@ -8,7 +8,7 @@ Example: `feat(backend): add users api`
 
 ## Pre-commit checks
 
-`.githooks/pre-commit` runs the checks that are fast enough for every commit, through the same `scripts/verification/*.sh` steps CI runs (they need the compose stack): `gofmt`, `go vet` and golangci-lint for `backend/`, and oxlint, Prettier and `tsc` for each of `frontend/` and `admin/` with staged files. Tests and e2e stay with CI: they need the database and minutes. Without Docker it skips rather than blocks.
+`.githooks/pre-commit` runs the checks that are fast enough for every commit, through the same `scripts/verification/*.sh` steps CI runs (they need the compose stack): `gofmt`, `go vet` and golangci-lint for `backend/`, and oxlint, Prettier and `tsc` for each of `frontend/` and `admin/` with staged files. Tests and e2e stay with CI: they need the database and minutes. Without a reachable Docker daemon it skips rather than blocks.
 
 A worktree or clone has no local git config of its own, so point git at the tracked hooks once per checkout: `git config core.hooksPath .githooks`. Both `scripts/bootstrap-worktree/*.sh` and `scripts/setup-environment.sh` do it for you.
 
