@@ -127,7 +127,6 @@ func ProvideWishlistService(ds *DataSources, images mapper.ImageHost) service.Wi
 }
 
 // ProvideSharedWishlistService builds the shared Wishlist service over ds's DB.
-// ProvideSharedWishlistService builds the shared Wishlist service over ds's DB.
 func ProvideSharedWishlistService(ds *DataSources, images mapper.ImageHost) service.SharedWishlistService {
 	return service.NewSharedWishlistService(
 		crud.NewRepository[entity.UserProfile](ds.Gorm),

@@ -2659,6 +2659,31 @@
           "slug"
         ],
         "type": "object"
+      },
+      "WishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "shared": {
+            "description": "Whether the Wishlist is shared publicly. False when the profile has no Wishlist row yet.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "shared"
+        ],
+        "type": "object"
+      },
+      "EnvelopeWishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WishlistSummary"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -7106,6 +7131,42 @@
         "summary": "Get one Page of a Shared binder: its Slots, with Cards of unpublished sets read as empty; any viewer, a Guest included. A plain Collection or a Page past the last one is the same 404 as a missing link",
         "tags": [
           "shared"
+        ]
+      }
+    },
+    "/wishlist/meta": {
+      "get": {
+        "operationId": "get-wishlist",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWishlistSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get the current user's Wishlist metadata (shared flag)",
+        "tags": [
+          "wishlist"
         ]
       }
     },

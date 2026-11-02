@@ -136,6 +136,63 @@ func (_c *MockWishlistService_ClearFulfilled_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// Get provides a mock function with given fields: ctx, req
+func (_m *MockWishlistService) Get(ctx context.Context, req dto.WishlistLookup) (dto.WishlistSummary, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Get")
+	}
+
+	var r0 dto.WishlistSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistLookup) (dto.WishlistSummary, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistLookup) dto.WishlistSummary); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.WishlistSummary)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.WishlistLookup) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockWishlistService_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
+type MockWishlistService_Get_Call struct {
+	*mock.Call
+}
+
+// Get is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.WishlistLookup
+func (_e *MockWishlistService_Expecter) Get(ctx interface{}, req interface{}) *MockWishlistService_Get_Call {
+	return &MockWishlistService_Get_Call{Call: _e.mock.On("Get", ctx, req)}
+}
+
+func (_c *MockWishlistService_Get_Call) Run(run func(ctx context.Context, req dto.WishlistLookup)) *MockWishlistService_Get_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.WishlistLookup))
+	})
+	return _c
+}
+
+func (_c *MockWishlistService_Get_Call) Return(_a0 dto.WishlistSummary, _a1 error) *MockWishlistService_Get_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockWishlistService_Get_Call) RunAndReturn(run func(context.Context, dto.WishlistLookup) (dto.WishlistSummary, error)) *MockWishlistService_Get_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function with given fields: ctx, req
 func (_m *MockWishlistService) List(ctx context.Context, req dto.WishlistListRequest) ([]dto.WishlistItem, dto.PaginationMeta, error) {
 	ret := _m.Called(ctx, req)

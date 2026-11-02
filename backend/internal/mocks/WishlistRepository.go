@@ -416,64 +416,6 @@ func (_c *MockWishlistRepository_GetGormInstance_Call) RunAndReturn(run func(con
 	return _c
 }
 
-// GetOwnedWishlist provides a mock function with given fields: ctx, profileID, forUpdate
-func (_m *MockWishlistRepository) GetOwnedWishlist(ctx context.Context, profileID uuid.UUID, forUpdate bool) (entity.Wishlist, error) {
-	ret := _m.Called(ctx, profileID, forUpdate)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetOwnedWishlist")
-	}
-
-	var r0 entity.Wishlist
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) (entity.Wishlist, error)); ok {
-		return rf(ctx, profileID, forUpdate)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) entity.Wishlist); ok {
-		r0 = rf(ctx, profileID, forUpdate)
-	} else {
-		r0 = ret.Get(0).(entity.Wishlist)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, bool) error); ok {
-		r1 = rf(ctx, profileID, forUpdate)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockWishlistRepository_GetOwnedWishlist_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOwnedWishlist'
-type MockWishlistRepository_GetOwnedWishlist_Call struct {
-	*mock.Call
-}
-
-// GetOwnedWishlist is a helper method to define mock.On call
-//   - ctx context.Context
-//   - profileID uuid.UUID
-//   - forUpdate bool
-func (_e *MockWishlistRepository_Expecter) GetOwnedWishlist(ctx interface{}, profileID interface{}, forUpdate interface{}) *MockWishlistRepository_GetOwnedWishlist_Call {
-	return &MockWishlistRepository_GetOwnedWishlist_Call{Call: _e.mock.On("GetOwnedWishlist", ctx, profileID, forUpdate)}
-}
-
-func (_c *MockWishlistRepository_GetOwnedWishlist_Call) Run(run func(ctx context.Context, profileID uuid.UUID, forUpdate bool)) *MockWishlistRepository_GetOwnedWishlist_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(bool))
-	})
-	return _c
-}
-
-func (_c *MockWishlistRepository_GetOwnedWishlist_Call) Return(_a0 entity.Wishlist, _a1 error) *MockWishlistRepository_GetOwnedWishlist_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockWishlistRepository_GetOwnedWishlist_Call) RunAndReturn(run func(context.Context, uuid.UUID, bool) (entity.Wishlist, error)) *MockWishlistRepository_GetOwnedWishlist_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Insert provides a mock function with given fields: ctx, model
 func (_m *MockWishlistRepository) Insert(ctx context.Context, model entity.WishlistItem) (entity.WishlistItem, error) {
 	ret := _m.Called(ctx, model)

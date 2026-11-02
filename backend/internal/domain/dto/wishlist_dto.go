@@ -68,6 +68,11 @@ type WishlistPresetResult struct {
 	Cards []CardSummary `json:"cards"`
 }
 
+// WishlistSummary is the owner's Wishlist metadata, including its shared status.
+type WishlistSummary struct {
+	Shared bool `json:"shared" doc:"Whether the Wishlist is shared publicly. False when the profile has no Wishlist row yet."`
+}
+
 // WishlistShareResult is the response to sharing a Wishlist: the profile's Slug
 // for the shared link.
 type WishlistShareResult struct {
