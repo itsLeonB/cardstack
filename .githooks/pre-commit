@@ -22,6 +22,10 @@ fi
 # --no-renames: a rename reports only its new path, which would leave the old
 # path's package unchecked.
 staged=$(git diff --cached --name-only --no-renames)
+
+# shortcut: the checks read the working tree the stack bind-mounts, not a
+# snapshot of the index, so unstaged edits ride along; upgrade to a snapshot
+# the day a commit passes on content it does not contain.
 failed=0
 
 # Each check on its own: one failing check must not hide the others.
