@@ -50,11 +50,6 @@ type WishlistRepository interface {
 	// optionally narrowed by rarity, category and tag, of which the user owns
 	// none in Master Inventory. Cards already on the Wishlist are excluded.
 	FindOwnedNoneCards(ctx context.Context, profileID uuid.UUID, expansionSetIDs []uuid.UUID, filter CardFilter) ([]CardResult, error)
-	// GetOwnedWishlist returns the profile's Wishlist row, creating it if it
-	// does not exist (upsert on profile_id). It never returns a zero value
-	// with a nil error. forUpdate row-locks the match; use it inside
-	// crud.Transactor.WithinTransaction with the callback's ctx.
-	GetOwnedWishlist(ctx context.Context, profileID uuid.UUID, forUpdate bool) (entity.Wishlist, error)
 }
 
 type wishlistRepository struct {
@@ -191,36 +186,4 @@ func (r *wishlistRepository) FindOwnedNoneCards(ctx context.Context, profileID u
 	}
 
 	return results, nil
-}
-
-// GetOwnedWishlist returns the profile's Wishlist row, creating it with
-// shared=false if it does not exist (upsert on profile_id). A nil ProfileID
-// would drop the condition and match any profile, so it is refused up front.
-func (r *wishlistRepository) GetOwnedWishlist(ctx context.Context, profileID uuid.UUID, forUpdate bool) (entity.Wishlist, error) {
-	if profileID == uuid.Nil {
-		return entity.Wishlist{}, ungerr.UnauthorizedError("missing profile")
-	}
-
-	db, err := r.GetGormInstance(ctx)
-	if err != nil {
-		return entity.Wishlist{}, err
-	}
-
-	// Use a separate crud.Repository for the Wishlist entity
-	wishlistsRepo := crud.NewRepository[entity.Wishlist](db)
-	w, err := wishlistsRepo.FindFirst(ctx, crud.Specification[entity.Wishlist]{
-		Model:     entity.Wishlist{ProfileID: profileID},
-		ForUpdate: forUpdate,
-	})
-	if err != nil {
-		return entity.Wishlist{}, err
-	}
-	if !w.IsZero() {
-		return w, nil
-	}
-
-	// Create the Wishlist row on first access (shared=false by default)
-	w = entity.Wishlist{ProfileID: profileID, Shared: false}
-	w, err = wishlistsRepo.Insert(ctx, w)
-	return w, err
 }

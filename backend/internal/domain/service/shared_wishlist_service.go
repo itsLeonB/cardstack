@@ -15,7 +15,7 @@ import (
 // sharedWishlistNotFoundMsg is the only not-found a shared Wishlist answers
 // with: a missing profile, a missing Wishlist row, and a private or unshared
 // one look the same, so the link reveals nothing (docs/adr/0025).
-const sharedWishlistNotFoundMsg = "shared wishlist not found"
+const sharedWishlistNotFoundMsg = "shared collection not found"
 
 // SharedWishlistService serves a Shared Wishlist to whoever holds its link.
 // It takes no caller, so a Guest, a signed-in user and the owner all get the

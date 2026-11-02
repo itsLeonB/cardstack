@@ -1,5 +1,5 @@
 -- +goose Up
--- The Wishlist itself (GLOSSARY.md: Wishlist): one row per profile, holding the
+-- The Wishlist itself (GLOSSARY.md: Wishlist; ADR-0025): one row per profile, holding the
 -- Wishlist's own state. Its items stay in wishlist_items.
 CREATE TABLE wishlists (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
