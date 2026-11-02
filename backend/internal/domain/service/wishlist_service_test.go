@@ -20,6 +20,7 @@ import (
 type wishlistFixture struct {
 	transactor *mocks.MockTransactor
 	profiles   *mocks.MockRepository[entity.UserProfile]
+	wishlists  *mocks.MockRepository[entity.Wishlist]
 	items      *mocks.MockWishlistRepository
 	cards      *mocks.MockCardLookup
 	svc        WishlistService
@@ -32,12 +33,13 @@ func newWishlistFixture(t *testing.T) wishlistFixture {
 	f := wishlistFixture{
 		transactor: mocks.NewMockTransactor(t),
 		profiles:   mocks.NewMockRepository[entity.UserProfile](t),
+		wishlists:  mocks.NewMockRepository[entity.Wishlist](t),
 		items:      mocks.NewMockWishlistRepository(t),
 		cards:      mocks.NewMockCardLookup(t),
 	}
 	f.transactor.EXPECT().WithinTransaction(mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).Maybe()
-	f.svc = NewWishlistService(f.transactor, f.profiles, f.items, f.cards, mapper.NewImageHost(""))
+	f.svc = NewWishlistService(f.transactor, f.profiles, f.wishlists, f.items, f.cards, mapper.NewImageHost(""))
 
 	return f
 }
