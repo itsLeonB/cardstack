@@ -393,11 +393,16 @@ jobs:
           # shortcut: reads the newest 100 deployments only, so a pull request
           # with more pushes than that could miss an old deployment and
           # trigger one extra deploy; paginate if that ever matters.
-          read -r deployed failed <<<"$(jq -r '[.data.deployments.edges[].node
+          if ! counts=$(jq -er '[.data.deployments.edges[].node
             | .status] | [(map(select(IN("SKIPPED", "FAILED", "CRASHED")
             | not)) | length),
             (map(select(IN("FAILED", "CRASHED"))) | length)] | @tsv' \
-            <<<"$deployments")"
+            <<<"$deployments"); then
+            echo "::error::Could not read the api service's deployments" \
+              "from: $deployments"
+            exit 1
+          fi
+          read -r deployed failed <<<"$counts"
           echo "failures=$failed" >> "$GITHUB_OUTPUT"
 
           if (( deployed > 0 )); then
