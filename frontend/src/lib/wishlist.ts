@@ -13,6 +13,7 @@ import { ListWishlistStatus } from "@/generated/models"
 import type { WishlistItem } from "@/generated/models"
 import { catalogFilterSchema, hasActiveFilters } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
+import { CATALOG_PAGE_SIZE } from "@/lib/infinite-catalog-cards"
 import { infinitePages, mergePages } from "@/lib/infinite-pages"
 import type { CardList, ListPage } from "@/lib/infinite-pages"
 import { INVENTORY_PAGE_SIZE } from "@/lib/infinite-inventory"
@@ -97,15 +98,14 @@ export function invalidateWishlist(queryClient: QueryClient) {
   }
 }
 
-// One lookup per API-sized slice of Card ids: the endpoint caps `cardId` at 100,
-// and a lookup per slice means an appended page adds a query instead of
-// changing the key (and dropping the data) of the earlier ones.
-const LOOKUP_SLICE = 100
-
+// Ids per lookup: the catalog's page size, so a slice is one loaded page: an
+// appended page adds a lookup instead of changing the key (and dropping the
+// data) of the earlier ones, and the request stays under the endpoint's cap of
+// 100 `cardId` values.
 function sliceCardIds(cardIds: string[]) {
   const slices: string[][] = []
-  for (let start = 0; start < cardIds.length; start += LOOKUP_SLICE) {
-    slices.push(cardIds.slice(start, start + LOOKUP_SLICE))
+  for (let start = 0; start < cardIds.length; start += CATALOG_PAGE_SIZE) {
+    slices.push(cardIds.slice(start, start + CATALOG_PAGE_SIZE))
   }
   return slices
 }
