@@ -8,11 +8,18 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import type { CatalogFacets } from "@/generated/models"
 import { hasActiveFilters } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
+
+interface StatusOption {
+  value: string
+  label: string
+}
 
 interface CatalogFilterPanelProps {
   search: CatalogFilters
@@ -25,6 +32,12 @@ interface CatalogFilterPanelProps {
   guest?: boolean
   /** Path (with search) the sign-in prompt returns to. */
   signInRedirect?: string
+  /** A derived-status filter owned by the page (the Wishlist), shown above the facets. */
+  statusFilter?: {
+    value: string
+    options: StatusOption[]
+    onChange: (status: string) => void
+  }
 }
 
 /** Name and card-number search plus the faceted filters, shared by the catalog and Collection pages. */
@@ -36,6 +49,7 @@ export function CatalogFilterPanel({
   onClear,
   guest = false,
   signInRedirect,
+  statusFilter,
 }: CatalogFilterPanelProps) {
   const [nameInput, setNameInput] = useState(search.name ?? "")
   const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
@@ -87,6 +101,28 @@ export function CatalogFilterPanel({
             </FieldDescription>
           </Field>
         </div>
+
+        {statusFilter && (
+          <FieldSet>
+            <FieldLegend>Status</FieldLegend>
+            <div className="flex flex-wrap gap-2">
+              {statusFilter.options.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={
+                    statusFilter.value === option.value ? "default" : "outline"
+                  }
+                  aria-pressed={statusFilter.value === option.value}
+                  onClick={() => statusFilter.onChange(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </FieldSet>
+        )}
 
         <FacetFilters
           facets={facets}

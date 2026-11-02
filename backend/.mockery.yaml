@@ -28,6 +28,7 @@ packages:
       MatchRepository:
       ScanReviewRepository:
       UserRepository:
+      WishlistRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       BinderService:
@@ -40,6 +41,7 @@ packages:
       MatchService:
       ScanReviewService:
       UserService:
+      WishlistService:
       IdentityCache:
   github.com/itsLeonB/cardstack/backend/internal/adapters/ingestion/tcgcollector:
     interfaces:

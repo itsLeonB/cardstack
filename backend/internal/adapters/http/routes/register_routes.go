@@ -25,6 +25,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	collectionHandler := handler.NewCollectionHandler(services.Collection)
 	sharedCollectionHandler := handler.NewSharedCollectionHandler(services.SharedCollection)
 	inventoryHandler := handler.NewInventoryHandler(services.Inventory)
+	wishlistHandler := handler.NewWishlistHandler(services.Wishlist)
 	binderHandler := handler.NewBinderHandler(services.Binder, services.BinderSlot)
 	binderPlacementHandler := handler.NewBinderPlacementHandler(services.BinderSlot)
 	matchHandler := handler.NewMatchHandler(services.Match)
@@ -43,9 +44,11 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 		handler.OpListCollectionEntries:     limits.Search,
 		handler.OpCountCollectionEntries:    limits.Search,
 		handler.OpListMasterInventory:       limits.Search,
+		handler.OpListWishlist:              limits.Search,
 		handler.OpListCatalogFacets:         limits.Facets,
 		handler.OpListCollectionFacets:      limits.Facets,
 		handler.OpListMasterInventoryFacets: limits.Facets,
+		handler.OpListWishlistFacets:        limits.Facets,
 	})
 
 	endpoint.RegisterAll(api, healthHandler.Routes())
@@ -58,6 +61,7 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	// client address instead of per user (docs/adr/0025).
 	endpoint.RegisterAll(api, sharedCollectionHandler.Routes(), guestsAllowed, ratelimit.PerIP(api, limits.Shared, limits.Now))
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
+	endpoint.RegisterAll(api, wishlistHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, binderPlacementHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, matchHandler.Routes(), private, perUser)

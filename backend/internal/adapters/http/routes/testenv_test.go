@@ -160,6 +160,7 @@ func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmail
 		provider.ProvideScanPhotoService(photoStore),
 		provider.ProvideScanFeedbackService(ds, photoStore),
 		provider.ProvideScanReviewService(ds, photoStore, images, embedder, settings),
+		provider.ProvideWishlistService(ds, images),
 	)
 
 	_, api := humatest.New(t, httpapi.NewConfig())

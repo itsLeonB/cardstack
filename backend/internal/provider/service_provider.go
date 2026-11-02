@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideScanReviewService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideScanReviewService, ProvideWishlistService, ProvideServices)
 
 type Services struct {
 	Health           service.HealthService
@@ -37,6 +37,7 @@ type Services struct {
 	ScanPhoto        service.ScanPhotoService
 	ScanFeedback     service.ScanFeedbackService
 	ScanReview       service.ScanReviewService
+	Wishlist         service.WishlistService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -109,6 +110,17 @@ func ProvideInventoryService(ds *DataSources, images mapper.ImageHost) service.I
 		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
 		images,
 		ProvideBinderSlotService(ds),
+	)
+}
+
+// ProvideWishlistService builds the Wishlist service over ds's DB.
+func ProvideWishlistService(ds *DataSources, images mapper.ImageHost) service.WishlistService {
+	return service.NewWishlistService(
+		crud.NewTransactor(ds.Gorm),
+		crud.NewRepository[entity.UserProfile](ds.Gorm),
+		catalogrepository.NewWishlistRepository(crud.NewRepository[entity.WishlistItem](ds.Gorm)),
+		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
+		images,
 	)
 }
 
@@ -200,7 +212,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService, scanReview service.ScanReviewService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService, scanReview service.ScanReviewService, wishlist service.WishlistService) *Services {
 	return &Services{
 		Health:           coreservice.NewHealthService(),
 		Verifier:         verifier,
@@ -217,5 +229,6 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		ScanPhoto:        scanPhoto,
 		ScanFeedback:     scanFeedback,
 		ScanReview:       scanReview,
+		Wishlist:         wishlist,
 	}
 }
