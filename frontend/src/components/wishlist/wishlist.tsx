@@ -24,14 +24,9 @@ import {
   isWishlistStatus,
   useInfiniteWishlist,
   wishlistStatus,
+  WISHLIST_STATUS_OPTIONS,
 } from "@/lib/wishlist"
 import type { WishlistFilters } from "@/lib/wishlist"
-
-const STATUS_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "needed", label: "Still needed" },
-  { value: "fulfilled", label: "Fulfilled" },
-]
 
 interface WishlistProps {
   search: WishlistFilters
@@ -108,7 +103,7 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
         onClear={() => onSearchChange({ status: wishlistStatus(search) })}
         statusFilter={{
           value: wishlistStatus(search),
-          options: STATUS_OPTIONS,
+          options: WISHLIST_STATUS_OPTIONS,
           onChange: (status) => {
             if (!isWishlistStatus(status)) return
             onSearchChange({ ...search, status })
