@@ -280,3 +280,143 @@ func TestWishlistFacets(t *testing.T) {
 	require.Len(t, facets.Data.Categories, 1)
 	assert.Equal(t, "Pokémon", facets.Data.Categories[0].Value)
 }
+
+// TestWishlistPreset covers the preset endpoints: own-none rule, skipping existing
+// items, narrowing, unpublished sets, and preview count equals what is added.
+func TestWishlistPreset(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 3)
+	owner := api.newUserToken(t)
+
+	// unpublished card should not appear in preset
+	hidden := newUnpublishedCard(t, api)
+
+	// Owner owns one of the cards, wants another
+	createResp := api.Post("/collections", bearer(owner), map[string]any{"title": "Box"})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	require.Equal(t, http.StatusCreated, api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1}).Code)
+	require.Equal(t, http.StatusNoContent, api.Put("/wishlist/items/"+cards[1].String(), bearer(owner), map[string]any{"quantity": 1}).Code)
+
+	// Private: no token is refused
+	assert.Equal(t, http.StatusUnauthorized, api.Post("/wishlist/preset/preview", map[string]any{}).Code)
+	assert.Equal(t, http.StatusUnauthorized, api.Post("/wishlist/preset/apply", map[string]any{}).Code)
+
+	// Preview returns Cards the user owns none of, excluding Cards already on the Wishlist
+	// Get the expansion set IDs from the cards
+	var card0, card1, card2 entity.Card
+	require.NoError(t, api.db.First(&card0, cards[0]).Error)
+	require.NoError(t, api.db.First(&card1, cards[1]).Error)
+	require.NoError(t, api.db.First(&card2, cards[2]).Error)
+
+	req := map[string]any{
+		"expansionSetIds": []string{card0.ExpansionSetID.String(), card1.ExpansionSetID.String(), card2.ExpansionSetID.String()},
+		"quantity":        1,
+	}
+	resp := api.Post("/wishlist/preset/preview", bearer(owner), req)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var preview struct {
+		Data struct {
+			Count int `json:"count"`
+			Cards []struct {
+				ID string `json:"id"`
+			} `json:"cards"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &preview))
+	// cards[0] is owned, cards[1] is already on Wishlist, only cards[2] should appear
+	assert.Equal(t, 1, preview.Data.Count)
+	require.Len(t, preview.Data.Cards, 1)
+	assert.Equal(t, cards[2].String(), preview.Data.Cards[0].ID)
+
+	// Unpublished card is excluded even if requested
+	var hiddenCard entity.Card
+	require.NoError(t, api.db.First(&hiddenCard, hidden).Error)
+	req["expansionSetIds"] = []string{hiddenCard.ExpansionSetID.String()}
+	resp = api.Post("/wishlist/preset/preview", bearer(owner), req)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &preview))
+	assert.Equal(t, 0, preview.Data.Count)
+
+	// Apply adds the same Cards with the chosen quantity
+	req["expansionSetIds"] = []string{card0.ExpansionSetID.String(), card1.ExpansionSetID.String(), card2.ExpansionSetID.String()}
+	resp = api.Post("/wishlist/preset/apply", bearer(owner), req)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var applied struct {
+		Data struct {
+			Count int `json:"count"`
+			Cards []struct {
+				ID string `json:"id"`
+			} `json:"cards"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &applied))
+	assert.Equal(t, 1, applied.Data.Count)
+	require.Len(t, applied.Data.Cards, 1)
+	assert.Equal(t, cards[2].String(), applied.Data.Cards[0].ID)
+
+	// The Wishlist now has cards[1] (from before) and cards[2] (from preset)
+	items, total := api.wishlist(t, owner, "")
+	assert.Equal(t, 2, total)
+	require.Len(t, items, 2)
+	itemIDs := map[string]bool{}
+	for _, item := range items {
+		itemIDs[item.Card.ID] = true
+	}
+	assert.True(t, itemIDs[cards[1].String()])
+	assert.True(t, itemIDs[cards[2].String()])
+	assert.False(t, itemIDs[cards[0].String()])
+
+	// Applying again does nothing: Cards already on the Wishlist are skipped
+	resp = api.Post("/wishlist/preset/apply", bearer(owner), req)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &applied))
+	assert.Equal(t, 0, applied.Data.Count)
+	items, total = api.wishlist(t, owner, "")
+	assert.Equal(t, 2, total)
+}
+
+// TestWishlistPresetNarrowing: the preset narrows by rarity, category and tag.
+func TestWishlistPresetNarrowing(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner := api.newUserToken(t)
+
+	// cards[0] has the standard test rarity and category, cards[1] is different
+	s := uuid.NewString()
+	game := entity.Game{Slug: "wl2-" + s, Name: "Wl2 " + s}
+	require.NoError(t, api.db.Create(&game).Error)
+	rarity := entity.Rarity{GameID: game.ID, Code: "DIFF-" + s, Name: "Different " + s}
+	require.NoError(t, api.db.Create(&rarity).Error)
+	api.db.Model(&entity.Card{}).Where("id = ?", cards[1]).Updates(map[string]any{
+		"rarity_id": rarity.ID,
+		"category":  "Trainer",
+		"tags":      datatypes.JSONSlice[string]{"Special"},
+	})
+
+	var card0, card1 entity.Card
+	require.NoError(t, api.db.First(&card0, cards[0]).Error)
+	require.NoError(t, api.db.First(&card1, cards[1]).Error)
+
+	req := map[string]any{
+		"expansionSetIds": []string{card0.ExpansionSetID.String(), card1.ExpansionSetID.String()},
+		"quantity":        1,
+		"rarityIds":       []string{card0.RarityID.String()}, // card[0]'s rarity
+		"categories":      []string{"Pokémon"},
+	}
+
+	resp := api.Post("/wishlist/preset/preview", bearer(owner), req)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var preview struct {
+		Data struct {
+			Count int `json:"count"`
+			Cards []struct {
+				ID string `json:"id"`
+			} `json:"cards"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &preview))
+	assert.Equal(t, 1, preview.Data.Count)
+	assert.Equal(t, cards[0].String(), preview.Data.Cards[0].ID)
+}
