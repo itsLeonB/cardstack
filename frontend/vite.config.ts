@@ -17,6 +17,10 @@ const config = defineConfig({
     environment: "jsdom",
     // Cold route-module imports in a test can pass 5s when the suite runs in parallel.
     testTimeout: 15_000,
+    // Two of the suite's files fail under full file parallelism on a loaded
+    // host (render never completes), while they pass isolated, paired,
+    // serial and at this cap. Costs ~1.5x wall clock: 56s -> ~86s here.
+    maxWorkers: 2,
     setupFiles: ["./src/test-setup.ts"],
     // Playwright e2e specs live under e2e/ and run via `playwright test`,
     // not vitest — exclude them so vitest's default *.spec.ts glob doesn't
