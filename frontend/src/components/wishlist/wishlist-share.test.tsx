@@ -27,8 +27,8 @@ interface Server {
   shared: boolean
   // "loading" never answers; "offline" fails the request outright.
   profileStatus: number | "loading" | "offline"
-  // Answers the flag read with this status instead of the flag's own answer.
-  flagStatus?: number | "loading"
+  // "loading" never answers, "offline" fails outright, a number replies with it.
+  flagStatus?: number | "loading" | "offline"
   // Answers a share or an unshare with this status instead of accepting it.
   changeStatus?: number
   // Set to hold the flag read until released.
@@ -74,6 +74,8 @@ function stubServer(server: Server) {
       if (url.pathname === SHARED) {
         if (server.flagStatus === "loading")
           return new Promise<Response>(() => {})
+        if (server.flagStatus === "offline")
+          throw new TypeError("Failed to fetch")
         await server.holdFlagRead
         if (server.flagStatus) return reply(server.flagStatus, { detail: "no" })
         return server.shared
@@ -215,6 +217,24 @@ describe("Wishlist Share button", () => {
     await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull())
     expect(calls.filter((call) => call === "GET /profile")).toHaveLength(2)
     await enabledButton("Share")
+  })
+
+  it("shows a failed flag read inline, and Retry loads it again", async () => {
+    const server: Server = {
+      shared: true,
+      profileStatus: 200,
+      flagStatus: "offline",
+    }
+    renderShare(server)
+
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText("Could not load sharing")).toBeTruthy()
+
+    server.flagStatus = undefined
+    fireEvent.click(within(alert).getByRole("button", { name: "Retry" }))
+
+    expect(await screen.findByRole("button", { name: "Shared" })).toBeTruthy()
+    expect(screen.queryByRole("alert")).toBeNull()
   })
 
   it("shows the error inline when sharing is refused", async () => {

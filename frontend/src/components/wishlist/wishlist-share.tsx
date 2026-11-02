@@ -39,9 +39,10 @@ export function WishlistShare() {
     !profile.isFetching &&
     (profile.isError || profile.data !== undefined)
   const sharedFailed =
-    shared.data !== undefined &&
-    shared.data.status !== 200 &&
-    shared.data.status !== 404
+    shared.isError ||
+    (shared.data !== undefined &&
+      shared.data.status !== 200 &&
+      shared.data.status !== 404)
   const failed = profileFailed || sharedFailed
   const pending =
     share.isPending ||
