@@ -110,13 +110,14 @@ describe("SiteHeader", () => {
     ).toBeNull()
   })
 
-  it("shows Catalog, Collections and Master Inventory plus a user menu when signed in", async () => {
+  it("shows Catalog, Collections, Wishlist and Master Inventory plus a user menu when signed in", async () => {
     mockSession("signed-in")
     const header = await renderShell()
 
     expect(linkNames(within(header).getByRole("navigation"))).toEqual([
       "Catalog",
       "Collections",
+      "Wishlist",
       "Master Inventory",
     ])
     expect(

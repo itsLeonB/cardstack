@@ -277,6 +277,8 @@ type CardResult struct {
 	ExpansionSetLogoKey     string
 	// Quantity is set only when searching within a Collection or a profile's Master Inventory.
 	Quantity int
+	// WantedQuantity is set only when listing a Wishlist.
+	WantedQuantity int
 }
 
 // withCardResultJoins adds the joins cardResultColumns reads from.
@@ -311,18 +313,26 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 
 // cardsBase is the query over cards that filters apply to: all Cards, or only
 // the Collection's when filter.CollectionID is set.
+// cardsWithoutAdminDrafts is the row set every Card list starts from: a Card an
+// Admin last updated with no image key is one an Admin has saved but whose
+// upload is not confirmed yet, so it stays out of every list (docs/adr/0019,
+// docs/adr/0021).
+func cardsWithoutAdminDrafts(db *gorm.DB) *gorm.DB {
+	return db.Table("cards").Where("NOT (cards.updated_by = ? AND cards.image_key = '')", entity.SourceAdmin)
+}
+
+// masterInventorySubquery sums each Card's owned copies across one profile's
+// Collections. Bind it to the profile id and join it as master_inventory.
+const masterInventorySubquery = `(SELECT ie.card_id, SUM(ie.quantity) AS quantity
+	FROM inventory_entries ie JOIN collections c ON c.id = ie.collection_id
+	WHERE c.profile_id = ? GROUP BY ie.card_id)`
+
 func cardsBase(db *gorm.DB, filter CardFilter) *gorm.DB {
-	// A Card an Admin last updated with no image key is one an Admin has saved
-	// but whose upload is not confirmed yet; it stays out of every list
-	// (docs/adr/0019, docs/adr/0021).
-	q := db.Table("cards").Where("NOT (cards.updated_by = ? AND cards.image_key = '')", entity.SourceAdmin)
+	q := cardsWithoutAdminDrafts(db)
 	if filter.CollectionID != uuid.Nil {
 		q = q.Joins("JOIN inventory_entries ON inventory_entries.card_id = cards.id AND inventory_entries.collection_id = ?", filter.CollectionID)
 	} else if filter.ProfileID != uuid.Nil {
-		q = q.Joins(`JOIN (SELECT ie.card_id, SUM(ie.quantity) AS quantity
-			FROM inventory_entries ie JOIN collections c ON c.id = ie.collection_id
-			WHERE c.profile_id = ? GROUP BY ie.card_id) AS master_inventory
-			ON master_inventory.card_id = cards.id`, filter.ProfileID)
+		q = q.Joins("JOIN "+masterInventorySubquery+" AS master_inventory ON master_inventory.card_id = cards.id", filter.ProfileID)
 	}
 	return visibleCards(q, filter.IncludeUnpublished)
 }
@@ -434,10 +444,16 @@ func (r *catalogRepository) ListCardFacets(ctx context.Context, filter CardFilte
 		return CardFacets{}, err
 	}
 
+	return listCardFacets(db, filter, func(f CardFilter) *gorm.DB { return cardsBase(db, f) })
+}
+
+// listCardFacets builds the facet options over base, the scope deciding which
+// Cards the options may draw from (the catalog, or a profile's Wishlist).
+func listCardFacets(db *gorm.DB, filter CardFilter, base func(CardFilter) *gorm.DB) (CardFacets, error) {
 	without := func(mutate func(*CardFilter)) *gorm.DB {
 		f := filter
 		mutate(&f)
-		return applyCardFilters(cardsBase(db, f), f)
+		return applyCardFilters(base(f), f)
 	}
 
 	var facets CardFacets

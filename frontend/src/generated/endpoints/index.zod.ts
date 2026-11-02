@@ -6,3 +6,4 @@ export * from './inventory/inventory.zod.ts';
 export * from './profile/profile.zod.ts';
 export * from './scan/scan.zod.ts';
 export * from './shared/shared.zod.ts';
+export * from './wishlist/wishlist.zod.ts';

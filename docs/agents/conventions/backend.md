@@ -20,6 +20,10 @@ These apply to every backend change, whether made by the orchestrator or a compo
 - Never share logic between services through a package-level function that takes a dependency (a repository, another service) as a parameter. Either extract it into its own service struct, or let one service own it and have the other depend on that service. A pure function with no dependencies may be shared at package level (`normalizePagination`, `pagedRepoFilter`). Pure conversions between types belong in `internal/domain/mapper`, not the service file (`mapper.ToRepoCardFilter`, `mapper.ToCatalogFacets`).
 - Put DTOs in `internal/domain/dto` and entity-to-DTO conversions in `internal/domain/mapper` (ADR-0012).
 
+## HTTP
+
+- Embed a shared query or body parameter struct (such as `CardFilterParams`) directly in the Huma input type, never a struct that embeds it: Huma reads one level of embedding, so a param one level deeper is silently absent from the route and from `openapi.json`, and the request just loses that filter. Repeat the shared fields on each input instead.
+
 ## Data and mapping
 
 - Key domain ownership by `profile_id` (`user_profiles.id`); `user_id` identifies the authentication account only.

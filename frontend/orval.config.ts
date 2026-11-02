@@ -82,6 +82,7 @@ export default defineConfig({
           "search-catalog-cards": infinitePage,
           "list-collection-entries": infinitePage,
           "list-master-inventory": infinitePage,
+          "list-wishlist": infinitePage,
           "list-shared-collection-entries": infinitePage,
         },
       },

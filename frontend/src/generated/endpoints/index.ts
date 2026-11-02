@@ -12,3 +12,4 @@ export * from './inventory/inventory.ts';
 export * from './profile/profile.ts';
 export * from './scan/scan.ts';
 export * from './shared/shared.ts';
+export * from './wishlist/wishlist.ts';
