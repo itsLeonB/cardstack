@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Pre-commit: the checks fast enough to run on every commit, so a red CI job
+# minutes later is not the first sign of a broken change (docs/git.md). They run
+# in the compose stack's tooling containers through the same scripts CI calls,
+# so a commit can only pass what CI passes. Tests and e2e stay with CI: they
+# need the database and minutes.
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+# Nothing staged: a merge, a rebase or an empty commit.
+git diff --cached --quiet && exit 0
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "pre-commit: docker compose is unavailable, skipping the checks" >&2
+  exit 0
+fi
+
+staged=$(git diff --cached --name-only)
+failed=0
+
+# Each check on its own: one failing check must not hide the others.
+run() {
+  "$@" && return 0
+  echo "pre-commit: FAILED: $*" >&2
+  failed=1
+  return 0
+}
+
+case "$staged" in
+*backend/*)
+  for step in format vet lint; do
+    run scripts/verification/backend.sh "$step"
+  done
+  ;;
+esac
+
+# Only the packages with staged files: the Admin app is untouched by most work.
+for pkg in frontend admin; do
+  case "$staged" in
+  *"$pkg"/*)
+    for step in lint format typecheck; do
+      run scripts/verification/frontend.sh --package "$pkg" "$step"
+    done
+    ;;
+  esac
+done
+
+exit "$failed"

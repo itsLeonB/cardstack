@@ -59,4 +59,7 @@ npx skills add mattpocock/skills --skill "wait-what" -g -a codex -y
 npx skills add mattpocock/skills --skill "writing-for-agents" -g -a codex -y
 npx skills add anthropics/skills --skill "skill-creator" -g -a codex -y
 
+echo "Enabling the tracked pre-commit checks (docs/git.md)..."
+git config core.hooksPath .githooks
+
 echo "Environment setup complete!"
