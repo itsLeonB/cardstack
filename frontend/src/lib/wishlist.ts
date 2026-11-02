@@ -1,10 +1,11 @@
-import { keepPreviousData } from "@tanstack/react-query"
+import { keepPreviousData, useQueries } from "@tanstack/react-query"
 import type { QueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import {
   getListWishlistFacetsQueryKey,
   getListWishlistInfiniteQueryKey,
   getListWishlistQueryKey,
+  getListWishlistQueryOptions,
   listWishlist,
   useListWishlistInfinite,
 } from "@/generated/endpoints/wishlist/wishlist"
@@ -94,4 +95,53 @@ export function invalidateWishlist(queryClient: QueryClient) {
   ]) {
     void queryClient.invalidateQueries({ queryKey })
   }
+}
+
+// One lookup per API-sized slice of Card ids: the endpoint caps `cardId` at 100,
+// and a lookup per slice means an appended page adds a query instead of
+// changing the key (and dropping the data) of the earlier ones.
+const LOOKUP_SLICE = 100
+
+function sliceCardIds(cardIds: string[]) {
+  const slices: string[][] = []
+  for (let start = 0; start < cardIds.length; start += LOOKUP_SLICE) {
+    slices.push(cardIds.slice(start, start + LOOKUP_SLICE))
+  }
+  return slices
+}
+
+/**
+ * The wanted quantity the Wishlist already holds for each of these Cards, so a
+ * catalog result can show its state instead of offering a blind add.
+ * `loaded` tells "not wanted" apart from "no answer yet".
+ */
+export function useWishlistWanted(cardIds: string[], enabled: boolean) {
+  const slices = sliceCardIds(cardIds)
+  return useQueries({
+    queries: slices.map((ids) =>
+      getListWishlistQueryOptions(
+        { cardId: ids, limit: ids.length },
+        // gcTime 0 + refetchOnMount: no cached answer can show a wanted quantity from before an edit.
+        { query: { enabled, gcTime: 0, refetchOnMount: "always" } }
+      )
+    ),
+    combine: (queries) => {
+      const wanted: Record<string, number> = {}
+      const loaded: Record<string, true> = {}
+      queries.forEach((query, index) => {
+        if (query.data?.status !== 200) return
+        for (const item of query.data.data.data ?? []) {
+          wanted[item.card.id] = item.wantedQuantity
+        }
+        for (const cardId of slices[index] ?? []) loaded[cardId] = true
+      })
+      return {
+        wanted,
+        loaded,
+        failed: queries.some(
+          (query) => query.isError || (query.data && query.data.status !== 200)
+        ),
+      }
+    },
+  })
 }
