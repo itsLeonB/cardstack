@@ -8,6 +8,15 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the current user's Wishlist metadata (shared flag)
+ */
+export const GetWishlistResponse = zod.object({
+  "data": zod.object({
+  "shared": zod.boolean().describe('Whether the Wishlist is shared publicly. False when the profile has no Wishlist row yet.')
+})
+})
+
+/**
  * @summary Search/page the current user's Wishlist with the catalog search filters: each wanted Card with the wanted quantity, the quantity owned in Master Inventory, and whether it is fulfilled (computed on read)
  */
 export const listWishlistQueryNameMax = 64;

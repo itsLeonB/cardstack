@@ -2,9 +2,11 @@ import { keepPreviousData, useQueries } from "@tanstack/react-query"
 import type { QueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import {
-  getGetSharedWishlistQueryKey,
   listSharedWishlistEntries,
   useListSharedWishlistEntriesInfinite,
+  getListSharedWishlistEntriesInfiniteQueryKey,
+  getListSharedWishlistEntriesQueryKey,
+  getListSharedWishlistFacetsQueryKey,
 } from "@/generated/endpoints/shared/shared"
 import {
   getListWishlistFacetsQueryKey,
@@ -137,16 +139,20 @@ export function useInfiniteSharedWishlist(
 }
 
 /**
- * Asks again whether the Wishlist is Shared. Its own Shared page is the only
- * read of that flag, so a share or an unshare shows once it answers again.
+ * Invalidates the shared Wishlist's queries (entries, facets) and its header.
+ * Called when sharing changes so an already-open shared page refreshes.
  */
 export function invalidateSharedWishlist(
   queryClient: QueryClient,
   profileSlug: string
 ) {
-  return queryClient.invalidateQueries({
-    queryKey: getGetSharedWishlistQueryKey(profileSlug),
-  })
+  for (const queryKey of [
+    getListSharedWishlistEntriesInfiniteQueryKey(profileSlug),
+    getListSharedWishlistEntriesQueryKey(profileSlug),
+    getListSharedWishlistFacetsQueryKey(profileSlug),
+  ]) {
+    void queryClient.invalidateQueries({ queryKey })
+  }
 }
 
 // Ids per lookup: the catalog's page size, so a slice is one loaded page: an
