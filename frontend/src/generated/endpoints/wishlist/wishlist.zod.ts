@@ -168,3 +168,89 @@ export const SetWishlistItemBody = zod.object({
 
 export const SetWishlistItemResponse = zod.void()
 
+/**
+ * @summary Apply a Wishlist Preset: add the matching Cards to the Wishlist with the chosen quantity, using the same query as preview
+ */
+
+export const applyWishlistPresetBodyQuantityMax = 2147483647;
+
+
+
+export const ApplyWishlistPresetBody = zod.object({
+  "categories": zod.array(zod.string()).nullable().describe('Narrow by category (repeatable).'),
+  "expansionSetIds": zod.array(zod.string()).min(1).nullable().describe('Expansion Sets to include.'),
+  "quantity": zod.int().min(1).max(applyWishlistPresetBodyQuantityMax).describe('Quantity to add for each Card.'),
+  "rarityIds": zod.array(zod.string()).nullable().describe('Narrow by rarity (repeatable).'),
+  "tags": zod.array(zod.string()).nullable().describe('Narrow by tag (repeatable).')
+})
+
+export const ApplyWishlistPresetResponse = zod.object({
+  "data": zod.object({
+  "cards": zod.array(zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+})).nullable(),
+  "count": zod.int()
+})
+})
+
+/**
+ * @summary Preview a Wishlist Preset: return the Cards that would be added and how many, for the chosen Expansion Sets (optionally narrowed by rarity, category and tag) and quantity, of which the user owns none in Master Inventory and none are already on the Wishlist
+ */
+
+export const previewWishlistPresetBodyQuantityMax = 2147483647;
+
+
+
+export const PreviewWishlistPresetBody = zod.object({
+  "categories": zod.array(zod.string()).nullable().describe('Narrow by category (repeatable).'),
+  "expansionSetIds": zod.array(zod.string()).min(1).nullable().describe('Expansion Sets to include.'),
+  "quantity": zod.int().min(1).max(previewWishlistPresetBodyQuantityMax).describe('Quantity to add for each Card.'),
+  "rarityIds": zod.array(zod.string()).nullable().describe('Narrow by rarity (repeatable).'),
+  "tags": zod.array(zod.string()).nullable().describe('Narrow by tag (repeatable).')
+})
+
+export const PreviewWishlistPresetResponse = zod.object({
+  "data": zod.object({
+  "cards": zod.array(zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+})).nullable(),
+  "count": zod.int()
+})
+})
+

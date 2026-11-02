@@ -32,7 +32,8 @@ type WishlistFilter struct {
 // WishlistRepository is crud.Repository[entity.WishlistItem] plus the queries
 // go-crud has no equivalent for: the Card listing with the owner's Master
 // Inventory quantity (an aggregate and a join), the facets over that listing,
-// and the conditional delete behind Clear fulfilled.
+// the conditional delete behind Clear fulfilled, and the preset query for Cards
+// the user owns none of.
 type WishlistRepository interface {
 	crud.Repository[entity.WishlistItem]
 	// List pages the profile's Wishlist Items matching filter, each with its
@@ -45,6 +46,10 @@ type WishlistRepository interface {
 	// DeleteFulfilled removes every fulfilled item of the profile and returns
 	// how many went.
 	DeleteFulfilled(ctx context.Context, profileID uuid.UUID) (int, error)
+	// FindOwnedNoneCards returns published Cards of the chosen Expansion Sets,
+	// optionally narrowed by rarity, category and tag, of which the user owns
+	// none in Master Inventory. Cards already on the Wishlist are excluded.
+	FindOwnedNoneCards(ctx context.Context, profileID uuid.UUID, expansionSetIDs []uuid.UUID, filter CardFilter) ([]CardResult, error)
 }
 
 type wishlistRepository struct {
@@ -142,4 +147,43 @@ func (r *wishlistRepository) DeleteFulfilled(ctx context.Context, profileID uuid
 	}
 
 	return int(result.RowsAffected), nil
+}
+
+// FindOwnedNoneCards returns Cards the user owns none of in Master Inventory,
+// excluding Cards already on the Wishlist. Expansion Sets are filtered to the
+// chosen ones, and the shared Card filters (rarity, category, tag) are applied.
+// Only published Expansion Sets and their Cards are returned.
+func (r *wishlistRepository) FindOwnedNoneCards(ctx context.Context, profileID uuid.UUID, expansionSetIDs []uuid.UUID, filter CardFilter) ([]CardResult, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cards the user owns none of: left join Master Inventory, keep only null
+	query := visibleCards(cardsWithoutAdminDrafts(db), false).
+		Joins("LEFT JOIN "+masterInventorySubquery+" AS master_inventory ON master_inventory.card_id = cards.id", profileID).
+		Where("master_inventory.quantity IS NULL").
+		// Exclude Cards already on the Wishlist
+		Joins("LEFT JOIN wishlist_items ON wishlist_items.card_id = cards.id AND wishlist_items.profile_id = ?", profileID).
+		Where("wishlist_items.id IS NULL")
+
+	// Filter to chosen Expansion Sets
+	if len(expansionSetIDs) > 0 {
+		query = query.Where("cards.expansion_set_id IN ?", expansionSetIDs)
+	}
+
+	// Apply shared Card filters
+	query = applyCardFilters(withCardResultJoins(query), filter)
+
+	var results []CardResult
+	err = query.Session(&gorm.Session{}).
+		Select(cardResultColumns).
+		Order("expansion_sets.release_date DESC NULLS LAST, expansion_sets.id ASC, cards.local_id ASC, cards.name ASC, cards.id ASC").
+		Find(&results).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "finding owned-none cards for preset")
+	}
+
+	return results, nil
 }

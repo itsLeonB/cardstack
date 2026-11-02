@@ -16,6 +16,8 @@ import (
 const (
 	wishlistQuantityNotPositiveMsg = "wanted quantity must be at least 1"
 	wishlistItemNotFoundMsg        = "card is not on this wishlist"
+	wishlistPresetQuantityMsg      = "preset quantity must be at least 1"
+	wishlistPresetExpansionSetsMsg = "preset requires at least one Expansion Set"
 )
 
 // WishlistService owns a profile's Wishlist: the Cards it wants, each against
@@ -33,6 +35,10 @@ type WishlistService interface {
 	Remove(ctx context.Context, req dto.WishlistItemLookup) error
 	// ClearFulfilled removes every item the profile already has enough of.
 	ClearFulfilled(ctx context.Context, req dto.WishlistLookup) (dto.WishlistClearResult, error)
+	// PreviewPreset returns the Cards a Wishlist Preset would add and how many.
+	// ApplyPreset actually adds them with the chosen quantity.
+	PreviewPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)
+	ApplyPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)
 }
 
 type wishlistService struct {
@@ -149,6 +155,75 @@ func (s *wishlistService) ClearFulfilled(ctx context.Context, req dto.WishlistLo
 	}
 
 	return dto.WishlistClearResult{Removed: removed}, nil
+}
+
+func (s *wishlistService) PreviewPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error) {
+	if req.Quantity <= 0 {
+		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetQuantityMsg)
+	}
+	if len(req.ExpansionSetIDs) == 0 {
+		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetExpansionSetsMsg)
+	}
+	if req.ProfileID == uuid.Nil {
+		return dto.WishlistPresetResult{}, ungerr.UnauthorizedError("missing profile")
+	}
+
+	results, err := s.items.FindOwnedNoneCards(ctx, req.ProfileID, req.ExpansionSetIDs, mapper.ToRepoCardFilter(req.Filter))
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+
+	return dto.WishlistPresetResult{
+		Count: len(results),
+		Cards: ezutil.MapSlice(results, func(r repository.CardResult) dto.CardSummary { return mapper.ToCardSummary(s.images, r) }),
+	}, nil
+}
+
+func (s *wishlistService) ApplyPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error) {
+	if req.Quantity <= 0 {
+		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetQuantityMsg)
+	}
+	if len(req.ExpansionSetIDs) == 0 {
+		return dto.WishlistPresetResult{}, ungerr.BadRequestError(wishlistPresetExpansionSetsMsg)
+	}
+	if req.ProfileID == uuid.Nil {
+		return dto.WishlistPresetResult{}, ungerr.UnauthorizedError("missing profile")
+	}
+
+	var added []dto.CardSummary
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := s.lockOwner(ctx, req.ProfileID); err != nil {
+			return err
+		}
+
+		results, err := s.items.FindOwnedNoneCards(ctx, req.ProfileID, req.ExpansionSetIDs, mapper.ToRepoCardFilter(req.Filter))
+		if err != nil {
+			return err
+		}
+
+		for _, r := range results {
+			_, err = s.items.Insert(ctx, entity.WishlistItem{
+				ProfileID:      req.ProfileID,
+				CardID:         r.ID,
+				WantedQuantity: req.Quantity,
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		added = ezutil.MapSlice(results, func(r repository.CardResult) dto.CardSummary { return mapper.ToCardSummary(s.images, r) })
+
+		return nil
+	})
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+
+	return dto.WishlistPresetResult{
+		Count: len(added),
+		Cards: added,
+	}, nil
 }
 
 // lockOwner row-locks the profile, which serializes every write to its

@@ -242,3 +242,124 @@ func TestWishlistService_ClearFulfilled_AnonymousIsRefused(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+func TestWishlistService_PreviewPreset(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	setID := uuid.New()
+	cardID := uuid.New()
+	f := newWishlistFixture(t)
+
+	f.items.EXPECT().
+		FindOwnedNoneCards(ctx, profileID, []uuid.UUID{setID}, repository.CardFilter{RarityIDs: []uuid.UUID{cardID}}).
+		Return([]repository.CardResult{{ID: cardID}}, nil).
+		Once()
+
+	result, err := f.svc.PreviewPreset(ctx, dto.WishlistPresetRequest{
+		ProfileID:       profileID,
+		ExpansionSetIDs: []uuid.UUID{setID},
+		Filter:          dto.CardFilter{RarityIDs: []uuid.UUID{cardID}},
+		Quantity:        1,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Count)
+	require.Len(t, result.Cards, 1)
+}
+
+func TestWishlistService_PreviewPreset_RefusesNonPositiveQuantity(t *testing.T) {
+	ctx := context.Background()
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.PreviewPreset(ctx, dto.WishlistPresetRequest{
+		ProfileID: uuid.New(),
+		Quantity:  0,
+	})
+
+	require.Error(t, err)
+}
+
+func TestWishlistService_PreviewPreset_RefusesEmptyExpansionSets(t *testing.T) {
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.PreviewPreset(context.Background(), dto.WishlistPresetRequest{
+		ProfileID: uuid.New(),
+		Quantity:  1,
+	})
+
+	require.Error(t, err)
+}
+
+func TestWishlistService_PreviewPreset_AnonymousIsRefused(t *testing.T) {
+	ctx := context.Background()
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.PreviewPreset(ctx, dto.WishlistPresetRequest{
+		Quantity: 1,
+	})
+
+	require.Error(t, err)
+}
+
+func TestWishlistService_ApplyPreset(t *testing.T) {
+	ctx := context.Background()
+	profileID := uuid.New()
+	setID := uuid.New()
+	cardID := uuid.New()
+	f := newWishlistFixture(t)
+
+	f.expectLock(ctx, profileID)
+	f.items.EXPECT().
+		FindOwnedNoneCards(ctx, profileID, []uuid.UUID{setID}, repository.CardFilter{RarityIDs: []uuid.UUID{cardID}}).
+		Return([]repository.CardResult{{ID: cardID}}, nil).
+		Once()
+	f.items.EXPECT().
+		Insert(ctx, entity.WishlistItem{ProfileID: profileID, CardID: cardID, WantedQuantity: 2}).
+		Return(entity.WishlistItem{BaseEntity: baseEntity(uuid.New())}, nil).
+		Once()
+
+	result, err := f.svc.ApplyPreset(ctx, dto.WishlistPresetRequest{
+		ProfileID:       profileID,
+		ExpansionSetIDs: []uuid.UUID{setID},
+		Filter:          dto.CardFilter{RarityIDs: []uuid.UUID{cardID}},
+		Quantity:        2,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Count)
+	assert.Len(t, result.Cards, 1)
+}
+
+func TestWishlistService_ApplyPreset_RefusesNonPositiveQuantity(t *testing.T) {
+	ctx := context.Background()
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.ApplyPreset(ctx, dto.WishlistPresetRequest{
+		ProfileID: uuid.New(),
+		Quantity:  0,
+	})
+
+	require.Error(t, err)
+}
+
+func TestWishlistService_ApplyPreset_RefusesEmptyExpansionSets(t *testing.T) {
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.ApplyPreset(context.Background(), dto.WishlistPresetRequest{
+		ProfileID: uuid.New(),
+		Quantity:  1,
+	})
+
+	require.Error(t, err)
+}
+
+func TestWishlistService_ApplyPreset_AnonymousIsRefused(t *testing.T) {
+	ctx := context.Background()
+	f := newWishlistFixture(t)
+
+	_, err := f.svc.ApplyPreset(ctx, dto.WishlistPresetRequest{
+		Quantity: 1,
+	})
+
+	require.Error(t, err)
+}

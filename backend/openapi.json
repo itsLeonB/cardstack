@@ -1330,6 +1330,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeWishlistPresetResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WishlistPresetResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeWithMetaListCardSummaryPaginationMeta": {
         "additionalProperties": false,
         "properties": {
@@ -2514,6 +2526,90 @@
           "wantedQuantity",
           "ownedQuantity",
           "fulfilled"
+        ],
+        "type": "object"
+      },
+      "WishlistPresetInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "description": "Narrow by category (repeatable).",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "expansionSetIds": {
+            "description": "Expansion Sets to include.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "quantity": {
+            "description": "Quantity to add for each Card.",
+            "format": "int64",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "rarityIds": {
+            "description": "Narrow by rarity (repeatable).",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tags": {
+            "description": "Narrow by tag (repeatable).",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "expansionSetIds",
+          "quantity",
+          "rarityIds",
+          "categories",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "WishlistPresetResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "cards"
         ],
         "type": "object"
       }
@@ -7034,6 +7130,98 @@
           }
         ],
         "summary": "Put a Card on the current user's Wishlist with a wanted quantity, replacing the wanted quantity when it is already there",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/wishlist/preset/apply": {
+      "post": {
+        "operationId": "apply-wishlist-preset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WishlistPresetInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWishlistPresetResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Apply a Wishlist Preset: add the matching Cards to the Wishlist with the chosen quantity, using the same query as preview",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/wishlist/preset/preview": {
+      "post": {
+        "operationId": "preview-wishlist-preset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WishlistPresetInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWishlistPresetResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Preview a Wishlist Preset: return the Cards that would be added and how many, for the chosen Expansion Sets (optionally narrowed by rarity, category and tag) and quantity, of which the user owns none in Master Inventory and none are already on the Wishlist",
         "tags": [
           "wishlist"
         ]

@@ -49,3 +49,21 @@ type WishlistItem struct {
 type WishlistClearResult struct {
 	Removed int `json:"removed"`
 }
+
+// WishlistPresetRequest is the query for previewing or applying a Wishlist Preset
+// (GLOSSARY.md: Wishlist Preset): published Cards of the chosen Expansion Sets,
+// optionally narrowed by rarity, category and tag, of which the user owns none in
+// Master Inventory.
+type WishlistPresetRequest struct {
+	ProfileID       uuid.UUID
+	ExpansionSetIDs []uuid.UUID
+	Filter          CardFilter
+	Quantity        int
+}
+
+// WishlistPresetResult is the response to previewing a Wishlist Preset: how many
+// Cards would be added, and which ones. Apply returns the same shape.
+type WishlistPresetResult struct {
+	Count int           `json:"count"`
+	Cards []CardSummary `json:"cards"`
+}

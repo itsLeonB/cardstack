@@ -202,3 +202,51 @@ func TestWishlistRepository_ListFacets(t *testing.T) {
 	require.Len(t, facets.ExpansionSets, 1)
 	assert.Equal(t, set.ID, facets.ExpansionSets[0].ID)
 }
+
+func TestWishlistRepository_FindOwnedNoneCards(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newWishlistFixture(t, db)
+	repo := NewWishlistRepository(crud.NewRepository[entity.WishlistItem](db))
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	owned := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1" })
+	wanted := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2" })
+	none := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "3" })
+
+	fixture.own(t, db, fixture.owner.ID, owned.ID, 1)
+	fixture.want(t, db, fixture.owner.ID, wanted.ID, 1)
+
+	results, err := repo.FindOwnedNoneCards(ctx, fixture.owner.ID, []uuid.UUID{set.ID}, CardFilter{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, none.ID, results[0].ID)
+}
+
+func TestWishlistRepository_FindOwnedNoneCards_ExcludesUnpublishedSets(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newWishlistFixture(t, db)
+	repo := NewWishlistRepository(crud.NewRepository[entity.WishlistItem](db))
+	hidden := fixture.newExpansionSet(t, db, nil, nil)
+	require.NoError(t, db.Model(&entity.ExpansionSet{}).Where("id = ?", hidden.ID).Update("published", false).Error)
+	fixture.newCard(t, db, hidden.ID, nil)
+
+	results, err := repo.FindOwnedNoneCards(ctx, fixture.owner.ID, []uuid.UUID{hidden.ID}, CardFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, results)
+}
+
+func TestWishlistRepository_FindOwnedNoneCards_NarrowsByFilters(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newWishlistFixture(t, db)
+	repo := NewWishlistRepository(crud.NewRepository[entity.WishlistItem](db))
+	set := fixture.newExpansionSet(t, db, nil, nil)
+	trainer := fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "1"; c.Category = "Trainer" })
+	fixture.newCard(t, db, set.ID, func(c *entity.Card) { c.LocalID = "2"; c.Category = "Pokémon" })
+
+	results, err := repo.FindOwnedNoneCards(ctx, fixture.owner.ID, []uuid.UUID{set.ID}, CardFilter{Categories: []string{"Trainer"}})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, trainer.ID, results[0].ID)
+}
