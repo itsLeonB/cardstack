@@ -17,7 +17,7 @@ A task is **big** if either is true:
 
 Otherwise it is **small**: the orchestrator implements it directly on the feature branch in its current checkout, with no worker and no worktree.
 
-1. Use Serena for all code reads and edits (see `docs/agents/conventions/serena.md`), context7 for library docs, and the stack skills the component's role file lists. A small task skips the advisor.
+1. Use Serena for all code reads and edits (see `docs/agents/conventions/serena.md`), context7 for any library, SDK, CLI or platform-API question (resolve the vendor's own docs repo, e.g. `/railwayapp/docs`; fall back to a web search only when context7 has no match), and the stack skills the component's role file lists. A small task skips the advisor.
 2. Run the [verification](#verification).
 3. Run the [review](#review) once, fix the findings, and rerun verification.
 4. Commit on the feature branch using the [commit naming](../../git.md#commit-naming). Confirm with the maintainer before pushing.
@@ -32,7 +32,7 @@ Run `scripts/verification/<component>.sh [step]` for each component touched, and
 
 Every loop ends in a review and closes with a report; both are defined in [Hand-off](../handoff.md). This section holds only how many loops a task makes.
 
-- A [small](#small-or-big) task is one loop, reviewed by the orchestrator.
+- A [small](#small-or-big) task is one loop, reviewed by the orchestrator through the `code-review` skill, as the implementer.
 - A big task is one loop per worker, reviewed by that worker before it reports, plus one orchestrator loop on the merged feature branch ([Delegating](#delegating), step 8). Two components make three loops; a single-component big task makes two.
 
 The advisor (`docs/agents/roles/advisor.md`) is not a reviewer and is not part of any loop.
