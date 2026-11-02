@@ -31,11 +31,13 @@ import type {
 import type {
   EnvelopeCatalogFacets,
   EnvelopeWishlistClearResult,
+  EnvelopeWishlistPresetResult,
   EnvelopeWithMetaListWishlistItemPaginationMeta,
   ErrorModel,
   ListWishlistFacetsParams,
   ListWishlistParams,
-  SetWishlistItemInputBody
+  SetWishlistItemInputBody,
+  WishlistPresetInputBody
 } from '../../models';
 
 import { customFetch } from '../../../lib/http.ts';
@@ -698,4 +700,216 @@ export const useSetWishlistItem = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getSetWishlistItemMutationOptions(options), queryClient);
+    }
+    export type applyWishlistPresetResponse200 = {
+  data: EnvelopeWishlistPresetResult
+  status: 200
+}
+
+export type applyWishlistPresetResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type applyWishlistPresetResponseSuccess = (applyWishlistPresetResponse200) & {
+  headers: Headers;
+};
+export type applyWishlistPresetResponseError = (applyWishlistPresetResponseDefault) & {
+  headers: Headers;
+};
+
+export type applyWishlistPresetResponse = (applyWishlistPresetResponseSuccess | applyWishlistPresetResponseError)
+
+export const getApplyWishlistPresetUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/preset/apply`
+}
+
+/**
+ * @summary Apply a Wishlist Preset: add the matching Cards to the Wishlist with the chosen quantity, using the same query as preview
+ */
+export const applyWishlistPreset = async (wishlistPresetInputBody: WishlistPresetInputBody, options?: Parameters<typeof customFetch>[1]): Promise<applyWishlistPresetResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<applyWishlistPresetResponse>(getApplyWishlistPresetUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(wishlistPresetInputBody)
+  }
+);}
+
+
+
+
+
+export const getApplyWishlistPresetMutationKey = () => ['applyWishlistPreset'] as const;
+
+export const getApplyWishlistPresetMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyWishlistPreset>>, TError,ApplyWishlistPresetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyWishlistPreset>>, TError,ApplyWishlistPresetMutationVariables, TContext> => {
+
+const mutationKey = getApplyWishlistPresetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyWishlistPreset>>, ApplyWishlistPresetMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  applyWishlistPreset(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyWishlistPresetMutationResult = NonNullable<Awaited<ReturnType<typeof applyWishlistPreset>>>
+    export type ApplyWishlistPresetMutationBody = WishlistPresetInputBody
+    export type ApplyWishlistPresetMutationError = ErrorModel
+    export type ApplyWishlistPresetMutationVariables = {data: WishlistPresetInputBody}
+
+    /**
+ * @summary Apply a Wishlist Preset: add the matching Cards to the Wishlist with the chosen quantity, using the same query as preview
+ */
+export const useApplyWishlistPreset = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyWishlistPreset>>, TError,ApplyWishlistPresetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof applyWishlistPreset>>,
+        TError,
+        ApplyWishlistPresetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyWishlistPresetMutationOptions(options), queryClient);
+    }
+    export type previewWishlistPresetResponse200 = {
+  data: EnvelopeWishlistPresetResult
+  status: 200
+}
+
+export type previewWishlistPresetResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type previewWishlistPresetResponseSuccess = (previewWishlistPresetResponse200) & {
+  headers: Headers;
+};
+export type previewWishlistPresetResponseError = (previewWishlistPresetResponseDefault) & {
+  headers: Headers;
+};
+
+export type previewWishlistPresetResponse = (previewWishlistPresetResponseSuccess | previewWishlistPresetResponseError)
+
+export const getPreviewWishlistPresetUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/preset/preview`
+}
+
+/**
+ * @summary Preview a Wishlist Preset: return the Cards that would be added and how many, for the chosen Expansion Sets (optionally narrowed by rarity, category and tag) and quantity, of which the user owns none in Master Inventory and none are already on the Wishlist
+ */
+export const previewWishlistPreset = async (wishlistPresetInputBody: WishlistPresetInputBody, options?: Parameters<typeof customFetch>[1]): Promise<previewWishlistPresetResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<previewWishlistPresetResponse>(getPreviewWishlistPresetUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(wishlistPresetInputBody)
+  }
+);}
+
+
+
+
+
+export const getPreviewWishlistPresetMutationKey = () => ['previewWishlistPreset'] as const;
+
+export const getPreviewWishlistPresetMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewWishlistPreset>>, TError,PreviewWishlistPresetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewWishlistPreset>>, TError,PreviewWishlistPresetMutationVariables, TContext> => {
+
+const mutationKey = getPreviewWishlistPresetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewWishlistPreset>>, PreviewWishlistPresetMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewWishlistPreset(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewWishlistPresetMutationResult = NonNullable<Awaited<ReturnType<typeof previewWishlistPreset>>>
+    export type PreviewWishlistPresetMutationBody = WishlistPresetInputBody
+    export type PreviewWishlistPresetMutationError = ErrorModel
+    export type PreviewWishlistPresetMutationVariables = {data: WishlistPresetInputBody}
+
+    /**
+ * @summary Preview a Wishlist Preset: return the Cards that would be added and how many, for the chosen Expansion Sets (optionally narrowed by rarity, category and tag) and quantity, of which the user owns none in Master Inventory and none are already on the Wishlist
+ */
+export const usePreviewWishlistPreset = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewWishlistPreset>>, TError,PreviewWishlistPresetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof previewWishlistPreset>>,
+        TError,
+        PreviewWishlistPresetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewWishlistPresetMutationOptions(options), queryClient);
     }

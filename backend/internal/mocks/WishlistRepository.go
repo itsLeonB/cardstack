@@ -297,6 +297,67 @@ func (_c *MockWishlistRepository_FindFirst_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// FindOwnedNoneCards provides a mock function with given fields: ctx, profileID, expansionSetIDs, filter
+func (_m *MockWishlistRepository) FindOwnedNoneCards(ctx context.Context, profileID uuid.UUID, expansionSetIDs []uuid.UUID, filter repository.CardFilter) ([]repository.CardResult, error) {
+	ret := _m.Called(ctx, profileID, expansionSetIDs, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindOwnedNoneCards")
+	}
+
+	var r0 []repository.CardResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID, repository.CardFilter) ([]repository.CardResult, error)); ok {
+		return rf(ctx, profileID, expansionSetIDs, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID, repository.CardFilter) []repository.CardResult); ok {
+		r0 = rf(ctx, profileID, expansionSetIDs, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]repository.CardResult)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, []uuid.UUID, repository.CardFilter) error); ok {
+		r1 = rf(ctx, profileID, expansionSetIDs, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockWishlistRepository_FindOwnedNoneCards_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindOwnedNoneCards'
+type MockWishlistRepository_FindOwnedNoneCards_Call struct {
+	*mock.Call
+}
+
+// FindOwnedNoneCards is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileID uuid.UUID
+//   - expansionSetIDs []uuid.UUID
+//   - filter repository.CardFilter
+func (_e *MockWishlistRepository_Expecter) FindOwnedNoneCards(ctx interface{}, profileID interface{}, expansionSetIDs interface{}, filter interface{}) *MockWishlistRepository_FindOwnedNoneCards_Call {
+	return &MockWishlistRepository_FindOwnedNoneCards_Call{Call: _e.mock.On("FindOwnedNoneCards", ctx, profileID, expansionSetIDs, filter)}
+}
+
+func (_c *MockWishlistRepository_FindOwnedNoneCards_Call) Run(run func(ctx context.Context, profileID uuid.UUID, expansionSetIDs []uuid.UUID, filter repository.CardFilter)) *MockWishlistRepository_FindOwnedNoneCards_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].([]uuid.UUID), args[3].(repository.CardFilter))
+	})
+	return _c
+}
+
+func (_c *MockWishlistRepository_FindOwnedNoneCards_Call) Return(_a0 []repository.CardResult, _a1 error) *MockWishlistRepository_FindOwnedNoneCards_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockWishlistRepository_FindOwnedNoneCards_Call) RunAndReturn(run func(context.Context, uuid.UUID, []uuid.UUID, repository.CardFilter) ([]repository.CardResult, error)) *MockWishlistRepository_FindOwnedNoneCards_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGormInstance provides a mock function with given fields: ctx
 func (_m *MockWishlistRepository) GetGormInstance(ctx context.Context) (*gorm.DB, error) {
 	ret := _m.Called(ctx)

@@ -4,6 +4,7 @@ import { RiAddLine, RiSubtractLine } from "@remixicon/react"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { Button } from "@/components/ui/button"
+import { PresetSheet } from "@/components/wishlist/preset-sheet"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
 import {
   useClearFulfilledWishlist,
@@ -60,6 +61,7 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
   // Always mounted: a live region that appears together with its text is often not announced.
   const [announcement, setAnnouncement] = useState("")
   const [clearError, setClearError] = useState("")
+  const [presetOpen, setPresetOpen] = useState(false)
 
   function clearFulfilledItems() {
     setClearError("")
@@ -102,18 +104,28 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-disabled={clearFulfilled.isPending}
-          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-          onClick={() => {
-            if (!clearFulfilled.isPending) clearFulfilledItems()
-          }}
-        >
-          Clear fulfilled
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-disabled={clearFulfilled.isPending}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            onClick={() => {
+              if (!clearFulfilled.isPending) clearFulfilledItems()
+            }}
+          >
+            Clear fulfilled
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPresetOpen(true)}
+          >
+            Fill from sets
+          </Button>
+        </div>
         <p role="status" className="text-sm empty:sr-only">
           {announcement}
         </p>
@@ -138,6 +150,15 @@ export function Wishlist({ search, onSearchChange }: WishlistProps) {
             <WishlistItemControl item={item} onAnnounce={setAnnouncement} />
           )
         }}
+      />
+
+      <PresetSheet
+        open={presetOpen}
+        onOpenChange={setPresetOpen}
+        expansionSets={facets?.expansionSets ?? []}
+        rarities={facets?.rarities ?? []}
+        categories={facets?.categories ?? []}
+        tags={facets?.tags ?? []}
       />
     </section>
   )

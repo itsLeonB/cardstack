@@ -16,6 +16,8 @@ const (
 	OpSetWishlistItem        = "set-wishlist-item"
 	OpRemoveWishlistItem     = "remove-wishlist-item"
 	OpClearFulfilledWishlist = "clear-fulfilled-wishlist"
+	OpPreviewWishlistPreset  = "preview-wishlist-preset"
+	OpApplyWishlistPreset    = "apply-wishlist-preset"
 )
 
 type WishlistHandler struct {
@@ -54,6 +56,16 @@ type wishlistItemInput struct {
 }
 
 type clearFulfilledWishlistInput struct{}
+
+type wishlistPresetInput struct {
+	Body struct {
+		ExpansionSetIDs []string `json:"expansionSetIds" required:"true" minItems:"1" doc:"Expansion Sets to include."`
+		Quantity        int      `json:"quantity" required:"true" minimum:"1" maximum:"2147483647" doc:"Quantity to add for each Card."`
+		RarityIDs       []string `json:"rarityIds" doc:"Narrow by rarity (repeatable)."`
+		Categories      []string `json:"categories" doc:"Narrow by category (repeatable)."`
+		Tags            []string `json:"tags" doc:"Narrow by tag (repeatable)."`
+	}
+}
 
 func (h *WishlistHandler) list(ctx context.Context, in listWishlistInput) ([]dto.WishlistItem, dto.PaginationMeta, error) {
 	req, err := wishlistRequest(ctx, in.CardFilterParams, in.CardIDs, in.Status)
@@ -103,6 +115,60 @@ func (h *WishlistHandler) clearFulfilled(ctx context.Context, _ clearFulfilledWi
 	}
 
 	return h.wishlistSvc.ClearFulfilled(ctx, dto.WishlistLookup{ProfileID: profileID})
+}
+
+func (h *WishlistHandler) previewPreset(ctx context.Context, in wishlistPresetInput) (dto.WishlistPresetResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+
+	expansionSetIDs, err := parseUUIDs("expansionSetId", in.Body.ExpansionSetIDs)
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+	rarityIDs, err := parseUUIDs("rarityId", in.Body.RarityIDs)
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+
+	return h.wishlistSvc.PreviewPreset(ctx, dto.WishlistPresetRequest{
+		ProfileID:       profileID,
+		ExpansionSetIDs: expansionSetIDs,
+		Filter: dto.CardFilter{
+			RarityIDs:  rarityIDs,
+			Categories: in.Body.Categories,
+			Tags:       in.Body.Tags,
+		},
+		Quantity: in.Body.Quantity,
+	})
+}
+
+func (h *WishlistHandler) applyPreset(ctx context.Context, in wishlistPresetInput) (dto.WishlistPresetResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+
+	expansionSetIDs, err := parseUUIDs("expansionSetId", in.Body.ExpansionSetIDs)
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+	rarityIDs, err := parseUUIDs("rarityId", in.Body.RarityIDs)
+	if err != nil {
+		return dto.WishlistPresetResult{}, err
+	}
+
+	return h.wishlistSvc.ApplyPreset(ctx, dto.WishlistPresetRequest{
+		ProfileID:       profileID,
+		ExpansionSetIDs: expansionSetIDs,
+		Filter: dto.CardFilter{
+			RarityIDs:  rarityIDs,
+			Categories: in.Body.Categories,
+			Tags:       in.Body.Tags,
+		},
+		Quantity: in.Body.Quantity,
+	})
 }
 
 func wishlistRequest(ctx context.Context, params CardFilterParams, cardIDs []string, status string) (dto.WishlistListRequest, error) {
@@ -171,6 +237,26 @@ func (h *WishlistHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.clearFulfilled,
+		}),
+		endpoint.New(endpoint.Endpoint[wishlistPresetInput, dto.WishlistPresetResult]{
+			OperationID: OpPreviewWishlistPreset,
+			Method:      http.MethodPost,
+			Path:        "/wishlist/preset/preview",
+			Summary:     "Preview a Wishlist Preset: return the Cards that would be added and how many, for the chosen Expansion Sets (optionally narrowed by rarity, category and tag) and quantity, of which the user owns none in Master Inventory and none are already on the Wishlist",
+			Tags:        []string{"wishlist"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.previewPreset,
+		}),
+		endpoint.New(endpoint.Endpoint[wishlistPresetInput, dto.WishlistPresetResult]{
+			OperationID: OpApplyWishlistPreset,
+			Method:      http.MethodPost,
+			Path:        "/wishlist/preset/apply",
+			Summary:     "Apply a Wishlist Preset: add the matching Cards to the Wishlist with the chosen quantity, using the same query as preview",
+			Tags:        []string{"wishlist"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.applyPreset,
 		}),
 	}
 }

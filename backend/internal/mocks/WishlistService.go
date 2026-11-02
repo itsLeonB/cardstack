@@ -22,6 +22,63 @@ func (_m *MockWishlistService) EXPECT() *MockWishlistService_Expecter {
 	return &MockWishlistService_Expecter{mock: &_m.Mock}
 }
 
+// ApplyPreset provides a mock function with given fields: ctx, req
+func (_m *MockWishlistService) ApplyPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplyPreset")
+	}
+
+	var r0 dto.WishlistPresetResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistPresetRequest) dto.WishlistPresetResult); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.WishlistPresetResult)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.WishlistPresetRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockWishlistService_ApplyPreset_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplyPreset'
+type MockWishlistService_ApplyPreset_Call struct {
+	*mock.Call
+}
+
+// ApplyPreset is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.WishlistPresetRequest
+func (_e *MockWishlistService_Expecter) ApplyPreset(ctx interface{}, req interface{}) *MockWishlistService_ApplyPreset_Call {
+	return &MockWishlistService_ApplyPreset_Call{Call: _e.mock.On("ApplyPreset", ctx, req)}
+}
+
+func (_c *MockWishlistService_ApplyPreset_Call) Run(run func(ctx context.Context, req dto.WishlistPresetRequest)) *MockWishlistService_ApplyPreset_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.WishlistPresetRequest))
+	})
+	return _c
+}
+
+func (_c *MockWishlistService_ApplyPreset_Call) Return(_a0 dto.WishlistPresetResult, _a1 error) *MockWishlistService_ApplyPreset_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockWishlistService_ApplyPreset_Call) RunAndReturn(run func(context.Context, dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)) *MockWishlistService_ApplyPreset_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ClearFulfilled provides a mock function with given fields: ctx, req
 func (_m *MockWishlistService) ClearFulfilled(ctx context.Context, req dto.WishlistLookup) (dto.WishlistClearResult, error) {
 	ret := _m.Called(ctx, req)
@@ -198,6 +255,63 @@ func (_c *MockWishlistService_ListFacets_Call) Return(_a0 dto.CatalogFacets, _a1
 }
 
 func (_c *MockWishlistService_ListFacets_Call) RunAndReturn(run func(context.Context, dto.WishlistListRequest) (dto.CatalogFacets, error)) *MockWishlistService_ListFacets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PreviewPreset provides a mock function with given fields: ctx, req
+func (_m *MockWishlistService) PreviewPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PreviewPreset")
+	}
+
+	var r0 dto.WishlistPresetResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistPresetRequest) dto.WishlistPresetResult); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.WishlistPresetResult)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.WishlistPresetRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockWishlistService_PreviewPreset_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PreviewPreset'
+type MockWishlistService_PreviewPreset_Call struct {
+	*mock.Call
+}
+
+// PreviewPreset is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.WishlistPresetRequest
+func (_e *MockWishlistService_Expecter) PreviewPreset(ctx interface{}, req interface{}) *MockWishlistService_PreviewPreset_Call {
+	return &MockWishlistService_PreviewPreset_Call{Call: _e.mock.On("PreviewPreset", ctx, req)}
+}
+
+func (_c *MockWishlistService_PreviewPreset_Call) Run(run func(ctx context.Context, req dto.WishlistPresetRequest)) *MockWishlistService_PreviewPreset_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.WishlistPresetRequest))
+	})
+	return _c
+}
+
+func (_c *MockWishlistService_PreviewPreset_Call) Return(_a0 dto.WishlistPresetResult, _a1 error) *MockWishlistService_PreviewPreset_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockWishlistService_PreviewPreset_Call) RunAndReturn(run func(context.Context, dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)) *MockWishlistService_PreviewPreset_Call {
 	_c.Call.Return(run)
 	return _c
 }
