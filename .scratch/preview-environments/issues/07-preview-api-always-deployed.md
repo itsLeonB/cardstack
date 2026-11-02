@@ -4,18 +4,18 @@
 
 **Blocked by:** 03 (the variables the API boots with), 05 (live run).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] A pull request that changes only `frontend/` gets a working API: after its first deployment, `GET <api domain>/health` answers, on the Neon branch and with `APP_ENV=preview`.
-- [ ] The trigger fires only when the environment has no api deployment other than `SKIPPED`, `FAILED` or `CRASHED` records, and it happens after the variables are written, so the API boots already configured.
-- [ ] A `QUEUED`, `BUILDING`, `DEPLOYING`, `SUCCESS` or sleeping deployment stops the trigger: nothing is created on a later push, and Railway's own watch-path deploy still covers a push that does change `backend/`.
-- [ ] A `FAILED` or `CRASHED` deployment is retried at the next push, at most twice per environment; the third failure stops the workflow from deploying anything and the PR comment says so.
-- [ ] The triggered deployment asks for the pull request's head commit, not for whatever commit the service is associated with.
-- [ ] No step waits for the triggered deployment, so Railway's Wait for CI cannot deadlock against the run that created it.
-- [ ] The PR comment states the deploy rule accurately and reports an exhausted retry budget.
-- [ ] The workflow header comment and `docs/agents/deployment.md` describe the trigger, its state check and its retry budget.
+- [x] The trigger fires only when the environment has no api deployment other than `SKIPPED`, `FAILED` or `CRASHED` records, and it happens after the variables are written, so the API boots already configured.
+- [x] A `QUEUED`, `BUILDING`, `DEPLOYING`, `SUCCESS` or sleeping deployment stops the trigger: nothing is created on a later push, and Railway's own watch-path deploy still covers a push that does change `backend/`.
+- [x] A `FAILED` or `CRASHED` deployment is retried at the next push, at most twice per environment; the third failure stops the workflow from deploying anything and the PR comment says so.
+- [x] The triggered deployment asks for the pull request's head commit, not for whatever commit the service is associated with.
+- [x] No step waits for the triggered deployment, so Railway's Wait for CI cannot deadlock against the run that created it.
+- [x] The PR comment states the deploy rule accurately and reports an exhausted retry budget.
+- [x] The workflow header comment and `docs/agents/deployment.md` describe the trigger, its state check and its retry budget.
 - [ ] Verified on a live frontend-only pull request: a skipped service leaves a `SKIPPED` deployment record (confirmed, see the comment below) and `serviceInstanceDeployV2` is not itself filtered by watch patterns (not yet confirmed).
-- [ ] `yamllint` passes.
+- [x] `yamllint` passes.
 
 ## Comments
 
@@ -41,3 +41,11 @@ Focused PR Environments is a project setting (Project Settings → Environments 
 ### Still open
 
 Whether `serviceInstanceDeployV2` is filtered by watch patterns is unconfirmed by Railway's documentation. A live frontend-only pull request answers it: if the triggered deploy is skipped too, the fallback is the diff check above, or turning Focused PR Environments off and accepting the extra builds.
+
+### Implemented: the trigger, its state check and its budget
+
+The apply step resolves the `api` service id once, before the variable comparison, and now runs its deploy decision in both cases: after an upsert and when the environment already matches, because a second frontend-only push is exactly the case where nothing else changes. The decision lists the api service's deployments in the PR environment (`deployments`, newest 100) and reads their statuses. Any status other than `SKIPPED`, `FAILED` or `CRASHED` means the environment already has an API or one on the way, so nothing is triggered; a `SKIPPED`-only or empty history triggers `serviceInstanceDeployV2(serviceId, environmentId, commitSha)` with `github.event.pull_request.head.sha`, and no step waits for the result.
+
+Budget: two retries, so the third failed deployment stops it. The code counts `FAILED` and `CRASHED` records and triggers while that count is at most two. This follows the checkbox above over the earlier "fewer than two" line in the comment that preceded this section: "retried at most twice, the third failure stops" needs the count to reach three before it stops, and "fewer than two" would allow only one retry. The two cannot both hold; the checkbox wins.
+
+What a live run has to confirm: that the deployment the workflow triggers is not itself skipped by `watchPatterns`, that its commit is the pull request's head, and that a backend-changing push is not double-deployed when the workflow's deployment query runs before Railway records its own. The first is the open question above; the third is a timing race that has not been observed, because the workflow spends minutes on the Neon branch and the variable work before it reaches the decision, while Railway records a skipped service's deployment when it creates the environment. The PR that ships this ticket touches no `backend/` file, so its own preview run is the live check: watch that run, then `GET <api domain>/health` and the ticket's first box.
