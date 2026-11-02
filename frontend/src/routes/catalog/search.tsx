@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import {
   createFileRoute,
   useLocation,
@@ -23,6 +23,9 @@ import {
   useCatalogCollection,
 } from "@/components/catalog/collection-picker"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
+import { SignInLink } from "@/components/auth/sign-in-link"
+import { AddToWishlist } from "@/components/wishlist/add-to-wishlist"
+import type { CardSummary } from "@/generated/models"
 import { catalogFilterSchema, guestFacets } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import {
@@ -31,6 +34,7 @@ import {
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
 import { useIsGuest } from "@/lib/session"
+import { useWishlistWanted } from "@/lib/wishlist"
 
 // `collectionId` is page state only; it is split off before any catalog query.
 const searchSchema = catalogFilterSchema.extend({
@@ -106,6 +110,27 @@ function CatalogSearchPage() {
     window.scrollTo({ top: 0, behavior: "instant" })
   }
 
+  // The Wishlist state of every loaded Card, so a result offers "Add" only when
+  // the Card is not wanted yet and shows the wanted quantity when it is.
+  const wishlist = useWishlistWanted(
+    cardResults.cards.map((card) => card.id),
+    collection.isAuthenticated
+  )
+  // Always mounted: a live region that appears together with its text is often not announced.
+  const [announcement, setAnnouncement] = useState("")
+
+  function wishlistControl(card: CardSummary) {
+    if (!wishlist.loaded[card.id]) return null
+    return (
+      <AddToWishlist
+        cardId={card.id}
+        cardName={card.name}
+        wanted={wishlist.wanted[card.id]}
+        onAnnounce={setAnnouncement}
+      />
+    )
+  }
+
   const resultsProps = {
     ...cardResults,
     emptyMessage: "No cards match these filters.",
@@ -145,15 +170,36 @@ function CatalogSearchPage() {
         onChange={selectCollection}
       />
 
+      {collection.isAuthenticated && wishlist.failed && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not load your Wishlist. Please try again.
+        </p>
+      )}
+      {isGuest && (
+        <p className="text-sm">
+          <SignInLink redirect={href}>
+            Sign in to add Cards to your Wishlist
+          </SignInLink>
+        </p>
+      )}
+      {/* Always mounted, like the wishlist state above: a live region that appears together with its text is often not announced. */}
+      <p role="status" className="text-sm empty:sr-only">
+        {announcement}
+      </p>
+
       {collection.selected ? (
         <CollectionCardResults
           key={collection.selected}
           collectionId={collection.selected}
           binder={binder}
+          extraControl={wishlistControl}
           {...resultsProps}
         />
       ) : (
-        <InfiniteCardResults {...resultsProps} />
+        <InfiniteCardResults
+          {...resultsProps}
+          renderControl={wishlistControl}
+        />
       )}
     </PageContainer>
   )

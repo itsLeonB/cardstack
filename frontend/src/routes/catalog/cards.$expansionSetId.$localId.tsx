@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { CardHoldings } from "@/components/catalog/card-holdings"
 import { CardTile } from "@/components/catalog/card-tile"
+import { CardWishlistAction } from "@/components/wishlist/add-to-wishlist"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // No single-card endpoint: (set, localId) is unique, so a filtered search finds it.
@@ -79,7 +80,10 @@ function CardDetailPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-[minmax(0,20rem)_1fr]">
           <CardTile card={card} imageVariant="detail" />
-          <CardHoldings cardId={card.id} loginRedirect={href} />
+          <div className="flex flex-col gap-6">
+            <CardWishlistAction card={card} loginRedirect={href} />
+            <CardHoldings cardId={card.id} loginRedirect={href} />
+          </div>
         </div>
       )}
     </PageContainer>

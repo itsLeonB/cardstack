@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import type { ReactNode } from "react"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import {
@@ -36,11 +37,14 @@ function sliceCardIds(cards: CardSummary[]) {
 export function CollectionCardResults({
   collectionId,
   binder = false,
+  extraControl,
   ...results
 }: Omit<InfiniteCardResultsProps, "renderControl"> & {
   collectionId: string
   /** A binder's quantities follow its Slots, so its cards get no quantity control. */
   binder?: boolean
+  /** A second control under the quantity, such as the Wishlist action. */
+  extraControl?: (card: CardSummary) => ReactNode
 }) {
   const queryClient = useQueryClient()
   const batch = useQuantityBatch(collectionId, (saved) => {
@@ -127,17 +131,21 @@ export function CollectionCardResults({
       <InfiniteCardResults
         {...results}
         renderControl={(card) => {
-          if (!lookups.loaded[card.id]) return null
           const server = lookups.quantities[card.id] ?? 0
           return (
-            <QuantityControl
-              cardName={card.name}
-              value={batch.quantities[card.id] ?? server}
-              error={batch.errors[card.id]}
-              onChange={(quantity) =>
-                batch.setQuantity(card.id, quantity, server)
-              }
-            />
+            <>
+              {lookups.loaded[card.id] && (
+                <QuantityControl
+                  cardName={card.name}
+                  value={batch.quantities[card.id] ?? server}
+                  error={batch.errors[card.id]}
+                  onChange={(quantity) =>
+                    batch.setQuantity(card.id, quantity, server)
+                  }
+                />
+              )}
+              {extraControl?.(card)}
+            </>
           )
         }}
       />
