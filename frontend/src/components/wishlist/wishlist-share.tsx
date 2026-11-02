@@ -6,7 +6,6 @@ import {
   useShareWishlist,
   useUnshareWishlist,
   useGetWishlist,
-  getGetWishlistQueryKey,
 } from "@/generated/endpoints/wishlist/wishlist"
 import { NETWORK_ERROR } from "@/lib/collections"
 import { invalidateSharedWishlist } from "@/lib/wishlist"
@@ -39,9 +38,8 @@ export function WishlistShare() {
     wishlistMeta.isFetching ||
     profile.isFetching
 
-  function refresh() {
-    void queryClient.invalidateQueries({ queryKey: getGetWishlistQueryKey() })
-    void queryClient.refetchQueries({ queryKey: getGetWishlistQueryKey() })
+  async function refresh() {
+    await wishlistMeta.refetch()
     if (profileSlug) void invalidateSharedWishlist(queryClient, profileSlug)
   }
 
@@ -51,19 +49,21 @@ export function WishlistShare() {
     setError(undefined)
     if (next)
       share.mutate(undefined, {
-        onSuccess: (response) => {
-          if (response.status === 200) return refresh()
-          setError(response.data.detail ?? "Could not share your Wishlist.")
+        onSuccess: async (response) => {
+          if (response.status === 200) await refresh()
+          else
+            setError(response.data.detail ?? "Could not share your Wishlist.")
         },
         onError: () => setError(NETWORK_ERROR),
       })
     else
       unshare.mutate(undefined, {
-        onSuccess: (response) => {
-          if (response.status === 204) return refresh()
-          setError(
-            response.data.detail ?? "Could not stop sharing your Wishlist."
-          )
+        onSuccess: async (response) => {
+          if (response.status === 204) await refresh()
+          else
+            setError(
+              response.data.detail ?? "Could not stop sharing your Wishlist."
+            )
         },
         onError: () => setError(NETWORK_ERROR),
       })
