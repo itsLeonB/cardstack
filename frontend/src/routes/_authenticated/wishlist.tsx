@@ -3,6 +3,7 @@ import { pageHead } from "@/lib/site"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Wishlist } from "@/components/wishlist/wishlist"
+import { WishlistShare } from "@/components/wishlist/wishlist-share"
 import { wishlistSearchSchema } from "@/lib/wishlist"
 import type { WishlistFilters } from "@/lib/wishlist"
 
@@ -25,7 +26,7 @@ function WishlistPage() {
 
   return (
     <PageContainer variant="wide">
-      <PageHeader title="Wishlist" />
+      <PageHeader title="Wishlist" actions={<WishlistShare />} />
       <Wishlist
         search={search}
         onSearchChange={(next) => void changeSearch(next)}

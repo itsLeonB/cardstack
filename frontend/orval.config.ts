@@ -84,6 +84,7 @@ export default defineConfig({
           "list-master-inventory": infinitePage,
           "list-wishlist": infinitePage,
           "list-shared-collection-entries": infinitePage,
+          "list-shared-wishlist-entries": infinitePage,
         },
       },
     },
