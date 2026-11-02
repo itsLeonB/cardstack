@@ -70,6 +70,15 @@ services:
       # them), compared as exact strings with a token's authorized party.
       APP_CLIENT_URLS: http://web:3000
       ADMIN_CLIENT_URLS: http://admin:3001
+      # The e2e suite runs as one Clerk test user in about two minutes, so it
+      # spends the per-user tiers far faster than a person does: at the
+      # production defaults it drains the facet bucket mid-suite, and a facet
+      # list that answers 429 empties its dropdown, failing unrelated specs.
+      # Dev and CI only; production reads its own environment.
+      RATE_LIMIT_SEARCH_PER_MINUTE: "600"
+      RATE_LIMIT_SEARCH_BURST: "300"
+      RATE_LIMIT_FACETS_PER_MINUTE: "300"
+      RATE_LIMIT_FACETS_BURST: "150"
     depends_on:
       migrate:
         condition: service_completed_successfully
