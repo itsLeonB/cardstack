@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideScanReviewService, ProvideWishlistService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideSharedWishlistService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideScanReviewService, ProvideWishlistService, ProvideServices)
 
 type Services struct {
 	Health           service.HealthService
@@ -28,6 +28,7 @@ type Services struct {
 	Catalog          service.CatalogService
 	Collection       service.CollectionService
 	SharedCollection service.SharedCollectionService
+	SharedWishlist   service.SharedWishlistService
 	Inventory        service.InventoryService
 	Binder           service.BinderService
 	BinderSlot       service.BinderSlotService
@@ -118,8 +119,20 @@ func ProvideWishlistService(ds *DataSources, images mapper.ImageHost) service.Wi
 	return service.NewWishlistService(
 		crud.NewTransactor(ds.Gorm),
 		crud.NewRepository[entity.UserProfile](ds.Gorm),
+		crud.NewRepository[entity.Wishlist](ds.Gorm),
 		catalogrepository.NewWishlistRepository(crud.NewRepository[entity.WishlistItem](ds.Gorm)),
 		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
+		images,
+	)
+}
+
+// ProvideSharedWishlistService builds the shared Wishlist service over ds's DB.
+// ProvideSharedWishlistService builds the shared Wishlist service over ds's DB.
+func ProvideSharedWishlistService(ds *DataSources, images mapper.ImageHost) service.SharedWishlistService {
+	return service.NewSharedWishlistService(
+		crud.NewRepository[entity.UserProfile](ds.Gorm),
+		crud.NewRepository[entity.Wishlist](ds.Gorm),
+		catalogrepository.NewWishlistRepository(crud.NewRepository[entity.WishlistItem](ds.Gorm)),
 		images,
 	)
 }
@@ -212,7 +225,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService, scanReview service.ScanReviewService, wishlist service.WishlistService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, sharedWishlist service.SharedWishlistService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService, scanReview service.ScanReviewService, wishlist service.WishlistService) *Services {
 	return &Services{
 		Health:           coreservice.NewHealthService(),
 		Verifier:         verifier,
@@ -220,6 +233,7 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		Catalog:          catalog,
 		Collection:       collection,
 		SharedCollection: sharedCollection,
+		SharedWishlist:   sharedWishlist,
 		Inventory:        inventory,
 		Binder:           binder,
 		BinderSlot:       binderSlot,

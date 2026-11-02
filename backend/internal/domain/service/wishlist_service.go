@@ -39,11 +39,18 @@ type WishlistService interface {
 	// ApplyPreset actually adds them with the chosen quantity.
 	PreviewPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)
 	ApplyPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)
+	// Share sets the Wishlist's shared flag to true, creating the Wishlist row
+	// if it does not exist (upsert on profile_id). Returns the profile's Slug
+	// for the shared link.
+	Share(ctx context.Context, req dto.WishlistLookup) (string, error)
+	// Unshare sets the Wishlist's shared flag to false, ending the link at once.
+	Unshare(ctx context.Context, req dto.WishlistLookup) error
 }
 
 type wishlistService struct {
 	transactor crud.Transactor
 	profiles   crud.Repository[entity.UserProfile]
+	wishlists  crud.Repository[entity.Wishlist]
 	items      repository.WishlistRepository
 	cards      CardLookup
 	images     mapper.ImageHost
@@ -52,11 +59,12 @@ type wishlistService struct {
 func NewWishlistService(
 	transactor crud.Transactor,
 	profiles crud.Repository[entity.UserProfile],
+	wishlists crud.Repository[entity.Wishlist],
 	items repository.WishlistRepository,
 	cards CardLookup,
 	images mapper.ImageHost,
 ) WishlistService {
-	return &wishlistService{transactor: transactor, profiles: profiles, items: items, cards: cards, images: images}
+	return &wishlistService{transactor: transactor, profiles: profiles, wishlists: wishlists, items: items, cards: cards, images: images}
 }
 
 func (s *wishlistService) List(ctx context.Context, req dto.WishlistListRequest) ([]dto.WishlistItem, dto.PaginationMeta, error) {
@@ -224,6 +232,86 @@ func (s *wishlistService) ApplyPreset(ctx context.Context, req dto.WishlistPrese
 		Count: len(added),
 		Cards: added,
 	}, nil
+}
+
+func (s *wishlistService) Share(ctx context.Context, req dto.WishlistLookup) (string, error) {
+	if req.ProfileID == uuid.Nil {
+		return "", ungerr.UnauthorizedError("missing profile")
+	}
+
+	var slug string
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		w, err := s.wishlists.FindFirst(ctx, crud.Specification[entity.Wishlist]{
+			Model:     entity.Wishlist{ProfileID: req.ProfileID},
+			ForUpdate: true,
+		})
+		if err != nil {
+			return err
+		}
+
+		if w.IsZero() {
+			// Create the Wishlist row with shared=true
+			w = entity.Wishlist{ProfileID: req.ProfileID, Shared: true}
+			w, err = s.wishlists.Insert(ctx, w)
+			if err != nil {
+				return err
+			}
+		} else if !w.Shared {
+			w.Shared = true
+			_, err = s.wishlists.Update(ctx, w)
+			if err != nil {
+				return err
+			}
+		}
+
+		slug, err = s.getProfileSlug(ctx, req.ProfileID)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return slug, nil
+}
+
+func (s *wishlistService) Unshare(ctx context.Context, req dto.WishlistLookup) error {
+	if req.ProfileID == uuid.Nil {
+		return ungerr.UnauthorizedError("missing profile")
+	}
+
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		w, err := s.wishlists.FindFirst(ctx, crud.Specification[entity.Wishlist]{
+			Model:     entity.Wishlist{ProfileID: req.ProfileID},
+			ForUpdate: true,
+		})
+		if err != nil {
+			return err
+		}
+
+		if w.IsZero() || !w.Shared {
+			// Already unshared or row doesn't exist: nothing to do
+			return nil
+		}
+
+		w.Shared = false
+		_, err = s.wishlists.Update(ctx, w)
+		return err
+	})
+}
+
+// getProfileSlug returns the profile's Slug for the shared link.
+func (s *wishlistService) getProfileSlug(ctx context.Context, profileID uuid.UUID) (string, error) {
+	profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
+		Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: profileID}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if profile.IsZero() {
+		return "", ungerr.UnauthorizedError("missing profile")
+	}
+
+	return profile.Slug, nil
 }
 
 // lockOwner row-locks the profile, which serializes every write to its

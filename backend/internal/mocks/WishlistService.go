@@ -410,6 +410,110 @@ func (_c *MockWishlistService_SetQuantity_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// Share provides a mock function with given fields: ctx, req
+func (_m *MockWishlistService) Share(ctx context.Context, req dto.WishlistLookup) (string, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Share")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistLookup) (string, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistLookup) string); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.WishlistLookup) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockWishlistService_Share_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Share'
+type MockWishlistService_Share_Call struct {
+	*mock.Call
+}
+
+// Share is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.WishlistLookup
+func (_e *MockWishlistService_Expecter) Share(ctx interface{}, req interface{}) *MockWishlistService_Share_Call {
+	return &MockWishlistService_Share_Call{Call: _e.mock.On("Share", ctx, req)}
+}
+
+func (_c *MockWishlistService_Share_Call) Run(run func(ctx context.Context, req dto.WishlistLookup)) *MockWishlistService_Share_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.WishlistLookup))
+	})
+	return _c
+}
+
+func (_c *MockWishlistService_Share_Call) Return(_a0 string, _a1 error) *MockWishlistService_Share_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockWishlistService_Share_Call) RunAndReturn(run func(context.Context, dto.WishlistLookup) (string, error)) *MockWishlistService_Share_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Unshare provides a mock function with given fields: ctx, req
+func (_m *MockWishlistService) Unshare(ctx context.Context, req dto.WishlistLookup) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Unshare")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.WishlistLookup) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockWishlistService_Unshare_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Unshare'
+type MockWishlistService_Unshare_Call struct {
+	*mock.Call
+}
+
+// Unshare is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.WishlistLookup
+func (_e *MockWishlistService_Expecter) Unshare(ctx interface{}, req interface{}) *MockWishlistService_Unshare_Call {
+	return &MockWishlistService_Unshare_Call{Call: _e.mock.On("Unshare", ctx, req)}
+}
+
+func (_c *MockWishlistService_Unshare_Call) Run(run func(ctx context.Context, req dto.WishlistLookup)) *MockWishlistService_Unshare_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.WishlistLookup))
+	})
+	return _c
+}
+
+func (_c *MockWishlistService_Unshare_Call) Return(_a0 error) *MockWishlistService_Unshare_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockWishlistService_Unshare_Call) RunAndReturn(run func(context.Context, dto.WishlistLookup) error) *MockWishlistService_Unshare_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockWishlistService creates a new instance of MockWishlistService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockWishlistService(t interface {
