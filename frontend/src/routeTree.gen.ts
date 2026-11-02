@@ -26,6 +26,7 @@ import { Route as AuthRegisterIndexRouteImport } from './routes/auth/register/in
 import { Route as AuthRegisterSplatRouteImport } from './routes/auth/register/$'
 import { Route as CatalogSetsExpansionSetIdRouteImport } from './routes/catalog/sets/$expansionSetId'
 import { Route as SProfileSlugCollectionSlugRouteImport } from './routes/s/$profileSlug/$collectionSlug'
+import { Route as SProfileSlugWishlistRouteImport } from './routes/s/$profileSlug/wishlist'
 import { Route as AuthenticatedCollectionsCollectionIdIndexRouteImport } from './routes/_authenticated/collections/$collectionId/index'
 import { Route as AuthenticatedCollectionsCollectionIdEditRouteImport } from './routes/_authenticated/collections/$collectionId/edit'
 import { Route as AuthenticatedCollectionsCollectionIdScanRouteImport } from './routes/_authenticated/collections/$collectionId/scan'
@@ -119,6 +120,11 @@ const SProfileSlugCollectionSlugRoute =
     path: '/s/$profileSlug/$collectionSlug',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SProfileSlugWishlistRoute = SProfileSlugWishlistRouteImport.update({
+  id: '/s/$profileSlug/wishlist',
+  path: '/s/$profileSlug/wishlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCollectionsCollectionIdIndexRoute =
   AuthenticatedCollectionsCollectionIdIndexRouteImport.update({
     id: '/collections/$collectionId/',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/s/$profileSlug/$collectionSlug': typeof SProfileSlugCollectionSlugRoute
+  '/s/$profileSlug/wishlist': typeof SProfileSlugWishlistRoute
   '/collections/': typeof AuthenticatedCollectionsIndexRoute
   '/auth/login/': typeof AuthLoginIndexRoute
   '/auth/register/': typeof AuthRegisterIndexRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/s/$profileSlug/$collectionSlug': typeof SProfileSlugCollectionSlugRoute
+  '/s/$profileSlug/wishlist': typeof SProfileSlugWishlistRoute
   '/collections': typeof AuthenticatedCollectionsIndexRoute
   '/auth/login': typeof AuthLoginIndexRoute
   '/auth/register': typeof AuthRegisterIndexRoute
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
   '/s/$profileSlug/$collectionSlug': typeof SProfileSlugCollectionSlugRoute
+  '/s/$profileSlug/wishlist': typeof SProfileSlugWishlistRoute
   '/_authenticated/collections/': typeof AuthenticatedCollectionsIndexRoute
   '/auth/login/': typeof AuthLoginIndexRoute
   '/auth/register/': typeof AuthRegisterIndexRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
     | '/s/$profileSlug/$collectionSlug'
+    | '/s/$profileSlug/wishlist'
     | '/collections/'
     | '/auth/login/'
     | '/auth/register/'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
     | '/s/$profileSlug/$collectionSlug'
+    | '/s/$profileSlug/wishlist'
     | '/collections'
     | '/auth/login'
     | '/auth/register'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
     | '/s/$profileSlug/$collectionSlug'
+    | '/s/$profileSlug/wishlist'
     | '/_authenticated/collections/'
     | '/auth/login/'
     | '/auth/register/'
@@ -288,6 +300,7 @@ export interface RootRouteChildren {
   CatalogIndexRoute: typeof CatalogIndexRoute
   CatalogSetsExpansionSetIdRoute: typeof CatalogSetsExpansionSetIdRoute
   SProfileSlugCollectionSlugRoute: typeof SProfileSlugCollectionSlugRoute
+  SProfileSlugWishlistRoute: typeof SProfileSlugWishlistRoute
   CatalogCardsExpansionSetIdLocalIdRoute: typeof CatalogCardsExpansionSetIdLocalIdRoute
 }
 
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SProfileSlugCollectionSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$profileSlug/wishlist': {
+      id: '/s/$profileSlug/wishlist'
+      path: '/s/$profileSlug/wishlist'
+      fullPath: '/s/$profileSlug/wishlist'
+      preLoaderRoute: typeof SProfileSlugWishlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/collections/$collectionId/': {
       id: '/_authenticated/collections/$collectionId/'
       path: '/collections/$collectionId'
@@ -500,6 +520,7 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogIndexRoute: CatalogIndexRoute,
   CatalogSetsExpansionSetIdRoute: CatalogSetsExpansionSetIdRoute,
   SProfileSlugCollectionSlugRoute: SProfileSlugCollectionSlugRoute,
+  SProfileSlugWishlistRoute: SProfileSlugWishlistRoute,
   CatalogCardsExpansionSetIdLocalIdRoute:
     CatalogCardsExpansionSetIdLocalIdRoute,
 }
