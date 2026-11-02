@@ -24,6 +24,17 @@ name: Preview Environments
 # finished, so waiting would deadlock. An environment this workflow never
 # reached keeps production's APP_ENV, which the API's boot guard refuses.
 #
+# Railway deploys the API only when a push matches the service's watchPatterns
+# ("/backend/**"), so a frontend-only push leaves the PR environment without
+# an API: it records a SKIPPED deployment and allocates the domain, but nothing
+# serves. Once the variables are written, the apply step reads the api service's
+# deployments and, when none of them is in a state other than SKIPPED, FAILED
+# or CRASHED, triggers one itself (serviceInstanceDeployV2, with the pull
+# request's head commit). Any other status stops the trigger, so a push that
+# also changes backend/ is covered by Railway alone. FAILED and CRASHED are
+# retried, twice per environment: the third failed deployment exhausts the
+# budget, the workflow stops triggering, and the PR comment says so.
+#
 # Railway's own PR environment is torn down automatically by Railway when the
 # PR is merged/closed. This workflow owns the Neon branch lifecycle (deleted on
 # close), the PR's Vercel preview deployments, alias and the branch-scoped
@@ -257,6 +268,7 @@ jobs:
             "$RUNNER_TEMP/listing.json" > "$RUNNER_TEMP/plan.json"
 
       - name: Apply the plan to the Railway PR environment
+        id: railway
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
@@ -265,6 +277,9 @@ jobs:
           # The sources of the plan's secret placeholders.
           NEON_PASSWORD: ${{ steps.neon.outputs.password }}
           CLERK_DEV_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # The commit the triggered deployment asks for: the pull request's
+          # head, not whatever commit Railway associates with the service.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           # The upsert below replaces every variable; never aim it at prod.
           if [[ -z "$RAILWAY_ENV_ID" || "${RAILWAY_ENV,,}" == production ]]
@@ -297,28 +312,12 @@ jobs:
             | to_entries[] | select(.value != $l[.key]) | .value | strings' \
             <(printf '%s' "$variables") "$RUNNER_TEMP/listing.json")
 
-          # RAILWAY_* are Railway's own, not user variables: the plan leaves
-          # them out, and so does this comparison.
-          if jq -es '.[0] == (.[1] | with_entries(select(.key
-            | startswith("RAILWAY_") | not)))' \
-            <(printf '%s' "$variables") "$RUNNER_TEMP/listing.json" >/dev/null
-          then
-            echo "The Railway PR environment is already configured."
-            exit 0
-          fi
-
-          # The sets and the removals go in one call that skips deployments,
-          # so no deployment ever sees a half-configured set. `railway variable
-          # delete` cannot skip deployments (Railway's variableDelete takes no
-          # such option) and `railway variable edit --skip-deploys` still
-          # deletes one variable at a time, so the whole set is written with
-          # replace (the plan's variables are the remaining ones plus the sets,
-          # minus the removals).
           railway_gql() {
             curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
               -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
               -H "Content-Type: application/json" --data-binary @-
           }
+          # The api service id, for the variable write and the deploy decision.
           services_query='query($p: String!) {
             project(id: $p) { services { edges { node { id name } } } } }'
           services=$(jq -n --arg q "$services_query" \
@@ -330,23 +329,104 @@ jobs:
             echo "::error::No api service found in the Railway project."
             exit 1
           fi
-          upsert_query='mutation($i: VariableCollectionUpsertInput!) {
-            variableCollectionUpsert(input: $i) }'
-          response=$(jq -s --arg q "$upsert_query" \
-            --arg p "$RAILWAY_PROJECT_ID" \
-            --arg e "$RAILWAY_ENV_ID" --arg s "$service_id" \
-            '{query: $q,
-              variables: {i: {projectId: $p, environmentId: $e, serviceId: $s,
-                variables: .[0], replace: true, skipDeploys: true}}}' \
-            <<<"$variables" | railway_gql)
-          if ! jq -e '.errors == null' <<<"$response" >/dev/null; then
-            echo "::error::Railway rejected the variable update:" \
-              "$(jq -r '[.errors[].message] | join("; ")' <<<"$response")"
+
+          # RAILWAY_* are Railway's own, not user variables: the plan leaves
+          # them out, and so does this comparison. An unchanged environment
+          # still gets the deploy decision below.
+          if jq -es '.[0] == (.[1] | with_entries(select(.key
+            | startswith("RAILWAY_") | not)))' \
+            <(printf '%s' "$variables") "$RUNNER_TEMP/listing.json" >/dev/null
+          then
+            echo "The Railway PR environment is already configured."
+          else
+            # The sets and the removals go in one call that skips
+            # deployments, so no deployment ever sees a half-configured set.
+            # `railway variable delete` cannot skip deployments (Railway's
+            # variableDelete takes no such option) and `railway variable edit
+            # --skip-deploys` still deletes one variable at a time, so the
+            # whole set is written with replace (the plan's variables are the
+            # remaining ones plus the sets, minus the removals).
+            upsert_query='mutation($i: VariableCollectionUpsertInput!) {
+              variableCollectionUpsert(input: $i) }'
+            response=$(jq -s --arg q "$upsert_query" \
+              --arg p "$RAILWAY_PROJECT_ID" \
+              --arg e "$RAILWAY_ENV_ID" --arg s "$service_id" \
+              '{query: $q,
+                variables: {i: {projectId: $p, environmentId: $e,
+                  serviceId: $s, variables: .[0], replace: true,
+                  skipDeploys: true}}}' \
+              <<<"$variables" | railway_gql)
+            if ! jq -e '.errors == null' <<<"$response" >/dev/null; then
+              echo "::error::Railway rejected the variable update:" \
+                "$(jq -r '[.errors[].message] | join("; ")' <<<"$response")"
+              exit 1
+            fi
+            echo "Applied the variables and" \
+              "$(jq '.removals | length' "$RUNNER_TEMP/plan.json")" \
+              "removal(s), no deployment."
+          fi
+
+          # Railway deploys only when a push matches the service's
+          # watchPatterns ("/backend/**"), so a frontend-only push leaves the
+          # environment with no API: a SKIPPED deployment record and a live
+          # domain, but nothing serving. Trigger the deployment here instead,
+          # after the variables above, so the API boots configured.
+          #
+          # The state, not the diff, decides. Any api deployment other than
+          # SKIPPED, FAILED or CRASHED means this environment already has an
+          # API or one on the way (Railway may still be holding it for Wait
+          # for CI), so leave it alone. FAILED and CRASHED never stop the
+          # trigger: they are retried, up to two retries per environment.
+          deployments_query='query($p: String!, $e: String!, $s: String!) {
+            deployments(first: 100, input: {projectId: $p,
+              environmentId: $e, serviceId: $s}) {
+              edges { node { status } } } }'
+          deployments=$(jq -n --arg q "$deployments_query" \
+            --arg p "$RAILWAY_PROJECT_ID" --arg e "$RAILWAY_ENV_ID" \
+            --arg s "$service_id" \
+            '{query: $q, variables: {p: $p, e: $e, s: $s}}' | railway_gql)
+          if ! jq -e '.errors == null' <<<"$deployments" >/dev/null; then
+            echo "::error::Railway rejected the deployment list:" \
+              "$(jq -r '[.errors[].message] | join("; ")' <<<"$deployments")"
             exit 1
           fi
-          echo "Applied the variables and" \
-            "$(jq '.removals | length' "$RUNNER_TEMP/plan.json")" \
-            "removal(s), no deployment."
+          # shortcut: reads the newest 100 deployments only, so a pull request
+          # with more pushes than that could miss an old deployment and
+          # trigger one extra deploy; paginate if that ever matters.
+          read -r deployed failed <<<"$(jq -r '[.data.deployments.edges[].node
+            | .status] | [(map(select(IN("SKIPPED", "FAILED", "CRASHED")
+            | not)) | length),
+            (map(select(IN("FAILED", "CRASHED"))) | length)] | @tsv' \
+            <<<"$deployments")"
+          echo "failures=$failed" >> "$GITHUB_OUTPUT"
+
+          if (( deployed > 0 )); then
+            echo "The api service already has a deployment; not triggering one."
+          elif (( failed > 2 )); then
+            echo "::warning::The api service has $failed failed deployments," \
+              "so this run triggers none."
+            echo "deploy=exhausted" >> "$GITHUB_OUTPUT"
+          else
+            deploy_query='mutation($s: String!, $e: String!, $c: String!) {
+              serviceInstanceDeployV2(serviceId: $s, environmentId: $e,
+                commitSha: $c) }'
+            response=$(jq -n --arg q "$deploy_query" --arg s "$service_id" \
+              --arg e "$RAILWAY_ENV_ID" --arg c "$HEAD_SHA" \
+              '{query: $q, variables: {s: $s, e: $e, c: $c}}' \
+              | railway_gql)
+            if ! jq -e '.errors == null and .data.serviceInstanceDeployV2' \
+              <<<"$response" >/dev/null; then
+              echo "::error::Railway rejected the deployment:" \
+                "$(jq -r '[.errors[].message] | join("; ")' <<<"$response")"
+              exit 1
+            fi
+            # Deliberately no wait: Wait for CI holds this deployment until
+            # every workflow on the commit, this run included, has finished.
+            echo "Triggered deployment" \
+              "$(jq -r '.data.serviceInstanceDeployV2' <<<"$response")" \
+              "of $HEAD_SHA."
+            echo "deploy=triggered" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Point this PR's Vercel preview at the Railway API
         id: vercel
@@ -439,9 +519,19 @@ jobs:
         env:
           RAILWAY_API_URL: ${{ steps.railway-domain.outputs.url }}
           FRONTEND_URL: ${{ steps.vercel.outputs.url }}
+          DEPLOY: ${{ steps.railway.outputs.deploy }}
+          FAILED_DEPLOYMENTS: ${{ steps.railway.outputs.failures }}
         with:
           script: |
             const marker = "### Preview environment";
+            const rule =
+              "The API deploys once, after the checks on this commit pass: " +
+              "Railway deploys it when the push changes `backend/`, and this " +
+              "workflow triggers one when the PR environment has no API yet.";
+            const exhausted =
+              `The API has ${process.env.FAILED_DEPLOYMENTS} failed ` +
+              "deployments, so this workflow will not trigger another for " +
+              "this PR. Fix the backend, then push.";
             const body = [
               marker,
               "",
@@ -451,8 +541,9 @@ jobs:
               `| Railway API | ${process.env.RAILWAY_API_URL} |`,
               `| Frontend | ${process.env.FRONTEND_URL} |`,
               "",
-              "The API deploys once, after the checks on this commit pass.",
+              rule,
               "Sign-in works once that deployment is live.",
+              ...(process.env.DEPLOY === "exhausted" ? ["", exhausted] : []),
               "",
               "Torn down automatically when this PR is merged or closed.",
             ].join("\n");
