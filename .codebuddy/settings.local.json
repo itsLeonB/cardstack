@@ -1,0 +1,7 @@
+{
+  "enabledMcpjsonServers": [
+    "postgres",
+    "postgres-prod"
+  ],
+  "disabledMcpjsonServers": []
+}
