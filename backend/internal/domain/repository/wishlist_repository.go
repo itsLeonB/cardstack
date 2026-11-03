@@ -22,11 +22,15 @@ const (
 )
 
 // WishlistFilter is one Wishlist listing query: the owner, the shared Card
-// filters, and the status.
+// filters, and the status. ViewerProfileID and ViewerFilter apply the viewer
+// overlay: the viewer's own owned quantity per item, and a "have"/"dont-have"
+// filter on it.
 type WishlistFilter struct {
-	ProfileID uuid.UUID
-	Status    WishlistStatus
-	Cards     CardFilter
+	ProfileID       uuid.UUID
+	Status          WishlistStatus
+	Cards           CardFilter
+	ViewerProfileID uuid.UUID
+	ViewerFilter    string // "have" (> 0 owned) or "dont-have" (== 0 owned), empty means no viewer filter
 }
 
 // WishlistRepository is crud.Repository[entity.WishlistItem] plus the queries
@@ -62,19 +66,31 @@ func NewWishlistRepository(base crud.Repository[entity.WishlistItem]) WishlistRe
 
 const wishlistColumns = cardResultColumns + `,
 	wishlist_items.wanted_quantity AS wanted_quantity,
-	COALESCE(master_inventory.quantity, 0) AS quantity`
+	COALESCE(master_inventory.quantity, 0) AS quantity,
+	COALESCE(viewer_inventory.quantity, 0) AS viewer_quantity`
 
 // wishlistBase is the profile's Wishlist Items on their Cards, with the owned
-// quantity alongside and the status applied.
+// quantity alongside and the status applied. When a viewer profile ID is set,
+// it joins the viewer's Master Inventory a second time as viewer_inventory and
+// selects the viewer's owned quantity per Card.
 func wishlistBase(db *gorm.DB, filter WishlistFilter) *gorm.DB {
 	q := cardsWithoutAdminDrafts(db).
 		Joins("JOIN wishlist_items ON wishlist_items.card_id = cards.id AND wishlist_items.profile_id = ?", filter.ProfileID).
 		Joins("LEFT JOIN "+masterInventorySubquery+" AS master_inventory ON master_inventory.card_id = cards.id", filter.ProfileID)
+	if filter.ViewerProfileID != uuid.Nil {
+		q = q.Joins("LEFT JOIN "+masterInventorySubquery+" AS viewer_inventory ON viewer_inventory.card_id = cards.id", filter.ViewerProfileID)
+	}
 	switch filter.Status {
 	case WishlistStatusNeeded:
 		q = q.Where("COALESCE(master_inventory.quantity, 0) < wishlist_items.wanted_quantity")
 	case WishlistStatusFulfilled:
 		q = q.Where("COALESCE(master_inventory.quantity, 0) >= wishlist_items.wanted_quantity")
+	}
+	switch filter.ViewerFilter {
+	case "have":
+		q = q.Where("COALESCE(viewer_inventory.quantity, 0) > 0")
+	case "dont-have":
+		q = q.Where("COALESCE(viewer_inventory.quantity, 0) = 0")
 	}
 
 	return visibleCards(q, false)

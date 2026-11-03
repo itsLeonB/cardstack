@@ -2565,6 +2565,11 @@
             "format": "int64",
             "type": "integer"
           },
+          "viewerOwnedQuantity": {
+            "description": "The signed-in viewer's own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist.",
+            "format": "int64",
+            "type": "integer"
+          },
           "wantedQuantity": {
             "format": "int64",
             "type": "integer"
@@ -6492,6 +6497,20 @@
               "maximum": 100,
               "minimum": 1,
               "type": "integer"
+            }
+          },
+          {
+            "description": "For a signed-in viewer who is not the owner: only items the viewer owns (have) or does not own (dont-have) in their Master Inventory.",
+            "explode": false,
+            "in": "query",
+            "name": "viewerFilter",
+            "schema": {
+              "description": "For a signed-in viewer who is not the owner: only items the viewer owns (have) or does not own (dont-have) in their Master Inventory.",
+              "enum": [
+                "have",
+                "dont-have"
+              ],
+              "type": "string"
             }
           }
         ],

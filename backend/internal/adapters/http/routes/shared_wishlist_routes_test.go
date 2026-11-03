@@ -31,9 +31,10 @@ type sharedWishlistEntriesEnvelope struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
 		} `json:"card"`
-		WantedQuantity int  `json:"wantedQuantity"`
-		OwnedQuantity  int  `json:"ownedQuantity"`
-		Fulfilled      bool `json:"fulfilled"`
+		WantedQuantity      int  `json:"wantedQuantity"`
+		OwnedQuantity       int  `json:"ownedQuantity"`
+		Fulfilled           bool `json:"fulfilled"`
+		ViewerOwnedQuantity int  `json:"viewerOwnedQuantity,omitempty"`
 	} `json:"data"`
 	Meta struct{ Total, Page, Limit int } `json:"meta"`
 }
@@ -331,4 +332,188 @@ func TestSharedWishlistNotFound(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, nonexistentSub.Code)
 		assert.Equal(t, refShape, wishlistMissShape(nonexistentSub), "nonexistent profile not-found on %s matches", suffix)
 	}
+}
+
+// TestSharedWishlistViewerOverlayForSignedInViewer covers that a signed-in
+// viewer who is not the owner sees viewerOwnedQuantity per item and can filter
+// by "have" / "dont-have".
+func TestSharedWishlistViewerOverlayForSignedInViewer(t *testing.T) {
+	api := newTestAPI(t)
+	owner := newSharedOwner(t, api)
+	viewer := newSharedOwner(t, api)
+
+	// Seed cards and add them to the owner's wishlist
+	pokemon := seedSharedSet(t, api, true, "Pokémon", "wl-viewer-tag-"+uuid.NewString(), 2)
+	addWishlistItem(t, api, owner.token, owner.email, pokemon.cards[0], 3) // wanted 3
+	addWishlistItem(t, api, owner.token, owner.email, pokemon.cards[1], 1) // wanted 1
+
+	// Share the wishlist
+	api.Post("/wishlist/share", bearer(owner.token), map[string]any{})
+	profile := api.profileSlug(t, owner.email)
+	wlBase := "/shared/" + profile + "/wishlist/entries"
+
+	// Viewer creates a Master Inventory and adds owned copies
+	createResp := api.Post("/collections", bearer(viewer.token), map[string]any{"title": "Master Inv"})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	viewerBase := "/collections/" + created.Data.ID + "/entries"
+	// Viewer owns 2 of pokemon.cards[0] and 0 of pokemon.cards[1]
+	api.Post(viewerBase, bearer(viewer.token), map[string]any{"cardId": pokemon.cards[0], "quantity": 2})
+
+	list := func(auth string, query url.Values) sharedWishlistEntriesEnvelope {
+		t.Helper()
+		var args []any
+		if auth != "" {
+			args = append(args, auth)
+		}
+		resp := api.Get(wlBase+"?"+query.Encode(), args...)
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+		var out sharedWishlistEntriesEnvelope
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+		return out
+	}
+
+	// Signed-in viewer sees viewerOwnedQuantity
+	viewerEntries := list(bearer(viewer.token), url.Values{})
+	require.Len(t, viewerEntries.Data, 2)
+	byCard := map[string]sharedWishlistEntriesEnvelopeData{}
+	for _, item := range viewerEntries.Data {
+		byCard[item.Card.ID] = item
+	}
+	assert.Equal(t, 2, byCard[pokemon.cards[0].String()].ViewerOwnedQuantity, "viewer owns 2 of card 0")
+	assert.Equal(t, 0, byCard[pokemon.cards[1].String()].ViewerOwnedQuantity, "viewer owns 0 of card 1")
+
+	// Viewer filter: "have" returns only cards the viewer owns
+	have := list(bearer(viewer.token), url.Values{"viewerFilter": {"have"}})
+	require.Len(t, have.Data, 1)
+	assert.Equal(t, pokemon.cards[0].String(), have.Data[0].Card.ID)
+
+	// Viewer filter: "dont-have" returns only cards the viewer does not own
+	dontHave := list(bearer(viewer.token), url.Values{"viewerFilter": {"dont-have"}})
+	require.Len(t, dontHave.Data, 1)
+	assert.Equal(t, pokemon.cards[1].String(), dontHave.Data[0].Card.ID)
+}
+
+type sharedWishlistEntriesEnvelopeData struct {
+	Card struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"card"`
+	WantedQuantity      int  `json:"wantedQuantity"`
+	OwnedQuantity       int  `json:"ownedQuantity"`
+	Fulfilled           bool `json:"fulfilled"`
+	ViewerOwnedQuantity int  `json:"viewerOwnedQuantity,omitempty"`
+}
+
+// TestSharedWishlistNoViewerDataForGuest covers that a Guest gets no
+// viewerOwnedQuantity and no viewer filter.
+func TestSharedWishlistNoViewerDataForGuest(t *testing.T) {
+	api := newTestAPI(t)
+	owner := newSharedOwner(t, api)
+
+	pokemon := seedSharedSet(t, api, true, "Pokémon", "wl-guest-tag-"+uuid.NewString(), 1)
+	addWishlistItem(t, api, owner.token, owner.email, pokemon.cards[0], 3)
+
+	api.Post("/wishlist/share", bearer(owner.token), map[string]any{})
+	profile := api.profileSlug(t, owner.email)
+	wlBase := "/shared/" + profile + "/wishlist/entries"
+
+	// Guest: no auth header
+	resp := api.Get(wlBase)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var out sharedWishlistEntriesEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+	require.Len(t, out.Data, 1)
+	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "guest sees no viewerOwnedQuantity")
+
+	// Guest with viewerFilter gets no viewer data either
+	resp = api.Get(wlBase + "?viewerFilter=have")
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+	require.Len(t, out.Data, 1)
+	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "guest with viewerFilter still sees no viewerOwnedQuantity")
+	assert.NotContains(t, resp.Body.String(), "viewerOwned")
+}
+
+// TestSharedWishlistNoViewerDataForOwner covers that the owner opening their
+// own Shared link sees no viewerOwnedQuantity.
+func TestSharedWishlistNoViewerDataForOwner(t *testing.T) {
+	api := newTestAPI(t)
+	owner := newSharedOwner(t, api)
+	viewer := newSharedOwner(t, api)
+
+	pokemon := seedSharedSet(t, api, true, "Pokémon", "wl-owner-tag-"+uuid.NewString(), 1)
+	addWishlistItem(t, api, owner.token, owner.email, pokemon.cards[0], 3)
+
+	// Viewer owns the card, so there is viewer data to hide from the owner
+	createResp := api.Post("/collections", bearer(viewer.token), map[string]any{"title": "Master Inv"})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	viewerBase := "/collections/" + created.Data.ID + "/entries"
+	api.Post(viewerBase, bearer(viewer.token), map[string]any{"cardId": pokemon.cards[0], "quantity": 5})
+
+	api.Post("/wishlist/share", bearer(owner.token), map[string]any{})
+	profile := api.profileSlug(t, owner.email)
+	wlBase := "/shared/" + profile + "/wishlist/entries"
+
+	// Owner opens their own shared link: no viewer data
+	resp := api.Get(wlBase, bearer(owner.token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var out sharedWishlistEntriesEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+	require.Len(t, out.Data, 1)
+	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "owner sees no viewerOwnedQuantity")
+
+	// Owner with viewerFilter still gets no viewer data
+	resp = api.Get(wlBase+"?viewerFilter=have", bearer(owner.token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+	require.Len(t, out.Data, 1)
+	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "owner with viewerFilter sees no viewerOwnedQuantity")
+	assert.NotContains(t, resp.Body.String(), "viewerOwned")
+}
+
+// TestSharedWishlistNoViewerDataReachesOwner covers that viewer data is used
+// for the viewer's request only and never returned to the owner, even when a
+// viewer has inventory the owner could see through the shared link.
+func TestSharedWishlistNoViewerDataReachesOwner(t *testing.T) {
+	api := newTestAPI(t)
+	owner := newSharedOwner(t, api)
+	viewer := newSharedOwner(t, api)
+
+	pokemon := seedSharedSet(t, api, true, "Pokémon", "wl-reach-tag-"+uuid.NewString(), 1)
+	addWishlistItem(t, api, owner.token, owner.email, pokemon.cards[0], 3)
+
+	// Viewer owns copies of the card
+	createResp := api.Post("/collections", bearer(viewer.token), map[string]any{"title": "Master Inv"})
+	require.Equal(t, http.StatusCreated, createResp.Code, createResp.Body.String())
+	var created collectionEnvelope
+	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &created))
+	viewerBase := "/collections/" + created.Data.ID + "/entries"
+	api.Post(viewerBase, bearer(viewer.token), map[string]any{"cardId": pokemon.cards[0], "quantity": 5})
+
+	api.Post("/wishlist/share", bearer(owner.token), map[string]any{})
+	profile := api.profileSlug(t, owner.email)
+	wlBase := "/shared/" + profile + "/wishlist/entries"
+
+	// Viewer sees their owned quantity
+	viewerResp := api.Get(wlBase, bearer(viewer.token))
+	require.Equal(t, http.StatusOK, viewerResp.Code, viewerResp.Body.String())
+	var viewerOut sharedWishlistEntriesEnvelope
+	require.NoError(t, json.Unmarshal(viewerResp.Body.Bytes(), &viewerOut))
+	require.Len(t, viewerOut.Data, 1)
+	assert.Equal(t, 5, viewerOut.Data[0].ViewerOwnedQuantity, "viewer sees their own quantity")
+
+	// Owner sees none of it
+	ownerResp := api.Get(wlBase, bearer(owner.token))
+	require.Equal(t, http.StatusOK, ownerResp.Code, ownerResp.Body.String())
+	var ownerOut sharedWishlistEntriesEnvelope
+	require.NoError(t, json.Unmarshal(ownerResp.Body.Bytes(), &ownerOut))
+	require.Len(t, ownerOut.Data, 1)
+	assert.Equal(t, 0, ownerOut.Data[0].ViewerOwnedQuantity, "owner sees no viewer data")
+
+	// The two responses differ only in viewerOwnedQuantity
+	assert.NotEqual(t, viewerResp.Body.String(), ownerResp.Body.String())
 }
