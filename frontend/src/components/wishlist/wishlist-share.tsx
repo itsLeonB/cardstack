@@ -22,25 +22,30 @@ export function WishlistShare() {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string>()
   const profile = useGetProfile()
-  const profileSlug =
-    profile.data?.status === 200 ? profile.data.data.data.slug : undefined
   const wishlistMeta = useGetWishlist({
     query: { refetchOnMount: "always" },
   })
   const share = useShareWishlist()
   const unshare = useUnshareWishlist()
 
-  const shared =
-    wishlistMeta.data?.status === 200
-      ? wishlistMeta.data.data.data.shared
-      : undefined
-  // A rejected request or an error status both count as failed, and a retry in
-  // flight is loading again, not failed. A failure wins over an answer kept from
-  // before, so a flag is only shown while its read is healthy.
   const metaFailed =
     !wishlistMeta.isFetching &&
     (wishlistMeta.isError ||
       (wishlistMeta.data !== undefined && wishlistMeta.data.status !== 200))
+  const profileFailed =
+    !profile.isFetching &&
+    (profile.isError ||
+      (profile.data !== undefined && profile.data.status !== 200))
+  const loadFailed = metaFailed || profileFailed
+  const loaded = wishlistMeta.data && profile.data
+  const shared =
+    loaded && wishlistMeta.data.status === 200 && profile.data.status === 200
+      ? wishlistMeta.data.data.data.shared
+      : undefined
+  const profileSlug =
+    loaded && profile.data.status === 200
+      ? profile.data.data.data.slug
+      : undefined
   // Only consider the wishlist shared if we have both the profile and the meta flag.
   // Without a profile slug we cannot build the link, so the dialog cannot show it.
   const isShared = shared === true && profileSlug !== undefined
@@ -52,24 +57,21 @@ export function WishlistShare() {
 
   async function refresh() {
     await wishlistMeta.refetch()
+    await profile.refetch()
     if (profileSlug) void invalidateSharedWishlist(queryClient, profileSlug)
   }
 
-  if (metaFailed || shared === undefined)
+  if (loadFailed || shared === undefined)
     return (
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" disabled>
           <RiShareLine data-icon="inline-start" />
           Share
         </Button>
-        {metaFailed && (
+        {loadFailed && (
           <div role="alert" className="flex flex-wrap items-center gap-2">
             <p className="text-sm text-destructive">Could not load sharing</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void wishlistMeta.refetch()}
-            >
+            <Button variant="outline" size="sm" onClick={() => void refresh()}>
               Retry
             </Button>
           </div>

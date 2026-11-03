@@ -1366,6 +1366,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeWishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WishlistSummary"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeWithMetaListCardSummaryPaginationMeta": {
         "additionalProperties": false,
         "properties": {
@@ -2670,18 +2682,6 @@
         },
         "required": [
           "shared"
-        ],
-        "type": "object"
-      },
-      "EnvelopeWishlistSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/WishlistSummary"
-          }
-        },
-        "required": [
-          "data"
         ],
         "type": "object"
       }
@@ -7134,42 +7134,6 @@
         ]
       }
     },
-    "/wishlist/meta": {
-      "get": {
-        "operationId": "get-wishlist",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EnvelopeWishlistSummary"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "summary": "Get the current user's Wishlist metadata (shared flag)",
-        "tags": [
-          "wishlist"
-        ]
-      }
-    },
     "/wishlist": {
       "get": {
         "operationId": "list-wishlist",
@@ -7638,6 +7602,42 @@
           }
         ],
         "summary": "Put a Card on the current user's Wishlist with a wanted quantity, replacing the wanted quantity when it is already there",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/wishlist/meta": {
+      "get": {
+        "operationId": "get-wishlist",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWishlistSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get the current user's Wishlist metadata (shared flag)",
         "tags": [
           "wishlist"
         ]
