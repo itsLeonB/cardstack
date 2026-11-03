@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	OpGetWishlist            = "get-wishlist"
 	OpListWishlist           = "list-wishlist"
 	OpListWishlistFacets     = "list-wishlist-facets"
 	OpSetWishlistItem        = "set-wishlist-item"
@@ -55,7 +56,8 @@ type wishlistItemInput struct {
 	CardID uuid.UUID `path:"cardId" doc:"Card ID"`
 }
 
-type clearFulfilledWishlistInput struct{}
+// emptyBodyInput is a neutral empty request body used by endpoints that take no input.
+type emptyBodyInput struct{}
 
 type wishlistPresetInput struct {
 	Body struct {
@@ -108,7 +110,7 @@ func (h *WishlistHandler) remove(ctx context.Context, in wishlistItemInput) erro
 	return h.wishlistSvc.Remove(ctx, dto.WishlistItemLookup{ProfileID: profileID, CardID: in.CardID})
 }
 
-func (h *WishlistHandler) clearFulfilled(ctx context.Context, _ clearFulfilledWishlistInput) (dto.WishlistClearResult, error) {
+func (h *WishlistHandler) clearFulfilled(ctx context.Context, _ emptyBodyInput) (dto.WishlistClearResult, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
 		return dto.WishlistClearResult{}, err
@@ -171,6 +173,38 @@ func (h *WishlistHandler) applyPreset(ctx context.Context, in wishlistPresetInpu
 	})
 }
 
+func (h *WishlistHandler) get(ctx context.Context, _ emptyBodyInput) (dto.WishlistSummary, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.WishlistSummary{}, err
+	}
+
+	return h.wishlistSvc.Get(ctx, dto.WishlistLookup{ProfileID: profileID})
+}
+
+func (h *WishlistHandler) share(ctx context.Context, _ emptyBodyInput) (dto.WishlistShareResult, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.WishlistShareResult{}, err
+	}
+
+	slug, err := h.wishlistSvc.Share(ctx, dto.WishlistLookup{ProfileID: profileID})
+	if err != nil {
+		return dto.WishlistShareResult{}, err
+	}
+
+	return dto.WishlistShareResult{Slug: slug}, nil
+}
+
+func (h *WishlistHandler) unshare(ctx context.Context, _ emptyBodyInput) error {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return err
+	}
+
+	return h.wishlistSvc.Unshare(ctx, dto.WishlistLookup{ProfileID: profileID})
+}
+
 func wishlistRequest(ctx context.Context, params CardFilterParams, cardIDs []string, status string) (dto.WishlistListRequest, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -190,6 +224,16 @@ func wishlistRequest(ctx context.Context, params CardFilterParams, cardIDs []str
 
 func (h *WishlistHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
+		endpoint.New(endpoint.Endpoint[emptyBodyInput, dto.WishlistSummary]{
+			OperationID: OpGetWishlist,
+			Method:      http.MethodGet,
+			Path:        "/wishlist/meta",
+			Summary:     "Get the current user's Wishlist metadata (shared flag)",
+			Tags:        []string{"wishlist"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.get,
+		}),
 		endpoint.NewWithMeta(endpoint.EndpointWithMeta[listWishlistInput, []dto.WishlistItem, dto.PaginationMeta]{
 			OperationID: OpListWishlist,
 			Method:      http.MethodGet,
@@ -228,7 +272,7 @@ func (h *WishlistHandler) Routes() []endpoint.Registrable {
 			Secured:     true,
 			HandlerFunc: h.remove,
 		}),
-		endpoint.New(endpoint.Endpoint[clearFulfilledWishlistInput, dto.WishlistClearResult]{
+		endpoint.New(endpoint.Endpoint[emptyBodyInput, dto.WishlistClearResult]{
 			OperationID: OpClearFulfilledWishlist,
 			Method:      http.MethodDelete,
 			Path:        "/wishlist/fulfilled",
@@ -257,6 +301,25 @@ func (h *WishlistHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusOK,
 			Secured:     true,
 			HandlerFunc: h.applyPreset,
+		}),
+		endpoint.New(endpoint.Endpoint[emptyBodyInput, dto.WishlistShareResult]{
+			OperationID: "share-wishlist",
+			Method:      http.MethodPost,
+			Path:        "/wishlist/share",
+			Summary:     "Share the current user's Wishlist: anyone with the link can view it. Sharing an already-shared Wishlist keeps its link",
+			Tags:        []string{"wishlist"},
+			SuccessCode: http.StatusOK,
+			Secured:     true,
+			HandlerFunc: h.share,
+		}),
+		endpoint.NewNoBody(endpoint.NoBodyEndpoint[emptyBodyInput]{
+			OperationID: "unshare-wishlist",
+			Method:      http.MethodDelete,
+			Path:        "/wishlist/share",
+			Summary:     "Stop sharing the current user's Wishlist; its link stops working at once",
+			Tags:        []string{"wishlist"},
+			Secured:     true,
+			HandlerFunc: h.unshare,
 		}),
 	}
 }

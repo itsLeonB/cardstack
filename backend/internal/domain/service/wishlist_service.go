@@ -11,6 +11,7 @@ import (
 	"github.com/itsLeonB/ezutil/v2"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -39,11 +40,21 @@ type WishlistService interface {
 	// ApplyPreset actually adds them with the chosen quantity.
 	PreviewPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)
 	ApplyPreset(ctx context.Context, req dto.WishlistPresetRequest) (dto.WishlistPresetResult, error)
+	// Get returns the owner's Wishlist metadata (currently just the shared flag).
+	// Returns false for Shared when the profile has no Wishlist row yet.
+	Get(ctx context.Context, req dto.WishlistLookup) (dto.WishlistSummary, error)
+	// Share sets the Wishlist's shared flag to true, creating the Wishlist row
+	// if it does not exist (upsert on profile_id). Returns the profile's Slug
+	// for the shared link.
+	Share(ctx context.Context, req dto.WishlistLookup) (string, error)
+	// Unshare sets the Wishlist's shared flag to false, ending the link at once.
+	Unshare(ctx context.Context, req dto.WishlistLookup) error
 }
 
 type wishlistService struct {
 	transactor crud.Transactor
 	profiles   crud.Repository[entity.UserProfile]
+	wishlists  crud.Repository[entity.Wishlist]
 	items      repository.WishlistRepository
 	cards      CardLookup
 	images     mapper.ImageHost
@@ -52,11 +63,12 @@ type wishlistService struct {
 func NewWishlistService(
 	transactor crud.Transactor,
 	profiles crud.Repository[entity.UserProfile],
+	wishlists crud.Repository[entity.Wishlist],
 	items repository.WishlistRepository,
 	cards CardLookup,
 	images mapper.ImageHost,
 ) WishlistService {
-	return &wishlistService{transactor: transactor, profiles: profiles, items: items, cards: cards, images: images}
+	return &wishlistService{transactor: transactor, profiles: profiles, wishlists: wishlists, items: items, cards: cards, images: images}
 }
 
 func (s *wishlistService) List(ctx context.Context, req dto.WishlistListRequest) ([]dto.WishlistItem, dto.PaginationMeta, error) {
@@ -226,9 +238,98 @@ func (s *wishlistService) ApplyPreset(ctx context.Context, req dto.WishlistPrese
 	}, nil
 }
 
+func (s *wishlistService) Get(ctx context.Context, req dto.WishlistLookup) (dto.WishlistSummary, error) {
+	if req.ProfileID == uuid.Nil {
+		return dto.WishlistSummary{}, ungerr.UnauthorizedError("missing profile")
+	}
+
+	w, err := s.wishlists.FindFirst(ctx, crud.Specification[entity.Wishlist]{
+		Model: entity.Wishlist{ProfileID: req.ProfileID},
+	})
+	if err != nil {
+		return dto.WishlistSummary{}, err
+	}
+
+	return dto.WishlistSummary{Shared: w.Shared}, nil
+}
+
+func (s *wishlistService) Share(ctx context.Context, req dto.WishlistLookup) (string, error) {
+	if req.ProfileID == uuid.Nil {
+		return "", ungerr.UnauthorizedError("missing profile")
+	}
+
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		// Upsert: create a new row with shared=true, or update existing row's shared to true
+		w := entity.Wishlist{ProfileID: req.ProfileID, Shared: true}
+		db, err := s.wishlists.GetGormInstance(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "profile_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"shared", "updated_at"}),
+		}).Create(&w).Error
+		if err != nil {
+			return ungerr.Wrap(err, "upserting wishlist share status")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	slug, err := s.getProfileSlug(ctx, req.ProfileID)
+	return slug, err
+}
+
+func (s *wishlistService) Unshare(ctx context.Context, req dto.WishlistLookup) error {
+	if req.ProfileID == uuid.Nil {
+		return ungerr.UnauthorizedError("missing profile")
+	}
+
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		// Upsert: create a new row with shared=false, or update existing row's shared to false
+		w := entity.Wishlist{ProfileID: req.ProfileID, Shared: false}
+		db, err := s.wishlists.GetGormInstance(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Use ON CONFLICT to upsert the shared status
+		// If the row doesn't exist, create it with shared=false
+		// If the row exists, update shared to false
+		err = db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "profile_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"shared", "updated_at"}),
+		}).Create(&w).Error
+		if err != nil {
+			return ungerr.Wrap(err, "upserting wishlist unshare status")
+		}
+
+		return nil
+	})
+}
+
+// getProfileSlug returns the profile's Slug for the shared link.
+func (s *wishlistService) getProfileSlug(ctx context.Context, profileID uuid.UUID) (string, error) {
+	profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
+		Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: profileID}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if profile.IsZero() {
+		return "", ungerr.UnauthorizedError("missing profile")
+	}
+
+	return profile.Slug, nil
+}
+
 // lockOwner row-locks the profile, which serializes every write to its
-// Wishlist: a Wishlist has no row of its own yet, so the owner is the row to
-// lock. A nil ProfileID would drop the condition and lock an arbitrary
+// Wishlist: the wishlists table now exists, so the owner's profile is still the row to
+// lock to avoid concurrent writes. A nil ProfileID would drop the condition and lock an arbitrary
 // profile, so it is refused up front.
 func (s *wishlistService) lockOwner(ctx context.Context, profileID uuid.UUID) error {
 	if profileID == uuid.Nil {

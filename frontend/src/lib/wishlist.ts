@@ -2,6 +2,13 @@ import { keepPreviousData, useQueries } from "@tanstack/react-query"
 import type { QueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import {
+  listSharedWishlistEntries,
+  useListSharedWishlistEntriesInfinite,
+  getListSharedWishlistEntriesInfiniteQueryKey,
+  getListSharedWishlistEntriesQueryKey,
+  getListSharedWishlistFacetsQueryKey,
+} from "@/generated/endpoints/shared/shared"
+import {
   getListWishlistFacetsQueryKey,
   getListWishlistInfiniteQueryKey,
   getListWishlistQueryKey,
@@ -29,6 +36,13 @@ export const wishlistSearchSchema = catalogFilterSchema.extend({
 export type WishlistFilters = CatalogFilters & {
   status?: ListWishlistStatus
 }
+
+/** The All / Still needed / Fulfilled filter, shared by the owner's list and the Shared page. */
+export const WISHLIST_STATUS_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "needed", label: "Still needed" },
+  { value: "fulfilled", label: "Fulfilled" },
+]
 
 /** The status filter's value, with `all` for the shared filter panel's clear. */
 export function wishlistStatus(search: WishlistFilters): ListWishlistStatus {
@@ -93,6 +107,49 @@ export function invalidateWishlist(queryClient: QueryClient) {
     getListWishlistInfiniteQueryKey(),
     getListWishlistQueryKey(),
     getListWishlistFacetsQueryKey(),
+  ]) {
+    void queryClient.invalidateQueries({ queryKey })
+  }
+}
+
+/**
+ * A Shared Wishlist's items, page after page. Read-only, so it is never
+ * patched: the status on each item is derived on read.
+ */
+export function useInfiniteSharedWishlist(
+  profileSlug: string,
+  filters: WishlistFilters
+) {
+  const params = { ...filters, limit: INVENTORY_PAGE_SIZE }
+  return useListSharedWishlistEntriesInfinite(profileSlug, params, {
+    query: {
+      ...infinitePages(
+        (page, signal) =>
+          listSharedWishlistEntries(
+            profileSlug,
+            { ...params, page },
+            { signal }
+          ),
+        "Could not load this Wishlist's Cards."
+      ),
+      placeholderData: keepPreviousData,
+      select: (data) => mergeWishlistPages(data.pages),
+    },
+  })
+}
+
+/**
+ * Invalidates the shared Wishlist's queries (entries, facets) and its header.
+ * Called when sharing changes so an already-open shared page refreshes.
+ */
+export function invalidateSharedWishlist(
+  queryClient: QueryClient,
+  profileSlug: string
+) {
+  for (const queryKey of [
+    getListSharedWishlistEntriesInfiniteQueryKey(profileSlug),
+    getListSharedWishlistEntriesQueryKey(profileSlug),
+    getListSharedWishlistFacetsQueryKey(profileSlug),
   ]) {
     void queryClient.invalidateQueries({ queryKey })
   }

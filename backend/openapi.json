@@ -1318,6 +1318,18 @@
         ],
         "type": "object"
       },
+      "EnvelopeSharedWishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SharedWishlistSummary"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeWishlistClearResult": {
         "additionalProperties": false,
         "properties": {
@@ -1335,6 +1347,30 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/WishlistPresetResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeWishlistShareResult": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WishlistShareResult"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "EnvelopeWishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WishlistSummary"
           }
         },
         "required": [
@@ -2380,6 +2416,19 @@
         ],
         "type": "object"
       },
+      "SharedWishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "ownerName": {
+            "description": "The owner's display name, never their email.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ownerName"
+        ],
+        "type": "object"
+      },
       "StringFacetOption": {
         "additionalProperties": false,
         "properties": {
@@ -2583,10 +2632,7 @@
         },
         "required": [
           "expansionSetIds",
-          "quantity",
-          "rarityIds",
-          "categories",
-          "tags"
+          "quantity"
         ],
         "type": "object"
       },
@@ -2610,6 +2656,32 @@
         "required": [
           "count",
           "cards"
+        ],
+        "type": "object"
+      },
+      "WishlistShareResult": {
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "The profile's Slug for the shared link at /s/{slug}/wishlist.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "type": "object"
+      },
+      "WishlistSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "shared": {
+            "description": "Whether the Wishlist is shared publicly. False when the profile has no Wishlist row yet.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "shared"
         ],
         "type": "object"
       }
@@ -6216,6 +6288,406 @@
         ]
       }
     },
+    "/shared/{profileSlug}/wishlist": {
+      "get": {
+        "operationId": "get-shared-wishlist",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeSharedWishlistSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a Shared Wishlist's header (owner's display name) by its link; any viewer, a Guest included. Any private, unshared or missing link is the same 404",
+        "tags": [
+          "shared"
+        ]
+      }
+    },
+    "/shared/{profileSlug}/wishlist/entries": {
+      "get": {
+        "operationId": "list-shared-wishlist-entries",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "default": "all",
+              "description": "All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.",
+              "enum": [
+                "all",
+                "needed",
+                "fulfilled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-indexed page number.",
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "description": "1-indexed page number.",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 24,
+              "description": "Page size.",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWithMetaListWishlistItemPaginationMeta"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Search/page the Cards and quantities of a Shared Wishlist, with the owner's listing's filters and the All/Still needed/Fulfilled status filter; any viewer, a Guest included",
+        "tags": [
+          "shared"
+        ]
+      }
+    },
+    "/shared/{profileSlug}/wishlist/facets": {
+      "get": {
+        "operationId": "list-shared-wishlist-facets",
+        "parameters": [
+          {
+            "description": "The owner's profile Slug.",
+            "in": "path",
+            "name": "profileSlug",
+            "required": true,
+            "schema": {
+              "description": "The owner's profile Slug.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+            "explode": false,
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "description": "Case-insensitive substring match on the Card's name (at most 64 characters).",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+            "explode": false,
+            "in": "query",
+            "name": "localId",
+            "schema": {
+              "description": "Only the Card with this number within its Expansion Set (e.g. \"001\").",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+            "explode": true,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "description": "Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "description": "Only Cards carrying any of these tags (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+            "explode": true,
+            "in": "query",
+            "name": "cardId",
+            "schema": {
+              "description": "Only these Cards (repeatable, at most 100), combined with the other filters.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "default": "all",
+              "description": "All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.",
+              "enum": [
+                "all",
+                "needed",
+                "fulfilled"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeCatalogFacets"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List each filter's available options computed only from the Cards of a Shared Wishlist; any viewer, a Guest included",
+        "tags": [
+          "shared"
+        ]
+      }
+    },
     "/shared/{profileSlug}/{collectionSlug}": {
       "get": {
         "operationId": "get-shared-collection",
@@ -7135,6 +7607,42 @@
         ]
       }
     },
+    "/wishlist/meta": {
+      "get": {
+        "operationId": "get-wishlist",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWishlistSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get the current user's Wishlist metadata (shared flag)",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
     "/wishlist/preset/apply": {
       "post": {
         "operationId": "apply-wishlist-preset",
@@ -7222,6 +7730,69 @@
           }
         ],
         "summary": "Preview a Wishlist Preset: return the Cards that would be added and how many, for the chosen Expansion Sets (optionally narrowed by rarity, category and tag) and quantity, of which the user owns none in Master Inventory and none are already on the Wishlist",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/wishlist/share": {
+      "delete": {
+        "operationId": "unshare-wishlist",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Stop sharing the current user's Wishlist; its link stops working at once",
+        "tags": [
+          "wishlist"
+        ]
+      },
+      "post": {
+        "operationId": "share-wishlist",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeWishlistShareResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Share the current user's Wishlist: anyone with the link can view it. Sharing an already-shared Wishlist keeps its link",
         "tags": [
           "wishlist"
         ]

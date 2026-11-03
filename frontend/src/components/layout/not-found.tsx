@@ -5,7 +5,9 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 
-const notFoundData = z.object({ resource: z.enum(["Collection", "Card"]) })
+const notFoundData = z.object({
+  resource: z.enum(["Collection", "Card", "Wishlist"]),
+})
 type Resource = z.infer<typeof notFoundData>["resource"]
 
 /** Throw from a loader when the entity behind the URL does not exist; `NotFound` names it. */

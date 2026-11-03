@@ -10,7 +10,7 @@ export interface WishlistPresetInputBody {
      * Narrow by category (repeatable).
      * @nullable
      */
-  categories: string[] | null;
+  categories?: string[] | null;
   /**
      * Expansion Sets to include.
      * @minItems 1
@@ -27,10 +27,10 @@ export interface WishlistPresetInputBody {
      * Narrow by rarity (repeatable).
      * @nullable
      */
-  rarityIds: string[] | null;
+  rarityIds?: string[] | null;
   /**
      * Narrow by tag (repeatable).
      * @nullable
      */
-  tags: string[] | null;
+  tags?: string[] | null;
 }

@@ -4,9 +4,11 @@
 
 **Blocked by:** 02 (Share a Collection and open its link), 07 (Wishlist page).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A Wishlist has a `shared` flag, off by default. The Share dialog from ticket 02 is reused on the Wishlist page with the same warning, switch, link, Copy and unshare confirmation, and turning sharing off ends the link at once.
-- [ ] The public route group serves a Shared Wishlist: the owner's display name, each item's Card, wanted quantity, the owner's owned quantity and the Fulfilled or Still needed status, with the shared card filters and the All, Still needed and Fulfilled filter available to Guests. It never returns the owner's email.
-- [ ] A private, unshared or nonexistent Wishlist gives the same identical not-found as a Collection. The page carries `noindex` and has no edit controls, no messaging and no contact details.
-- [ ] HTTP-boundary tests cover share, unshare and the Guest view. Screen tests cover the Wishlist's Share dialog and the shared page.
+- [x] A Wishlist has a `shared` flag, off by default. The Share dialog from ticket 02 is reused on the Wishlist page with the same warning, switch, link, Copy and unshare confirmation, and turning sharing off ends the link at once.
+- [x] The public route group serves a Shared Wishlist: the owner's display name, each item's Card, wanted quantity, the owner's owned quantity and the Fulfilled or Still needed status, with the shared card filters and the All, Still needed and Fulfilled filter available to Guests. It never returns the owner's email.
+- [x] A private, unshared or nonexistent Wishlist gives the same identical not-found as a Collection. The page carries `noindex` and has no edit controls, no messaging and no contact details.
+- [x] HTTP-boundary tests cover share, unshare and the Guest view. Screen tests cover the Wishlist's Share dialog and the shared page.
+
+**Note:** a Wishlist had no row of its own before this ticket (only `wishlist_items`), so `shared` lives on a new `wishlists` table, one row per profile, created when sharing is first turned on (ADR-0025: a Wishlist carries a plain boolean, no Slug).

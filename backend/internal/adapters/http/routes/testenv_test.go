@@ -151,6 +151,7 @@ func newTestAPIWithPhotoBucket(t *testing.T, limits ratelimit.Limits, adminEmail
 		provider.ProvideCatalogService(ds, images),
 		provider.ProvideCollectionService(ds),
 		provider.ProvideSharedCollectionService(ds, images),
+		provider.ProvideSharedWishlistService(ds, images),
 		provider.ProvideInventoryService(ds, images),
 		binder,
 		provider.ProvideBinderSlotService(ds),

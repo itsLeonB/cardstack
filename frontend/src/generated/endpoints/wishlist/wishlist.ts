@@ -32,6 +32,8 @@ import type {
   EnvelopeCatalogFacets,
   EnvelopeWishlistClearResult,
   EnvelopeWishlistPresetResult,
+  EnvelopeWishlistShareResult,
+  EnvelopeWishlistSummary,
   EnvelopeWithMetaListWishlistItemPaginationMeta,
   ErrorModel,
   ListWishlistFacetsParams,
@@ -68,6 +70,125 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export type getWishlistResponse200 = {
+  data: EnvelopeWishlistSummary
+  status: 200
+}
+
+export type getWishlistResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getWishlistResponseSuccess = (getWishlistResponse200) & {
+  headers: Headers;
+};
+export type getWishlistResponseError = (getWishlistResponseDefault) & {
+  headers: Headers;
+};
+
+export type getWishlistResponse = (getWishlistResponseSuccess | getWishlistResponseError)
+
+export const getGetWishlistUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/meta`
+}
+
+/**
+ * @summary Get the current user's Wishlist metadata (shared flag)
+ */
+export const getWishlist = async ( options?: Parameters<typeof customFetch>[1]): Promise<getWishlistResponse> => {
+
+  return customFetch<getWishlistResponse>(getGetWishlistUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWishlistQueryKey = () => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/meta`
+    ] as const;
+    }
+
+
+export const getGetWishlistQueryOptions = <TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWishlistQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWishlist>>> = ({ signal }) => getWishlist({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWishlistQueryResult = NonNullable<Awaited<ReturnType<typeof getWishlist>>>
+export type GetWishlistQueryError = ErrorModel
+
+
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWishlist>>,
+          TError,
+          Awaited<ReturnType<typeof getWishlist>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWishlist>>,
+          TError,
+          Awaited<ReturnType<typeof getWishlist>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get the current user's Wishlist metadata (shared flag)
+ */
+
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWishlistQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
 
 export type listWishlistResponse200 = {
   data: EnvelopeWithMetaListWishlistItemPaginationMeta
@@ -912,4 +1033,188 @@ export const usePreviewWishlistPreset = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getPreviewWishlistPresetMutationOptions(options), queryClient);
+    }
+    export type unshareWishlistResponse204 = {
+  data: void
+  status: 204
+}
+
+export type unshareWishlistResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type unshareWishlistResponseSuccess = (unshareWishlistResponse204) & {
+  headers: Headers;
+};
+export type unshareWishlistResponseError = (unshareWishlistResponseDefault) & {
+  headers: Headers;
+};
+
+export type unshareWishlistResponse = (unshareWishlistResponseSuccess | unshareWishlistResponseError)
+
+export const getUnshareWishlistUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/share`
+}
+
+/**
+ * @summary Stop sharing the current user's Wishlist; its link stops working at once
+ */
+export const unshareWishlist = async ( options?: Parameters<typeof customFetch>[1]): Promise<unshareWishlistResponse> => {
+
+  return customFetch<unshareWishlistResponse>(getUnshareWishlistUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnshareWishlistMutationKey = () => ['unshareWishlist'] as const;
+
+export const getUnshareWishlistMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unshareWishlist>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unshareWishlist>>, TError,void, TContext> => {
+
+const mutationKey = getUnshareWishlistMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unshareWishlist>>, void> = () => {
+
+
+          return  unshareWishlist(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnshareWishlistMutationResult = NonNullable<Awaited<ReturnType<typeof unshareWishlist>>>
+
+    export type UnshareWishlistMutationError = ErrorModel
+
+
+    /**
+ * @summary Stop sharing the current user's Wishlist; its link stops working at once
+ */
+export const useUnshareWishlist = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unshareWishlist>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unshareWishlist>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getUnshareWishlistMutationOptions(options), queryClient);
+    }
+    export type shareWishlistResponse200 = {
+  data: EnvelopeWishlistShareResult
+  status: 200
+}
+
+export type shareWishlistResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type shareWishlistResponseSuccess = (shareWishlistResponse200) & {
+  headers: Headers;
+};
+export type shareWishlistResponseError = (shareWishlistResponseDefault) & {
+  headers: Headers;
+};
+
+export type shareWishlistResponse = (shareWishlistResponseSuccess | shareWishlistResponseError)
+
+export const getShareWishlistUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/share`
+}
+
+/**
+ * @summary Share the current user's Wishlist: anyone with the link can view it. Sharing an already-shared Wishlist keeps its link
+ */
+export const shareWishlist = async ( options?: Parameters<typeof customFetch>[1]): Promise<shareWishlistResponse> => {
+
+  return customFetch<shareWishlistResponse>(getShareWishlistUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getShareWishlistMutationKey = () => ['shareWishlist'] as const;
+
+export const getShareWishlistMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shareWishlist>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof shareWishlist>>, TError,void, TContext> => {
+
+const mutationKey = getShareWishlistMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof shareWishlist>>, void> = () => {
+
+
+          return  shareWishlist(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ShareWishlistMutationResult = NonNullable<Awaited<ReturnType<typeof shareWishlist>>>
+
+    export type ShareWishlistMutationError = ErrorModel
+
+
+    /**
+ * @summary Share the current user's Wishlist: anyone with the link can view it. Sharing an already-shared Wishlist keeps its link
+ */
+export const useShareWishlist = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shareWishlist>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof shareWishlist>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getShareWishlistMutationOptions(options), queryClient);
     }
