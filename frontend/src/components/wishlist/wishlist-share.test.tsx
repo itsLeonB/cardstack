@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { WishlistShare } from "@/components/wishlist/wishlist-share"
@@ -28,6 +29,8 @@ interface ApiBody {
 interface Server {
   // The flag the meta endpoint reports, which sharing changes.
   shared: boolean
+  // "loading" never answers; "offline" fails the flag read outright.
+  metaStatus?: "loading" | "offline"
   // Set to hold the flag read-back until released.
   holdMetaRead?: Promise<void>
   // Answers a share with this status instead of accepting it.
@@ -56,6 +59,10 @@ function stubServer(server: Server) {
         })
       }
       if (url.pathname === META_ENDPOINT && method === "GET") {
+        if (server.metaStatus === "loading")
+          return new Promise<Response>(() => {})
+        if (server.metaStatus === "offline")
+          throw new TypeError("Failed to fetch")
         await server.holdMetaRead
         return reply(200, { data: { shared: server.shared } })
       }
@@ -96,6 +103,18 @@ const linkFor = () => `${window.location.origin}/s/profile-ash/wishlist`
 const buttonFor = (label: "Share" | "Shared") =>
   screen.findByRole("button", { name: label })
 
+// The control is disabled until the flag is known, and a click before that does
+// nothing, so a test that acts on it waits for the enabled one.
+async function enabledButton(label: "Share" | "Shared") {
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: label })).toHaveProperty(
+      "disabled",
+      false
+    )
+  )
+  return screen.getByRole("button", { name: label })
+}
+
 // Queried each time, so an assertion reads the switch the dialog shows now.
 const switchOf = () => screen.getByRole("switch", { name: SWITCH_NAME })
 
@@ -117,7 +136,7 @@ describe("Wishlist Share button", () => {
     const calls = renderWishlistShare({ shared: false })
 
     await waitFor(() => expect(calls).toContain(`GET ${META_ENDPOINT}`))
-    expect(screen.getByRole("button", { name: "Share" })).toBeTruthy()
+    await enabledButton("Share")
     expect(screen.queryByRole("button", { name: "Shared" })).toBeNull()
     // The flag is read from the meta endpoint, never from the public page.
     expect(calls.some((call) => call.includes("/shared/"))).toBe(false)
@@ -125,14 +144,14 @@ describe("Wishlist Share button", () => {
     cleanup()
 
     renderWishlistShare({ shared: true })
-    expect(await buttonFor("Shared")).toBeTruthy()
+    await enabledButton("Shared")
     expect(screen.queryByRole("button", { name: "Share" })).toBeNull()
   })
 
   it("warns before the first share, and offers no link while the flag is off", async () => {
     const calls = renderWishlistShare({ shared: false })
 
-    fireEvent.click(await buttonFor("Share"))
+    fireEvent.click(await enabledButton("Share"))
 
     expect(await screen.findByText(/full name/i)).toBeTruthy()
     expect(switchOf().getAttribute("aria-checked")).toBe("false")
@@ -145,7 +164,7 @@ describe("Wishlist Share button", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } })
     const calls = renderWishlistShare({ shared: false })
 
-    fireEvent.click(await buttonFor("Share"))
+    fireEvent.click(await enabledButton("Share"))
     fireEvent.click(await screen.findByRole("switch", { name: SWITCH_NAME }))
 
     expect(
@@ -169,7 +188,7 @@ describe("Wishlist Share button", () => {
     const server: Server = { shared: false }
     const calls = renderWishlistShare(server)
 
-    fireEvent.click(await buttonFor("Share"))
+    fireEvent.click(await enabledButton("Share"))
     await screen.findByRole("switch", { name: SWITCH_NAME })
     let releaseRead = () => {}
     server.holdMetaRead = new Promise<void>((resolve) => {
@@ -187,10 +206,38 @@ describe("Wishlist Share button", () => {
     expect(isDisabled(switchOf())).toBe(false)
   })
 
+  it("keeps Share disabled while the flag is being read", async () => {
+    renderWishlistShare({ shared: true, metaStatus: "loading" })
+
+    const share = await buttonFor("Share")
+    expect(share).toHaveProperty("disabled", true)
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
+  it("shows a failed flag read inline, and Retry reads the flag again", async () => {
+    const server: Server = { shared: true, metaStatus: "offline" }
+    const calls = renderWishlistShare(server)
+
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText("Could not load sharing")).toBeTruthy()
+    // No answer, so no state to act on: the control stays disabled.
+    expect(screen.getByRole("button", { name: "Share" })).toHaveProperty(
+      "disabled",
+      true
+    )
+
+    server.metaStatus = undefined
+    fireEvent.click(within(alert).getByRole("button", { name: "Retry" }))
+
+    await enabledButton("Shared")
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(metaReads(calls)).toBe(2)
+  })
+
   it("shows why a refused share failed, and leaves the flag alone", async () => {
     const calls = renderWishlistShare({ shared: false, shareStatus: 403 })
 
-    fireEvent.click(await buttonFor("Share"))
+    fireEvent.click(await enabledButton("Share"))
     fireEvent.click(await screen.findByRole("switch", { name: SWITCH_NAME }))
 
     expect((await screen.findByRole("alert")).textContent).toBe("Not allowed")
@@ -203,7 +250,7 @@ describe("Wishlist Share button", () => {
   it("asks before turning sharing off, and ends the link at once", async () => {
     const calls = renderWishlistShare({ shared: true })
 
-    fireEvent.click(await buttonFor("Shared"))
+    fireEvent.click(await enabledButton("Shared"))
     fireEvent.click(await screen.findByRole("switch", { name: SWITCH_NAME }))
 
     expect(

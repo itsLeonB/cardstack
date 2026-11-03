@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { RiShareLine } from "@remixicon/react"
 import { ShareDialog } from "@/components/share/share-dialog"
+import { Button } from "@/components/ui/button"
 import { useGetProfile } from "@/generated/endpoints/profile/profile"
 import {
   useShareWishlist,
@@ -12,7 +14,9 @@ import { invalidateSharedWishlist } from "@/lib/wishlist"
 
 /**
  * The Share button in the Wishlist's header. Reads the shared flag from
- * GET /wishlist/meta and offers the Share dialog to toggle it.
+ * GET /wishlist/meta and offers the Share dialog to toggle it. The button stays
+ * disabled until that flag is known: it never offers to share on a state it
+ * has no answer for, and a failed read says so inline with a way to read again.
  */
 export function WishlistShare() {
   const queryClient = useQueryClient()
@@ -26,12 +30,19 @@ export function WishlistShare() {
   const share = useShareWishlist()
   const unshare = useUnshareWishlist()
 
+  const shared =
+    wishlistMeta.data?.status === 200
+      ? wishlistMeta.data.data.data.shared
+      : undefined
+  // A rejected request or an error status both mean there is no flag, and a
+  // retry in flight is loading again, not failed.
+  const metaFailed =
+    shared === undefined &&
+    !wishlistMeta.isFetching &&
+    (wishlistMeta.isError || wishlistMeta.data !== undefined)
   // Only consider the wishlist shared if we have both the profile and the meta flag.
   // Without a profile slug we cannot build the link, so the dialog cannot show it.
-  const isShared =
-    profileSlug !== undefined &&
-    wishlistMeta.data?.status === 200 &&
-    wishlistMeta.data.data.data.shared
+  const isShared = shared === true && profileSlug !== undefined
   const pending =
     share.isPending ||
     unshare.isPending ||
@@ -42,6 +53,28 @@ export function WishlistShare() {
     await wishlistMeta.refetch()
     if (profileSlug) void invalidateSharedWishlist(queryClient, profileSlug)
   }
+
+  if (shared === undefined)
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" disabled>
+          <RiShareLine data-icon="inline-start" />
+          Share
+        </Button>
+        {metaFailed && (
+          <div role="alert" className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-destructive">Could not load sharing</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void wishlistMeta.refetch()}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    )
 
   // A share answers with the Slug (200), an unshare with no content (204);
   // either way the change shows once the flag is read again.
@@ -71,7 +104,7 @@ export function WishlistShare() {
 
   return (
     <ShareDialog
-      shared={isShared ?? false}
+      shared={isShared}
       link={`${window.location.origin}/s/${profileSlug}/wishlist`}
       pending={pending}
       error={error}
