@@ -51,3 +51,5 @@ Built-in read/edit/glob are fine for non-code files: markdown, JSON, YAML, TOML,
 1. `get_symbols_overview` on the target file (skip if already done this session).
 2. `find_symbol` with `include_body=true` for the specific symbols you will touch.
 3. Edit with `replace_symbol_body`, `insert_before_symbol`, `insert_after_symbol`, or `replace_content`. Never use the built-in edit tool on a code file when one of these fits.
+
+**Collision guard:** Method names can collide with interface members (e.g., `SharedWishlistService/ListEntries` method vs interface member). Before `replace_symbol_body`, verify the target symbol is the implementation, not the interface declaration — use `find_symbol` with `relative_path` to disambiguate, or use `replace_content`/`write` for colliding names.

@@ -39,7 +39,12 @@ The advisor (`docs/agents/roles/advisor.md`) is not a reviewer and is not part o
 
 ## Delegating
 
-The orchestrator stays on its current checkout and the feature branch, delegates one component task per component touched (only those), and never edits a component directory itself during a big task. Each worker is `deepseek-flash` or `gpt-6-luna` with `high` thinking, works in its own worktree with its own Serena rooted there, from the role file `docs/agents/roles/<component>-agent.md`.
+The orchestrator stays on its current checkout and the feature branch, delegates one component task per component touched (only those), and never edits a component directory itself during a big task. Each worker runs in its own worktree with its own Serena rooted there, from the role file `docs/agents/roles/<component>-agent.md`.
+
+**Model tier:** Delegates must use a smaller/faster model than the main session:
+- `deepseek-flash` (default, handles most component tasks)
+- `gpt-6-luna` with `high` thinking (only when the component scope is small enough — it cannot handle larger tasks)
+- Other available models via `orchestrator_capabilities` — always pick one tier below the orchestrator's model
 
 1. **Commit first.** Inspect the worktree (`git status`) and commit only the changes the current task requires (tasks, docs, earlier merges) on the feature branch before delegating; leave unrelated changes uncommitted. A new worktree contains only commits, so uncommitted changes never reach the delegate.
 2. **Order.** Delegate all components at once.
@@ -61,10 +66,11 @@ The orchestrator owns every edit outside the component directories (`docs/`, `GL
 
 A child needs recovery when its run ends failed or without a report. Recover in this order:
 
-1. **Read first.** Read the worktree's git state with `git -C <path> log <feature branch>..HEAD` and `git -C <path> status`, and whatever the failed run left behind. Stop a delegate that is still running before replacing it, so two delegates never write to one worktree.
-2. **Keep committed work.** Commits on the child's branch are never discarded. If the task is complete and verified there, carry on with the scope check as if the child had reported, and have the worker run the [review](#review) if it never ran.
-3. **Re-delegate when work is uncommitted or missing.** Delegate to a replacement as in step 3, in the existing worktree and branch, with the same [task message](#task-message). Open the message with a "continue from this state" prompt: the commits already on the branch, what `git status` shows, what remains of the task, and what the failed run revealed about why it failed.
-4. **Stop after a second failure.** If the replacement also fails on the same task, stop and ask the maintainer. Recovery never includes editing a component directory yourself, even for a small remainder. If the maintainer abandons the task, its worktree may still hold uncommitted edits that `git worktree remove` refuses to delete, and its unmerged branch is refused by `git branch -d`: the orchestrator never uses `--force` or `-D`, so it asks the maintainer to approve the forced removal first.
+1. **Probe the delegate first.** A `delegate_task` call may return a failure while the delegate actually spawned and works. Before declaring failure, send a probe message (`t3_thread_send` with a simple "status?" or ping) to the child thread ID, or call `task_status` on the returned `taskId`. If the delegate responds or `task_status` shows working/result_available, the delegate is alive — continue waiting instead of starting recovery. (Standard recovery probe: `git worktree list` followed by `git -C <each worktree path> status` to locate uncommitted work in failed-delegate worktrees.)
+2. **Read first.** Read the worktree's git state with `git -C <path> log <feature branch>..HEAD` and `git -C <path> status`, and whatever the failed run left behind. Stop a delegate that is still running before replacing it, so two delegates never write to one worktree.
+3. **Keep committed work.** Commits on the child's branch are never discarded. If the task is complete and verified there, carry on with the scope check as if the child had reported, and have the worker run the [review](#review) if it never ran.
+4. **Re-delegate when work is uncommitted or missing.** Delegate to a replacement as in step 3, in the existing worktree and branch, with the same [task message](#task-message). Open the message with a "continue from this state" prompt: the commits already on the branch, what `git status` shows, what remains of the task, and what the failed run revealed about why it failed.
+5. **Stop after a second failure.** If the replacement also fails on the same task, stop and ask the maintainer. Recovery never includes editing a component directory yourself, even for a small remainder. If the maintainer abandons the task, its worktree may still hold uncommitted edits that `git worktree remove` refuses to delete, and its unmerged branch is refused by `git branch -d`: the orchestrator never uses `--force` or `-D`, so it asks the maintainer to approve the forced removal first.
 
 The replacement is the child from then on.
 
