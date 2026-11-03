@@ -76,10 +76,8 @@ const wishlistColumns = cardResultColumns + `,
 func wishlistBase(db *gorm.DB, filter WishlistFilter) *gorm.DB {
 	q := cardsWithoutAdminDrafts(db).
 		Joins("JOIN wishlist_items ON wishlist_items.card_id = cards.id AND wishlist_items.profile_id = ?", filter.ProfileID).
-		Joins("LEFT JOIN "+masterInventorySubquery+" AS master_inventory ON master_inventory.card_id = cards.id", filter.ProfileID)
-	if filter.ViewerProfileID != uuid.Nil {
-		q = q.Joins("LEFT JOIN "+masterInventorySubquery+" AS viewer_inventory ON viewer_inventory.card_id = cards.id", filter.ViewerProfileID)
-	}
+		Joins("LEFT JOIN "+masterInventorySubquery+" AS master_inventory ON master_inventory.card_id = cards.id", filter.ProfileID).
+		Joins("LEFT JOIN "+masterInventorySubquery+" AS viewer_inventory ON viewer_inventory.card_id = cards.id", filter.ViewerProfileID)
 	switch filter.Status {
 	case WishlistStatusNeeded:
 		q = q.Where("COALESCE(master_inventory.quantity, 0) < wishlist_items.wanted_quantity")
