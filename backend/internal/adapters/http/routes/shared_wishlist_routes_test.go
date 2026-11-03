@@ -34,7 +34,7 @@ type sharedWishlistEntriesEnvelope struct {
 		WantedQuantity      int  `json:"wantedQuantity"`
 		OwnedQuantity       int  `json:"ownedQuantity"`
 		Fulfilled           bool `json:"fulfilled"`
-		ViewerOwnedQuantity int  `json:"viewerOwnedQuantity,omitempty"`
+		ViewerOwnedQuantity *int `json:"viewerOwnedQuantity,omitempty"`
 	} `json:"data"`
 	Meta struct{ Total, Page, Limit int } `json:"meta"`
 }
@@ -361,7 +361,7 @@ func TestSharedWishlistViewerOverlayForSignedInViewer(t *testing.T) {
 	// Viewer owns 2 of pokemon.cards[0] and 0 of pokemon.cards[1]
 	api.Post(viewerBase, bearer(viewer.token), map[string]any{"cardId": pokemon.cards[0], "quantity": 2})
 
-	list := func(auth string, query url.Values) sharedWishlistEntriesEnvelope {
+	list := func(auth string, query url.Values) (sharedWishlistEntriesEnvelope, []byte) {
 		t.Helper()
 		var args []any
 		if auth != "" {
@@ -371,26 +371,29 @@ func TestSharedWishlistViewerOverlayForSignedInViewer(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 		var out sharedWishlistEntriesEnvelope
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
-		return out
+		return out, resp.Body.Bytes()
 	}
 
 	// Signed-in viewer sees viewerOwnedQuantity
-	viewerEntries := list(bearer(viewer.token), url.Values{})
+	viewerEntries, viewerBody := list(bearer(viewer.token), url.Values{})
 	require.Len(t, viewerEntries.Data, 2)
 	byCard := map[string]sharedWishlistEntriesEnvelopeData{}
 	for _, item := range viewerEntries.Data {
 		byCard[item.Card.ID] = item
 	}
-	assert.Equal(t, 2, byCard[pokemon.cards[0].String()].ViewerOwnedQuantity, "viewer owns 2 of card 0")
-	assert.Equal(t, 0, byCard[pokemon.cards[1].String()].ViewerOwnedQuantity, "viewer owns 0 of card 1")
+	assert.NotNil(t, byCard[pokemon.cards[0].String()].ViewerOwnedQuantity, "viewer owns 2 of card 0: field present")
+	assert.Equal(t, 2, *byCard[pokemon.cards[0].String()].ViewerOwnedQuantity, "viewer owns 2 of card 0")
+	assert.NotNil(t, byCard[pokemon.cards[1].String()].ViewerOwnedQuantity, "viewer owns 0 of card 1: field present")
+	assert.Equal(t, 0, *byCard[pokemon.cards[1].String()].ViewerOwnedQuantity, "viewer owns 0 of card 1")
+	assert.Contains(t, string(viewerBody), "\"viewerOwnedQuantity\":0", "viewer owns 0: viewerOwnedQuantity present in response body")
 
 	// Viewer filter: "have" returns only cards the viewer owns
-	have := list(bearer(viewer.token), url.Values{"viewerFilter": {"have"}})
+	have, _ := list(bearer(viewer.token), url.Values{"viewerFilter": {"have"}})
 	require.Len(t, have.Data, 1)
 	assert.Equal(t, pokemon.cards[0].String(), have.Data[0].Card.ID)
 
 	// Viewer filter: "dont-have" returns only cards the viewer does not own
-	dontHave := list(bearer(viewer.token), url.Values{"viewerFilter": {"dont-have"}})
+	dontHave, _ := list(bearer(viewer.token), url.Values{"viewerFilter": {"dont-have"}})
 	require.Len(t, dontHave.Data, 1)
 	assert.Equal(t, pokemon.cards[1].String(), dontHave.Data[0].Card.ID)
 }
@@ -403,7 +406,7 @@ type sharedWishlistEntriesEnvelopeData struct {
 	WantedQuantity      int  `json:"wantedQuantity"`
 	OwnedQuantity       int  `json:"ownedQuantity"`
 	Fulfilled           bool `json:"fulfilled"`
-	ViewerOwnedQuantity int  `json:"viewerOwnedQuantity,omitempty"`
+	ViewerOwnedQuantity *int `json:"viewerOwnedQuantity,omitempty"`
 }
 
 // TestSharedWishlistNoViewerDataForGuest covers that a Guest gets no
@@ -425,14 +428,14 @@ func TestSharedWishlistNoViewerDataForGuest(t *testing.T) {
 	var out sharedWishlistEntriesEnvelope
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
 	require.Len(t, out.Data, 1)
-	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "guest sees no viewerOwnedQuantity")
+	assert.Nil(t, out.Data[0].ViewerOwnedQuantity, "guest sees no viewerOwnedQuantity")
 
 	// Guest with viewerFilter gets no viewer data either
 	resp = api.Get(wlBase + "?viewerFilter=have")
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
 	require.Len(t, out.Data, 1)
-	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "guest with viewerFilter still sees no viewerOwnedQuantity")
+	assert.Nil(t, out.Data[0].ViewerOwnedQuantity, "guest with viewerFilter still sees no viewerOwnedQuantity")
 	assert.NotContains(t, resp.Body.String(), "viewerOwned")
 }
 
@@ -464,14 +467,14 @@ func TestSharedWishlistNoViewerDataForOwner(t *testing.T) {
 	var out sharedWishlistEntriesEnvelope
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
 	require.Len(t, out.Data, 1)
-	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "owner sees no viewerOwnedQuantity")
+	assert.Nil(t, out.Data[0].ViewerOwnedQuantity, "owner sees no viewerOwnedQuantity")
 
 	// Owner with viewerFilter still gets no viewer data
 	resp = api.Get(wlBase+"?viewerFilter=have", bearer(owner.token))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
 	require.Len(t, out.Data, 1)
-	assert.Equal(t, 0, out.Data[0].ViewerOwnedQuantity, "owner with viewerFilter sees no viewerOwnedQuantity")
+	assert.Nil(t, out.Data[0].ViewerOwnedQuantity, "owner with viewerFilter sees no viewerOwnedQuantity")
 	assert.NotContains(t, resp.Body.String(), "viewerOwned")
 }
 
@@ -504,7 +507,8 @@ func TestSharedWishlistNoViewerDataReachesOwner(t *testing.T) {
 	var viewerOut sharedWishlistEntriesEnvelope
 	require.NoError(t, json.Unmarshal(viewerResp.Body.Bytes(), &viewerOut))
 	require.Len(t, viewerOut.Data, 1)
-	assert.Equal(t, 5, viewerOut.Data[0].ViewerOwnedQuantity, "viewer sees their own quantity")
+	assert.NotNil(t, viewerOut.Data[0].ViewerOwnedQuantity, "viewer sees their own quantity: field present")
+	assert.Equal(t, 5, *viewerOut.Data[0].ViewerOwnedQuantity, "viewer sees their own quantity")
 
 	// Owner sees none of it
 	ownerResp := api.Get(wlBase, bearer(owner.token))
@@ -512,7 +516,7 @@ func TestSharedWishlistNoViewerDataReachesOwner(t *testing.T) {
 	var ownerOut sharedWishlistEntriesEnvelope
 	require.NoError(t, json.Unmarshal(ownerResp.Body.Bytes(), &ownerOut))
 	require.Len(t, ownerOut.Data, 1)
-	assert.Equal(t, 0, ownerOut.Data[0].ViewerOwnedQuantity, "owner sees no viewer data")
+	assert.Nil(t, ownerOut.Data[0].ViewerOwnedQuantity, "owner sees no viewer data")
 
 	// The two responses differ only in viewerOwnedQuantity
 	assert.NotEqual(t, viewerResp.Body.String(), ownerResp.Body.String())

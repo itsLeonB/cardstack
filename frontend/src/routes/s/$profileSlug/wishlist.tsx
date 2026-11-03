@@ -97,12 +97,14 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
   const isGuestViewer = useIsGuest()
   const profile = useGetProfile()
 
-  // The signed-in viewer's own profile Slug, only when signed in and loaded.
+  // The signed-in viewer's own profile Slug, only when the profile request
+  // has succeeded. While pending or failed, the viewer overlay stays hidden.
+  const profileLoaded = profile.data?.status === 200
   const viewerSlug =
     profile.data?.status === 200 ? profile.data.data.data.slug : undefined
-  const isOwner = isAuthenticated && viewerSlug === profileSlug
-  // Only a signed-in viewer who is not the owner gets the viewer overlay.
-  const showViewerOverlay = isAuthenticated && !isOwner
+  const isOwner = profileLoaded && isAuthenticated && viewerSlug === profileSlug
+  // Only a signed-in non-owner viewer gets the viewer overlay.
+  const showViewerOverlay = profileLoaded && isAuthenticated && !isOwner
 
   // A filter change starts a fresh list, so return to its top.
   async function changeSearch(next: WishlistFilters) {
@@ -110,16 +112,19 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
     window.scrollTo({ top: 0, behavior: "instant" })
   }
 
+  // Only a signed-in non-owner viewer sends the viewer filter to the entries
+  // endpoint. The facets endpoint and the empty-state message never see it.
   const params: ListSharedWishlistEntriesParams = { ...search }
-  // Only a signed-in non-owner viewer sends the viewer filter.
-  if (showViewerOverlay) {
-    params.viewerFilter = search.viewerFilter
+  // The viewer filter is only sent when the viewer overlay is active.
+  if (!showViewerOverlay) {
+    delete params.viewerFilter
   }
   const items = useInfiniteSharedWishlist(profileSlug, params)
   const results = useInfiniteCardResultsProps(items)
   const byCard = items.data?.items ?? {}
+  const { viewerFilter: _, ...facetsSearch } = search
   const facetsQuery = useListSharedWishlistFacets(profileSlug, {
-    ...search,
+    ...facetsSearch,
     status: wishlistStatus(search),
   })
   const seriesQuery = useListCatalogSeries()
@@ -136,6 +141,12 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
     { value: "have", label: "I have it" },
     { value: "dont-have", label: "I do not have it" },
   ]
+
+  // Filters that count as active for the empty-state message: the viewer
+  // filter only counts when the viewer overlay is active.
+  const activeSearch = showViewerOverlay
+    ? search
+    : { ...search, viewerFilter: undefined }
 
   return (
     <PageContainer>
@@ -210,7 +221,7 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
             )
           }}
           emptyMessage={
-            hasActiveWishlistFilters(search)
+            hasActiveWishlistFilters(activeSearch)
               ? "No Cards on this Wishlist match these filters."
               : "This Wishlist has no Cards yet."
           }

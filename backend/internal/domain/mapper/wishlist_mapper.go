@@ -10,11 +10,10 @@ import (
 // the viewer's own owned quantity, zero (omitted) when there is no viewer overlay.
 func ToWishlistItem(host ImageHost, r repository.CardResult) dto.WishlistItem {
 	return dto.WishlistItem{
-		Card:                ToCardSummary(host, r),
-		WantedQuantity:      r.WantedQuantity,
-		OwnedQuantity:       r.Quantity,
-		Fulfilled:           r.Quantity >= r.WantedQuantity,
-		ViewerOwnedQuantity: r.ViewerQuantity,
+		Card:           ToCardSummary(host, r),
+		WantedQuantity: r.WantedQuantity,
+		OwnedQuantity:  r.Quantity,
+		Fulfilled:      r.Quantity >= r.WantedQuantity,
 	}
 }
 

@@ -45,7 +45,7 @@ type WishlistItem struct {
 	WantedQuantity      int         `json:"wantedQuantity"`
 	OwnedQuantity       int         `json:"ownedQuantity"`
 	Fulfilled           bool        `json:"fulfilled" doc:"Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored."`
-	ViewerOwnedQuantity int         `json:"viewerOwnedQuantity,omitempty" doc:"The signed-in viewer's own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist."`
+	ViewerOwnedQuantity *int        `json:"viewerOwnedQuantity,omitempty" doc:"The signed-in viewer's own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist."`
 }
 
 // WishlistClearResult says how many items Clear fulfilled removed.

@@ -404,4 +404,31 @@ describe("Shared Wishlist page", () => {
       ).toBe(false)
     )
   })
+
+  it("does not send or apply the viewer filter from the URL for a Guest", async () => {
+    const requests = stubSharedApi({
+      entries: {
+        status: 200,
+        body: { data: [wanted], meta: { total: 1, page: 1, limit: 100 } },
+      },
+    })
+    await renderSharedPage("/s/profile-ash/wishlist?viewerFilter=have", {
+      clerkSession: "guest",
+    })
+    await screen.findByText("Pikachu")
+
+    // The viewer filter is not sent to the entries endpoint
+    await vi.waitFor(() =>
+      expect(
+        requests.some(
+          (r) => r.startsWith(API + "/entries?") && r.includes("viewerFilter")
+        )
+      ).toBe(false)
+    )
+    // The viewer filter buttons are not shown for a Guest
+    expect(screen.queryByRole("button", { name: "I have it" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "I do not have it" })
+    ).toBeNull()
+  })
 })

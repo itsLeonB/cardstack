@@ -8,7 +8,6 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
-	"github.com/itsLeonB/ezutil/v2"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
 )
@@ -103,7 +102,8 @@ func (s *sharedWishlistService) ListEntries(ctx context.Context, req dto.SharedW
 	})
 	// Viewer overlay: only a signed-in viewer who is not the owner gets their
 	// own owned quantity per item and the viewer filter.
-	if req.ViewerProfileID != uuid.Nil && req.ViewerProfileID != profile.ID {
+	overlay := req.ViewerProfileID != uuid.Nil && req.ViewerProfileID != profile.ID
+	if overlay {
 		filter.ViewerProfileID = req.ViewerProfileID
 		filter.ViewerFilter = req.ViewerFilter
 	}
@@ -112,7 +112,16 @@ func (s *sharedWishlistService) ListEntries(ctx context.Context, req dto.SharedW
 		return nil, dto.PaginationMeta{}, err
 	}
 
-	return ezutil.MapSlice(results, func(r repository.CardResult) dto.WishlistItem { return mapper.ToWishlistItem(s.images, r) }), dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
+	items := make([]dto.WishlistItem, 0, len(results))
+	for _, r := range results {
+		item := mapper.ToWishlistItem(s.images, r)
+		if overlay {
+			quantity := r.ViewerQuantity
+			item.ViewerOwnedQuantity = &quantity
+		}
+		items = append(items, item)
+	}
+	return items, dto.PaginationMeta{Total: int(total), Page: page, Limit: limit}, nil
 }
 
 func (s *sharedWishlistService) ListFacets(ctx context.Context, req dto.SharedWishlistListRequest) (dto.CatalogFacets, error) {
