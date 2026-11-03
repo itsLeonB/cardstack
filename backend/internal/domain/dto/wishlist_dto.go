@@ -37,12 +37,15 @@ type WishlistLookup struct {
 }
 
 // WishlistItem is one Card on a Wishlist: the Card, the quantity wanted, and
-// the quantity the owner has in Master Inventory next to it.
+// the quantity the owner has in Master Inventory next to it. ViewerOwnedQuantity
+// is the signed-in viewer's own owned quantity from their Master Inventory, set
+// only when a non-owner viewer opens a Shared Wishlist; omitted otherwise.
 type WishlistItem struct {
-	Card           CardSummary `json:"card"`
-	WantedQuantity int         `json:"wantedQuantity"`
-	OwnedQuantity  int         `json:"ownedQuantity"`
-	Fulfilled      bool        `json:"fulfilled" doc:"Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored."`
+	Card                CardSummary `json:"card"`
+	WantedQuantity      int         `json:"wantedQuantity"`
+	OwnedQuantity       int         `json:"ownedQuantity"`
+	Fulfilled           bool        `json:"fulfilled" doc:"Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored."`
+	ViewerOwnedQuantity *int        `json:"viewerOwnedQuantity,omitempty" doc:"The signed-in viewer's own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist."`
 }
 
 // WishlistClearResult says how many items Clear fulfilled removed.

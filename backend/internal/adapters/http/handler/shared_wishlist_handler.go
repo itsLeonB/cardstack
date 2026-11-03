@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
@@ -32,6 +33,9 @@ type sharedWishlistEntriesInput struct {
 	Status  string   `query:"status" default:"all" enum:"all,needed,fulfilled" doc:"All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read."`
 	Page    int      `query:"page" default:"1" minimum:"1" doc:"1-indexed page number."`
 	Limit   int      `query:"limit" default:"24" minimum:"1" maximum:"100" doc:"Page size."`
+	// ViewerFilter is the signed-in viewer's own "have"/"dont-have" filter on
+	// their owned quantity of each item. A Guest or the owner gets no viewer data.
+	ViewerFilter string `query:"viewerFilter" enum:"have,dont-have" doc:"For a signed-in viewer who is not the owner: only items the viewer owns (have) or does not own (dont-have) in their Master Inventory."`
 }
 
 // sharedWishlistFacetsInput is GET /shared/{profileSlug}/wishlist/facets: the
@@ -57,10 +61,14 @@ func (h *SharedWishlistHandler) listEntries(ctx context.Context, in sharedWishli
 	}
 	filter.Page, filter.Limit = in.Page, in.Limit
 
+	viewer := authpkg.CallerFrom(ctx).ProfileID // uuid.Nil for a Guest
+
 	return h.sharedSvc.ListEntries(ctx, dto.SharedWishlistListRequest{
-		Lookup: dto.SharedWishlistLookup{ProfileSlug: in.ProfileSlug},
-		Filter: filter,
-		Status: in.Status,
+		Lookup:          dto.SharedWishlistLookup{ProfileSlug: in.ProfileSlug},
+		Filter:          filter,
+		Status:          in.Status,
+		ViewerProfileID: viewer,
+		ViewerFilter:    in.ViewerFilter,
 	})
 }
 

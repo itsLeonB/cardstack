@@ -71,125 +71,6 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export type getWishlistResponse200 = {
-  data: EnvelopeWishlistSummary
-  status: 200
-}
-
-export type getWishlistResponseDefault = {
-  data: ErrorModel
-  status: Exclude<HTTPStatusCodes, 200>
-}
-
-export type getWishlistResponseSuccess = (getWishlistResponse200) & {
-  headers: Headers;
-};
-export type getWishlistResponseError = (getWishlistResponseDefault) & {
-  headers: Headers;
-};
-
-export type getWishlistResponse = (getWishlistResponseSuccess | getWishlistResponseError)
-
-export const getGetWishlistUrl = () => {
-
-
-
-
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/meta`
-}
-
-/**
- * @summary Get the current user's Wishlist metadata (shared flag)
- */
-export const getWishlist = async ( options?: Parameters<typeof customFetch>[1]): Promise<getWishlistResponse> => {
-
-  return customFetch<getWishlistResponse>(getGetWishlistUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetWishlistQueryKey = () => {
-    return [
-    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/meta`
-    ] as const;
-    }
-
-
-export const getGetWishlistQueryOptions = <TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetWishlistQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWishlist>>> = ({ signal }) => getWishlist({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetWishlistQueryResult = NonNullable<Awaited<ReturnType<typeof getWishlist>>>
-export type GetWishlistQueryError = ErrorModel
-
-
-export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getWishlist>>,
-          TError,
-          Awaited<ReturnType<typeof getWishlist>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getWishlist>>,
-          TError,
-          Awaited<ReturnType<typeof getWishlist>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/**
- * @summary Get the current user's Wishlist metadata (shared flag)
- */
-
-export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getGetWishlistQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 export type listWishlistResponse200 = {
   data: EnvelopeWithMetaListWishlistItemPaginationMeta
   status: 200
@@ -822,7 +703,126 @@ export const useSetWishlistItem = <TError = ErrorModel,
       > => {
       return useMutation(getSetWishlistItemMutationOptions(options), queryClient);
     }
-    export type applyWishlistPresetResponse200 = {
+    export type getWishlistResponse200 = {
+  data: EnvelopeWishlistSummary
+  status: 200
+}
+
+export type getWishlistResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type getWishlistResponseSuccess = (getWishlistResponse200) & {
+  headers: Headers;
+};
+export type getWishlistResponseError = (getWishlistResponseDefault) & {
+  headers: Headers;
+};
+
+export type getWishlistResponse = (getWishlistResponseSuccess | getWishlistResponseError)
+
+export const getGetWishlistUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/meta`
+}
+
+/**
+ * @summary Get the current user's Wishlist metadata (shared flag)
+ */
+export const getWishlist = async ( options?: Parameters<typeof customFetch>[1]): Promise<getWishlistResponse> => {
+
+  return customFetch<getWishlistResponse>(getGetWishlistUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWishlistQueryKey = () => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/wishlist/meta`
+    ] as const;
+    }
+
+
+export const getGetWishlistQueryOptions = <TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWishlistQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWishlist>>> = ({ signal }) => getWishlist({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWishlistQueryResult = NonNullable<Awaited<ReturnType<typeof getWishlist>>>
+export type GetWishlistQueryError = ErrorModel
+
+
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWishlist>>,
+          TError,
+          Awaited<ReturnType<typeof getWishlist>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWishlist>>,
+          TError,
+          Awaited<ReturnType<typeof getWishlist>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get the current user's Wishlist metadata (shared flag)
+ */
+
+export function useGetWishlist<TData = Awaited<ReturnType<typeof getWishlist>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWishlist>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWishlistQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type applyWishlistPresetResponse200 = {
   data: EnvelopeWishlistPresetResult
   status: 200
 }

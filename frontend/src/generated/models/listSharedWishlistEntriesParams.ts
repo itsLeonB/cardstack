@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { ListSharedWishlistEntriesStatus } from './listSharedWishlistEntriesStatus.ts';
+import type { ListSharedWishlistEntriesViewerFilter } from './listSharedWishlistEntriesViewerFilter.ts';
 
 export type ListSharedWishlistEntriesParams = {
 /**
@@ -56,4 +57,8 @@ page?: number;
  * @maximum 100
  */
 limit?: number;
+/**
+ * For a signed-in viewer who is not the owner: only items the viewer owns (have) or does not own (dont-have) in their Master Inventory.
+ */
+viewerFilter?: ListSharedWishlistEntriesViewerFilter;
 };

@@ -4,7 +4,7 @@
 
 **Blocked by:** 10 (Share the Wishlist).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] For a signed-in viewer, the public Wishlist read also returns the viewer's own owned quantity per item from their Master Inventory, and supports an "I have it" and "I do not have it" filter. The viewer's data is used for that request only and is never returned to the owner.
 - [ ] A Guest gets no overlay and no such filter, and sees a "Sign in to see what you own" banner. The owner opening their own Shared link sees their own Wishlist with no overlay.

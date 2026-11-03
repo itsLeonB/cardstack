@@ -7,11 +7,13 @@ import { PageHeader } from "@/components/layout/page-header"
 import { CatalogFilterPanel } from "@/components/catalog/filter-panel"
 import { InfiniteCardResults } from "@/components/catalog/infinite-card-results"
 import { useListCatalogSeries } from "@/generated/endpoints/catalog/catalog"
+import { useGetProfile } from "@/generated/endpoints/profile/profile"
 import {
   getGetSharedWishlistQueryKey,
   getGetSharedWishlistQueryOptions,
   useListSharedWishlistFacets,
 } from "@/generated/endpoints/shared/shared"
+import type { ListSharedWishlistEntriesParams } from "@/generated/models/listSharedWishlistEntriesParams"
 import { useInfiniteCardResultsProps } from "@/lib/infinite-catalog-cards"
 import {
   hasActiveWishlistFilters,
@@ -21,6 +23,8 @@ import {
   wishlistStatus,
   WISHLIST_STATUS_OPTIONS,
 } from "@/lib/wishlist"
+import { useIsGuest, useSession } from "@/lib/session"
+import type { ListSharedWishlistEntriesViewerFilter } from "@/generated/models/listSharedWishlistEntriesViewerFilter"
 import type { WishlistFilters } from "@/lib/wishlist"
 
 // Outside `_authenticated/`: a Guest reads it. Its items are the owner's,
@@ -89,6 +93,18 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
   const { profileSlug } = Route.useParams()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const { isAuthenticated } = useSession()
+  const isGuestViewer = useIsGuest()
+  const profile = useGetProfile()
+
+  // The signed-in viewer's own profile Slug, only when the profile request
+  // has succeeded. While pending or failed, the viewer overlay stays hidden.
+  const profileLoaded = profile.data?.status === 200
+  const viewerSlug =
+    profile.data?.status === 200 ? profile.data.data.data.slug : undefined
+  const isOwner = profileLoaded && isAuthenticated && viewerSlug === profileSlug
+  // Only a signed-in non-owner viewer gets the viewer overlay.
+  const showViewerOverlay = profileLoaded && isAuthenticated && !isOwner
 
   // A filter change starts a fresh list, so return to its top.
   async function changeSearch(next: WishlistFilters) {
@@ -96,11 +112,19 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
     window.scrollTo({ top: 0, behavior: "instant" })
   }
 
-  const items = useInfiniteSharedWishlist(profileSlug, search)
+  // Only a signed-in non-owner viewer sends the viewer filter to the entries
+  // endpoint. The facets endpoint and the empty-state message never see it.
+  const params: ListSharedWishlistEntriesParams = { ...search }
+  // The viewer filter is only sent when the viewer overlay is active.
+  if (!showViewerOverlay) {
+    delete params.viewerFilter
+  }
+  const items = useInfiniteSharedWishlist(profileSlug, params)
   const results = useInfiniteCardResultsProps(items)
   const byCard = items.data?.items ?? {}
+  const { viewerFilter: _, ...facetsSearch } = search
   const facetsQuery = useListSharedWishlistFacets(profileSlug, {
-    ...search,
+    ...facetsSearch,
     status: wishlistStatus(search),
   })
   const seriesQuery = useListCatalogSeries()
@@ -111,6 +135,19 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
       ? (seriesQuery.data.data.data?.series ?? [])
       : []
 
+  const viewerFilterValue = search.viewerFilter ?? ""
+  const viewerFilterOptions = [
+    { value: "", label: "All" },
+    { value: "have", label: "I have it" },
+    { value: "dont-have", label: "I do not have it" },
+  ]
+
+  // Filters that count as active for the empty-state message: the viewer
+  // filter only counts when the viewer overlay is active.
+  const activeSearch = showViewerOverlay
+    ? search
+    : { ...search, viewerFilter: undefined }
+
   return (
     <PageContainer>
       <PageHeader title="Wishlist" description={<p>Shared by {ownerName}</p>} />
@@ -120,7 +157,12 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
           facets={facets}
           series={series}
           onChange={(patch) => void changeSearch({ ...search, ...patch })}
-          onClear={() => void changeSearch({ status: wishlistStatus(search) })}
+          onClear={() =>
+            void changeSearch({
+              status: wishlistStatus(search),
+              viewerFilter: undefined,
+            })
+          }
           statusFilter={{
             value: wishlistStatus(search),
             options: WISHLIST_STATUS_OPTIONS,
@@ -129,7 +171,31 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
               void changeSearch({ ...search, status })
             },
           }}
+          viewerFilter={
+            showViewerOverlay
+              ? {
+                  value: viewerFilterValue,
+                  options: viewerFilterOptions,
+                  onChange: (value) => {
+                    // SAFETY: the "" All case is handled above; the remaining
+                    // button values are exactly "have" / "dont-have".
+                    void changeSearch({
+                      ...search,
+                      viewerFilter:
+                        value === ""
+                          ? undefined
+                          : (value as ListSharedWishlistEntriesViewerFilter),
+                    })
+                  },
+                }
+              : undefined
+          }
         />
+        {isGuestViewer && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Sign in to see what you own of these Cards.
+          </p>
+        )}
         <InfiniteCardResults
           {...results}
           // Read-only: the owner's wanted and owned, in the slot their
@@ -142,6 +208,12 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
                 <p className="text-center text-sm">
                   Owns {item.ownedQuantity} of {item.wantedQuantity}
                 </p>
+                {showViewerOverlay &&
+                  item.viewerOwnedQuantity !== undefined && (
+                    <p className="text-center text-xs font-medium">
+                      You own {item.viewerOwnedQuantity}
+                    </p>
+                  )}
                 <p className="text-center text-xs font-medium">
                   {item.fulfilled ? "Fulfilled" : "Still needed"}
                 </p>
@@ -149,7 +221,7 @@ function SharedWishlistList({ ownerName }: { ownerName: string }) {
             )
           }}
           emptyMessage={
-            hasActiveWishlistFilters(search)
+            hasActiveWishlistFilters(activeSearch)
               ? "No Cards on this Wishlist match these filters."
               : "This Wishlist has no Cards yet."
           }
