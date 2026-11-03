@@ -38,6 +38,12 @@ interface CatalogFilterPanelProps {
     options: StatusOption[]
     onChange: (status: string) => void
   }
+  /** The signed-in viewer's own "have"/"dont-have" filter (Wishlist only). */
+  viewerFilter?: {
+    value: string
+    options: StatusOption[]
+    onChange: (value: string) => void
+  }
 }
 
 /** Name and card-number search plus the faceted filters, shared by the catalog and Collection pages. */
@@ -50,6 +56,7 @@ export function CatalogFilterPanel({
   guest = false,
   signInRedirect,
   statusFilter,
+  viewerFilter,
 }: CatalogFilterPanelProps) {
   const [nameInput, setNameInput] = useState(search.name ?? "")
   const [localIdInput, setLocalIdInput] = useState(search.localId ?? "")
@@ -116,6 +123,27 @@ export function CatalogFilterPanel({
                   }
                   aria-pressed={statusFilter.value === option.value}
                   onClick={() => statusFilter.onChange(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </FieldSet>
+        )}
+        {viewerFilter && (
+          <FieldSet>
+            <FieldLegend>You own</FieldLegend>
+            <div className="flex flex-wrap gap-2">
+              {viewerFilter.options.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={
+                    viewerFilter.value === option.value ? "default" : "outline"
+                  }
+                  aria-pressed={viewerFilter.value === option.value}
+                  onClick={() => viewerFilter.onChange(option.value)}
                 >
                   {option.label}
                 </Button>

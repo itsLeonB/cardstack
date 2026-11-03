@@ -8,15 +8,6 @@ import * as zod from 'zod';
 
 
 /**
- * @summary Get the current user's Wishlist metadata (shared flag)
- */
-export const GetWishlistResponse = zod.object({
-  "data": zod.object({
-  "shared": zod.boolean().describe('Whether the Wishlist is shared publicly. False when the profile has no Wishlist row yet.')
-})
-})
-
-/**
  * @summary Search/page the current user's Wishlist with the catalog search filters: each wanted Card with the wanted quantity, the quantity owned in Master Inventory, and whether it is fulfilled (computed on read)
  */
 export const listWishlistQueryNameMax = 64;
@@ -77,6 +68,7 @@ export const ListWishlistResponse = zod.object({
 }),
   "fulfilled": zod.boolean().describe('Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored.'),
   "ownedQuantity": zod.int(),
+  "viewerOwnedQuantity": zod.int().optional().describe('The signed-in viewer\'s own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist.'),
   "wantedQuantity": zod.int()
 })).nullable(),
   "meta": zod.object({
@@ -176,6 +168,15 @@ export const SetWishlistItemBody = zod.object({
 })
 
 export const SetWishlistItemResponse = zod.void()
+
+/**
+ * @summary Get the current user's Wishlist metadata (shared flag)
+ */
+export const GetWishlistResponse = zod.object({
+  "data": zod.object({
+  "shared": zod.boolean().describe('Whether the Wishlist is shared publicly. False when the profile has no Wishlist row yet.')
+})
+})
 
 /**
  * @summary Apply a Wishlist Preset: add the matching Cards to the Wishlist with the chosen quantity, using the same query as preview

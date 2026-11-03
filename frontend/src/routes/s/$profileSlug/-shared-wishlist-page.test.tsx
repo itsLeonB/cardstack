@@ -15,10 +15,45 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
+import { useUser } from "@clerk/react"
 import { NotFound } from "@/components/layout/not-found"
 import { getGetSharedWishlistQueryKey } from "@/generated/endpoints/shared/shared"
+import { useGetProfile } from "@/generated/endpoints/profile/profile"
+import { clerkUserResult } from "@/test-clerk"
 import { catalogCard } from "@/test-binder-api"
 import { Route as SharedRoute } from "./wishlist"
+import type * as ProfileModule from "@/generated/endpoints/profile/profile"
+
+// Network boundary: the page reads the caller's profile to decide whether the
+// signed-in viewer is the owner, and Clerk's hooks need a real instance, so
+// both are mocked at their edge.
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@clerk/react", () =>
+  import("@/test-clerk").then((m) => m.clerkModule())
+)
+// oxlint-disable-next-line anti-slop/no-module-mocking
+vi.mock("@/generated/endpoints/profile/profile", async () => {
+  const actual = await vi.importActual<typeof ProfileModule>(
+    "@/generated/endpoints/profile/profile"
+  )
+  return { ...actual, useGetProfile: vi.fn() }
+})
+
+const mockUseUser = vi.mocked(useUser)
+const mockUseGetProfile = vi.mocked(useGetProfile)
+
+function session(state: "loading" | "guest" | "signed-in") {
+  mockUseUser.mockReturnValue(clerkUserResult(state))
+}
+
+function profile(slug: string) {
+  // SAFETY: partial hook result covering only the fields the page reads.
+  mockUseGetProfile.mockReturnValue({
+    data: { status: 200, data: { data: { slug } } },
+    isPending: false,
+    isError: false,
+  } as any)
+}
 
 // A Guest opens a Shared Wishlist: the page is served by the public `/shared`
 // routes, so only the network is faked. The generated client, the query cache
@@ -45,6 +80,9 @@ interface ApiBody {
 interface SharedStub {
   header?: { status: number; body: ApiBody }
   entries?: { status: number; body: ApiBody }
+  /** The Slug the viewer's own profile resolves to. Defaults to a different
+   * profile than the owner's, so a signed-in viewer is a non-owner by default. */
+  viewerSlug?: string
 }
 
 // Each request is answered by path; the requests made are kept for asserts.
@@ -58,6 +96,11 @@ function stubSharedApi(stub: SharedStub = {}) {
         status,
         headers: { "content-type": "application/json" },
       })
+    if (url.pathname === "/profile") {
+      return reply(200, {
+        data: { data: { slug: stub.viewerSlug ?? "profile-viewer" } },
+      })
+    }
     if (url.pathname === `${API}/entries`) {
       return reply(
         stub.entries?.status ?? 200,
@@ -105,12 +148,23 @@ function pick(options: {
 }
 
 // The real shared page in a memory router, with no signed-in layout around it.
+// Defaults to a Guest (no signed-in viewer), so existing Guest-view tests keep
+// working. Pass session "signed-in" and a viewerSlug to simulate a viewer.
 async function renderSharedPage(
   path = PAGE,
+  {
+    clerkSession = "guest",
+    viewerSlug,
+  }: {
+    clerkSession?: "loading" | "guest" | "signed-in"
+    viewerSlug?: string
+  } = {},
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
 ) {
+  session(clerkSession)
+  profile(viewerSlug ?? "profile-viewer")
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({
     component: Outlet,
     notFoundComponent: NotFound,
@@ -265,5 +319,89 @@ describe("Shared Wishlist page", () => {
     for (const name of ["Clear fulfilled", "Fill from sets", "Remove"]) {
       expect(screen.queryByRole("button", { name })).toBeNull()
     }
+  })
+
+  it("shows the viewer overlay and viewer filter for a signed-in non-owner viewer", async () => {
+    stubSharedApi({
+      entries: {
+        status: 200,
+        body: {
+          data: [{ ...wanted, viewerOwnedQuantity: 2 }],
+          meta: { total: 1, page: 1, limit: 100 },
+        },
+      },
+    })
+    await renderSharedPage(undefined, { clerkSession: "signed-in" })
+    await screen.findByText("Pikachu")
+
+    expect(await screen.findByText("You own 2")).toBeTruthy()
+    // The viewer filter appears alongside the owner's status filter.
+    for (const name of ["I have it", "I do not have it"]) {
+      expect(screen.getByRole("button", { name })).toBeTruthy()
+    }
+    // No Guest banner.
+    expect(screen.queryByText(/Sign in to see what you own/)).toBeNull()
+  })
+
+  it("shows no viewer overlay for the owner opening their own Shared link", async () => {
+    stubSharedApi({
+      entries: {
+        status: 200,
+        body: {
+          data: [{ ...wanted, viewerOwnedQuantity: 2 }],
+          meta: { total: 1, page: 1, limit: 100 },
+        },
+      },
+    })
+    // viewerSlug matches the path's profileSlug: the viewer is the owner.
+    await renderSharedPage(undefined, {
+      clerkSession: "signed-in",
+      viewerSlug: "profile-ash",
+    })
+    await screen.findByText("Pikachu")
+
+    expect(screen.queryByText("You own 2")).toBeNull()
+    expect(screen.queryByRole("button", { name: "I have it" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "I do not have it" })
+    ).toBeNull()
+  })
+
+  it("shows a sign-in banner and no overlay for a Guest", async () => {
+    stubSharedApi({
+      entries: {
+        status: 200,
+        body: {
+          data: [{ ...wanted, viewerOwnedQuantity: 2 }],
+          meta: { total: 1, page: 1, limit: 100 },
+        },
+      },
+    })
+    await renderSharedPage(undefined, { clerkSession: "guest" })
+    await screen.findByText("Pikachu")
+
+    expect(await screen.findByText(/Sign in to see what you own/)).toBeTruthy()
+    expect(screen.queryByText("You own 2")).toBeNull()
+    expect(screen.queryByRole("button", { name: "I have it" })).toBeNull()
+  })
+
+  it("does not send the viewer filter for a Guest", async () => {
+    const requests = stubSharedApi({
+      entries: {
+        status: 200,
+        body: { data: [wanted], meta: { total: 1, page: 1, limit: 100 } },
+      },
+    })
+    await renderSharedPage(undefined, { clerkSession: "guest" })
+    await screen.findByText("Pikachu")
+
+    fireEvent.click(screen.getByRole("button", { name: "Still needed" }))
+    await vi.waitFor(() =>
+      expect(
+        requests.some(
+          (r) => r.startsWith(`${API}/entries?`) && r.includes("viewerFilter")
+        )
+      ).toBe(false)
+    )
   })
 })

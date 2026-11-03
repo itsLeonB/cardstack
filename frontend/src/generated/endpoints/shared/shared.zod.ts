@@ -57,7 +57,8 @@ export const ListSharedWishlistEntriesQueryParams = zod.object({
   "cardId": zod.array(zod.string()).max(listSharedWishlistEntriesQueryCardIdMax).optional().describe('Only these Cards (repeatable, at most 100), combined with the other filters.'),
   "status": zod.enum(['all', 'needed', 'fulfilled']).default(listSharedWishlistEntriesQueryStatusDefault).describe('All, Still needed (owned below wanted) or Fulfilled (owned at least wanted). Derived on read.'),
   "page": zod.int().min(1).default(listSharedWishlistEntriesQueryPageDefault).describe('1-indexed page number.'),
-  "limit": zod.int().min(1).max(listSharedWishlistEntriesQueryLimitMax).default(listSharedWishlistEntriesQueryLimitDefault).describe('Page size.')
+  "limit": zod.int().min(1).max(listSharedWishlistEntriesQueryLimitMax).default(listSharedWishlistEntriesQueryLimitDefault).describe('Page size.'),
+  "viewerFilter": zod.enum(['have', 'dont-have']).optional().describe('For a signed-in viewer who is not the owner: only items the viewer owns (have) or does not own (dont-have) in their Master Inventory.')
 })
 
 export const ListSharedWishlistEntriesResponse = zod.object({
@@ -85,6 +86,7 @@ export const ListSharedWishlistEntriesResponse = zod.object({
 }),
   "fulfilled": zod.boolean().describe('Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored.'),
   "ownedQuantity": zod.int(),
+  "viewerOwnedQuantity": zod.int().optional().describe('The signed-in viewer\'s own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist.'),
   "wantedQuantity": zod.int()
 })).nullable(),
   "meta": zod.object({

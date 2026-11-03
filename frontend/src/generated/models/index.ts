@@ -89,6 +89,7 @@ export * from './listSharedCollectionEntriesParams.ts';
 export * from './listSharedCollectionFacetsParams.ts';
 export * from './listSharedWishlistEntriesParams.ts';
 export * from './listSharedWishlistEntriesStatus.ts';
+export * from './listSharedWishlistEntriesViewerFilter.ts';
 export * from './listSharedWishlistFacetsParams.ts';
 export * from './listSharedWishlistFacetsStatus.ts';
 export * from './listWishlistFacetsParams.ts';

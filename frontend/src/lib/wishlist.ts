@@ -17,7 +17,10 @@ import {
   useListWishlistInfinite,
 } from "@/generated/endpoints/wishlist/wishlist"
 import { ListWishlistStatus } from "@/generated/models"
-import type { WishlistItem } from "@/generated/models"
+import type {
+  ListSharedWishlistEntriesViewerFilter,
+  WishlistItem,
+} from "@/generated/models"
 import { catalogFilterSchema, hasActiveFilters } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { CATALOG_PAGE_SIZE } from "@/lib/infinite-catalog-cards"
@@ -31,10 +34,15 @@ import { INVENTORY_PAGE_SIZE } from "@/lib/infinite-inventory"
  */
 export const wishlistSearchSchema = catalogFilterSchema.extend({
   status: z.enum(ListWishlistStatus).default(ListWishlistStatus.all),
+  // The signed-in viewer's own "have"/"dont-have" filter; absent for a Guest
+  // and for the owner, who get no viewer overlay.
+  viewerFilter: z.enum(["have", "dont-have"]).optional(),
 })
 
 export type WishlistFilters = CatalogFilters & {
   status?: ListWishlistStatus
+  /** The signed-in viewer's own "have"/"dont-have" filter on their owned quantity. */
+  viewerFilter?: ListSharedWishlistEntriesViewerFilter
 }
 
 /** The All / Still needed / Fulfilled filter, shared by the owner's list and the Shared page. */
@@ -56,7 +64,11 @@ export function isWishlistStatus(value: string): value is ListWishlistStatus {
 
 /** Whether anything narrows the list, the status included. */
 export function hasActiveWishlistFilters(search: WishlistFilters) {
-  return wishlistStatus(search) !== "all" || hasActiveFilters(search)
+  return (
+    wishlistStatus(search) !== "all" ||
+    hasActiveFilters(search) ||
+    search.viewerFilter !== undefined
+  )
 }
 
 /**

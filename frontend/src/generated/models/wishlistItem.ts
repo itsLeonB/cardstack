@@ -11,5 +11,7 @@ export interface WishlistItem {
   /** Whether the owner has at least the wanted quantity in Master Inventory. Derived on read, never stored. */
   fulfilled: boolean;
   ownedQuantity: number;
+  /** The signed-in viewer's own owned quantity of this Card from their Master Inventory. Present only for a non-owner viewer of a Shared Wishlist. */
+  viewerOwnedQuantity?: number;
   wantedQuantity: number;
 }
