@@ -279,6 +279,9 @@ type CardResult struct {
 	Quantity int
 	// WantedQuantity is set only when listing a Wishlist.
 	WantedQuantity int
+	// ViewerQuantity is set only when listing a Shared Wishlist with a viewer
+	// overlay: the viewer's own owned quantity of the Card.
+	ViewerQuantity int
 }
 
 // withCardResultJoins adds the joins cardResultColumns reads from.

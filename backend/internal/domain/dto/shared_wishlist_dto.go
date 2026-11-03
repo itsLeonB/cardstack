@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/google/uuid"
+
 // SharedWishlistLookup addresses a Shared Wishlist by its profile Slug
 // (docs/adr/0025). There is one Wishlist per profile at a fixed path.
 type SharedWishlistLookup struct {
@@ -15,7 +17,9 @@ type SharedWishlistSummary struct {
 // SharedWishlistListRequest pages or faceted-counts the items of a Shared
 // Wishlist under the same filters as the owner's own listing.
 type SharedWishlistListRequest struct {
-	Lookup SharedWishlistLookup
-	Filter CardFilter
-	Status string // all, needed, fulfilled
+	Lookup          SharedWishlistLookup
+	Filter          CardFilter
+	Status          string // all, needed, fulfilled
+	ViewerProfileID uuid.UUID
+	ViewerFilter    string // "have" (owned > 0) or "dont-have" (owned == 0), empty means no viewer filter
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
@@ -86,6 +87,9 @@ func (s *sharedWishlistService) Get(ctx context.Context, req dto.SharedWishlistL
 // keeps them out unless IncludeUnpublished is set, and this never sets it.
 // It does not apply the catalog's Guest preview lock: a shared page is the
 // owner's to show, so a Guest gets every page and filter.
+// A non-owner, signed-in viewer also gets their own owned quantity per item
+// (viewer overlay) and a "have"/"dont-have" filter on it. A Guest or the owner
+// gets no viewer data.
 func (s *sharedWishlistService) ListEntries(ctx context.Context, req dto.SharedWishlistListRequest) ([]dto.WishlistItem, dto.PaginationMeta, error) {
 	profile, _, err := s.resolve(ctx, req.Lookup)
 	if err != nil {
@@ -97,6 +101,12 @@ func (s *sharedWishlistService) ListEntries(ctx context.Context, req dto.SharedW
 		Status:    req.Status,
 		Filter:    req.Filter,
 	})
+	// Viewer overlay: only a signed-in viewer who is not the owner gets their
+	// own owned quantity per item and the viewer filter.
+	if req.ViewerProfileID != uuid.Nil && req.ViewerProfileID != profile.ID {
+		filter.ViewerProfileID = req.ViewerProfileID
+		filter.ViewerFilter = req.ViewerFilter
+	}
 	results, total, err := s.items.List(ctx, filter)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, err
