@@ -34,12 +34,13 @@ export function WishlistShare() {
     wishlistMeta.data?.status === 200
       ? wishlistMeta.data.data.data.shared
       : undefined
-  // A rejected request or an error status both mean there is no flag, and a
-  // retry in flight is loading again, not failed.
+  // A rejected request or an error status both count as failed, and a retry in
+  // flight is loading again, not failed. A failure wins over an answer kept from
+  // before, so a flag is only shown while its read is healthy.
   const metaFailed =
-    shared === undefined &&
     !wishlistMeta.isFetching &&
-    (wishlistMeta.isError || wishlistMeta.data !== undefined)
+    (wishlistMeta.isError ||
+      (wishlistMeta.data !== undefined && wishlistMeta.data.status !== 200))
   // Only consider the wishlist shared if we have both the profile and the meta flag.
   // Without a profile slug we cannot build the link, so the dialog cannot show it.
   const isShared = shared === true && profileSlug !== undefined
@@ -54,7 +55,7 @@ export function WishlistShare() {
     if (profileSlug) void invalidateSharedWishlist(queryClient, profileSlug)
   }
 
-  if (shared === undefined)
+  if (metaFailed || shared === undefined)
     return (
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" disabled>

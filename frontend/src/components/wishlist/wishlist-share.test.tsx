@@ -29,8 +29,9 @@ interface ApiBody {
 interface Server {
   // The flag the meta endpoint reports, which sharing changes.
   shared: boolean
-  // "loading" never answers; "offline" fails the flag read outright.
-  metaStatus?: "loading" | "offline"
+  // "loading" never answers, "offline" fails the read outright, and a number
+  // answers with that status instead of the flag.
+  metaStatus?: number | "loading" | "offline"
   // Set to hold the flag read-back until released.
   holdMetaRead?: Promise<void>
   // Answers a share with this status instead of accepting it.
@@ -64,6 +65,7 @@ function stubServer(server: Server) {
         if (server.metaStatus === "offline")
           throw new TypeError("Failed to fetch")
         await server.holdMetaRead
+        if (server.metaStatus) return reply(server.metaStatus, { detail: "no" })
         return reply(200, { data: { shared: server.shared } })
       }
       if (url.pathname === SHARE_ENDPOINT && method === "POST") {
@@ -232,6 +234,18 @@ describe("Wishlist Share button", () => {
     await enabledButton("Shared")
     expect(screen.queryByRole("alert")).toBeNull()
     expect(metaReads(calls)).toBe(2)
+  })
+
+  it("shows an error status from the flag read the same way", async () => {
+    // The API's usual failure: a status the client answers with, not a rejection.
+    renderWishlistShare({ shared: true, metaStatus: 500 })
+
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText("Could not load sharing")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Share" })).toHaveProperty(
+      "disabled",
+      true
+    )
   })
 
   it("shows why a refused share failed, and leaves the flag alone", async () => {
