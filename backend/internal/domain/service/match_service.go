@@ -82,7 +82,8 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 		return dto.MatchResult{}, err
 	}
 
-	nearest, err := s.embeddings.NearestCards(ctx, s.settings.Model, vector, MatchCandidates)
+	filter := repository.ScanFilter{ExpansionSetIDs: req.ExpansionSetIDs, RarityIDs: req.RarityIDs}
+	nearest, err := s.embeddings.NearestCards(ctx, s.settings.Model, vector, MatchCandidates, filter)
 	if err != nil {
 		return dto.MatchResult{}, err
 	}
@@ -114,7 +115,7 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 	confident := s.settings.confident(candidates)
 	if confident {
 		var err error
-		if confident, err = s.hasNoReprint(ctx, candidates[0].Card.ID); err != nil {
+		if confident, err = s.hasNoReprint(ctx, candidates[0].Card.ID, filter); err != nil {
 			return dto.MatchResult{}, err
 		}
 	}
@@ -129,12 +130,12 @@ func (s *matchService) Match(ctx context.Context, req dto.MatchRequest) (dto.Mat
 // with no catalog art (only user-supplied embeddings, docs/adr/0027) cannot be
 // judged, so it counts as having one. The Card is left out of its own Reprints,
 // which would match it at distance 0.
-func (s *matchService) hasNoReprint(ctx context.Context, top uuid.UUID) (bool, error) {
+func (s *matchService) hasNoReprint(ctx context.Context, top uuid.UUID, filter repository.ScanFilter) (bool, error) {
 	hasArt, err := s.cards.HasCatalogArt(ctx, s.settings.Model, top)
 	if err != nil || !hasArt {
 		return false, err
 	}
-	reprints, err := s.cards.ReprintsOf(ctx, s.settings.Model, top, []uuid.UUID{top}, s.settings.ReprintDelta)
+	reprints, err := s.cards.ReprintsOf(ctx, s.settings.Model, top, []uuid.UUID{top}, s.settings.ReprintDelta, filter)
 	if err != nil {
 		return false, err
 	}
@@ -206,10 +207,11 @@ func similarity(distance float64) float64 {
 // two sources keeps its first place. The list is rebuilt on every call from the
 // same ids, so an offset is stable without any server state.
 func (s *matchService) Reprints(ctx context.Context, req dto.ReprintRequest) (dto.ReprintResult, error) {
+	filter := repository.ScanFilter{ExpansionSetIDs: req.ExpansionSetIDs, RarityIDs: req.RarityIDs}
 	var ordered []uuid.UUID
 	seen := make(map[uuid.UUID]bool)
 	for _, source := range req.CardIDs {
-		found, err := s.cards.ReprintsOf(ctx, s.settings.Model, source, req.CardIDs, s.settings.ReprintDelta)
+		found, err := s.cards.ReprintsOf(ctx, s.settings.Model, source, req.CardIDs, s.settings.ReprintDelta, filter)
 		if err != nil {
 			return dto.ReprintResult{}, err
 		}

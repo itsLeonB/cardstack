@@ -59,7 +59,7 @@ func TestEmbeddingRepository_NearestCardsOrdersByCosineWithinOneModel(t *testing
 	require.NoError(t, repo.Upsert(ctx, []entity.CardEmbedding{catalogEmbedding(near, model, mixedVector(0, 2))}))
 	require.NoError(t, repo.Upsert(ctx, []entity.CardEmbedding{catalogEmbedding(otherModel, "other-"+model, unitVector(0))}))
 
-	got, err := repo.NearestCards(ctx, model, unitVector(0), 3)
+	got, err := repo.NearestCards(ctx, model, unitVector(0), 3, ScanFilter{})
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	assert.Equal(t, exact.ID, got[0].CardID)
@@ -69,7 +69,7 @@ func TestEmbeddingRepository_NearestCardsOrdersByCosineWithinOneModel(t *testing
 	assert.Equal(t, far.ID, got[2].CardID)
 	assert.InDelta(t, 1, got[2].Distance, 1e-6)
 
-	limited, err := repo.NearestCards(ctx, model, unitVector(0), 1)
+	limited, err := repo.NearestCards(ctx, model, unitVector(0), 1, ScanFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, []uuid.UUID{exact.ID}, []uuid.UUID{limited[0].CardID})
 }
@@ -108,7 +108,7 @@ func TestEmbeddingRepository_AModelChangeAddsARowInsteadOfReplacingOne(t *testin
 	require.NoError(t, db.Model(&entity.CardEmbedding{}).Where("card_id = ?", card.ID).Count(&rows).Error)
 	assert.Equal(t, int64(2), rows)
 
-	old, err := repo.NearestCards(ctx, oldModel, unitVector(0), 10)
+	old, err := repo.NearestCards(ctx, oldModel, unitVector(0), 10, ScanFilter{})
 	require.NoError(t, err)
 	require.Len(t, old, 1, "the old model's row still answers for its model")
 	assert.Equal(t, card.ID, old[0].CardID)
@@ -128,7 +128,7 @@ func TestEmbeddingRepository_NearestCardsReturnsEveryRowOfACard(t *testing.T) {
 		{CardID: card.ID, Model: model, Source: "crop", Embedding: pgvector.NewVector(mixedVector(0, 2))},
 	}))
 
-	got, err := repo.NearestCards(ctx, model, unitVector(0), 5)
+	got, err := repo.NearestCards(ctx, model, unitVector(0), 5, ScanFilter{})
 	require.NoError(t, err)
 	require.Len(t, got, 2, "a card with two rows is returned twice; the matcher picks the best row")
 	assert.Equal(t, []uuid.UUID{card.ID, card.ID}, []uuid.UUID{got[0].CardID, got[1].CardID})

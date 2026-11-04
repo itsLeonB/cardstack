@@ -142,7 +142,7 @@ func TestEmbeddingRepository_NearestCardsSkipsUnpublishedSets(t *testing.T) {
 	}))
 
 	// The hidden Card is the exact match, yet it must not take the one slot.
-	got, err := repo.NearestCards(ctx, model, unitVector(0), 1)
+	got, err := repo.NearestCards(ctx, model, unitVector(0), 1, ScanFilter{})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, visible.ID, got[0].CardID)
