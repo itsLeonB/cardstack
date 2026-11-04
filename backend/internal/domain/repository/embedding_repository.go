@@ -146,17 +146,31 @@ func (r *embeddingRepository) NearestCards(ctx context.Context, model string, qu
 	// do not take up candidate slots.
 	vector := pgvector.NewVector(query)
 	var nearest []CardDistance
-	search := db.
-		Table("card_embeddings").
-		Joins("JOIN cards ON cards.id = card_embeddings.card_id").
-		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
-		Select("card_embeddings.card_id AS card_id, card_embeddings.embedding <=> ? AS distance", vector).
-		Where("card_embeddings.model = ?", model)
-	err = scopeScanFilter(search, filter).
-		Order(clause.OrderBy{Expression: clause.Expr{SQL: "card_embeddings.embedding <=> ?", Vars: []any{vector}}}).
-		Limit(limit).
-		Scan(&nearest).
-		Error
+	run := func(tx *gorm.DB) error {
+		search := tx.
+			Table("card_embeddings").
+			Joins("JOIN cards ON cards.id = card_embeddings.card_id").
+			Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
+			Select("card_embeddings.card_id AS card_id, card_embeddings.embedding <=> ? AS distance", vector).
+			Where("card_embeddings.model = ?", model)
+		return scopeScanFilter(search, filter).
+			Order(clause.OrderBy{Expression: clause.Expr{SQL: "card_embeddings.embedding <=> ?", Vars: []any{vector}}}).
+			Limit(limit).
+			Scan(&nearest).
+			Error
+	}
+	// Selective Scan Filters can make an HNSW index skip matching rows; relax
+	// iterative scanning for them so a matching card is not missed.
+	if len(filter.ExpansionSetIDs) > 0 || len(filter.RarityIDs) > 0 {
+		err = db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("SET LOCAL hnsw.iterative_scan = 'relaxed'").Error; err != nil {
+				return err
+			}
+			return run(tx)
+		})
+	} else {
+		err = run(db)
+	}
 	if err != nil {
 		return nil, ungerr.Wrap(err, "searching nearest card embeddings")
 	}
