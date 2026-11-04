@@ -6135,6 +6135,42 @@
     "/scan/match": {
       "post": {
         "operationId": "match-scanned-card",
+        "parameters": [
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "image/jpeg": {
@@ -6174,7 +6210,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
+        "summary": "Match one card photo against the catalog, optionally limited to Expansion Sets and Rarities. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
         "tags": [
           "scan"
         ]
@@ -6230,6 +6266,40 @@
       "get": {
         "operationId": "list-scan-reprints",
         "parameters": [
+          {
+            "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "expansionSetId",
+            "schema": {
+              "description": "Only Cards in any of these Expansion Sets (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+            "explode": true,
+            "in": "query",
+            "name": "rarityId",
+            "schema": {
+              "description": "Only Cards with any of these Rarities (repeatable, at most 20).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
           {
             "description": "The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result.",
             "explode": true,
@@ -6287,7 +6357,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
+        "summary": "List the Reprints of up to five Cards the client holds, optionally limited to Expansion Sets and Rarities: other prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
         "tags": [
           "scan"
         ]

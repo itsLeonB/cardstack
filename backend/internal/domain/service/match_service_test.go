@@ -58,7 +58,7 @@ func (f matchFixture) search(distances ...float64) []uuid.UUID {
 		rows[i] = repository.CardResult{ID: ids[i], Name: "Card", LocalID: "001", ExpansionSetName: "Set", ImageKey: "cards/x"}
 	}
 	f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).Return(nearest, nil)
+	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates, repository.ScanFilter{}).Return(nearest, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, ids).Return(rows, nil)
 	return ids
 }
@@ -74,7 +74,7 @@ func (f matchFixture) match(t *testing.T) dto.MatchResult {
 // makes its Reprint lookup answer found.
 func (f matchFixture) reprintsOf(top uuid.UUID, found ...repository.CardDistance) {
 	f.cards.EXPECT().HasCatalogArt(mock.Anything, testMatchSettings.Model, top).Return(true, nil)
-	f.cards.EXPECT().ReprintsOf(mock.Anything, testMatchSettings.Model, top, []uuid.UUID{top}, testMatchSettings.ReprintDelta).Return(found, nil)
+	f.cards.EXPECT().ReprintsOf(mock.Anything, testMatchSettings.Model, top, []uuid.UUID{top}, testMatchSettings.ReprintDelta, repository.ScanFilter{}).Return(found, nil)
 }
 
 func candidateIDs(r dto.MatchResult) []uuid.UUID {
@@ -179,7 +179,7 @@ func TestMatchService_Match_ATopCardWithNoCatalogArtIsNotConfident(t *testing.T)
 func TestMatchService_Match_NothingEmbeddedYetIsAnEmptyNonConfidentResult(t *testing.T) {
 	f := newMatchFixture(t)
 	f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).Return(nil, nil)
+	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates, repository.ScanFilter{}).Return(nil, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{}).Return(nil, nil)
 
 	got := f.match(t)
@@ -192,7 +192,7 @@ func TestMatchService_Match_ACardWithTwoEmbeddingsCountsOnceAtItsBestRow(t *test
 	f := newMatchFixture(t)
 	a, b := uuid.New(), uuid.New()
 	f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).
+	f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates, repository.ScanFilter{}).
 		Return([]repository.CardDistance{{CardID: a, Distance: 0.05}, {CardID: a, Distance: 0.06}, {CardID: b, Distance: 0.30}}, nil)
 	f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{a, b}).
 		Return([]repository.CardResult{{ID: b, ImageKey: "cards/b"}, {ID: a, ImageKey: "cards/a"}}, nil)
@@ -238,7 +238,7 @@ func TestMatchService_Match_ReturnsSearchAndLookupErrors(t *testing.T) {
 	t.Run("search", func(t *testing.T) {
 		f := newMatchFixture(t)
 		f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).Return(nil, boom)
+		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates, repository.ScanFilter{}).Return(nil, boom)
 
 		_, err := f.svc.Match(context.Background(), dto.MatchRequest{Image: jpegBytes})
 
@@ -249,7 +249,7 @@ func TestMatchService_Match_ReturnsSearchAndLookupErrors(t *testing.T) {
 		f := newMatchFixture(t)
 		id := uuid.New()
 		f.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", jpegBytes).Return(queryVector, nil)
-		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates).
+		f.embeddings.EXPECT().NearestCards(mock.Anything, testMatchSettings.Model, queryVector, MatchCandidates, repository.ScanFilter{}).
 			Return([]repository.CardDistance{{CardID: id, Distance: 0.1}}, nil)
 		f.cards.EXPECT().CardsByIDs(mock.Anything, []uuid.UUID{id}).Return(nil, boom)
 

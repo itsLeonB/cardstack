@@ -39,9 +39,10 @@ type EmbeddingRepository interface {
 	SetBatchState(ctx context.Context, id uuid.UUID, state entity.EmbeddingBatchState) error
 	// NearestCards returns the limit rows whose model embedding is closest to
 	// query by cosine distance, nearest first, leaving out Cards of unpublished
-	// Expansion Sets. A card with several rows for the model appears once per
-	// row; choosing the best row per card is the matcher's job (ticket 06).
-	NearestCards(ctx context.Context, model string, query []float32, limit int) ([]CardDistance, error)
+	// Expansion Sets and of any Expansion Set or Rarity outside filter. A card
+	// with several rows for the model appears once per row; choosing the best
+	// row per card is the matcher's job (ticket 06).
+	NearestCards(ctx context.Context, model string, query []float32, limit int, filter ScanFilter) ([]CardDistance, error)
 }
 
 // EmbeddingStates counts cards of one scope by their embedding state for one model.
@@ -134,7 +135,7 @@ func (r *embeddingRepository) ListPendingCards(ctx context.Context, model, sourc
 	return cards, nil
 }
 
-func (r *embeddingRepository) NearestCards(ctx context.Context, model string, query []float32, limit int) ([]CardDistance, error) {
+func (r *embeddingRepository) NearestCards(ctx context.Context, model string, query []float32, limit int, filter ScanFilter) ([]CardDistance, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
@@ -145,12 +146,13 @@ func (r *embeddingRepository) NearestCards(ctx context.Context, model string, qu
 	// do not take up candidate slots.
 	vector := pgvector.NewVector(query)
 	var nearest []CardDistance
-	err = db.
+	search := db.
 		Table("card_embeddings").
 		Joins("JOIN cards ON cards.id = card_embeddings.card_id").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
 		Select("card_embeddings.card_id AS card_id, card_embeddings.embedding <=> ? AS distance", vector).
-		Where("card_embeddings.model = ?", model).
+		Where("card_embeddings.model = ?", model)
+	err = scopeScanFilter(search, filter).
 		Order(clause.OrderBy{Expression: clause.Expr{SQL: "card_embeddings.embedding <=> ?", Vars: []any{vector}}}).
 		Limit(limit).
 		Scan(&nearest).
