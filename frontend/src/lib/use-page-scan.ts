@@ -65,7 +65,9 @@ export function usePageMatches(
 ) {
   const [cells, setCells] = useState<PageCell[]>(() =>
     resumed.map((cell): PageCell =>
-      isUnfinished(cell) ? { ...cell, match: { status: "queued" } } : cell
+      isUnfinished(cell)
+        ? { ...cell, filter: cell.filter ?? NO_SCAN_FILTER, match: { status: "queued" } }
+        : cell
     )
   )
   // Each start bumps this, so a match still running from the last start

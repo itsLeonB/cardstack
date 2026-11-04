@@ -30,8 +30,8 @@ export function loadScanFilter(): ScanFilter {
       return out
     }
     return {
-      expansionSetIds: toStrings(saved?.expansionSetIds),
-      rarityIds: toStrings(saved?.rarityIds),
+      expansionSetIds: toStrings(saved?.expansionSetIds).slice(0, 20),
+      rarityIds: toStrings(saved?.rarityIds).slice(0, 20),
     }
   } catch {
     return NO_SCAN_FILTER

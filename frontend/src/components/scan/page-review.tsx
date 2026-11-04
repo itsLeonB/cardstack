@@ -18,7 +18,6 @@ import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
 import { cellMark, useObjectUrl } from "@/lib/use-page-scan"
 import { NO_SCAN_FILTER, scanFilterNote } from "@/lib/scan-filter"
-import type { ScanFilter } from "@/lib/scan-filter"
 import { OtherPrints } from "./other-prints"
 import type { PageCell } from "@/lib/use-page-scan"
 import type { CardSummary, CatalogFacets } from "@/generated/models"
@@ -58,7 +57,6 @@ export function PageReview({
   cells,
   grid,
   facets,
-  filter,
   changed,
   onRetry,
   onChoose,
@@ -68,7 +66,6 @@ export function PageReview({
   cells: PageCell[]
   grid: Grid
   facets: CatalogFacets | undefined
-  filter?: ScanFilter
   /** Whether each cell differs from the Slot the Page holds there, in grid order. */
   changed: boolean[]
   onRetry: (index: number) => void
@@ -89,7 +86,6 @@ export function PageReview({
             label={`Row ${row}, column ${column}`}
             cell={cell}
             facets={facets}
-            filter={filter}
             changed={changed[index]}
             onRetry={() => onRetry(index)}
             onChoose={(cardId) => onChoose(index, cardId)}
@@ -111,7 +107,6 @@ function CellReview({
   label,
   cell,
   facets,
-  filter,
   changed,
   onRetry,
   onChoose,
@@ -121,7 +116,6 @@ function CellReview({
   label: string
   cell: PageCell
   facets: CatalogFacets | undefined
-  filter?: ScanFilter
   changed: boolean
   onRetry: () => void
   onChoose: (cardId: string) => void
@@ -143,7 +137,7 @@ function CellReview({
       : textOf(choice)
   // A limited search that found nothing says what it searched.
   if (!choice.card) {
-    const note = scanFilterNote(cell.filter ?? filter ?? NO_SCAN_FILTER, facets)
+    const note = scanFilterNote(cell.filter ?? NO_SCAN_FILTER, facets)
     if (note) pill.second = note
   }
 

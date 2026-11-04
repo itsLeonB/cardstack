@@ -40,7 +40,9 @@ const toggleClass = (selected: boolean) =>
 const toggle = (values: string[], value: string) =>
   values.includes(value)
     ? values.filter((one) => one !== value)
-    : [...values, value]
+    : values.length >= 20
+      ? values
+      : [...values, value]
 
 /**
  * The "Limit search" row above the camera: the chosen Scan Filter as wrapping

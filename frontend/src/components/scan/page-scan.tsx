@@ -360,7 +360,6 @@ export function ScanPageFlow({
               cells={matches.cells}
               grid={grid}
               facets={scanFilter.facets}
-              filter={scanFilter.filter}
               changed={changed}
               onRetry={matches.retry}
               onChoose={chooseCard}
