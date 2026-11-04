@@ -211,7 +211,10 @@ export function useScanDraft(
       const scan = scans.find((s) => s.key === key)
       if (!scan?.photo) return
       patch(key, { status: "queued", reason: undefined, mark: undefined })
-      queue.add(key, { photo: scan.photo, filter: scan.filter ?? NO_SCAN_FILTER })
+      queue.add(key, {
+        photo: scan.photo,
+        filter: scan.filter ?? NO_SCAN_FILTER,
+      })
     },
     remove(key: string) {
       cancelled.current.add(key)

@@ -23,8 +23,7 @@ export function useScanFilter() {
   const query = useListCatalogFacets(undefined, {
     query: { placeholderData: keepPreviousData },
   })
-  const facets =
-    query.data?.status === 200 ? query.data.data.data : undefined
+  const facets = query.data?.status === 200 ? query.data.data.data : undefined
   return {
     filter,
     facets,

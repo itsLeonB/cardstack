@@ -143,10 +143,7 @@ function CellReview({
       : textOf(choice)
   // A limited search that found nothing says what it searched.
   if (!choice.card) {
-    const note = scanFilterNote(
-      cell.filter ?? filter ?? NO_SCAN_FILTER,
-      facets
-    )
+    const note = scanFilterNote(cell.filter ?? filter ?? NO_SCAN_FILTER, facets)
     if (note) pill.second = note
   }
 

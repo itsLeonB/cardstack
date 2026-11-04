@@ -10,19 +10,28 @@ export const NO_SCAN_FILTER: ScanFilter = { expansionSetIds: [], rarityIds: [] }
 
 const STORAGE_KEY = "cardstack.scan-filter"
 
-const strings = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((one) => typeof one === "string") : []
-
 /** The last Scan Filter chosen on this device, or no limit. */
 export function loadScanFilter(): ScanFilter {
   try {
+    // SAFETY: localStorage holds only the JSON we wrote; malformed data is caught below.
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as {
       expansionSetIds?: unknown
       rarityIds?: unknown
     } | null
+    const toStrings = (value: any): string[] => {
+      if (!Array.isArray(value)) return []
+      const out: string[] = []
+      for (const one of value) {
+        if (Object.prototype.toString.call(one) === "[object String]") {
+          // SAFETY: toString check above guarantees a primitive string.
+          out.push(one as string)
+        }
+      }
+      return out
+    }
     return {
-      expansionSetIds: strings(saved?.expansionSetIds),
-      rarityIds: strings(saved?.rarityIds),
+      expansionSetIds: toStrings(saved?.expansionSetIds),
+      rarityIds: toStrings(saved?.rarityIds),
     }
   } catch {
     return NO_SCAN_FILTER

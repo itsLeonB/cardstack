@@ -1931,7 +1931,9 @@ describe("the Scan Filter on a Page", () => {
 
     await answerAll(fourConfident)
     await openMenu(user, 1, 1)
-    await user.click(await screen.findByRole("menuitem", { name: "Other prints" }))
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
 
     expect(
       await screen.findByRole("menuitem", { name: /Card 11/ })
@@ -1953,4 +1955,3 @@ describe("the Scan Filter on a Page", () => {
     expect(within(cell(1, 1)).getByText("Searched MA5 only")).toBeTruthy()
   })
 })
-

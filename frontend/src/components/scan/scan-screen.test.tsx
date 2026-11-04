@@ -1489,19 +1489,14 @@ describe("the Scan Filter", () => {
   it("marks a filtered photo that matches nothing Unidentified and says what it searched", async () => {
     replies = [{ confident: false, candidates: [] }]
     renderScreen()
-    await chooseFilter(
-      "Mega Evolution (MA5)",
-      "Mega Evolution Two (MA6)"
-    )
+    await chooseFilter("Mega Evolution (MA5)", "Mega Evolution Two (MA6)")
     await capture()
 
     const scanRow = await rowOf("No card found.")
     expect(
       within(scanRow).getByText("Marked: a card, but none of these")
     ).toBeTruthy()
-    expect(
-      within(scanRow).getByText("Searched MA5, MA6 only")
-    ).toBeTruthy()
+    expect(within(scanRow).getByText("Searched MA5, MA6 only")).toBeTruthy()
     expect(screen.queryByRole("button", { name: /search all/i })).toBeNull()
   })
 
@@ -1542,4 +1537,3 @@ describe("the Scan Filter", () => {
     answer({ confident: true, candidates: [candidate(2)] })
   })
 })
-

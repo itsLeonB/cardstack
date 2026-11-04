@@ -75,14 +75,18 @@ export function usePageMatches(
     () =>
       new MatchQueue<Job>(
         MAX_MATCHES_IN_FLIGHT,
-        async (id, { photo, generation: started, filter }, signal) => {
+        async (
+          id,
+          { photo, generation: started, filter: scanFilter },
+          signal
+        ) => {
           const index = Number(id)
           const stale = () => started !== generation.current
           patch(index, { match: { status: "loading" } })
           try {
             const response = await matchScannedCard(
               photo,
-              scanFilterParams(filter),
+              scanFilterParams(scanFilter),
               { signal }
             )
             if (response.status !== 200) throw new Error("match failed")
