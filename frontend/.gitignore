@@ -1,20 +1,2 @@
 node_modules
-.DS_Store
-dist
-dist-ssr
-*.local
-.env*
-!.env.example
-.tanstack
-.wrangler
-.output
-.vinxi
-__unconfig*
-todos.json
-
-# typescript
-*.tsbuildinfo
-
-# playwright
-playwright-report/
-test-results/
+.vite
