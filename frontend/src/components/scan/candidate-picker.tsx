@@ -17,6 +17,7 @@ import { OtherPrints } from "./other-prints"
 import { MISSING_NAME, useDraftCards } from "./use-draft-cards"
 import type { Mark } from "@/lib/draft-addition"
 import type { Scan } from "@/lib/use-draft-addition"
+import type { ScanFilter } from "@/lib/scan-filter"
 import type { CardSummary } from "@/generated/models"
 
 /** The marks, worded for a photo. A marked Scan's row says the lowercased wording. */
@@ -34,6 +35,7 @@ const MARK_ORDER: Mark[] = ["empty", "unidentified"]
 export function CandidatePicker({
   scan,
   seen,
+  filter,
   label,
   children,
   onChoose,
@@ -41,6 +43,7 @@ export function CandidatePicker({
 }: {
   scan: Scan
   seen: Map<string, CardSummary>
+  filter: ScanFilter
   label: string
   /** The card face the user taps to open the menu. */
   children: ReactNode
@@ -77,6 +80,7 @@ export function CandidatePicker({
               <DropdownMenuSubContent className="w-72">
                 <OtherPrints
                   cardIds={ids}
+                  filter={filter}
                   onPick={(card, position) => {
                     seen.set(card.id, card)
                     onChoose(card.id, position)

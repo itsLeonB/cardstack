@@ -11,8 +11,9 @@ import { CardThumb, PhotoThumb } from "./card-thumb"
 import { MISSING_NAME } from "./use-draft-cards"
 import type { Missing } from "./use-draft-cards"
 import type { Mark } from "@/lib/draft-addition"
+import { NO_SCAN_FILTER, scanFilterNote } from "@/lib/scan-filter"
 import type { Scan } from "@/lib/use-draft-addition"
-import type { CardSummary } from "@/generated/models"
+import type { CardSummary, CatalogFacets } from "@/generated/models"
 
 /**
  * One Scan in the tray. Resolved Scans show their card with quantity controls
@@ -24,6 +25,7 @@ export function ScanRow({
   scan,
   card,
   seen,
+  facets,
   lookup,
   onRaise,
   onLower,
@@ -36,6 +38,7 @@ export function ScanRow({
   scan: Scan
   card?: CardSummary
   seen: Map<string, CardSummary>
+  facets: CatalogFacets | undefined
   /** Why the Card is still absent, when it is; from the sheet's lookup. */
   lookup: Missing
   onRaise: () => void
@@ -48,6 +51,9 @@ export function ScanRow({
 }) {
   const label = card?.name ?? "scan"
   const resolved = scan.status === "resolved"
+  const note = scan.cardId
+    ? undefined
+    : scanFilterNote(scan.filter ?? NO_SCAN_FILTER, facets)
   const face = resolved ? (
     <>
       <CardThumb card={card} />
@@ -62,6 +68,7 @@ export function ScanRow({
             {card.expansionSet.name} · No. {card.localId}
           </span>
         )}
+        {note && <span className="text-xs">{note}</span>}
         {scan.mark && (
           <span className="truncate text-xs">
             Marked: {MARKS[scan.mark].toLowerCase()}
@@ -103,6 +110,7 @@ export function ScanRow({
         <CandidatePicker
           scan={scan}
           seen={seen}
+          filter={scan.filter ?? NO_SCAN_FILTER}
           label={label}
           onChoose={onChoose}
           onMark={onMark}

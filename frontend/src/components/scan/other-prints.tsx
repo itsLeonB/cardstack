@@ -5,6 +5,8 @@ import {
   listScanReprints,
 } from "@/generated/endpoints/scan/scan"
 import type { CardSummary } from "@/generated/models"
+import { scanFilterParams } from "@/lib/scan-filter"
+import type { ScanFilter } from "@/lib/scan-filter"
 import { CardThumb } from "./card-thumb"
 
 // The API pages the Reprints five at a time, and offsets count from the first.
@@ -18,19 +20,27 @@ const PAGE_SIZE = 5
  */
 export function OtherPrints({
   cardIds,
+  filter,
   onPick,
 }: {
   /** The Card ids the Scan holds, in the order the matcher offered them. */
   cardIds: string[]
+  /** The Scan Filter the photo was matched with; suggestions stay inside it. */
+  filter: ScanFilter
   onPick: (card: CardSummary, position: number) => void
 }) {
+  const params = (offset: number) => ({
+    cardIds,
+    offset,
+    ...scanFilterParams(filter),
+  })
   const query = useInfiniteQuery({
-    queryKey: ["infinite", ...getListScanReprintsQueryKey({ cardIds })],
+    queryKey: [
+      "infinite",
+      ...getListScanReprintsQueryKey({ cardIds, ...scanFilterParams(filter) }),
+    ],
     queryFn: async ({ pageParam, signal }) => {
-      const response = await listScanReprints(
-        { cardIds, offset: pageParam },
-        { signal }
-      )
+      const response = await listScanReprints(params(pageParam), { signal })
       if (response.status !== 200) throw new Error("reprints failed")
       return response.data.data
     },

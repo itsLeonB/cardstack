@@ -4,6 +4,8 @@ import type { CardSummary, EnvelopeMatchResult } from "@/generated/models"
 import { loadDraft, saveDraft } from "./draft-addition"
 import type { Mark } from "./draft-addition"
 import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
+import { hasScanFilter, NO_SCAN_FILTER, scanFilterParams } from "./scan-filter"
+import type { ScanFilter } from "./scan-filter"
 
 const MATCH_TIMEOUT_MS = 20_000
 /** How many candidates an unsure Scan keeps for its dropdown. */
@@ -32,6 +34,8 @@ export interface Scan {
   detection?: EnvelopeMatchResult
   /** Where the chosen Card sits in the Reprints list, when the user picked it from "Other prints". */
   reprintPosition?: number
+  /** The Scan Filter this photo was matched with; later changes leave it alone. */
+  filter?: ScanFilter
 }
 
 let lastKey = 0
@@ -66,12 +70,16 @@ export function useScanDraft(
 
   const [queue] = useState(
     () =>
-      new MatchQueue<Blob>(
+      new MatchQueue<{ photo: Blob; filter: ScanFilter }>(
         MAX_MATCHES_IN_FLIGHT,
-        async (key, photo, signal) => {
+        async (key, { photo, filter }, signal) => {
           patch(key, { status: "loading" })
           try {
-            const response = await matchScannedCard(photo, { signal })
+            const response = await matchScannedCard(
+              photo,
+              scanFilterParams(filter),
+              { signal }
+            )
             if (response.status !== 200) throw new Error("match failed")
             const { confident, candidates, empty } = response.data.data
             for (const { card } of candidates ?? [])
@@ -87,8 +95,20 @@ export function useScanDraft(
               })
               say(key, "No card found.")
             } else if (!top) {
-              patch(key, { status: "failed", reason: "No card matched." })
-              say(key, "Scan failed: no card matched.")
+              // A limited search can find nothing while still showing a card.
+              if (hasScanFilter(filter)) {
+                patch(key, {
+                  status: "resolved",
+                  cardId: undefined,
+                  candidateIds: [],
+                  mark: "unidentified",
+                  detection: response.data,
+                })
+                say(key, "No card found inside the filter.")
+              } else {
+                patch(key, { status: "failed", reason: "No card matched." })
+                say(key, "Scan failed: no card matched.")
+              }
             } else if (confident) {
               patch(key, {
                 status: "resolved",
@@ -141,6 +161,7 @@ export function useScanDraft(
                 photo: s.photo,
                 detection: s.detection,
                 reprintPosition: s.reprintPosition,
+                filter: s.filter,
               },
             ]
           : []
@@ -171,19 +192,26 @@ export function useScanDraft(
     pendingCount: scans.filter(
       (s) => s.status === "queued" || s.status === "loading"
     ).length,
-    capture(photo: Blob) {
+    capture(photo: Blob, filter: ScanFilter) {
       const key = newKey()
       setScans((list) => [
-        { key, status: "queued", quantity: 1, photo, candidateIds: [] },
+        {
+          key,
+          status: "queued",
+          quantity: 1,
+          photo,
+          candidateIds: [],
+          filter,
+        },
         ...list,
       ])
-      queue.add(key, photo)
+      queue.add(key, { photo, filter })
     },
     retry(key: string) {
       const scan = scans.find((s) => s.key === key)
       if (!scan?.photo) return
       patch(key, { status: "queued", reason: undefined, mark: undefined })
-      queue.add(key, scan.photo)
+      queue.add(key, { photo: scan.photo, filter: scan.filter ?? NO_SCAN_FILTER })
     },
     remove(key: string) {
       cancelled.current.add(key)

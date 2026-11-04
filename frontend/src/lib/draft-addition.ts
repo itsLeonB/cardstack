@@ -1,5 +1,6 @@
 import type { EnvelopeMatchResult } from "@/generated/models"
 import { transactStore } from "@/lib/indexed-db"
+import type { ScanFilter } from "@/lib/scan-filter"
 
 /**
  * The resolved Scans of the Draft Addition, in the browser's IndexedDB. One
@@ -38,6 +39,8 @@ export interface ResolvedScan {
   detection?: EnvelopeMatchResult
   /** Where the chosen Card sits in the Reprints list, when the user picked it from "Other prints". */
   reprintPosition?: number
+  /** The Scan Filter this photo was matched with, so its Reprints stay inside it. */
+  filter?: ScanFilter
 }
 
 interface DraftRecord {

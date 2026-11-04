@@ -47,6 +47,7 @@ let replies: Reply[] = []
 let holding = false
 let waiting: { answer: (reply: Reply) => void }[] = []
 let matchCalls = 0
+let matchRequests: string[] = []
 let aborted = 0
 let uploads: Blob[] = []
 let catalogRequests: string[] = []
@@ -77,6 +78,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(String(input))
   if (url.pathname === "/scan/match") {
     matchCalls++
+    matchRequests.push(url.search)
     if (init?.body) {
       // SAFETY: the match route sends the photo itself as the request body, a Blob.
       uploads.push(init.body as Blob)
@@ -101,6 +103,43 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
     const reply = replies.shift() ?? "fail"
     return Promise.resolve(
       reply === "fail" ? json({ title: "boom" }, 503) : json({ data: reply })
+    )
+  }
+  if (url.pathname === "/catalog/facets") {
+    return Promise.resolve(
+      json({
+        data: {
+          expansionSets: [
+            {
+              id: "set-1",
+              code: "SCE",
+              name: "Starter Set",
+              imageUrl: "",
+              available: true,
+            },
+            {
+              id: "set-2",
+              code: "MA5",
+              name: "Mega Evolution",
+              imageUrl: "",
+              available: true,
+            },
+            {
+              id: "set-3",
+              code: "MA6",
+              name: "Mega Evolution Two",
+              imageUrl: "",
+              available: true,
+            },
+          ],
+          rarities: [
+            { id: "r-1", code: "RR", name: "Double Rare", available: true },
+            { id: "r-2", code: "SAR", name: "Special Art", available: true },
+          ],
+          categories: [],
+          tags: [],
+        },
+      })
     )
   }
   if (url.pathname === "/catalog/cards") {
@@ -259,6 +298,7 @@ beforeEach(() => {
   holding = false
   waiting = []
   matchCalls = 0
+  matchRequests = []
   aborted = 0
   uploads = []
   catalogRequests = []
@@ -1395,3 +1435,111 @@ describe("recording card-scan feedback", () => {
     expect(uploadRequests).toEqual([])
   })
 })
+describe("the Scan Filter", () => {
+  const row = () => screen.getByRole("button", { name: /Limit search/ })
+
+  // Opens the sheet, toggles each named option, and closes it to apply.
+  async function chooseFilter(...labels: string[]) {
+    await userEvent.click(row())
+    for (const label of labels)
+      await userEvent.click(await screen.findByRole("button", { name: label }))
+    await userEvent.click(screen.getByRole("button", { name: "Done" }))
+  }
+
+  it("reads All sets · All rarities by default and opens the two groups", async () => {
+    renderScreen()
+
+    expect(row().textContent).toContain("All sets · All rarities")
+    await userEvent.click(row())
+
+    expect(
+      await screen.findByRole("group", { name: "Expansion Sets" })
+    ).toBeTruthy()
+    expect(screen.getByRole("group", { name: "Rarities" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy()
+  })
+
+  it("applies the chosen sets and rarities on close and sends them with the match", async () => {
+    renderScreen()
+    await chooseFilter("Mega Evolution (MA5)", "Double Rare")
+
+    expect(within(row()).getByText("MA5")).toBeTruthy()
+    expect(within(row()).getByText("Double Rare")).toBeTruthy()
+    expect(
+      JSON.parse(localStorage.getItem("cardstack.scan-filter") ?? "null")
+    ).toEqual({ expansionSetIds: ["set-2"], rarityIds: ["r-1"] })
+
+    await capture()
+
+    await waitFor(() => expect(matchRequests).toHaveLength(1))
+    expect(matchRequests[0]).toContain("expansionSetId=set-2")
+    expect(matchRequests[0]).toContain("rarityId=r-1")
+  })
+
+  it("remembers the last filter on the device across a remount", async () => {
+    renderScreen()
+    await chooseFilter("Mega Evolution (MA5)")
+
+    cleanup()
+    renderScreen()
+
+    expect(await within(row()).findByText("MA5")).toBeTruthy()
+  })
+
+  it("marks a filtered photo that matches nothing Unidentified and says what it searched", async () => {
+    replies = [{ confident: false, candidates: [] }]
+    renderScreen()
+    await chooseFilter(
+      "Mega Evolution (MA5)",
+      "Mega Evolution Two (MA6)"
+    )
+    await capture()
+
+    const scanRow = await rowOf("No card found.")
+    expect(
+      within(scanRow).getByText("Marked: a card, but none of these")
+    ).toBeTruthy()
+    expect(
+      within(scanRow).getByText("Searched MA5, MA6 only")
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /search all/i })).toBeNull()
+  })
+
+  it("keeps Other prints inside the filter", async () => {
+    replies = [{ confident: true, candidates: [candidate(1)] }]
+    reprintPool = [cardOf(11)]
+    renderScreen()
+    await chooseFilter("Mega Evolution (MA5)")
+    await capture()
+    await rowOf("Card 1")
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Change card for Card 1" })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: /Card 11/ })
+    ).toBeTruthy()
+    expect(reprintCalls[0]).toContain("expansionSetId=set-2")
+  })
+
+  it("applies a change to photos taken afterwards only", async () => {
+    holding = true
+    renderScreen()
+    await chooseFilter("Mega Evolution (MA5)")
+    await capture()
+    await chooseFilter("Mega Evolution (MA5)", "Mega Evolution Two (MA6)")
+    await capture()
+
+    expect(matchRequests).toHaveLength(2)
+    expect(matchRequests[0]).toContain("expansionSetId=set-2")
+    expect(matchRequests[1]).toContain("expansionSetId=set-3")
+
+    answer({ confident: true, candidates: [candidate(1)] })
+    answer({ confident: true, candidates: [candidate(2)] })
+  })
+})
+

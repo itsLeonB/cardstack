@@ -7,6 +7,16 @@
 
 export type ListScanReprintsParams = {
 /**
+ * Only Cards in any of these Expansion Sets (repeatable, at most 20).
+ * @maxItems 20
+ */
+expansionSetId?: string[];
+/**
+ * Only Cards with any of these Rarities (repeatable, at most 20).
+ * @maxItems 20
+ */
+rarityId?: string[];
+/**
  * The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result.
  * @maxItems 5
  */
