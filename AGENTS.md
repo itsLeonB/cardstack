@@ -16,9 +16,9 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-### Workflows
+### Commit and branch names
 
-`/implement`, `/implement-spec`, or a multi-step pattern you keep repeating: `docs/agents/workflows.md`. Commit and branch names: `docs/git.md`.
+See `docs/git.md`.
 
 ### Advisor
 

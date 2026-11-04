@@ -4,7 +4,7 @@ description: "Implement a piece of work based on a spec or set of tickets."
 disable-model-invocation: true
 ---
 
-Implement the work described by the user in the spec or tickets.
+Implement the work described by the user in the spec or tickets. Follow the repo-specific instructions in `docs/agents/workflows/implement.md`.
 
 Use /tdd where possible, at pre-agreed seams.
 
