@@ -61,8 +61,8 @@ export async function signInAsTestUser(page: Page) {
 
 // The native setter plus an `input` event is what React's controlled inputs
 // (Clerk's form) listen for.
-async function fillSecret(field: Locator, value: string) {
-  await expect(field).toBeVisible()
+async function fillSecret(field: Locator, value: string, timeoutMs = 5_000) {
+  await expect(field).toBeVisible({ timeout: timeoutMs })
   await field.evaluate((input, secret) => {
     if (!(input instanceof HTMLInputElement)) {
       throw new Error("Expected an input element")
@@ -88,9 +88,12 @@ export async function signInThroughForm(
   await setupClerkTestingToken({ page })
   await page.goto(url)
 
+  // clerk-js renders this form after the page's own load, which on a cold
+  // development instance outlasts Playwright's 5 s default.
   await fillSecret(
     page.getByRole("textbox", { name: /email address/i }),
-    testUser.email
+    testUser.email,
+    15_000
   )
   // Clerk shows the password on the same step as the email or on a second one,
   // depending on the instance's settings.
@@ -107,10 +110,13 @@ export async function signInThroughForm(
   // Registered before the click so the response cannot be missed. The code
   // field shows up before Clerk has sent the code, and a code typed in that
   // gap is refused ("send a verification code before attempting to verify").
-  const codeSent = page.waitForResponse((res) =>
-    res.url().includes("/prepare_second_factor")
-  )
-  codeSent.catch(() => {}) // only awaited when a code is asked for
+  // Bounded: a rejected password never sends a code, so an unbounded wait here
+  // spends the whole test timeout instead of letting the caller assert.
+  const codeSent = page
+    .waitForResponse((res) => res.url().includes("/prepare_second_factor"), {
+      timeout: 5_000,
+    })
+    .catch(() => {}) // only awaited when a code is asked for
   await continueButton.click()
 
   // Clerk submits a password typed on the first step straight away. When it is
