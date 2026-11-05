@@ -163,7 +163,7 @@ func (r *embeddingRepository) NearestCards(ctx context.Context, model string, qu
 	// iterative scanning for them so a matching card is not missed.
 	if len(filter.ExpansionSetIDs) > 0 || len(filter.RarityIDs) > 0 {
 		err = db.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Exec("SET LOCAL hnsw.iterative_scan = 'relaxed_order'").Error; err != nil {
+			if err := tx.Exec("SET LOCAL hnsw.iterative_scan = 'strict_order'").Error; err != nil {
 				return err
 			}
 			return run(tx)
