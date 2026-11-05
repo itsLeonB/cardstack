@@ -36,23 +36,30 @@ run() {
   return 0
 }
 
-case "$staged" in
-*backend/*)
+# CI's `paths:` filters fire on the shared infrastructure too, so a change to it
+# has to run both components' checks here or it commits unchecked and then
+# changes what CI runs. It raises a flag rather than running its own block, so a
+# path that also matches a component prefix never runs that component twice.
+# -x: $staged is one path per line, and matching the whole variable would only
+# fire when a single path was staged.
+shared=0
+if grep -qxE 'compose\.yaml|compose\.defaults\.env|scripts/verification/.+|\.githooks/.+' <<<"$staged"; then
+  shared=1
+fi
+
+if [ "$shared" = 1 ] || [[ $staged == *backend/* ]]; then
   for step in format vet lint; do
     run scripts/verification/backend.sh "$step"
   done
-  ;;
-esac
+fi
 
 # Only the packages with staged files: the Admin app is untouched by most work.
 for pkg in frontend admin; do
-  case "$staged" in
-  *"$pkg"/*)
+  if [ "$shared" = 1 ] || [[ $staged == *"$pkg"/* ]]; then
     for step in lint format typecheck; do
       run scripts/verification/frontend.sh --package "$pkg" "$step"
     done
-    ;;
-  esac
+  fi
 done
 
 exit "$failed"
