@@ -66,7 +66,11 @@ export function usePageMatches(
   const [cells, setCells] = useState<PageCell[]>(() =>
     resumed.map((cell): PageCell =>
       isUnfinished(cell)
-        ? { ...cell, filter: cell.filter ?? NO_SCAN_FILTER, match: { status: "queued" } }
+        ? {
+            ...cell,
+            filter: cell.filter ?? NO_SCAN_FILTER,
+            match: { status: "queued" },
+          }
         : cell
     )
   )
