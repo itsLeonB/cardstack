@@ -55,7 +55,9 @@ fi
 
 # Only the packages with staged files: the Admin app is untouched by most work.
 for pkg in frontend admin; do
-  if [ "$shared" = 1 ] || [[ $staged == *"$pkg"/* ]]; then
+  # The tooling image at frontend/tooling.Dockerfile builds both packages, so
+  # CI's Admin workflow fires on it although the path sits under frontend/.
+  if [ "$shared" = 1 ] || [[ $staged == *"$pkg"/* ]] || [[ $pkg == admin && $staged == *frontend/tooling.Dockerfile ]]; then
     for step in lint format typecheck; do
       run scripts/verification/frontend.sh --package "$pkg" "$step"
     done
