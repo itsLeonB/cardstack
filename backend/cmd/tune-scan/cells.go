@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	coreembedding "github.com/itsLeonB/cardstack/backend/internal/core/embedding"
 	"github.com/itsLeonB/cardstack/backend/internal/core/logger"
+	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 )
 
@@ -209,7 +210,7 @@ func scoreCells(ctx context.Context, d deps, embedder coreembedding.ImageEmbedde
 		if err != nil {
 			return nil, fmt.Errorf("embedding %s r%02dc%02d: %w", cell.photo, cell.row, cell.column, err)
 		}
-		nearest, err := d.embeddings.NearestCards(ctx, d.model, vector, service.MatchCandidates)
+		nearest, err := d.embeddings.NearestCards(ctx, d.model, vector, service.MatchCandidates, repository.ScanFilter{})
 		if err != nil {
 			return nil, err
 		}

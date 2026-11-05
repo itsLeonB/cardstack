@@ -36,8 +36,19 @@ export const RecordScanFeedbackBody = zod.object({
 export const RecordScanFeedbackResponse = zod.void()
 
 /**
- * @summary Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
+ * @summary Match one card photo against the catalog, optionally limited to Expansion Sets and Rarities. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
  */
+export const matchScannedCardQueryExpansionSetIdMax = 20;
+
+export const matchScannedCardQueryRarityIdMax = 20;
+
+
+
+export const MatchScannedCardQueryParams = zod.object({
+  "expansionSetId": zod.array(zod.string()).max(matchScannedCardQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
+  "rarityId": zod.array(zod.string()).max(matchScannedCardQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).')
+})
+
 export const matchScannedCardResponseDataCandidatesItemScoreMin = 0;
 export const matchScannedCardResponseDataCandidatesItemScoreMax = 1;
 
@@ -96,8 +107,12 @@ export const RequestScanPhotoUploadsResponse = zod.object({
 })
 
 /**
- * @summary List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
+ * @summary List the Reprints of up to five Cards the client holds, optionally limited to Expansion Sets and Rarities: other prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
  */
+export const listScanReprintsQueryExpansionSetIdMax = 20;
+
+export const listScanReprintsQueryRarityIdMax = 20;
+
 export const listScanReprintsQueryCardIdsMax = 5;
 
 export const listScanReprintsQueryOffsetMin = 0;
@@ -105,6 +120,8 @@ export const listScanReprintsQueryOffsetMin = 0;
 
 
 export const ListScanReprintsQueryParams = zod.object({
+  "expansionSetId": zod.array(zod.string()).max(listScanReprintsQueryExpansionSetIdMax).optional().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
+  "rarityId": zod.array(zod.string()).max(listScanReprintsQueryRarityIdMax).optional().describe('Only Cards with any of these Rarities (repeatable, at most 20).'),
   "cardIds": zod.array(zod.string()).max(listScanReprintsQueryCardIdsMax).optional().describe('The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one\'s Reprints are listed in that order, and every id sent is left out of the result.'),
   "offset": zod.int().min(listScanReprintsQueryOffsetMin).optional().describe('How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page.')
 })

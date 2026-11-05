@@ -7,6 +7,8 @@ import type {
   EnvelopeMatchResult,
 } from "@/generated/models"
 import { MAX_MATCHES_IN_FLIGHT, MatchQueue } from "./match-queue"
+import { NO_SCAN_FILTER, scanFilterParams } from "./scan-filter"
+import type { ScanFilter } from "./scan-filter"
 import { MAX_CANDIDATES } from "./use-draft-addition"
 
 // The same budget the Phase 1 scan gives its matcher.
@@ -27,6 +29,7 @@ export type CellMatch =
 interface Job {
   photo: Blob
   generation: number
+  filter: ScanFilter
 }
 
 /** One pocket of the photographed Page, in grid order. */
@@ -43,6 +46,8 @@ export interface PageCell {
   reprintPosition?: number
   /** The Detection the cell's match returned, kept as is so the feedback can judge the cell. Absent until a match succeeds. */
   detection?: EnvelopeMatchResult
+  /** The Scan Filter this cell was matched with; later changes leave it alone. */
+  filter?: ScanFilter
 }
 
 // A cell that has no result yet, so it still has to match.
@@ -54,10 +59,19 @@ const isUnfinished = (cell: PageCell) =>
  * `MatchQueue`, so at most MAX_MATCHES_IN_FLIGHT run at once. A resumed review
  * passes its saved cells: the unfinished ones match again, the rest keep their result.
  */
-export function usePageMatches(resumed: PageCell[] = []) {
+export function usePageMatches(
+  resumed: PageCell[] = [],
+  filter: ScanFilter = NO_SCAN_FILTER
+) {
   const [cells, setCells] = useState<PageCell[]>(() =>
     resumed.map((cell): PageCell =>
-      isUnfinished(cell) ? { ...cell, match: { status: "queued" } } : cell
+      isUnfinished(cell)
+        ? {
+            ...cell,
+            filter: cell.filter ?? NO_SCAN_FILTER,
+            match: { status: "queued" },
+          }
+        : cell
     )
   )
   // Each start bumps this, so a match still running from the last start
@@ -67,12 +81,20 @@ export function usePageMatches(resumed: PageCell[] = []) {
     () =>
       new MatchQueue<Job>(
         MAX_MATCHES_IN_FLIGHT,
-        async (id, { photo, generation: started }, signal) => {
+        async (
+          id,
+          { photo, generation: started, filter: scanFilter },
+          signal
+        ) => {
           const index = Number(id)
           const stale = () => started !== generation.current
           patch(index, { match: { status: "loading" } })
           try {
-            const response = await matchScannedCard(photo, { signal })
+            const response = await matchScannedCard(
+              photo,
+              scanFilterParams(scanFilter),
+              { signal }
+            )
             if (response.status !== 200) throw new Error("match failed")
             const { confident, candidates, empty } = response.data.data
             const cards = (candidates ?? [])
@@ -112,6 +134,7 @@ export function usePageMatches(resumed: PageCell[] = []) {
         queue.add(String(index), {
           photo: cell.photo,
           generation: generation.current,
+          filter: cell.filter ?? filter,
         })
     })
   }, [])
@@ -120,12 +143,22 @@ export function usePageMatches(resumed: PageCell[] = []) {
     cells,
     pending: cells.some(isUnfinished),
     /** Starts the matches for the cells, in grid order, replacing any still running. */
-    start(photos: Blob[]) {
+    start(photos: Blob[], scanFilter: ScanFilter) {
       generation.current++
       queue.cancelAll()
-      setCells(photos.map((photo) => ({ photo, match: { status: "queued" } })))
+      setCells(
+        photos.map((photo) => ({
+          photo,
+          match: { status: "queued" },
+          filter: scanFilter,
+        }))
+      )
       photos.forEach((photo, index) =>
-        queue.add(String(index), { photo, generation: generation.current })
+        queue.add(String(index), {
+          photo,
+          generation: generation.current,
+          filter: scanFilter,
+        })
       )
     },
     retry(index: number) {
@@ -133,6 +166,7 @@ export function usePageMatches(resumed: PageCell[] = []) {
       queue.add(String(index), {
         photo: cells[index].photo,
         generation: generation.current,
+        filter: cells[index].filter ?? NO_SCAN_FILTER,
       })
     },
     /** Picks a candidate, which also clears a hand mark and a Reprint; the other candidates stay for a later pick. */

@@ -98,6 +98,7 @@ export * from './listWishlistParams.ts';
 export * from './listWishlistStatus.ts';
 export * from './matchCandidate.ts';
 export * from './matchResult.ts';
+export * from './matchScannedCardParams.ts';
 export * from './moveEntriesInputBody.ts';
 export * from './paginationMeta.ts';
 export * from './placeCardsInputBody.ts';

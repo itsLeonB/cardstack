@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { PageCorners } from "@/components/scan/page-corners"
 import { PageReview } from "@/components/scan/page-review"
 import { PhotoUseNotice } from "@/components/scan/photo-use-notice"
+import { ScanFilterBar, useScanFilter } from "@/components/scan/scan-filter-bar"
 import {
   cameraMessage,
   ChoosePhotoButton,
@@ -166,7 +167,8 @@ export function ScanPageFlow({
   const [error, setError] = useState<string | null>(null)
   // Slots stored as Unidentified because the server did not know the Card.
   const [unknownCards, setUnknownCards] = useState<BinderSlotResult[]>()
-  const matches = usePageMatches(resume?.cells)
+  const scanFilter = useScanFilter()
+  const matches = usePageMatches(resume?.cells, scanFilter.filter)
   const frameUrl = useObjectUrl(frame)
   const queryClient = useQueryClient()
   const replace = useReplaceBinderPage()
@@ -222,7 +224,7 @@ export function ScanPageFlow({
     try {
       const cells = await cut(frame, corners, grid)
       setCutFrom({ photo: frame, corners })
-      matches.start(cells)
+      matches.start(cells, scanFilter.filter)
       setEdited(false)
       setReviewing(true)
     } catch {
@@ -357,6 +359,7 @@ export function ScanPageFlow({
             <PageReview
               cells={matches.cells}
               grid={grid}
+              facets={scanFilter.facets}
               changed={changed}
               onRetry={matches.retry}
               onChoose={chooseCard}
@@ -417,6 +420,11 @@ export function ScanPageFlow({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
+            <ScanFilterBar
+              filter={scanFilter.filter}
+              facets={scanFilter.facets}
+              onChange={scanFilter.setFilter}
+            />
             {hasCamera ? (
               <div className="aspect-[3/4] overflow-hidden bg-black">
                 <video

@@ -22,20 +22,47 @@ func NewMatchHandler(matchSvc service.MatchService) *MatchHandler {
 	return &MatchHandler{matchSvc: matchSvc}
 }
 
-// matchInput is the photo itself as the request body. Huma declares the
-// content type in the OpenAPI document but does not enforce it; the service
-// checks the bytes.
+// ScanFilterParams are the optional Scan Filter query parameters shared by the
+// scan lookups. Empty means no restriction.
+type ScanFilterParams struct {
+	ExpansionSetIDs []string `query:"expansionSetId,explode" maxItems:"20" doc:"Only Cards in any of these Expansion Sets (repeatable, at most 20)."`
+	RarityIDs       []string `query:"rarityId,explode" maxItems:"20" doc:"Only Cards with any of these Rarities (repeatable, at most 20)."`
+}
+
+// parseScanFilter validates the filter ids up front, so a malformed one is a
+// 400 before any query runs.
+func parseScanFilter(p ScanFilterParams) (dto.ScanFilter, error) {
+	setIDs, err := parseUUIDs("expansionSetId", p.ExpansionSetIDs)
+	if err != nil {
+		return dto.ScanFilter{}, err
+	}
+	rarityIDs, err := parseUUIDs("rarityId", p.RarityIDs)
+	if err != nil {
+		return dto.ScanFilter{}, err
+	}
+	return dto.ScanFilter{ExpansionSetIDs: setIDs, RarityIDs: rarityIDs}, nil
+}
+
+// matchInput is the photo itself as the request body, plus the optional Scan
+// Filter query. Huma declares the content type in the OpenAPI document but does
+// not enforce it; the service checks the bytes.
 type matchInput struct {
+	ScanFilterParams
 	RawBody []byte `contentType:"image/jpeg" doc:"One card photo as a JPEG, at most 2 MiB. It is processed in memory and never stored."`
 }
 
 func (h *MatchHandler) match(ctx context.Context, in matchInput) (dto.MatchResult, error) {
-	return h.matchSvc.Match(ctx, dto.MatchRequest{Image: in.RawBody})
+	filter, err := parseScanFilter(in.ScanFilterParams)
+	if err != nil {
+		return dto.MatchResult{}, err
+	}
+	return h.matchSvc.Match(ctx, dto.MatchRequest{ScanFilter: filter, Image: in.RawBody})
 }
 
 // reprintsInput is GET /scan/reprints' query: the Card ids the client holds, in
 // the order the matcher offered them, and the page to start at.
 type reprintsInput struct {
+	ScanFilterParams
 	CardIDs []string `query:"cardIds,explode" maxItems:"5" doc:"The Cards the client holds, in the order the matcher offered them (repeatable, at most five). Each one's Reprints are listed in that order, and every id sent is left out of the result."`
 	Offset  int      `query:"offset" minimum:"0" doc:"How many Reprints to skip: the next page is at offset plus five. Use the same ids with the same offset to get the same page."`
 }
@@ -45,7 +72,11 @@ func (h *MatchHandler) reprints(ctx context.Context, in reprintsInput) (dto.Repr
 	if err != nil {
 		return dto.ReprintResult{}, err
 	}
-	return h.matchSvc.Reprints(ctx, dto.ReprintRequest{CardIDs: ids, Offset: in.Offset})
+	filter, err := parseScanFilter(in.ScanFilterParams)
+	if err != nil {
+		return dto.ReprintResult{}, err
+	}
+	return h.matchSvc.Reprints(ctx, dto.ReprintRequest{ScanFilter: filter, CardIDs: ids, Offset: in.Offset})
 }
 
 // Routes returns every route MatchHandler exposes, for registration via
@@ -56,7 +87,7 @@ func (h *MatchHandler) Routes() []endpoint.Registrable {
 			OperationID:  "match-scanned-card",
 			Method:       http.MethodPost,
 			Path:         "/scan/match",
-			Summary:      "Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
+			Summary:      "Match one card photo against the catalog, optionally limited to Expansion Sets and Rarities. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413",
 			Tags:         []string{"scan"},
 			SuccessCode:  http.StatusOK,
 			Secured:      true,
@@ -67,7 +98,7 @@ func (h *MatchHandler) Routes() []endpoint.Registrable {
 			OperationID: "list-scan-reprints",
 			Method:      http.MethodGet,
 			Path:        "/scan/reprints",
-			Summary:     "List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
+			Summary:     "List the Reprints of up to five Cards the client holds, optionally limited to Expansion Sets and Rarities: other prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422",
 			Tags:        []string{"scan"},
 			SuccessCode: http.StatusOK,
 			Secured:     true,

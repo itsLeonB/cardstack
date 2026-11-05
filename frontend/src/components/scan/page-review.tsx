@@ -17,9 +17,10 @@ import { cardCode } from "@/lib/binder"
 import { cellPosition } from "@/lib/page-cut"
 import type { Grid } from "@/lib/page-cut"
 import { cellMark, useObjectUrl } from "@/lib/use-page-scan"
+import { NO_SCAN_FILTER, scanFilterNote } from "@/lib/scan-filter"
 import { OtherPrints } from "./other-prints"
 import type { PageCell } from "@/lib/use-page-scan"
-import type { CardSummary } from "@/generated/models"
+import type { CardSummary, CatalogFacets } from "@/generated/models"
 
 type Mark = NonNullable<PageCell["mark"]>
 
@@ -55,6 +56,7 @@ function choiceOf(cell: PageCell): Choice {
 export function PageReview({
   cells,
   grid,
+  facets,
   changed,
   onRetry,
   onChoose,
@@ -63,6 +65,7 @@ export function PageReview({
 }: {
   cells: PageCell[]
   grid: Grid
+  facets: CatalogFacets | undefined
   /** Whether each cell differs from the Slot the Page holds there, in grid order. */
   changed: boolean[]
   onRetry: (index: number) => void
@@ -82,6 +85,7 @@ export function PageReview({
             key={index}
             label={`Row ${row}, column ${column}`}
             cell={cell}
+            facets={facets}
             changed={changed[index]}
             onRetry={() => onRetry(index)}
             onChoose={(cardId) => onChoose(index, cardId)}
@@ -102,6 +106,7 @@ const PILL =
 function CellReview({
   label,
   cell,
+  facets,
   changed,
   onRetry,
   onChoose,
@@ -110,6 +115,7 @@ function CellReview({
 }: {
   label: string
   cell: PageCell
+  facets: CatalogFacets | undefined
   changed: boolean
   onRetry: () => void
   onChoose: (cardId: string) => void
@@ -129,6 +135,11 @@ function CellReview({
     failed && !cell.mark
       ? { first: "Couldn't match", second: "" }
       : textOf(choice)
+  // A limited search that found nothing says what it searched.
+  if (!choice.card) {
+    const note = scanFilterNote(cell.filter ?? NO_SCAN_FILTER, facets)
+    if (note) pill.second = note
+  }
 
   return (
     <div role="group" aria-label={label} className="relative min-w-0">
@@ -211,6 +222,7 @@ function CellReview({
                     <DropdownMenuSubContent className="w-72">
                       <OtherPrints
                         cardIds={candidates.map((card) => card.id)}
+                        filter={cell.filter ?? NO_SCAN_FILTER}
                         onPick={onReprint}
                       />
                     </DropdownMenuSubContent>

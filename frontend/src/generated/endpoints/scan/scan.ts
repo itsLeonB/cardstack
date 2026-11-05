@@ -29,6 +29,7 @@ import type {
   EnvelopeScanPhotoUploads,
   ErrorModel,
   ListScanReprintsParams,
+  MatchScannedCardParams,
   RequestScanPhotoUploadsInputBody,
   ScanFeedbackInputBody
 } from '../../models';
@@ -187,18 +188,32 @@ export type matchScannedCardResponseError = (matchScannedCardResponseDefault) & 
 
 export type matchScannedCardResponse = (matchScannedCardResponseSuccess | matchScannedCardResponseError)
 
-export const getMatchScannedCardUrl = () => {
+export const getMatchScannedCardUrl = (params?: MatchScannedCardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["expansionSetId","rarityId"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
 
 
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/match`
+  return stringifiedParams.length > 0 ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/match?${stringifiedParams}` : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/scan/match`
 }
 
 /**
- * @summary Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
+ * @summary Match one card photo against the catalog, optionally limited to Expansion Sets and Rarities. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
  */
-export const matchScannedCard = async (matchScannedCardBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<matchScannedCardResponse> => {
+export const matchScannedCard = async (matchScannedCardBody: Blob,
+    params?: MatchScannedCardParams, options?: Parameters<typeof customFetch>[1]): Promise<matchScannedCardResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -214,7 +229,7 @@ export const matchScannedCard = async (matchScannedCardBody: Blob, options?: Par
     }
     return headers;
   };
-return customFetch<matchScannedCardResponse>(getMatchScannedCardUrl(),
+return customFetch<matchScannedCardResponse>(getMatchScannedCardUrl(params),
   {
     ...options,
     method: 'POST',
@@ -244,9 +259,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchScannedCard>>, MatchScannedCardMutationVariables> = (props) => {
-          const {data} = props ?? {};
+          const {data,params} = props ?? {};
 
-          return  matchScannedCard(data,requestOptions)
+          return  matchScannedCard(data,params,requestOptions)
         }
 
 
@@ -259,10 +274,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MatchScannedCardMutationResult = NonNullable<Awaited<ReturnType<typeof matchScannedCard>>>
     export type MatchScannedCardMutationBody = Blob
     export type MatchScannedCardMutationError = ErrorModel
-    export type MatchScannedCardMutationVariables = {data: Blob}
+    export type MatchScannedCardMutationVariables = {data: Blob;params?: MatchScannedCardParams}
 
     /**
- * @summary Match one card photo against the catalog. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
+ * @summary Match one card photo against the catalog, optionally limited to Expansion Sets and Rarities. Returns ranked candidates and whether the server is confident in the first; an empty or non-JPEG body is 400 and a body over 2 MiB is 413
  */
 export const useMatchScannedCard = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchScannedCard>>, TError,MatchScannedCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -403,7 +418,7 @@ export const getListScanReprintsUrl = (params?: ListScanReprintsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    const explodeParameters = ["cardIds"];
+    const explodeParameters = ["expansionSetId","rarityId","cardIds"];
 
     if (Array.isArray(value) && explodeParameters.includes(key)) {
       value.forEach((v) => {
@@ -423,7 +438,7 @@ export const getListScanReprintsUrl = (params?: ListScanReprintsParams,) => {
 }
 
 /**
- * @summary List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
+ * @summary List the Reprints of up to five Cards the client holds, optionally limited to Expansion Sets and Rarities: other prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
  */
 export const listScanReprints = async (params?: ListScanReprintsParams, options?: Parameters<typeof customFetch>[1]): Promise<listScanReprintsResponse> => {
 
@@ -494,7 +509,7 @@ export function useListScanReprints<TData = Awaited<ReturnType<typeof listScanRe
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary List the Reprints of up to five Cards the client holds: other Expansion Sets' prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
+ * @summary List the Reprints of up to five Cards the client holds, optionally limited to Expansion Sets and Rarities: other prints of the same name and artwork, five per page. Returns hasMore while more remain; an invalid id is 400, more than five ids or a negative offset is 422
  */
 
 export function useListScanReprints<TData = Awaited<ReturnType<typeof listScanReprints>>, TError = ErrorModel>(

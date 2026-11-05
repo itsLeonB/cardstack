@@ -4,7 +4,7 @@ import { ScanRow } from "./scan-row"
 import { useDraftCards } from "./use-draft-cards"
 import type { Mark } from "@/lib/draft-addition"
 import type { Scan } from "@/lib/use-draft-addition"
-import type { CardSummary } from "@/generated/models"
+import type { CardSummary, CatalogFacets } from "@/generated/models"
 
 /**
  * The Draft Addition as a bottom sheet. Collapsed it shows the header and the
@@ -14,6 +14,7 @@ import type { CardSummary } from "@/generated/models"
 export function ScanSheet({
   scans,
   seen,
+  facets,
   pendingCount,
   open,
   onOpenChange,
@@ -29,6 +30,7 @@ export function ScanSheet({
 }: {
   scans: Scan[]
   seen: Map<string, CardSummary>
+  facets: CatalogFacets | undefined
   pendingCount: number
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -96,6 +98,7 @@ export function ScanSheet({
               scan={scan}
               card={scan.cardId ? cards.get(scan.cardId) : undefined}
               seen={seen}
+              facets={facets}
               lookup={missing}
               onRaise={() => onRaise(scan.key)}
               onLower={() => onLower(scan.key)}

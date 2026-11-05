@@ -39,6 +39,7 @@ import type {
   EnvelopeMatchResult,
   MatchResult,
   ScanFeedbackRowInput,
+  CatalogFacets,
 } from "@/generated/models"
 
 // Only the network is faked (`fetch`) and the camera and canvas are faked:
@@ -65,6 +66,7 @@ type Reply =
 // Every match waits until the test answers it, oldest first.
 let held: ((response: Response) => void)[] = []
 let matchCalls = 0
+let matchRequests: string[] = []
 // Each Replace Page the flow sends, and the grid indexes the server reports as unknown Cards.
 let saves: BinderPageReplaceBody[] = []
 let unknownIndexes: number[] = []
@@ -83,6 +85,7 @@ type Body =
   | EnvelopeBinderPageReplaceResult
   | { data: { cards: CardSummary[]; hasMore: boolean } }
   | { data: { uploads: { key: string; url: string; expiresAt: string }[] } }
+  | { data: CatalogFacets }
   | { title: string }
 const json = (body: Body, status = 200) =>
   new Response(JSON.stringify(body), { status })
@@ -107,6 +110,7 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(String(input))
   if (url.pathname === "/scan/match") {
     matchCalls++
+    matchRequests.push(url.search)
     return new Promise<Response>((resolve) => held.push(resolve))
   }
   if (
@@ -116,6 +120,28 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
     const body: BinderPageReplaceBody = JSON.parse(String(init.body))
     saves.push(body)
     return Promise.resolve(json(savedPage(body)))
+  }
+  if (url.pathname === "/catalog/facets") {
+    return Promise.resolve(
+      json({
+        data: {
+          expansionSets: [
+            {
+              id: "set-2",
+              code: "MA5",
+              name: "Mega Evolution",
+              imageUrl: "",
+              available: true,
+            },
+          ],
+          rarities: [
+            { id: "r-1", code: "RR", name: "Double Rare", available: true },
+          ],
+          categories: [],
+          tags: [],
+        },
+      })
+    )
   }
   if (url.pathname === "/scan/reprints") {
     reprintCalls.push(url.search)
@@ -334,6 +360,7 @@ const fourConfident: Reply[] = [1, 2, 3, 4].map((n) => ({
 beforeEach(() => {
   held = []
   matchCalls = 0
+  matchRequests = []
   saves = []
   unknownIndexes = []
   reprintPool = []
@@ -346,6 +373,7 @@ beforeEach(() => {
   putMode = "ok"
   cut.mockClear()
   vi.stubGlobal("indexedDB", new IDBFactory())
+  localStorage.clear()
   vi.stubGlobal("IDBKeyRange", IDBKeyRange)
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   URL.createObjectURL = vi.fn(() => "blob:photo")
@@ -1877,5 +1905,53 @@ describe("recording Page Review feedback", () => {
       slotColumn: 1,
     })
     expect(feedbackBodies[0].rows[0]).not.toHaveProperty("imageKey")
+  })
+})
+describe("the Scan Filter on a Page", () => {
+  async function chooseFilter(
+    user: ReturnType<typeof userEvent.setup>,
+    label: string
+  ) {
+    await user.click(
+      await screen.findByRole("button", { name: /Limit search/ })
+    )
+    await user.click(await screen.findByRole("button", { name: label }))
+    await user.click(screen.getByRole("button", { name: "Done" }))
+  }
+
+  it("limits the cells' matches and their Other prints to the filter", async () => {
+    const user = userEvent.setup()
+    reprintPool = [cardOf(11)]
+    renderFlow()
+    await chooseFilter(user, "Mega Evolution (MA5)")
+    await scanPhoto(user)
+
+    await waitFor(() => expect(matchCalls).toBe(3))
+    expect(matchRequests[0]).toContain("expansionSetId=set-2")
+
+    await answerAll(fourConfident)
+    await openMenu(user, 1, 1)
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Other prints" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: /Card 11/ })
+    ).toBeTruthy()
+    expect(reprintCalls[0]).toContain("expansionSetId=set-2")
+  })
+
+  it("marks a filtered cell that finds nothing Unidentified and says what it searched", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await chooseFilter(user, "Mega Evolution (MA5)")
+    await scanPhoto(user)
+
+    await answerAll(
+      [1, 2, 3, 4].map(() => ({ confident: false, candidates: [] }))
+    )
+
+    expect(await within(cell(1, 1)).findByText("Unidentified")).toBeTruthy()
+    expect(within(cell(1, 1)).getByText("Searched MA5 only")).toBeTruthy()
   })
 })

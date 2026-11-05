@@ -5,6 +5,7 @@ import { cameraMessage, ChoosePhotoButton } from "./photo-source-controls"
 import { PhotoUseNotice } from "./photo-use-notice"
 import { ReviewStep } from "./review-step"
 import type { CommitResult, Decline } from "./review-step"
+import { ScanFilterBar, useScanFilter } from "./scan-filter-bar"
 import { ScanSheet } from "./scan-sheet"
 import { CARD_ASPECT, GUIDE_HEIGHT, VIEW_ASPECT } from "@/lib/frame-crop"
 import type { FrameSource } from "@/lib/frame-source"
@@ -48,6 +49,7 @@ export function ScanScreen({
   const [sheetOpen, setSheetOpen] = useState(false)
   // Why the Collection declined a Card in the last commit, by card id.
   const [declined, setDeclined] = useState<Record<string, Decline>>({})
+  const scanFilter = useScanFilter()
 
   // A reason describes its Card's Scans as they were, so an edit to them makes it stale.
   function forget(...cardIds: (string | undefined)[]) {
@@ -62,7 +64,7 @@ export function ScanScreen({
   async function capture(takeFrame: () => Promise<Blob>) {
     setError(null)
     try {
-      draft.capture(await takeFrame())
+      draft.capture(await takeFrame(), scanFilter.filter)
     } catch {
       setError("Could not capture that photo. Your draft is unchanged.")
     }
@@ -116,6 +118,11 @@ export function ScanScreen({
     <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 bg-background">
       <div className="mx-auto flex h-full w-full max-w-md flex-col">
         {status}
+        <ScanFilterBar
+          filter={scanFilter.filter}
+          facets={scanFilter.facets}
+          onChange={scanFilter.setFilter}
+        />
         <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">
           {hasCamera ? (
             // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
@@ -172,6 +179,7 @@ export function ScanScreen({
         <ScanSheet
           scans={draft.scans}
           seen={draft.seen}
+          facets={scanFilter.facets}
           pendingCount={draft.pendingCount}
           open={sheetOpen}
           onOpenChange={setSheetOpen}

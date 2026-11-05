@@ -322,6 +322,60 @@ func TestScanReprints(t *testing.T) {
 	})
 }
 
+// TestScanReprintsRestrictions covers the optional Scan Filter on the Reprint
+// lookup: suggestions stay inside the chosen Expansion Sets and Rarities.
+func TestScanReprintsRestrictions(t *testing.T) {
+	t.Run("an Expansion Set restriction leaves out a Reprint from another set", func(t *testing.T) {
+		api := newTestAPI(t)
+		name := "Rp " + uuid.NewString()
+		source := api.newReprintSet(t, nil, true)
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		src := api.newNamedCard(t, source, name)
+		api.storeEmbeddingFrom(t, src, "catalog", planar(0))
+		inside := api.newNamedCard(t, chosen, name)
+		api.storeEmbeddingFrom(t, inside, "catalog", planar(1))
+		outside := api.newNamedCard(t, other, name)
+		api.storeEmbeddingFrom(t, outside, "catalog", planar(1))
+
+		query := reprintQuery(0, src) + "&" + url.Values{"expansionSetId": {chosen.set.ID.String()}}.Encode()
+		code, got := api.reprints(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.Equal(t, []uuid.UUID{inside}, summaryIDs(got.Cards))
+		assert.NotContains(t, summaryIDs(got.Cards), outside)
+	})
+
+	t.Run("a rarity restriction leaves out a Reprint of another rarity", func(t *testing.T) {
+		api := newTestAPI(t)
+		name := "Rp " + uuid.NewString()
+		source := api.newReprintSet(t, nil, true)
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		src := api.newNamedCard(t, source, name)
+		api.storeEmbeddingFrom(t, src, "catalog", planar(0))
+		inside := api.newNamedCard(t, chosen, name)
+		api.storeEmbeddingFrom(t, inside, "catalog", planar(1))
+		outside := api.newNamedCard(t, reprintSet{set: chosen.set, rarity: other.rarity}, name)
+		api.storeEmbeddingFrom(t, outside, "catalog", planar(1))
+
+		query := reprintQuery(0, src) + "&" + url.Values{"rarityId": {chosen.rarity.String()}}.Encode()
+		code, got := api.reprints(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.Equal(t, []uuid.UUID{inside}, summaryIDs(got.Cards))
+		assert.NotContains(t, summaryIDs(got.Cards), outside)
+	})
+
+	t.Run("a malformed filter id is a 400", func(t *testing.T) {
+		api := newTestAPI(t)
+
+		resp := api.Get(reprintsPath+"?"+reprintQuery(0)+"&expansionSetId=not-a-uuid", bearer(api.newUserToken(t)))
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+}
+
 func TestScanReprints_CountsAgainstThePerUserLimit(t *testing.T) {
 	api, _ := newRateLimitedAPI(t)
 	auth := bearer(api.newUserToken(t))

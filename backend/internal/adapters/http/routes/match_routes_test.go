@@ -6,6 +6,7 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/google/uuid"
@@ -53,7 +54,17 @@ func (a testAPI) storeEmbedding(t *testing.T, card uuid.UUID, model string, vect
 // scan posts the test photo and returns the response.
 func (a testAPI) scan(t *testing.T, token string) (int, dto.MatchResult) {
 	t.Helper()
-	resp := a.Post(matchPath, "Content-Type: image/jpeg", bearer(token), bytes.NewReader(testJPEG))
+	return a.scanWithQuery(t, token, "")
+}
+
+// scanWithQuery posts the test photo with a query string and returns the response.
+func (a testAPI) scanWithQuery(t *testing.T, token, query string) (int, dto.MatchResult) {
+	t.Helper()
+	path := matchPath
+	if query != "" {
+		path += "?" + query
+	}
+	resp := a.Post(path, "Content-Type: image/jpeg", bearer(token), bytes.NewReader(testJPEG))
 	var body matchEnvelope
 	if resp.Code == http.StatusOK {
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &body))
@@ -200,6 +211,111 @@ func TestScanMatchFlow(t *testing.T) {
 		big := append(append([]byte{}, testJPEG...), make([]byte, 3<<20)...)
 
 		assert.Equal(t, http.StatusRequestEntityTooLarge, api.Post(matchPath, jpeg, bearer(api.newUserToken(t)), bytes.NewReader(big)).Code)
+	})
+}
+
+// TestScanMatchRestrictions covers the optional Scan Filter at the HTTP
+// boundary: the search and the Reprint check stay inside the chosen Expansion
+// Sets and Rarities, and a narrow pool never widens or lowers the confidence bar.
+func TestScanMatchRestrictions(t *testing.T) {
+	t.Run("an Expansion Set restriction leaves out a closer Card in another set", func(t *testing.T) {
+		api := newTestAPI(t)
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		inside := api.newNamedCard(t, chosen, "Inside "+uuid.NewString())
+		api.storeEmbeddingFrom(t, inside, "catalog", similarTo(0.90))
+		outside := api.newNamedCard(t, other, "Outside "+uuid.NewString())
+		api.storeEmbeddingFrom(t, outside, "catalog", similarTo(0.99))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		query := url.Values{"expansionSetId": {chosen.set.ID.String()}}.Encode()
+		code, got := api.scanWithQuery(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.Equal(t, []uuid.UUID{inside}, matchedIDs(got))
+		assert.NotContains(t, matchedIDs(got), outside)
+		assert.InDelta(t, 0.90, got.Candidates[0].Score, 1e-3)
+	})
+
+	t.Run("a rarity restriction leaves out a closer Card of another rarity", func(t *testing.T) {
+		api := newTestAPI(t)
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		inside := api.newNamedCard(t, chosen, "Inside "+uuid.NewString())
+		api.storeEmbeddingFrom(t, inside, "catalog", similarTo(0.90))
+		outside := api.newNamedCard(t, reprintSet{set: chosen.set, rarity: other.rarity}, "Outside "+uuid.NewString())
+		api.storeEmbeddingFrom(t, outside, "catalog", similarTo(0.99))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		query := url.Values{"rarityId": {chosen.rarity.String()}}.Encode()
+		code, got := api.scanWithQuery(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.Equal(t, []uuid.UUID{inside}, matchedIDs(got))
+		assert.NotContains(t, matchedIDs(got), outside)
+	})
+
+	t.Run("a poor top score inside the filter is not confident", func(t *testing.T) {
+		api := newTestAPI(t)
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		weak := api.newNamedCard(t, chosen, "Weak "+uuid.NewString())
+		api.storeEmbeddingFrom(t, weak, "catalog", similarTo(0.60))
+		strong := api.newNamedCard(t, other, "Strong "+uuid.NewString())
+		api.storeEmbeddingFrom(t, strong, "catalog", similarTo(0.99))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		query := url.Values{"expansionSetId": {chosen.set.ID.String()}}.Encode()
+		code, got := api.scanWithQuery(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.False(t, got.Confident)
+		assert.Equal(t, []uuid.UUID{weak}, matchedIDs(got), "the closer Card outside the filter is never offered")
+		assert.InDelta(t, 0.60, got.Candidates[0].Score, 1e-3)
+	})
+
+	t.Run("a filter with nothing inside returns no candidates instead of widening", func(t *testing.T) {
+		api := newTestAPI(t)
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		outside := api.newNamedCard(t, other, "Outside "+uuid.NewString())
+		api.storeEmbeddingFrom(t, outside, "catalog", similarTo(0.99))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		query := url.Values{"expansionSetId": {chosen.set.ID.String()}}.Encode()
+		code, got := api.scanWithQuery(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.False(t, got.Empty)
+		assert.False(t, got.Confident)
+		assert.Empty(t, got.Candidates)
+	})
+
+	t.Run("a Reprint outside the filter does not withhold confidence inside it", func(t *testing.T) {
+		api := newTestAPI(t)
+		name := "Match " + uuid.NewString()
+		chosen := api.newReprintSet(t, nil, true)
+		other := api.newReprintSet(t, nil, true)
+		top := api.newNamedCard(t, chosen, name)
+		api.storeEmbeddingFrom(t, top, "catalog", similarTo(0.95))
+		reprint := api.newNamedCard(t, other, name)
+		api.storeEmbeddingFrom(t, reprint, "catalog", similarTo(0.94))
+		api.embedder.EXPECT().Embed(mock.Anything, "image/jpeg", testJPEG).Return(axisVector(0), nil)
+
+		query := url.Values{"expansionSetId": {chosen.set.ID.String()}}.Encode()
+		code, got := api.scanWithQuery(t, api.newUserToken(t), query)
+
+		require.Equal(t, http.StatusOK, code)
+		assert.True(t, got.Confident)
+		assert.Equal(t, []uuid.UUID{top}, matchedIDs(got))
+	})
+
+	t.Run("a malformed filter id is a 400 and never reaches the provider", func(t *testing.T) {
+		api := newTestAPI(t)
+
+		resp := api.Post(matchPath+"?expansionSetId=not-a-uuid", "Content-Type: image/jpeg", bearer(api.newUserToken(t)), bytes.NewReader(testJPEG))
+
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
 	})
 }
 

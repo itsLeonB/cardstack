@@ -7,6 +7,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
+	"gorm.io/gorm"
 )
 
 // MatchRepository is the persistence access the scan match endpoint needs.
@@ -16,13 +17,33 @@ type MatchRepository interface {
 	CardsByIDs(ctx context.Context, ids []uuid.UUID) ([]CardResult, error)
 	// ReprintsOf returns the Cards of the Reprint rule for source, leaving out
 	// exclude: same normalized name, an embedding of model within maxDistance
-	// of source's, in a published Expansion Set. Each Card is returned once,
-	// with the nearest distance of its embeddings, ordered by distance, then
-	// newest Expansion Set first. A source without an embedding returns nothing.
-	ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64) ([]CardDistance, error)
+	// of source's, in a published Expansion Set inside filter. Each Card is
+	// returned once, with the nearest distance of its embeddings, ordered by
+	// distance, then newest Expansion Set first. A source without an embedding
+	// returns nothing.
+	ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64, filter ScanFilter) ([]CardDistance, error)
 	// HasCatalogArt reports whether card has a catalog embedding of model, the
 	// only art ReprintsOf compares (docs/adr/0027).
 	HasCatalogArt(ctx context.Context, model string, card uuid.UUID) (bool, error)
+}
+
+// ScanFilter narrows a scan search to Expansion Sets and Rarities. An empty
+// slice means no restriction on that field; unpublished sets stay excluded.
+type ScanFilter struct {
+	ExpansionSetIDs []uuid.UUID
+	RarityIDs       []uuid.UUID
+}
+
+// scopeScanFilter narrows a cards query to filter. Call it before any limit,
+// so filtered-out rows never take a candidate slot.
+func scopeScanFilter(query *gorm.DB, filter ScanFilter) *gorm.DB {
+	if len(filter.ExpansionSetIDs) > 0 {
+		query = query.Where("cards.expansion_set_id IN ?", filter.ExpansionSetIDs)
+	}
+	if len(filter.RarityIDs) > 0 {
+		query = query.Where("cards.rarity_id IN ?", filter.RarityIDs)
+	}
+	return query
 }
 
 // matchRepository embeds a crud.Repository only for GetGormInstance.
@@ -56,7 +77,7 @@ func (r *matchRepository) CardsByIDs(ctx context.Context, ids []uuid.UUID) ([]Ca
 	return results, nil
 }
 
-func (r *matchRepository) ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64) ([]CardDistance, error) {
+func (r *matchRepository) ReprintsOf(ctx context.Context, model string, source uuid.UUID, exclude []uuid.UUID, maxDistance float64, filter ScanFilter) ([]CardDistance, error) {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
 		return nil, err
@@ -67,14 +88,15 @@ func (r *matchRepository) ReprintsOf(ctx context.Context, model string, source u
 	// nearest one. User-source rows (ADR-0027) are not catalog art, so they never
 	// count here.
 	var reprints []CardDistance
-	err = db.Table("cards").
+	query := db.Table("cards").
 		Select("cards.id AS card_id, MIN(ce.embedding <=> se.embedding) AS distance").
 		Joins("JOIN expansion_sets ON expansion_sets.id = cards.expansion_set_id AND expansion_sets.published = true").
 		Joins("JOIN card_embeddings ce ON ce.card_id = cards.id AND ce.model = ? AND ce.source = 'catalog'", model).
 		Joins("JOIN cards src ON src.id = ?", source).
 		Joins("JOIN card_embeddings se ON se.card_id = src.id AND se.model = ? AND se.source = 'catalog'", model).
 		Where(normalizedName("cards.name")+" = "+normalizedName("src.name")).
-		Where("cards.id NOT IN ?", exclude).
+		Where("cards.id NOT IN ?", exclude)
+	err = scopeScanFilter(query, filter).
 		Group("cards.id, expansion_sets.release_date").
 		Having("MIN(ce.embedding <=> se.embedding) <= ?", maxDistance).
 		Order("distance, expansion_sets.release_date DESC NULLS LAST, cards.id").

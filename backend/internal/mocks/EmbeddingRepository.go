@@ -311,9 +311,9 @@ func (_c *MockEmbeddingRepository_ListSubmittedBatches_Call) RunAndReturn(run fu
 	return _c
 }
 
-// NearestCards provides a mock function with given fields: ctx, model, query, limit
-func (_m *MockEmbeddingRepository) NearestCards(ctx context.Context, model string, query []float32, limit int) ([]repository.CardDistance, error) {
-	ret := _m.Called(ctx, model, query, limit)
+// NearestCards provides a mock function with given fields: ctx, model, query, limit, filter
+func (_m *MockEmbeddingRepository) NearestCards(ctx context.Context, model string, query []float32, limit int, filter repository.ScanFilter) ([]repository.CardDistance, error) {
+	ret := _m.Called(ctx, model, query, limit, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for NearestCards")
@@ -321,19 +321,19 @@ func (_m *MockEmbeddingRepository) NearestCards(ctx context.Context, model strin
 
 	var r0 []repository.CardDistance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []float32, int) ([]repository.CardDistance, error)); ok {
-		return rf(ctx, model, query, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, string, []float32, int, repository.ScanFilter) ([]repository.CardDistance, error)); ok {
+		return rf(ctx, model, query, limit, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []float32, int) []repository.CardDistance); ok {
-		r0 = rf(ctx, model, query, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, string, []float32, int, repository.ScanFilter) []repository.CardDistance); ok {
+		r0 = rf(ctx, model, query, limit, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]repository.CardDistance)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, []float32, int) error); ok {
-		r1 = rf(ctx, model, query, limit)
+	if rf, ok := ret.Get(1).(func(context.Context, string, []float32, int, repository.ScanFilter) error); ok {
+		r1 = rf(ctx, model, query, limit, filter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -351,13 +351,14 @@ type MockEmbeddingRepository_NearestCards_Call struct {
 //   - model string
 //   - query []float32
 //   - limit int
-func (_e *MockEmbeddingRepository_Expecter) NearestCards(ctx interface{}, model interface{}, query interface{}, limit interface{}) *MockEmbeddingRepository_NearestCards_Call {
-	return &MockEmbeddingRepository_NearestCards_Call{Call: _e.mock.On("NearestCards", ctx, model, query, limit)}
+//   - filter repository.ScanFilter
+func (_e *MockEmbeddingRepository_Expecter) NearestCards(ctx interface{}, model interface{}, query interface{}, limit interface{}, filter interface{}) *MockEmbeddingRepository_NearestCards_Call {
+	return &MockEmbeddingRepository_NearestCards_Call{Call: _e.mock.On("NearestCards", ctx, model, query, limit, filter)}
 }
 
-func (_c *MockEmbeddingRepository_NearestCards_Call) Run(run func(ctx context.Context, model string, query []float32, limit int)) *MockEmbeddingRepository_NearestCards_Call {
+func (_c *MockEmbeddingRepository_NearestCards_Call) Run(run func(ctx context.Context, model string, query []float32, limit int, filter repository.ScanFilter)) *MockEmbeddingRepository_NearestCards_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].([]float32), args[3].(int))
+		run(args[0].(context.Context), args[1].(string), args[2].([]float32), args[3].(int), args[4].(repository.ScanFilter))
 	})
 	return _c
 }
@@ -367,7 +368,7 @@ func (_c *MockEmbeddingRepository_NearestCards_Call) Return(_a0 []repository.Car
 	return _c
 }
 
-func (_c *MockEmbeddingRepository_NearestCards_Call) RunAndReturn(run func(context.Context, string, []float32, int) ([]repository.CardDistance, error)) *MockEmbeddingRepository_NearestCards_Call {
+func (_c *MockEmbeddingRepository_NearestCards_Call) RunAndReturn(run func(context.Context, string, []float32, int, repository.ScanFilter) ([]repository.CardDistance, error)) *MockEmbeddingRepository_NearestCards_Call {
 	_c.Call.Return(run)
 	return _c
 }

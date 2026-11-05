@@ -2,8 +2,17 @@ package dto
 
 import "github.com/google/uuid"
 
-// MatchRequest is one uploaded card photo to match against the catalog.
+// ScanFilter narrows a scan lookup to Expansion Sets and Rarities. An empty
+// slice means no restriction on that field; unpublished sets stay excluded.
+type ScanFilter struct {
+	ExpansionSetIDs []uuid.UUID
+	RarityIDs       []uuid.UUID
+}
+
+// MatchRequest is one uploaded card photo to match against the catalog,
+// optionally limited to a Scan Filter.
 type MatchRequest struct {
+	ScanFilter
 	Image []byte
 }
 
@@ -27,6 +36,7 @@ type MatchResult struct {
 // ReprintRequest asks for the Reprints of the Cards the client holds: up to
 // five ids in the order the matcher offered them, and the page to start at.
 type ReprintRequest struct {
+	ScanFilter
 	CardIDs []uuid.UUID
 	Offset  int
 }
