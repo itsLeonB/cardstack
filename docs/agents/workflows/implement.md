@@ -42,8 +42,7 @@ The advisor (`docs/agents/roles/advisor.md`) is not a reviewer and is not part o
 The orchestrator stays on its current checkout and the feature branch, delegates one component task per component touched (only those), and never edits a component directory itself during a big task. Each worker runs in its own worktree with its own Serena rooted there, from the role file `docs/agents/roles/<component>-agent.md`.
 
 **Model tier:** Delegates must use a smaller/faster model than the main session:
-- `deepseek-flash` (default, handles most component tasks)
-- `gpt-6-luna` with `high` thinking (only when the component scope is small enough — it cannot handle larger tasks)
+- `deepseek-flash` with `high` thinking (default, handles most component tasks)
 - Other available models via `orchestrator_capabilities` — always pick one tier below the orchestrator's model
 
 1. **Commit first.** Inspect the worktree (`git status`) and commit only the changes the current task requires (tasks, docs, earlier merges) on the feature branch before delegating; leave unrelated changes uncommitted. A new worktree contains only commits, so uncommitted changes never reach the delegate.
