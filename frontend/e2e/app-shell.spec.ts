@@ -199,7 +199,11 @@ test.describe("App shell: mobile", () => {
   for (const path of ["/", "/auth/login", "/auth/register"]) {
     test(`no horizontal scroll on ${path}`, async ({ page }) => {
       await page.goto(path)
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+      // clerk-js mounts the auth form after the page loads; a slow Clerk
+      // request measured 4.6 s against this file's 5 s default.
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
+        timeout: 15_000,
+      })
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth
       )
