@@ -1,7 +1,7 @@
 # 40: Adapter SQL is executed by a test against the pgvector database
 
 Type: task
-Status: ready-for-agent
+Status: done
 
 ## What to build
 
@@ -19,7 +19,11 @@ The stack's `db` is `pgvector/pgvector:pg18`, and the migration tests already br
 
 ## Acceptance criteria
 
-- [ ] A test executes the filtered nearest-cards scan end to end against the database, with the filtered and unfiltered cases distinguished.
-- [ ] Temporarily replacing `strict_order` with an invalid value makes that test fail; reverting makes it pass. Record both outcomes in the PR body.
-- [ ] The test runs under `scripts/verification/backend.sh test`, needs no database beyond the stack's `db`, and skips the same way the existing migration tests skip without one.
-- [ ] `docs/agents/conventions/backend.md` states the rule and names this test as its example.
+- [x] A test executes the filtered nearest-cards scan end to end against the database, with the filtered and unfiltered cases distinguished.
+- [x] Temporarily replacing `strict_order` with an invalid value makes that test fail; reverting makes it pass. Record both outcomes in the PR body.
+- [x] The test runs under `scripts/verification/backend.sh test`, needs no database beyond the stack's `db`, and skips the same way the existing migration tests skip without one.
+- [x] `docs/agents/conventions/backend.md` states the rule and names this test as its example.
+
+## Comments
+
+No test in `internal/domain/repository` or the migration package skips when the database is unreachable: `testDB` and the migration `privateDB` both fail instead, and `scripts/verification/backend.sh test` brings `db` up itself. The new test follows that existing harness and fails the same way rather than adding a skip nobody else has.

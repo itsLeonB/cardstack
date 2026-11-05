@@ -74,6 +74,43 @@ func TestEmbeddingRepository_NearestCardsOrdersByCosineWithinOneModel(t *testing
 	assert.Equal(t, []uuid.UUID{exact.ID}, []uuid.UUID{limited[0].CardID})
 }
 
+// The filtered scan runs inside its own transaction, after a raw
+// SET LOCAL hnsw.iterative_scan (conventions/backend.md, Data and mapping).
+// Nothing else in the suite executes that statement, so an invalid setting
+// name or value only fails here.
+func TestEmbeddingRepository_NearestCardsAppliesTheScanFilter(t *testing.T) {
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	wanted := fixture.newExpansionSet(t, db, nil, nil)
+	elsewhere := fixture.newExpansionSet(t, db, nil, nil)
+	repo := NewEmbeddingRepository(crud.NewRepository[entity.CardEmbedding](db))
+	ctx := context.Background()
+	model := "test-model-" + uuid.NewString()
+
+	// The nearest card overall sits outside the filter, so a scan that dropped
+	// the filter would return it first.
+	outsider := newHostedCard(t, fixture, db, elsewhere.ID, "cards/outsider")
+	near := newHostedCard(t, fixture, db, wanted.ID, "cards/near")
+	far := newHostedCard(t, fixture, db, wanted.ID, "cards/far")
+
+	require.NoError(t, repo.Upsert(ctx, []entity.CardEmbedding{catalogEmbedding(outsider, model, unitVector(0))}))
+	require.NoError(t, repo.Upsert(ctx, []entity.CardEmbedding{catalogEmbedding(near, model, mixedVector(0, 2))}))
+	require.NoError(t, repo.Upsert(ctx, []entity.CardEmbedding{catalogEmbedding(far, model, unitVector(2))}))
+
+	unfiltered, err := repo.NearestCards(ctx, model, unitVector(0), 3, ScanFilter{})
+	require.NoError(t, err)
+	require.Len(t, unfiltered, 3)
+	assert.Equal(t, outsider.ID, unfiltered[0].CardID)
+
+	filtered, err := repo.NearestCards(ctx, model, unitVector(0), 3, ScanFilter{ExpansionSetIDs: []uuid.UUID{wanted.ID}})
+	require.NoError(t, err)
+	require.Len(t, filtered, 2)
+	assert.Equal(t, near.ID, filtered[0].CardID)
+	assert.InDelta(t, 0.4, filtered[0].Distance, 1e-6)
+	assert.Equal(t, far.ID, filtered[1].CardID)
+	assert.InDelta(t, 1, filtered[1].Distance, 1e-6)
+}
+
 func TestEmbeddingRepository_UpsertReplacesTheRowForTheSameModelAndSource(t *testing.T) {
 	db := testDB(t)
 	fixture := newCatalogFixture(t, db)
