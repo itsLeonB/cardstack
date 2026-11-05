@@ -1,7 +1,7 @@
 # 16: Pre-commit component mapping and hook bootstrap
 
 Type: task
-Status: ready-for-agent
+Status: done
 
 ## What to build
 
@@ -26,10 +26,10 @@ The hook (a67cf2a) matches `backend/`, `frontend/` and `admin/` path prefixes on
 
 ## Acceptance criteria
 
-- [ ] Staging only `compose.yaml` runs the backend steps and every frontend package's steps.
-- [ ] Staging only a backend file runs the backend steps and nothing else.
-- [ ] Staging only a frontend or admin file runs that package's steps and nothing else.
-- [ ] A path already matching a component prefix is not checked twice by the shared-infra rule.
-- [ ] `scripts/bootstrap-worktree/backend.sh` and `scripts/bootstrap-worktree/frontend.sh` no longer set `core.hooksPath`, and the false comment is gone.
-- [ ] `scripts/setup-environment.sh` still sets it for a fresh clone.
-- [ ] `docs/git.md` states that a worktree inherits the config, a clone does not, and lists the shared-infra paths.
+- [x] Staging only `compose.yaml` runs the backend steps and every frontend package's steps.
+- [x] Staging only a backend file runs the backend steps and nothing else.
+- [x] Staging only a frontend or admin file runs that package's steps and nothing else.
+- [x] A path already matching a component prefix is not checked twice by the shared-infra rule.
+- [x] `scripts/bootstrap-worktree/backend.sh` and `scripts/bootstrap-worktree/frontend.sh` no longer set `core.hooksPath`, and the false comment is gone.
+- [x] `scripts/setup-environment.sh` still sets it for a fresh clone.
+- [x] `docs/git.md` states that a worktree inherits the config, a clone does not, and lists the shared-infra paths.
