@@ -423,6 +423,7 @@ export function ScanPageFlow({
             <ScanFilterBar
               filter={scanFilter.filter}
               facets={scanFilter.facets}
+              collectionId={collectionId}
               onChange={scanFilter.setFilter}
             />
             {hasCamera ? (
