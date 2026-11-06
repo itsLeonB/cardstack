@@ -121,6 +121,7 @@ export function ScanScreen({
         <ScanFilterBar
           filter={scanFilter.filter}
           facets={scanFilter.facets}
+          collectionId={collectionId}
           onChange={scanFilter.setFilter}
         />
         <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">

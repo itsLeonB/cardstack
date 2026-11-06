@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useListCatalogFacets } from "@/generated/endpoints/catalog/catalog"
+import { useListCollectionFacets } from "@/generated/endpoints/inventory/inventory"
 import type { CatalogFacets } from "@/generated/models"
 import {
   loadScanFilter,
@@ -52,10 +53,13 @@ const toggle = (values: string[], value: string) =>
 export function ScanFilterBar({
   filter,
   facets,
+  collectionId,
   onChange,
 }: {
   filter: ScanFilter
   facets: CatalogFacets | undefined
+  /** The Collection the scan writes to, whose sets the sheet offers as a shortcut. */
+  collectionId: string
   onChange: (filter: ScanFilter) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -125,6 +129,12 @@ export function ScanFilterBar({
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
             <div role="group" aria-label="Expansion Sets">
               <p className="mb-2 text-sm font-medium">Expansion Sets</p>
+              <CollectionSets
+                collectionId={collectionId}
+                onFill={(expansionSetIds) =>
+                  setDraft((one) => ({ ...one, expansionSetIds }))
+                }
+              />
               <div className="flex flex-wrap gap-2">
                 {sets.map((set) => (
                   <button
@@ -186,5 +196,36 @@ export function ScanFilterBar({
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/**
+ * Fills the Expansion Sets with the ones the Collection's Cards belong to, so a
+ * Page holding the same sets can be matched without picking them one by one.
+ */
+function CollectionSets({
+  collectionId,
+  onFill,
+}: {
+  collectionId: string
+  onFill: (ids: string[]) => void
+}) {
+  const query = useListCollectionFacets(collectionId)
+  const sets =
+    query.data?.status === 200
+      ? (query.data.data.data?.expansionSets ?? [])
+      : []
+  if (sets.length === 0) return null
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="mb-2"
+      // A match request takes at most 20 sets.
+      onClick={() => onFill(sets.slice(0, 20).map((set) => set.id))}
+    >
+      Sets in this Collection
+    </Button>
   )
 }

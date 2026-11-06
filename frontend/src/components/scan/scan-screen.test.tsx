@@ -15,6 +15,7 @@ import type {
   CardSummary,
   MatchCandidate,
   ScanFeedbackRowInput,
+  ExpansionSetFacetOption,
 } from "@/generated/models"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { Blob as NodeBlob } from "node:buffer"
@@ -64,6 +65,8 @@ let photoPuts: string[] = []
 let putMode: "ok" | "refused" = "ok"
 let collectionWrites: { cardId: string; quantity: number }[][] = []
 let placementFails = false
+// The Expansion Sets the Collection holds, which the shortcut fills in.
+let collectionSets: ExpansionSetFacetOption[] = []
 
 interface JsonBody {
   data?: unknown
@@ -153,6 +156,18 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
     const data = ids.map((id) => cardOf(Number(id.replace("card-", ""))))
     return Promise.resolve(
       json({ data, meta: { total: data.length, page: 1, limit: 100 } })
+    )
+  }
+  if (url.pathname === "/collections/col-1/facets") {
+    return Promise.resolve(
+      json({
+        data: {
+          expansionSets: collectionSets,
+          rarities: [],
+          categories: [],
+          tags: [],
+        },
+      })
     )
   }
   if (url.pathname === "/scan/reprints") {
@@ -315,6 +330,7 @@ beforeEach(() => {
   putMode = "ok"
   collectionWrites = []
   placementFails = false
+  collectionSets = []
   vi.stubGlobal("fetch", vi.fn(fakeApi))
   vi.stubGlobal("indexedDB", new IDBFactory())
   vi.stubGlobal("IDBKeyRange", IDBKeyRange)
@@ -1474,6 +1490,32 @@ describe("the Scan Filter", () => {
     await waitFor(() => expect(matchRequests).toHaveLength(1))
     expect(matchRequests[0]).toContain("expansionSetId=set-2")
     expect(matchRequests[0]).toContain("rarityId=r-1")
+  })
+
+  it("fills the Expansion Sets with the sets the Collection holds", async () => {
+    collectionSets = [
+      {
+        id: "set-2",
+        code: "MA5",
+        name: "Mega Evolution",
+        imageUrl: "",
+        available: true,
+      },
+    ]
+    renderScreen()
+    await userEvent.click(row())
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sets in this Collection" })
+    )
+
+    expect(
+      screen
+        .getByRole("button", { name: "Mega Evolution (MA5)" })
+        .getAttribute("aria-pressed")
+    ).toBe("true")
+
+    await userEvent.click(screen.getByRole("button", { name: "Done" }))
+    expect(within(row()).getByText("MA5")).toBeTruthy()
   })
 
   it("remembers the last filter on the device across a remount", async () => {

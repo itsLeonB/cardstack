@@ -4,8 +4,8 @@
 
 **Blocked by:** 12 (Limit search for card scanning).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The row, sheet, chips, remembered choice and note from ticket 12 work on the Page Review scan mode, and the restriction applies to every cell of the photographed Page.
-- [ ] "Sets in this Collection" fills the Expansion Set group with the Expansion Sets of the Cards the Collection holds, taken from the Collection's existing facets, and is hidden or disabled when the Collection is empty.
-- [ ] Screen tests cover the Page Review row, the shortcut with and without cards, and the note on an Unidentified cell.
+- [x] The row, sheet, chips, remembered choice and note from ticket 12 work on the Page Review scan mode, and the restriction applies to every cell of the photographed Page.
+- [x] "Sets in this Collection" fills the Expansion Set group with the Expansion Sets of the Cards the Collection holds, taken from the Collection's existing facets, and is hidden or disabled when the Collection is empty.
+- [x] Screen tests cover the Page Review row, the shortcut with and without cards, and the note on an Unidentified cell.

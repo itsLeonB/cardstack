@@ -40,6 +40,7 @@ import type {
   MatchResult,
   ScanFeedbackRowInput,
   CatalogFacets,
+  ExpansionSetFacetOption,
 } from "@/generated/models"
 
 // Only the network is faked (`fetch`) and the camera and canvas are faked:
@@ -79,6 +80,8 @@ let feedbackMode: "ok" | "fail" | "hang" = "ok"
 let uploadRequests: number[] = []
 let photoPuts: Blob[] = []
 let putMode: "ok" | "refused" = "ok"
+// The Expansion Sets the Collection holds, which the shortcut fills in.
+let collectionSets: ExpansionSetFacetOption[] = []
 
 type Body =
   | { data: MatchResult }
@@ -137,6 +140,18 @@ function fakeApi(input: RequestInfo | URL, init?: RequestInit) {
           rarities: [
             { id: "r-1", code: "RR", name: "Double Rare", available: true },
           ],
+          categories: [],
+          tags: [],
+        },
+      })
+    )
+  }
+  if (url.pathname === "/collections/col-1/facets") {
+    return Promise.resolve(
+      json({
+        data: {
+          expansionSets: collectionSets,
+          rarities: [],
           categories: [],
           tags: [],
         },
@@ -371,6 +386,7 @@ beforeEach(() => {
   uploadRequests = []
   photoPuts = []
   putMode = "ok"
+  collectionSets = []
   cut.mockClear()
   vi.stubGlobal("indexedDB", new IDBFactory())
   localStorage.clear()
@@ -1918,6 +1934,52 @@ describe("the Scan Filter on a Page", () => {
     await user.click(await screen.findByRole("button", { name: label }))
     await user.click(screen.getByRole("button", { name: "Done" }))
   }
+
+  it("fills the Expansion Sets with the sets the Collection holds", async () => {
+    const user = userEvent.setup()
+    collectionSets = [
+      {
+        id: "set-2",
+        code: "MA5",
+        name: "Mega Evolution",
+        imageUrl: "",
+        available: true,
+      },
+    ]
+    renderFlow()
+    await user.click(
+      await screen.findByRole("button", { name: /Limit search/ })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Sets in this Collection" })
+    )
+
+    expect(
+      screen
+        .getByRole("button", { name: "Mega Evolution (MA5)" })
+        .getAttribute("aria-pressed")
+    ).toBe("true")
+
+    await user.click(screen.getByRole("button", { name: "Done" }))
+    expect(
+      screen.getByRole("button", { name: /Limit search/ }).textContent
+    ).toContain("MA5")
+  })
+
+  it("offers no Collection shortcut while the Collection holds no Cards", async () => {
+    const user = userEvent.setup()
+    renderFlow()
+    await user.click(
+      await screen.findByRole("button", { name: /Limit search/ })
+    )
+
+    expect(
+      await screen.findByRole("button", { name: "Mega Evolution (MA5)" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Sets in this Collection" })
+    ).toBeNull()
+  })
 
   it("limits the cells' matches and their Other prints to the filter", async () => {
     const user = userEvent.setup()
