@@ -133,6 +133,18 @@ _Avoid_: "public" for a Collection that merely has a link nobody has been given 
 **Slug**:
 The readable, stable name of a profile or of a Shared Collection, as it appears in their link: the owner's name or the Collection's title, lower-cased and hyphenated, followed by a short random-looking tail so two with the same name still differ (a Collection's tail is drawn afresh each time sharing is turned on, so a revoked link never comes back). A profile always has a Slug. A Collection has one only while it is Shared; a Collection with no Slug is private.
 
+**Trade**:
+A two-person exchange of cards, agreed in the app and executed by both sides once the cards have physically changed hands. Its state runs `open` (link made, second seat empty), `negotiating` (both seats filled, sides editable), `locked` (both sides accepted, sides frozen), `executed`, `cancelled`.
+_Avoid_: calling its link Shared, or calling it a public inventory — a Trade shows only what each side puts in it, and no user's holdings are aggregated for strangers.
+
+**Trade Item**:
+One entry on a Trade side: a Card, a quantity, and the Collection it is meant to leave. The source Collection records intent only; execution takes the quantity from it first and from the same user's other Collections when it no longer holds enough.
+_Avoid_: conflating it with a Wishlist Item (wanted, not offered) or with an Inventory Entry (the quantity that actually exists).
+
+**Trade Inbox**:
+The Collection a Trade creates for a side that receives cards, flagged apart from the owner's own Collections and shown on its own page until it empties. Cards land in it at execution, count toward Master Inventory at once, and leave it only by being moved into a real Collection.
+_Avoid_: calling it a staging area or a fourth kind of holding — it is an ordinary Collection under the flag, which is what keeps every quantity in the app inside one.
+
 **Wishlist**:
 The cards a user wants and does not yet own, each with a wanted quantity. One per user. A Wishlist Item is one Card and the quantity wanted, and shows how many of that Card the user owns in Master Inventory next to it. Owning the Card never removes the item: it shows as fulfilled until the user clears it. Can be Shared, and anyone viewing a Shared Wishlist, a Guest included, sees the owner's owned and wanted for each item and whether it is fulfilled. A signed-in viewer of another user's Shared Wishlist sees how many of each Card they own themselves, so the two can see where a trade is possible.
 _Avoid_: conflating it with Inventory Entry (owned quantity) — a Wishlist Item never counts toward Master Inventory.
