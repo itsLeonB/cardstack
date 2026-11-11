@@ -65,8 +65,11 @@ func RegisterRoutes(api huma.API, services *provider.Services, limits ratelimit.
 	// collision: /shared/{profileSlug}/wishlist must not be matched as a Collection slug.
 	endpoint.RegisterAll(api, sharedWishlistHandler.Routes(), guestsAllowed, ratelimit.PerIP(api, limits.Shared, limits.Now))
 	endpoint.RegisterAll(api, sharedCollectionHandler.Routes(), guestsAllowed, ratelimit.PerIP(api, limits.Shared, limits.Now))
-	// Trade pages are link-addressed and signed-in only: the private guard
-	// answers a Guest 401 before any slug is read (ADR-0028).
+	// Trade create and join need the Auth Identity: the private guard answers
+	// a Guest 401 there. The read is guest-allowed instead, so a Guest opening
+	// a Trade link gets the same not-found as an unknown slug (user story 43),
+	// never a 401 that confirms the link.
+	endpoint.RegisterAll(api, tradeHandler.ReadRoutes(), guestsAllowed, perUser)
 	endpoint.RegisterAll(api, tradeHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, inventoryHandler.Routes(), private, perUser)
 	endpoint.RegisterAll(api, wishlistHandler.Routes(), private, perUser)

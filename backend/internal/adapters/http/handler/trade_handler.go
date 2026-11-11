@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
 	"github.com/itsLeonB/cardstack/backend/internal/endpoint"
@@ -41,12 +42,11 @@ func (h *TradeHandler) create(ctx context.Context, _ tradeSlugInput) (dto.TradeS
 }
 
 func (h *TradeHandler) get(ctx context.Context, in tradeLookupInput) (dto.TradeView, error) {
-	profileID, err := requireProfileID(ctx)
-	if err != nil {
-		return dto.TradeView{}, err
-	}
+	// A Guest reads nothing either: the service answers the same not-found as
+	// an unknown slug (user story 43), never a 401 that would confirm the link.
+	caller := authpkg.CallerFrom(ctx)
 
-	return h.tradeSvc.Get(ctx, dto.TradeLookup{Slug: in.Slug, ProfileID: profileID})
+	return h.tradeSvc.Get(ctx, dto.TradeLookup{Slug: in.Slug, ProfileID: caller.ProfileID})
 }
 
 func (h *TradeHandler) join(ctx context.Context, in tradeJoinInput) (dto.TradeView, error) {
@@ -58,8 +58,9 @@ func (h *TradeHandler) join(ctx context.Context, in tradeJoinInput) (dto.TradeVi
 	return h.tradeSvc.Join(ctx, dto.TradeJoinRequest{ProfileID: profileID, Slug: in.Slug})
 }
 
-// Routes are private: a Guest gets 401, never the trade page (ADR-0028). The
-// slug is the whole address; there is no list or owner-scoped read here.
+// Routes are private: create and join need the Auth Identity, so a Guest gets
+// 401 (ADR-0028). The slug is the whole address; there is no list or
+// owner-scoped read here.
 func (h *TradeHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
 		endpoint.New(endpoint.Endpoint[tradeSlugInput, dto.TradeSlug]{
@@ -71,15 +72,6 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 			SuccessCode: http.StatusCreated,
 			HandlerFunc: h.create,
 		}),
-		endpoint.New(endpoint.Endpoint[tradeLookupInput, dto.TradeView]{
-			OperationID: "get-trade",
-			Method:      http.MethodGet,
-			Path:        "/trades/{slug}",
-			Summary:     "Read a Trade by its slug: state, both display names and the Trade Items on each side, without claiming the seat. An unknown, cancelled or not-yours slug is the same 404",
-			Tags:        []string{"trades"},
-			SuccessCode: http.StatusOK,
-			HandlerFunc: h.get,
-		}),
 		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{
 			OperationID: "join-trade",
 			Method:      http.MethodPost,
@@ -88,6 +80,23 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 			Tags:        []string{"trades"},
 			SuccessCode: http.StatusOK,
 			HandlerFunc: h.join,
+		}),
+	}
+}
+
+// ReadRoutes is the link-public read: a Guest passes the guest-allowed guard
+// and the service answers the same not-found as an unknown slug (user story
+// 43), so no 401 ever confirms a Trade link exists.
+func (h *TradeHandler) ReadRoutes() []endpoint.Registrable {
+	return []endpoint.Registrable{
+		endpoint.New(endpoint.Endpoint[tradeLookupInput, dto.TradeView]{
+			OperationID: "get-trade",
+			Method:      http.MethodGet,
+			Path:        "/trades/{slug}",
+			Summary:     "Read a Trade by its slug: state, both display names and the Trade Items on each side, without claiming the seat. An unknown, cancelled, not-yours or guest-opened slug is the same 404",
+			Tags:        []string{"trades"},
+			SuccessCode: http.StatusOK,
+			HandlerFunc: h.get,
 		}),
 	}
 }

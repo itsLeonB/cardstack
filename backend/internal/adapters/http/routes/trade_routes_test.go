@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -182,10 +183,13 @@ func TestTradeReadRefusals(t *testing.T) {
 
 	slug := createTrade(t, api, owner)
 
-	// Guest: 401 on read and join (the private guard answers before the slug).
-	assert.Equal(t, http.StatusUnauthorized, api.Get("/trades/"+slug).Code)
-	assert.Equal(t, http.StatusUnauthorized, api.Post("/trades/"+slug+"/join", "", map[string]any{}).Code)
+	// Guest: create and join need the Auth Identity (401); the read answers
+	// the same not-found as an unknown slug (user story 43).
 	assert.Equal(t, http.StatusUnauthorized, api.Post("/trades", "", map[string]any{}).Code)
+	assert.Equal(t, http.StatusUnauthorized, api.Post("/trades/"+slug+"/join", "", map[string]any{}).Code)
+	guestRead := api.Get("/trades/" + slug)
+	assert.Equal(t, http.StatusNotFound, guestRead.Code)
+	assert.Equal(t, getTrade(api, outsider, "no-such-trade").Body.String(), guestRead.Body.String())
 
 	// Unknown slug: same 404 for a signed-in user.
 	assert.Equal(t, http.StatusNotFound, getTrade(api, outsider, "no-such-trade").Code)
@@ -195,4 +199,22 @@ func TestTradeReadRefusals(t *testing.T) {
 	resp := getTrade(api, outsider, slug)
 	require.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 	assert.Equal(t, getTrade(api, outsider, "no-such-trade").Body.String(), resp.Body.String())
+}
+
+// TestTradeReadCancelled: a cancelled Trade answers the same not-found as an
+// unknown slug — to its owner and on join too. No cancel endpoint exists yet
+// in this issue, so the fixture flips the status in the database directly.
+func TestTradeReadCancelled(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+
+	slug := createTrade(t, api, owner)
+	require.NoError(t, api.db.Model(&entity.Trade{}).Where("slug = ?", slug).
+		Update("status", entity.TradeStatusCancelled).Error)
+
+	resp := getTrade(api, owner, slug)
+	require.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+	assert.Equal(t, getTrade(api, owner, "no-such-trade").Body.String(), resp.Body.String())
+
+	assert.Equal(t, http.StatusNotFound, joinTrade(api, owner, slug).Code)
 }

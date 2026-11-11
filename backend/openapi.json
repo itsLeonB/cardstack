@@ -7406,7 +7406,7 @@
             "description": "Error"
           }
         },
-        "summary": "Read a Trade by its slug: state, both display names and the Trade Items on each side, without claiming the seat. An unknown, cancelled or not-yours slug is the same 404",
+        "summary": "Read a Trade by its slug: state, both display names and the Trade Items on each side, without claiming the seat. An unknown, cancelled, not-yours or guest-opened slug is the same 404",
         "tags": [
           "trades"
         ]

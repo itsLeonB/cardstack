@@ -35,7 +35,8 @@ type TradeService interface {
 	// and returns its Slug for the link.
 	Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error)
 	// Get reads a Trade by slug without claiming anything: its state, both
-	// participants' display names, and the Trade Items on each side. While the
+	// participants' display names, and the Trade Items on each side. A Guest
+	// gets the same not-found as an unknown slug (user story 43). While the
 	// Trade is open any signed-in holder of the link may read it (that is how
 	// the second user reads the offer before joining); once someone holds the
 	// second seat only participants may, and an unknown, cancelled or
@@ -135,6 +136,12 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 }
 
 func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
+	// A Guest reads nothing: the same not-found as an unknown slug, so a link
+	// never confirms itself to someone without an Auth Identity (story 43).
+	if req.ProfileID == uuid.Nil {
+		return dto.TradeView{}, ungerr.NotFoundError(tradeNotFoundMsg)
+	}
+
 	t, err := s.trades.FindBySlug(ctx, req.Slug)
 	if err != nil {
 		return dto.TradeView{}, err
