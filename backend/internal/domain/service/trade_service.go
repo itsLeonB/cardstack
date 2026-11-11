@@ -27,9 +27,9 @@ const tradeNotFoundMsg = "trade not found"
 const tradeOwnerJoinMsg = "the Trade's owner cannot claim its own second seat"
 
 // TradeService is the room a Trade link opens (GLOSSARY.md: Trade, ADR-0028).
-// Every method takes the caller's profile, so a Guest never reaches it — the
-// routes' private guard answers 401 first — and a signed-in caller who is not
-// a participant gets the same not-found as an unknown slug.
+// Create and Join need the Auth Identity, so their routes answer a Guest 401.
+// Get is guest-allowed and answers the same not-found as an unknown slug, so
+// a signed-in caller who is not a participant gets that too.
 type TradeService interface {
 	// Create starts a Trade with the caller on the owner seat, state open,
 	// and returns its Slug for the link.
@@ -94,16 +94,7 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		return dto.TradeView{}, ungerr.NotFoundError(tradeNotFoundMsg)
 	}
 
-	out := dto.TradeView{
-		Slug:          t.Slug,
-		Status:        t.Status,
-		OwnerName:     owner.Name,
-		IsOwner:       t.OwnerProfileID == profileID,
-		OwnerItems:    []dto.TradeItemView{},
-		OtherItems:    []dto.TradeItemView{},
-		IsParticipant: s.isParticipant(t, profileID),
-	}
-
+	var otherName *string
 	if t.ParticipantProfileID != nil {
 		other, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
 			Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: *t.ParticipantProfileID}},
@@ -114,25 +105,10 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		if other.IsZero() {
 			return dto.TradeView{}, ungerr.NotFoundError(tradeNotFoundMsg)
 		}
-		out.OtherName = &other.Name
+		otherName = &other.Name
 	}
 
-	// Side is the seat whose Collection the item leaves: SideOwner's offer,
-	// SideParticipant's.
-	for _, item := range t.TradeItems {
-		v := dto.TradeItemView{
-			Card:       mapper.ToBinderCardSummary(s.images, item.Card),
-			Quantity:   item.Quantity,
-			Collection: item.SourceCollection.Title,
-		}
-		if item.Side == entity.SideOwner {
-			out.OwnerItems = append(out.OwnerItems, v)
-		} else {
-			out.OtherItems = append(out.OtherItems, v)
-		}
-	}
-
-	return out, nil
+	return mapper.ToTradeView(s.images, t, owner.Name, otherName, profileID), nil
 }
 
 func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
