@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 
 const notFoundData = z.object({
-  resource: z.enum(["Collection", "Card", "Wishlist"]),
+  resource: z.enum(["Collection", "Card", "Wishlist", "Trade"]),
 })
 type Resource = z.infer<typeof notFoundData>["resource"]
 
