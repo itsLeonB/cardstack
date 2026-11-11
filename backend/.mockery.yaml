@@ -29,6 +29,7 @@ packages:
       ScanReviewRepository:
       UserRepository:
       WishlistRepository:
+      TradeRepository:
   github.com/itsLeonB/cardstack/backend/internal/domain/service:
     interfaces:
       BinderService:
@@ -40,6 +41,7 @@ packages:
       InventoryService:
       MatchService:
       ScanReviewService:
+      TradeService:
       UserService:
       WishlistService:
       IdentityCache:
