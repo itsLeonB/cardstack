@@ -1,5 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+
 import { pageHead } from "@/lib/site"
+import { useCreateTrade } from "@/generated/endpoints/trades/trades"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
@@ -15,6 +18,9 @@ export const Route = createFileRoute("/_authenticated/account")({
 function AccountPage() {
   const { user } = useSession()
   const { signOut, isPending } = useSignOut()
+  const navigate = useNavigate()
+  const [tradeError, setTradeError] = useState<string | null>(null)
+  const createTrade = useCreateTrade()
 
   return (
     <PageContainer>
@@ -40,6 +46,50 @@ function AccountPage() {
             <dt className="font-medium">Email</dt>
             <dd className="break-all">{user?.email}</dd>
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg">Trades</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-start gap-3">
+          <p className="text-sm">
+            Start a Trade to swap Cards with someone, and share its link.
+          </p>
+          {tradeError && (
+            <p role="alert" className="text-sm text-destructive">
+              {tradeError}
+            </p>
+          )}
+          <Button
+            disabled={createTrade.isPending}
+            onClick={() => {
+              setTradeError(null)
+              createTrade.mutate(undefined, {
+                onSuccess: (response) => {
+                  if (response.status === 201) {
+                    void navigate({
+                      to: "/trades/$slug",
+                      params: { slug: response.data.data.slug },
+                    })
+                    return
+                  }
+                  setTradeError(
+                    response.data.detail ?? "Could not start this Trade."
+                  )
+                },
+                onError: () =>
+                  setTradeError(
+                    "Could not reach the server. Please try again."
+                  ),
+              })
+            }}
+          >
+            {createTrade.isPending ? "Starting..." : "Start a Trade"}
+          </Button>
         </CardContent>
       </Card>
 
