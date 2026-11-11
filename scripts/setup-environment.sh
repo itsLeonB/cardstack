@@ -1,6 +1,5 @@
 #!/bin/sh
-# Sets up a dev environment for this project: language servers, RTK, Serena,
-# ADHD mode, and a set of shared skills.
+# Sets up a dev environment for this project
 # Non-interactive; safe to re-run. Intended to be run manually by devs.
 set -e
 
@@ -11,11 +10,7 @@ if ! command -v go >/dev/null 2>&1; then
 fi
 # Installed straight into /usr/local/bin (not GOPATH/bin) so it's resolvable
 # by every process on this box without relying on a shell rc file having
-# been sourced first — Serena's language-server manager runs its one-shot,
-# all-or-nothing startup probe for gopls immediately when the session boots,
-# before any dev-run script (this one included) gets a chance to run; once
-# that probe fails, nothing in-session (PATH fixes, Serena's own restart tools)
-# can recover it, so gopls has to already be resolvable at that point.
+# been sourced first
 GOBIN=/usr/local/bin GOFLAGS=-mod=mod go install golang.org/x/tools/gopls@latest
 
 if ! command -v npm >/dev/null 2>&1; then
@@ -35,29 +30,6 @@ if ! command -v pip >/dev/null 2>&1; then
 	exit 1
 fi
 pip install --user yamllint
-
-echo "Installing RTK..."
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-
-echo "Installing Serena..."
-if ! command -v uv >/dev/null 2>&1; then
-	echo "error: 'uv' is not on PATH; install uv first" >&2
-	exit 1
-fi
-uv tool install -p 3.13 serena-agent
-serena init
-
-echo "Installing shared skills..."
-npx skills add vercel-labs/skills --skill "find-skills" -g -a codex -y
-npx skills add dmmulroy/anti-slop --skill "install-anti-slop" -g -a codex -y
-npx skills add mattpocock/skills --skill "grill-me" -g -a codex -y
-npx skills add mattpocock/skills --skill "grilling" -g -a codex -y
-npx skills add mattpocock/skills --skill "handoff" -g -a codex -y
-npx skills add mattpocock/skills --skill "teach" -g -a codex -y
-npx skills add mattpocock/skills --skill "to-questionnaire" -g -a codex -y
-npx skills add mattpocock/skills --skill "wait-what" -g -a codex -y
-npx skills add mattpocock/skills --skill "writing-for-agents" -g -a codex -y
-npx skills add anthropics/skills --skill "skill-creator" -g -a codex -y
 
 echo "Enabling the tracked pre-commit checks (docs/git.md)..."
 git config core.hooksPath .githooks

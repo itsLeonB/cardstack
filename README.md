@@ -4,10 +4,9 @@
 
 ### Agent tooling
 
-- [`docs/environment.md`](./docs/environment.md): first-time setup (direnv, `.envrc`, Serena) and running the Admin app locally.
+- [`docs/environment.md`](./docs/environment.md): first-time setup (direnv, `.envrc`) and running the Admin app locally.
 - [`docs/security.md`](./docs/security.md): the guard extensions in `.pi/extensions/`, what they block, and project trust.
-- [`docs/serena.md`](./docs/serena.md): how Serena is wired for agents.
-- Language servers for Serena: `scripts/lsp/install.sh` (`--check` only reports what is missing).
+- Language servers: `scripts/lsp/install.sh` (`--check` only reports what is missing).
 
 ### Linters
 

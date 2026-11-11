@@ -3,10 +3,9 @@
 Set up a fresh clone so agents and their MCP servers see the variables `.mcp.json` references. MCP servers read `${VAR}` placeholders from the environment of the process that starts them, so load the variables before you start your agent.
 
 1. Install `direnv` and hook it into your shell (zsh: `eval "$(direnv hook zsh)"` in `~/.zshrc`). Restart the shell.
-2. Install Serena (`serena`, `serena-hooks`) and `jq`. Run `scripts/lsp/install.sh` for the language servers; `--check` only reports what is missing.
-3. Run `cp .envrc.example .envrc` and fill in your values. `.envrc` is gitignored; never commit it.
-4. Run `direnv allow` in the repo root, and again after every `.envrc` change.
-5. Start your agent from that shell, inside the repo.
+2. Run `cp .envrc.example .envrc` and fill in your values. `.envrc` is gitignored; never commit it.
+3. Run `direnv allow` in the repo root, and again after every `.envrc` change.
+4. Start your agent from that shell, inside the repo.
 
 Worktrees don't hold gitignored files. A delegate runs `scripts/bootstrap-worktree/<component>.sh` first: it copies `.envrc` and the component's env files from the main checkout, runs `direnv allow`, and starts the compose stack's tooling container (the frontend script also installs dependencies in it).
 
@@ -24,7 +23,7 @@ The Admin app has no sign-in page: sign in at `http://localhost:3000` with a lis
 
 ## The compose stack
 
-Docker with the Compose plugin is the only tool the checks need: the database, API, apps and tooling run in containers (`docs/agents/testing.md`). The host keeps its own language toolchains (Go, bun) because Serena's language servers run on the host and need them; nothing else does.
+Docker with the Compose plugin is the only tool the checks need: the database, API, apps and tooling run in containers (`docs/agents/testing.md`).
 
 - **Env files.** The stack reads `backend/.env` when it exists, over the placeholders in `compose.defaults.env` that let the API boot without it. `frontend/.env` supplies the Clerk publishable key the end-to-end step bakes into the app. A missing file is fine; the guest checks still run.
 - **Isolation.** Each worktree has its own stack, named after its directory, with no host port published.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the language servers Serena needs for the frontend component (typescript).
+# Installs the language servers for the frontend component (typescript).
 # Idempotent and non-interactive. `--check` installs nothing and exits non-zero while a server is missing.
 set -euo pipefail
 
