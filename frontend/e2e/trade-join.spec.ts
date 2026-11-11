@@ -170,19 +170,39 @@ test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
   test("a join that loses the seat is told the Trade is full", async ({
     page,
   }) => {
+    // The read answers the post-join truth once someone else holds the seat.
+    let seatTaken = false
     await page.route(`${API}/trades/${SLUG}`, (route) =>
-      reply(route, 200, { data: tradeView() })
+      reply(route, 200, {
+        data: tradeView(
+          seatTaken
+            ? {
+                status: "negotiating",
+                otherName: "Ash Ketchum",
+                isParticipant: true,
+              }
+            : {}
+        ),
+      })
     )
-    await page.route(`${API}/trades/${SLUG}/join`, (route) =>
-      reply(route, 409, { code: "trade_seat_taken", detail: "Seat taken." })
-    )
+    await page.route(`${API}/trades/${SLUG}/join`, (route) => {
+      seatTaken = true
+      return reply(route, 409, {
+        code: "trade_seat_taken",
+        detail: "Seat taken.",
+      })
+    })
 
     await signInAsTestUser(page)
     await page.goto(`/trades/${SLUG}`)
     await page.getByRole("button", { name: "Join this Trade" }).click()
 
     await expect(page.getByText("This Trade is already full.")).toBeVisible()
-    // The page refreshes to the truth: the seat is someone else's now.
-    await expect(page.getByText("Waiting for someone to join")).toBeVisible()
+    // The page refetches to the truth: the seat is someone else's now.
+    await expect(
+      page.getByRole("button", { name: "Join this Trade" })
+    ).toHaveCount(0)
+    await expect(page.getByText("Negotiating")).toBeVisible()
+    await expect(page.getByText("Ash Ketchum").nth(1)).toBeVisible()
   })
 })

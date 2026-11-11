@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { toast } from "sonner"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 
 import { NotFoundView } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { pageHead } from "@/lib/site"
+import { NETWORK_ERROR } from "@/lib/collections"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/trades/$slug")({
     }
     return response.status === 200 ? response.data.data : null
   },
-  head: () => pageHead("Trade"),
+  head: ({ params }) => pageHead(params.slug),
   component: TradePage,
 })
 
@@ -120,68 +121,48 @@ function TradeSide({
 
 /** The owner's view of the link to send; the address bar carries it too. */
 function OwnerLink({ slug }: { slug: string }) {
-  const [copied, setCopied] = useState(false)
   const url = `${window.location.origin}/trades/${slug}`
 
   return (
     <div className="flex flex-col items-start gap-2">
       <p className="text-sm break-all">{url}</p>
-      <Button
-        variant="outline"
-        onClick={() => {
-          void navigator.clipboard.writeText(url)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 2000)
-        }}
-      >
-        {copied ? "Copied!" : "Copy link"}
-      </Button>
     </div>
   )
 }
 
 function JoinSeat({ trade }: { trade: TradeView }) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const router = useRouter()
   const joinMutation = useJoinTrade()
 
   if (trade.isParticipant || trade.status !== "open") return null
 
   return (
-    <div className="flex flex-col items-start gap-3">
-      {errorMessage && (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage}
-        </p>
-      )}
-      <Button
-        disabled={joinMutation.isPending}
-        onClick={() => {
-          setErrorMessage(null)
-          joinMutation.mutate(
-            { slug: trade.slug },
-            {
-              onSuccess: (response) => {
-                if (response.status === 200) {
-                  void router.invalidate()
-                  return
-                }
-                setErrorMessage(
-                  response.data.code === "trade_seat_taken"
-                    ? "This Trade is already full."
-                    : (response.data.detail ?? "Could not join this Trade.")
-                )
-              },
-              onError: () =>
-                setErrorMessage(
-                  "Could not reach the server. Please try again."
-                ),
-            }
-          )
-        }}
-      >
-        {joinMutation.isPending ? "Joining..." : "Join this Trade"}
-      </Button>
-    </div>
+    <Button
+      disabled={joinMutation.isPending}
+      onClick={() =>
+        joinMutation.mutate(
+          { slug: trade.slug },
+          {
+            onSuccess: (response) => {
+              if (response.status === 200) {
+                void router.invalidate()
+                return
+              }
+              // The seat is gone: refetch so the page shows who holds it.
+              if (response.data.code === "trade_seat_taken")
+                void router.invalidate()
+              toast.error(
+                response.data.code === "trade_seat_taken"
+                  ? "This Trade is already full."
+                  : (response.data.detail ?? "Could not join this Trade.")
+              )
+            },
+            onError: () => toast.error(NETWORK_ERROR),
+          }
+        )
+      }
+    >
+      {joinMutation.isPending ? "Joining..." : "Join this Trade"}
+    </Button>
   )
 }

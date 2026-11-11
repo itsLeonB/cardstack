@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { toast } from "sonner"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 
 import { pageHead } from "@/lib/site"
+import { NETWORK_ERROR } from "@/lib/collections"
 import { useCreateTrade } from "@/generated/endpoints/trades/trades"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
@@ -19,7 +20,6 @@ function AccountPage() {
   const { user } = useSession()
   const { signOut, isPending } = useSignOut()
   const navigate = useNavigate()
-  const [tradeError, setTradeError] = useState<string | null>(null)
   const createTrade = useCreateTrade()
 
   return (
@@ -59,15 +59,9 @@ function AccountPage() {
           <p className="text-sm">
             Start a Trade to swap Cards with someone, and share its link.
           </p>
-          {tradeError && (
-            <p role="alert" className="text-sm text-destructive">
-              {tradeError}
-            </p>
-          )}
           <Button
             disabled={createTrade.isPending}
-            onClick={() => {
-              setTradeError(null)
+            onClick={() =>
               createTrade.mutate(undefined, {
                 onSuccess: (response) => {
                   if (response.status === 201) {
@@ -77,16 +71,13 @@ function AccountPage() {
                     })
                     return
                   }
-                  setTradeError(
+                  toast.error(
                     response.data.detail ?? "Could not start this Trade."
                   )
                 },
-                onError: () =>
-                  setTradeError(
-                    "Could not reach the server. Please try again."
-                  ),
+                onError: () => toast.error(NETWORK_ERROR),
               })
-            }}
+            }
           >
             {createTrade.isPending ? "Starting..." : "Start a Trade"}
           </Button>
