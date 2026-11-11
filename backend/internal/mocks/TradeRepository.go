@@ -353,63 +353,6 @@ func (_c *MockTradeRepository_GetGormInstance_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// GetLocked provides a mock function with given fields: ctx, id
-func (_m *MockTradeRepository) GetLocked(ctx context.Context, id uuid.UUID) (entity.Trade, error) {
-	ret := _m.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetLocked")
-	}
-
-	var r0 entity.Trade
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (entity.Trade, error)); ok {
-		return rf(ctx, id)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) entity.Trade); ok {
-		r0 = rf(ctx, id)
-	} else {
-		r0 = ret.Get(0).(entity.Trade)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, id)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockTradeRepository_GetLocked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLocked'
-type MockTradeRepository_GetLocked_Call struct {
-	*mock.Call
-}
-
-// GetLocked is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockTradeRepository_Expecter) GetLocked(ctx interface{}, id interface{}) *MockTradeRepository_GetLocked_Call {
-	return &MockTradeRepository_GetLocked_Call{Call: _e.mock.On("GetLocked", ctx, id)}
-}
-
-func (_c *MockTradeRepository_GetLocked_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTradeRepository_GetLocked_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
-	})
-	return _c
-}
-
-func (_c *MockTradeRepository_GetLocked_Call) Return(_a0 entity.Trade, _a1 error) *MockTradeRepository_GetLocked_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockTradeRepository_GetLocked_Call) RunAndReturn(run func(context.Context, uuid.UUID) (entity.Trade, error)) *MockTradeRepository_GetLocked_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Insert provides a mock function with given fields: ctx, model
 func (_m *MockTradeRepository) Insert(ctx context.Context, model entity.Trade) (entity.Trade, error) {
 	ret := _m.Called(ctx, model)

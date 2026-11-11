@@ -46,7 +46,7 @@ func (h *TradeHandler) get(ctx context.Context, in tradeLookupInput) (dto.TradeV
 		return dto.TradeView{}, err
 	}
 
-	return h.tradeSvc.Get(ctx, dto.TradeLookup{Slug: in.Slug}, profileID)
+	return h.tradeSvc.Get(ctx, dto.TradeLookup{Slug: in.Slug, ProfileID: profileID})
 }
 
 func (h *TradeHandler) join(ctx context.Context, in tradeJoinInput) (dto.TradeView, error) {

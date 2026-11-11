@@ -9,24 +9,14 @@ import (
 	"github.com/itsLeonB/ungerr"
 )
 
-// tradeNotFoundMsg is the only not-found a Trade answers with: an unknown
-// slug, a cancelled Trade and one the caller may not read look the same, so
-// the link reveals nothing (docs/adr/0028).
-const tradeNotFoundMsg = "trade not found"
-
 // TradeRepository is crud.Repository[entity.Trade] plus the Trade's lookups:
-// by slug, row-locked by id, and the conditional join that claims the second
-// seat.
+// by slug, and the conditional join that claims the second seat.
 type TradeRepository interface {
 	crud.Repository[entity.Trade]
 	// FindBySlug returns the Trade with this slug, preloading its Trade Items
 	// with their Cards (Rarity and Expansion Set) and source Collections, or
 	// the zero value with a nil error when there is none.
 	FindBySlug(ctx context.Context, slug string) (entity.Trade, error)
-	// GetLocked returns the Trade with this id row-locked, or the not-found
-	// AppError. It never returns a zero value with a nil error. Use it inside
-	// crud.Transactor.WithinTransaction with the callback's ctx.
-	GetLocked(ctx context.Context, id uuid.UUID) (entity.Trade, error)
 	// Join claims the second seat for profileID when it is empty, moving the
 	// Trade to negotiating. It reports false, changing nothing, when the seat
 	// is taken or the Trade is no longer open — one conditional UPDATE, so two
@@ -59,25 +49,6 @@ func (r *tradeRepository) FindBySlug(ctx context.Context, slug string) (entity.T
 		Model:            entity.Trade{Slug: slug},
 		PreloadRelations: tradeItemPreloads,
 	})
-}
-
-func (r *tradeRepository) GetLocked(ctx context.Context, id uuid.UUID) (entity.Trade, error) {
-	if id == uuid.Nil {
-		return entity.Trade{}, ungerr.NotFoundError(tradeNotFoundMsg)
-	}
-
-	t, err := r.FindFirst(ctx, crud.Specification[entity.Trade]{
-		Model:     entity.Trade{BaseEntity: crud.BaseEntity{ID: id}},
-		ForUpdate: true,
-	})
-	if err != nil {
-		return entity.Trade{}, err
-	}
-	if t.IsZero() {
-		return entity.Trade{}, ungerr.NotFoundError(tradeNotFoundMsg)
-	}
-
-	return t, nil
 }
 
 // Join is one conditional UPDATE, so two joins racing on the same Trade

@@ -17,6 +17,12 @@ const (
 	TradeStatusCancelled   TradeStatus = "cancelled"
 )
 
+// A Trade Item's Side names the seat whose Collection the item leaves.
+const (
+	SideOwner       = 0
+	SideParticipant = 1
+)
+
 // Trade is a swap agreed between two profiles (GLOSSARY.md: Trade). The
 // creator is OwnerProfileID; ParticipantProfileID is the second seat,
 // claimed atomically by the first join (docs/adr/0028). Slug is the link's
@@ -35,8 +41,7 @@ type Trade struct {
 func (Trade) TableName() string { return "trades" }
 
 // TradeItem is one entry on a Trade side (GLOSSARY.md: Trade Item): a Card, a
-// quantity, and the Collection it is meant to leave. Side is 0 for the owner's
-// offer, 1 for the participant's.
+// quantity, and the Collection it is meant to leave. Side names the seat:
 type TradeItem struct {
 	crud.BaseEntity
 	TradeID            uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:idx_trade_items_trade_side_card_source"`

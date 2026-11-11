@@ -45,6 +45,10 @@ const CodePhotoStorageNotConfigured = "photo_storage_not_configured"
 // claimed: the caller is told the Trade is full (GLOSSARY.md: Trade).
 const CodeTradeSeatTaken = "trade_seat_taken"
 
+// CodeTradeOwnerJoin refuses a join by the Trade's own owner: they already
+// hold the owner seat, and the second seat cannot also be theirs.
+const CodeTradeOwnerJoin = "trade_owner_join"
+
 // coded deliberately embeds the AppError interface rather than the concrete
 // ungerr error, so it is not a huma.StatusError: Huma then routes it through
 // the classifier in the httpapi package instead of marshalling it directly,

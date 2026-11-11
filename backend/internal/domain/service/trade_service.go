@@ -22,6 +22,10 @@ const tradeSeatTakenMsg = "the trade's second seat is already taken"
 // the link reveals nothing (docs/adr/0028).
 const tradeNotFoundMsg = "trade not found"
 
+// tradeOwnerJoinMsg is the message of the owner-join failure; the client
+// branches on apperr.CodeTradeOwnerJoin, never on this text.
+const tradeOwnerJoinMsg = "the Trade's owner cannot claim its own second seat"
+
 // TradeService is the room a Trade link opens (GLOSSARY.md: Trade, ADR-0028).
 // Every method takes the caller's profile, so a Guest never reaches it — the
 // routes' private guard answers 401 first — and a signed-in caller who is not
@@ -36,7 +40,7 @@ type TradeService interface {
 	// the second user reads the offer before joining); once someone holds the
 	// second seat only participants may, and an unknown, cancelled or
 	// not-yours slug is the same not-found.
-	Get(ctx context.Context, req dto.TradeLookup, profileID uuid.UUID) (dto.TradeView, error)
+	Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error)
 	// Join fills the second seat once, moving the Trade to negotiating. A
 	// second attempt fails with CodeTradeSeatTaken, and two joins at once
 	// leave exactly one winner.
@@ -91,12 +95,12 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 
 	out := dto.TradeView{
 		Slug:          t.Slug,
-		Status:        string(t.Status),
+		Status:        t.Status,
 		OwnerName:     owner.Name,
 		IsOwner:       t.OwnerProfileID == profileID,
 		OwnerItems:    []dto.TradeItemView{},
 		OtherItems:    []dto.TradeItemView{},
-		IsParticipant: true,
+		IsParticipant: s.isParticipant(t, profileID),
 	}
 
 	if t.ParticipantProfileID != nil {
@@ -112,14 +116,15 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		out.OtherName = &other.Name
 	}
 
-	// Side 0 is the owner's offer, side 1 the participant's.
+	// Side is the seat whose Collection the item leaves: SideOwner's offer,
+	// SideParticipant's.
 	for _, item := range t.TradeItems {
 		v := dto.TradeItemView{
 			Card:       mapper.ToBinderCardSummary(s.images, item.Card),
 			Quantity:   item.Quantity,
 			Collection: item.SourceCollection.Title,
 		}
-		if item.Side == 0 {
+		if item.Side == entity.SideOwner {
 			out.OwnerItems = append(out.OwnerItems, v)
 		} else {
 			out.OtherItems = append(out.OtherItems, v)
@@ -129,11 +134,7 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 	return out, nil
 }
 
-func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup, profileID uuid.UUID) (dto.TradeView, error) {
-	if profileID == uuid.Nil {
-		return dto.TradeView{}, ungerr.UnauthorizedError("authentication required")
-	}
-
+func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
 	t, err := s.trades.FindBySlug(ctx, req.Slug)
 	if err != nil {
 		return dto.TradeView{}, err
@@ -143,11 +144,11 @@ func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup, profileID u
 	}
 	// Open reads are link-public to signed-in users; once the second seat is
 	// claimed the room closes to anyone who is not in it.
-	if t.Status != entity.TradeStatusOpen && !s.isParticipant(t, profileID) {
+	if t.Status != entity.TradeStatusOpen && !s.isParticipant(t, req.ProfileID) {
 		return dto.TradeView{}, ungerr.NotFoundError(tradeNotFoundMsg)
 	}
 
-	return s.view(ctx, t, profileID)
+	return s.view(ctx, t, req.ProfileID)
 }
 
 func (s *tradeService) isParticipant(t entity.Trade, profileID uuid.UUID) bool {
@@ -156,10 +157,6 @@ func (s *tradeService) isParticipant(t entity.Trade, profileID uuid.UUID) bool {
 }
 
 func (s *tradeService) Join(ctx context.Context, req dto.TradeJoinRequest) (dto.TradeView, error) {
-	if req.ProfileID == uuid.Nil {
-		return dto.TradeView{}, ungerr.UnauthorizedError("authentication required")
-	}
-
 	// Read once for the not-found answer; the claim itself is the
 	// repository's one conditional UPDATE, which decides the winner.
 	t, err := s.trades.FindBySlug(ctx, req.Slug)
@@ -170,13 +167,8 @@ func (s *tradeService) Join(ctx context.Context, req dto.TradeJoinRequest) (dto.
 		return dto.TradeView{}, ungerr.NotFoundError(tradeNotFoundMsg)
 	}
 	if t.OwnerProfileID == req.ProfileID {
-		// The owner already holds a seat; the second seat cannot also be
-		// theirs, so this is only reachable if they somehow are the
-		// participant already.
-		if t.ParticipantProfileID != nil && *t.ParticipantProfileID == req.ProfileID {
-			return dto.TradeView{}, apperr.WithCode(ungerr.ConflictError(tradeSeatTakenMsg), apperr.CodeTradeSeatTaken)
-		}
-		return dto.TradeView{}, ungerr.ConflictError("the trade's owner cannot take its second seat")
+		return dto.TradeView{}, apperr.WithCode(
+			ungerr.ConflictError(tradeOwnerJoinMsg), apperr.CodeTradeOwnerJoin)
 	}
 
 	var joined bool

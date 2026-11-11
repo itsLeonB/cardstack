@@ -83,7 +83,7 @@ func TestTradeCreateReadJoin(t *testing.T) {
 	assert.Equal(t, "open", view.Data.Status)
 	assert.NotEmpty(t, view.Data.OwnerName)
 	assert.Nil(t, view.Data.OtherName)
-	assert.True(t, view.Data.IsParticipant) // open Trades read link-public
+	assert.False(t, view.Data.IsParticipant) // open Trades read link-public, but the reader holds no seat yet
 	assert.Empty(t, view.Data.OwnerItems)
 	assert.Empty(t, view.Data.OtherItems)
 	assert.NotContains(t, resp.Body.String(), "@") // no email leaks
@@ -116,7 +116,12 @@ func TestTradeJoinSeatTaken(t *testing.T) {
 
 	slug := createTrade(t, api, owner)
 
-	resp := joinTrade(api, first, slug)
+	// The owner cannot take the Trade's own second seat.
+	resp := joinTrade(api, owner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_owner_join", errorCode(t, resp))
+
+	resp = joinTrade(api, first, slug)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 
 	resp = joinTrade(api, second, slug)
