@@ -27,6 +27,22 @@
 
 ## Comments
 
+### Disposable-user isolation and follow-up
+
+The wrong-password test now creates a fresh Clerk development user per attempt and deletes its returned ID in teardown. Successful sign-ins keep the shared user. An interrupted process or a lost creation response can leave a disposable user behind; no automatic recovery is included.
+
+The original code-field timeout reproduced with a disposable user: the failure snapshot showed the password step after the helper selected the code field. This confirms a form-transition race in that run, not that the earlier timeout had the same cause. The helper now checks the active prompt again and waits for a successful code-send response before entering a code.
+
+| Run | Result |
+| --- | --- |
+| Both sign-in tests, after isolation | 2 passed. |
+| Wrong-password test repeated three times before the prompt fix | 2 passed, 1 code-field timeout. |
+| Wrong-password test repeated five times after the prompt fix | 5 passed. |
+| Full frontend verification before the final prompt fix | 78 passed, 11 failed, including a happy-path code-send error and ten guest failures. |
+| `scripts/verification/frontend.sh --package frontend` after the fix | All checks passed; E2E 89 passed. |
+
+CI was not run. These runs do not prove the intermittent failure is eliminated.
+
 ### Investigation on base `20d395fd`
 
 The exact verification-code timeout reproduced in the wrong-password test. The cause remains unproven; do not close this issue or treat account lockout as the cause of that earlier timeout. No fix remains in the helper, and all temporary `[DEBUG-signin]` probes were removed.
