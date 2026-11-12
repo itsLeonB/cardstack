@@ -1,6 +1,7 @@
 package http
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -85,6 +86,16 @@ func TestGinMode_EveryAppEnvIsOneGinAccepts(t *testing.T) {
 }
 
 func TestServerConfig_Timeouts(t *testing.T) {
+	timeout, present := os.LookupEnv("APP_TIMEOUT")
+	t.Cleanup(func() {
+		if present {
+			require.NoError(t, os.Setenv("APP_TIMEOUT", timeout))
+		} else {
+			require.NoError(t, os.Unsetenv("APP_TIMEOUT"))
+		}
+	})
+	require.NoError(t, os.Unsetenv("APP_TIMEOUT"))
+
 	var app config.App
 	require.NoError(t, envconfig.Process(app.Prefix(), &app))
 	assert.Equal(t, 10*time.Second, app.Timeout)
