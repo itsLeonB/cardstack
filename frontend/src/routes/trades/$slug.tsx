@@ -4,7 +4,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { NotFoundView } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
-import { pageHead } from "@/lib/site"
+import { pageHead, NOINDEX_META } from "@/lib/site"
 import { NETWORK_ERROR } from "@/lib/collections"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,8 +15,15 @@ import {
   useJoinTrade,
 } from "@/generated/endpoints/trades/trades"
 
-/** A Trade is readable by anyone signed in through its link; reading never claims the second seat, joining does. */
-export const Route = createFileRoute("/_authenticated/trades/$slug")({
+/**
+ * Outside `_authenticated/`: the API answers a Guest's read with the same
+ * not-found as an unknown slug, so the link leaks nothing and no guard
+ * redirects before that answer can render.
+ */
+export const Route = createFileRoute("/trades/$slug")({
+  // The loader's request carries the Clerk token, which exists only in the
+  // browser (same reason as `_authenticated.tsx`).
+  ssr: false,
   // Read fresh on every visit: a cached view would keep offering a seat
   // someone took since.
   loader: async ({ context: { queryClient }, params }) => {
@@ -30,11 +37,12 @@ export const Route = createFileRoute("/_authenticated/trades/$slug")({
     }
     return response.status === 200 ? response.data.data : null
   },
-  head: ({ params }) => pageHead(params.slug),
+  head: ({ params }) => ({
+    meta: [...pageHead(params.slug).meta, NOINDEX_META],
+  }),
   component: TradePage,
 })
 
-// Trade pages inherit noindex from the _authenticated layout.
 const STATUS_LABELS = {
   open: "Open",
   negotiating: "Negotiating",
@@ -56,6 +64,7 @@ function TradePage() {
   if (!trade)
     return (
       <PageContainer>
+        <PageHeader title="Trade" />
         <p role="alert" className="text-sm text-destructive">
           Could not load this Trade.
         </p>
