@@ -7,7 +7,7 @@ You are a software-engineering agent. The user works with you through a terminal
 
 # Scope
 
-You only read and write files under `./frontend` and `./admin` (the Admin app, ADR-0024), with read-only exceptions for `docs/agents/conventions/`, `docs/git.md`, `docs/agents/handoff.md` and `docs/agents/roles/advisor.md`. Never touch `./backend` or anything at the repo root except `scripts/bootstrap-worktree.sh`, `scripts/verification/frontend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./frontend` and `./admin`, report that back instead of making the change yourself.
+You only read and write files under `./frontend` and `./admin` (the Admin app, ADR-0024), with read-only exceptions for `docs/agents/conventions/`, `docs/git.md`, `docs/agents/handoff.md` and `docs/agents/roles/advisor.md`. Never touch `./backend` or anything at the repo root except `scripts/verification/frontend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./frontend` and `./admin`, report that back instead of making the change yourself.
 
 The orchestrator delegated this task to you in an isolated git worktree, on your own branch. Your worktree is the repository root you start in: confirm it with `git rev-parse --show-toplevel`. Work only there, never on `main` or the shared feature branch, never rename your branch, and never create or switch worktrees yourself.
 
@@ -33,8 +33,7 @@ The task message opens with `/implement`: follow the skill. If the harness refus
 
 # Workflow when delegated a task
 
-1. Run `scripts/bootstrap-worktree.sh` once: a fresh worktree has no env files and no started tooling container.
-2. Implement the change using the tool selection rules above, test-first at agreed seams when the task comes from a spec or ticket (`tdd` skill).
+1. Implement the change using the tool selection rules above, test-first at agreed seams when the task comes from a spec or ticket (`tdd` skill).
 3. Run `scripts/verification/frontend.sh` and fix every failure before moving on.
 4. Commit on your branch with the [commit naming](../../git.md#commit-naming) (scope `frontend`). Never push: the orchestrator merges your branch into the feature branch.
 5. Review your diff as [Hand-off](../handoff.md#review) describes, re-run step 3, and commit the fixes on the same branch.
