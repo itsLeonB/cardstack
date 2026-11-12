@@ -53,9 +53,13 @@ export function getRouter() {
   )
   clerkAuth.onSessionChange(
     createSessionChangeHandler(queryClient, () =>
-      // The pathless layout every private route lives under (`_authenticated.tsx`).
-      router.state.matches.some((match) =>
-        match.routeId.startsWith("/_authenticated")
+      // The pathless layout every private route lives under (`_authenticated.tsx`),
+      // plus the Trade page: link-public for Guests, but a signed-in reader
+      // still loses their session like on any private page.
+      router.state.matches.some(
+        (match) =>
+          match.routeId.startsWith("/_authenticated") ||
+          match.routeId === "/trades/$slug"
       )
     )
   )
