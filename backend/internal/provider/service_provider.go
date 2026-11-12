@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceSet is the wire provider set for the top-level Services.
-var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideSharedWishlistService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideScanReviewService, ProvideWishlistService, ProvideServices)
+var ServiceSet = wire.NewSet(ProvideImageHost, ProvideUserService, ProvideAdoptByEmail, ProvideCatalogService, ProvideCollectionService, ProvideSharedCollectionService, ProvideSharedWishlistService, ProvideInventoryService, ProvideBinderService, ProvideBinderSlotService, ProvideImageEmbedder, ProvideMatchSettings, ProvideMatchService, ProvideAdminSetService, ProvideObjectStore, ProvideCardAdminService, ProvideScanPhotoStore, ProvideScanPhotoService, ProvideScanFeedbackService, ProvideScanReviewService, ProvideWishlistService, ProvideTradeService, ProvideServices)
 
 type Services struct {
 	Health           service.HealthService
@@ -39,6 +39,7 @@ type Services struct {
 	ScanFeedback     service.ScanFeedbackService
 	ScanReview       service.ScanReviewService
 	Wishlist         service.WishlistService
+	Trades           service.TradeService
 }
 
 // ProvideUserService builds the user service over ds's DB. It's a separate
@@ -122,6 +123,16 @@ func ProvideWishlistService(ds *DataSources, images mapper.ImageHost) service.Wi
 		crud.NewRepository[entity.Wishlist](ds.Gorm),
 		catalogrepository.NewWishlistRepository(crud.NewRepository[entity.WishlistItem](ds.Gorm)),
 		service.NewCardLookup(catalogrepository.NewCardRepository(crud.NewRepository[entity.Card](ds.Gorm))),
+		images,
+	)
+}
+
+// ProvideTradeService builds the Trade service over ds's DB.
+func ProvideTradeService(ds *DataSources, images mapper.ImageHost) service.TradeService {
+	return service.NewTradeService(
+		crud.NewTransactor(ds.Gorm),
+		catalogrepository.NewTradeRepository(crud.NewRepository[entity.Trade](ds.Gorm)),
+		crud.NewRepository[entity.UserProfile](ds.Gorm),
 		images,
 	)
 }
@@ -224,7 +235,7 @@ func (missingKeyEmbedder) Embed(context.Context, string, []byte) ([]float32, err
 // DB they're ultimately backed by) so cmd/genspec can keep calling this with
 // throwaway, DB-free values of its own construction — see cmd/genspec/main.go
 // — without this function needing to know or care where they came from.
-func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, sharedWishlist service.SharedWishlistService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService, scanReview service.ScanReviewService, wishlist service.WishlistService) *Services {
+func ProvideServices(verifier auth.TokenVerifier, users service.UserService, catalog service.CatalogService, collection service.CollectionService, sharedCollection service.SharedCollectionService, sharedWishlist service.SharedWishlistService, inventory service.InventoryService, binder service.BinderService, binderSlot service.BinderSlotService, match service.MatchService, adminSets service.AdminSetService, cardAdmin service.CardAdminService, scanPhoto service.ScanPhotoService, scanFeedback service.ScanFeedbackService, scanReview service.ScanReviewService, wishlist service.WishlistService, trades service.TradeService) *Services {
 	return &Services{
 		Health:           coreservice.NewHealthService(),
 		Verifier:         verifier,
@@ -243,5 +254,6 @@ func ProvideServices(verifier auth.TokenVerifier, users service.UserService, cat
 		ScanFeedback:     scanFeedback,
 		ScanReview:       scanReview,
 		Wishlist:         wishlist,
+		Trades:           trades,
 	}
 }

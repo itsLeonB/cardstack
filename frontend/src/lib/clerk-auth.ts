@@ -47,6 +47,16 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
   let timer: ReturnType<typeof setTimeout> | undefined
   let handler: SessionChangeHandler | null = null
   let stopListening: (() => void) | null = null
+  let sessionId: string | null = null
+  let sessionVersion = 0
+  const subscribers = new Set<() => void>()
+
+  function updateSession(id: string | null) {
+    if (id === sessionId) return
+    sessionId = id
+    sessionVersion += 1
+    for (const notify of subscribers) notify()
+  }
 
   function settle(loaded: ClerkLike | null) {
     clearTimeout(timer)
@@ -63,10 +73,11 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
   function listen() {
     stopListening?.()
     stopListening = null
-    if (!clerk || !handler) return
+    if (!clerk) return
     let known: string | null | undefined = loadedLate ? null : undefined
     stopListening = clerk.addListener(({ session }) => {
       const current = session?.id ?? null
+      updateSession(current)
       const previous = known
       known = current
       if (previous !== undefined && previous !== current) {
@@ -91,6 +102,7 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
     /** Called by `ClerkBridge` with the loaded instance, or null when it goes away. */
     publish(next: ClerkLike | null) {
       clerk = next
+      updateSession(next?.session?.id ?? null)
       if (next) {
         loadedLate = loadFailed
         loadFailed = false
@@ -119,6 +131,18 @@ export function createClerkAuth(loadTimeoutMs = LOAD_TIMEOUT_MS) {
       if (!session) return null
       const token = await session.getToken(options)
       return token ? { token, sessionId: session.id } : null
+    },
+
+    // The version also changes for A → B → A, so old reads stay invalid.
+    currentSessionVersion(): number {
+      return sessionVersion
+    },
+
+    subscribeSession(callback: () => void) {
+      subscribers.add(callback)
+      return () => {
+        subscribers.delete(callback)
+      }
     },
 
     currentSessionId(): string | null {

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Link, notFound } from "@tanstack/react-router"
 import type { NotFoundRouteProps } from "@tanstack/react-router"
 import { z } from "zod"
@@ -6,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 
 const notFoundData = z.object({
-  resource: z.enum(["Collection", "Card", "Wishlist"]),
+  resource: z.enum(["Collection", "Card", "Wishlist", "Trade"]),
 })
 type Resource = z.infer<typeof notFoundData>["resource"]
 
@@ -22,7 +23,13 @@ export function NotFound({ data }: NotFoundRouteProps) {
 }
 
 /** The not-found view itself, for a page that finds its entity missing in its own component. */
-export function NotFoundView({ resource }: { resource?: Resource }) {
+export function NotFoundView({
+  resource,
+  children,
+}: {
+  resource?: Resource
+  children?: ReactNode
+}) {
   return (
     <PageContainer variant="narrow">
       <PageHeader
@@ -39,6 +46,7 @@ export function NotFoundView({ resource }: { resource?: Resource }) {
           Catalog
         </Button>
       </div>
+      {children}
     </PageContainer>
   )
 }

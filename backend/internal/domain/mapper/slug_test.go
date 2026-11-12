@@ -31,3 +31,11 @@ func TestSlugOf(t *testing.T) {
 		})
 	}
 }
+
+func TestSlugOfLong(t *testing.T) {
+	id := uuid.MustParse("0192f3a4-7b6c-7d8e-9f01-23456789abcd")
+
+	// The last 12 hex of the id, a far longer tail than SlugOf's 5.
+	assert.Equal(t, "trade-23456789abcd", SlugOfLong("trade", "trade", id))
+	assert.Equal(t, "user-23456789abcd", SlugOfLong("🔥", "user", id))
+}

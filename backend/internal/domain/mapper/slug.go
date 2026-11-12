@@ -18,6 +18,17 @@ const maxSlugTextRunes = 60
 // then the last 5 hex characters of the row's own id. Text with no a-z or 0-9
 // becomes fallback. The profile Slug migration repeats these rules in SQL.
 func SlugOf(text, fallback string, id uuid.UUID) string {
+	return slugOf(text, fallback, id.String()[31:])
+}
+
+// SlugOfLong is SlugOf with the last 12 hex characters of the id as the tail.
+// A Trade's link is the room's only address and a bearer secret, so it draws
+// far more entropy than a Shared page's guessable slug (docs/adr/0028).
+func SlugOfLong(text, fallback string, id uuid.UUID) string {
+	return slugOf(text, fallback, id.String()[24:])
+}
+
+func slugOf(text, fallback, tail string) string {
 	if runes := []rune(text); len(runes) > maxSlugTextRunes {
 		text = string(runes[:maxSlugTextRunes])
 	}
@@ -25,5 +36,5 @@ func SlugOf(text, fallback string, id uuid.UUID) string {
 	if stem == "" {
 		stem = fallback
 	}
-	return stem + "-" + id.String()[31:]
+	return stem + "-" + tail
 }

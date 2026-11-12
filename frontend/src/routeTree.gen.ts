@@ -18,6 +18,7 @@ import { Route as AuthenticatedWishlistRouteImport } from './routes/_authenticat
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
 import { Route as CatalogSearchRouteImport } from './routes/catalog/search'
+import { Route as TradesSlugRouteImport } from './routes/trades/$slug'
 import { Route as AuthenticatedCollectionsIndexRouteImport } from './routes/_authenticated/collections/index'
 import { Route as AuthenticatedCollectionsNewRouteImport } from './routes/_authenticated/collections/new'
 import { Route as AuthLoginIndexRouteImport } from './routes/auth/login/index'
@@ -74,6 +75,11 @@ const CatalogIndexRoute = CatalogIndexRouteImport.update({
 const CatalogSearchRoute = CatalogSearchRouteImport.update({
   id: '/catalog/search',
   path: '/catalog/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TradesSlugRoute = TradesSlugRouteImport.update({
+  id: '/trades/$slug',
+  path: '/trades/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedCollectionsIndexRoute =
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/wishlist': typeof AuthenticatedWishlistRoute
   '/catalog/search': typeof CatalogSearchRoute
+  '/trades/$slug': typeof TradesSlugRoute
   '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/wishlist': typeof AuthenticatedWishlistRoute
   '/catalog/search': typeof CatalogSearchRoute
+  '/trades/$slug': typeof TradesSlugRoute
   '/auth': typeof AuthIndexRoute
   '/catalog': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/wishlist': typeof AuthenticatedWishlistRoute
   '/catalog/search': typeof CatalogSearchRoute
+  '/trades/$slug': typeof TradesSlugRoute
   '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/_authenticated/collections/new': typeof AuthenticatedCollectionsNewRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/wishlist'
     | '/catalog/search'
+    | '/trades/$slug'
     | '/auth/'
     | '/catalog/'
     | '/collections/new'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/wishlist'
     | '/catalog/search'
+    | '/trades/$slug'
     | '/auth'
     | '/catalog'
     | '/collections/new'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory'
     | '/_authenticated/wishlist'
     | '/catalog/search'
+    | '/trades/$slug'
     | '/auth/'
     | '/catalog/'
     | '/_authenticated/collections/new'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   CatalogSearchRoute: typeof CatalogSearchRoute
+  TradesSlugRoute: typeof TradesSlugRoute
   CatalogIndexRoute: typeof CatalogIndexRoute
   CatalogSetsExpansionSetIdRoute: typeof CatalogSetsExpansionSetIdRoute
   SProfileSlugCollectionSlugRoute: typeof SProfileSlugCollectionSlugRoute
@@ -367,6 +380,13 @@ declare module '@tanstack/react-router' {
       path: '/catalog/search'
       fullPath: '/catalog/search'
       preLoaderRoute: typeof CatalogSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trades/$slug': {
+      id: '/trades/$slug'
+      path: '/trades/$slug'
+      fullPath: '/trades/$slug'
+      preLoaderRoute: typeof TradesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/collections/': {
@@ -517,6 +537,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRouteRoute: AuthRouteRouteWithChildren,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   CatalogSearchRoute: CatalogSearchRoute,
+  TradesSlugRoute: TradesSlugRoute,
   CatalogIndexRoute: CatalogIndexRoute,
   CatalogSetsExpansionSetIdRoute: CatalogSetsExpansionSetIdRoute,
   SProfileSlugCollectionSlugRoute: SProfileSlugCollectionSlugRoute,
