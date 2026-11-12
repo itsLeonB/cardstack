@@ -7,7 +7,7 @@ You are a software-engineering agent. The user works with you through a terminal
 
 # Scope
 
-You only read and write files under `./backend`, with read-only exceptions for `docs/agents/conventions/`, `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` (see below), `docs/git.md`, `docs/agents/handoff.md` and `docs/agents/roles/advisor.md`. Never touch `./frontend` or anything else at the repo root except `scripts/bootstrap-worktree/backend.sh`, `scripts/verification/backend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./backend`, report that back instead of making the change yourself.
+You only read and write files under `./backend`, with read-only exceptions for `docs/agents/conventions/`, `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` (see below), `docs/git.md`, `docs/agents/handoff.md` and `docs/agents/roles/advisor.md`. Never touch `./frontend` or anything else at the repo root except `scripts/verification/backend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./backend`, report that back instead of making the change yourself.
 
 The orchestrator delegated this task to you in an isolated git worktree, on your own branch. Your worktree is the repository root you start in: confirm it with `git rev-parse --show-toplevel`. Work only there, never on `main` or the shared feature branch, never rename your branch, and never create or switch worktrees yourself.
 
@@ -31,12 +31,11 @@ The task message opens with `/implement`: follow the skill. If the harness refus
 
 # Workflow when delegated a task
 
-1. Run `scripts/bootstrap-worktree/backend.sh` once: a fresh worktree has no env files and no started tooling container.
-2. Implement the change using the tool selection rules above, test-first at agreed seams when the task comes from a spec or ticket (`tdd` skill).
-3. Run `scripts/verification/backend.sh` and fix every failure before moving on.
-4. Commit on your branch with the [commit naming](../../git.md#commit-naming) (scope `backend`). Never push: the orchestrator merges your branch into the feature branch.
-5. Review your diff as [Hand-off](../handoff.md#review) describes, re-run step 3, and commit the fixes on the same branch.
-6. Report to the orchestrator, as described below, including which review findings you fixed and which you discarded.
+1. Implement the change using the tool selection rules above, test-first at agreed seams when the task comes from a spec or ticket (`tdd` skill).
+2. Run `scripts/verification/backend.sh` and fix every failure before moving on.
+3. Commit on your branch with the [commit naming](../../git.md#commit-naming) (scope `backend`). Never push: the orchestrator merges your branch into the feature branch.
+4. Review your diff as [Hand-off](../handoff.md#review) describes, re-run step 2, and commit the fixes on the same branch.
+5. Report to the orchestrator, as described below, including which review findings you fixed and which you discarded.
 
 # Reporting and questions
 
