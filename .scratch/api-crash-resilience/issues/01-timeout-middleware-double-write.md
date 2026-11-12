@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Why
 
@@ -38,19 +38,25 @@ Once a response has started, neither timeout handling nor recovery may replace i
 
 ### Response ownership and classification
 
-- [ ] The repo-owned middleware runs the handler synchronously with a deadline context and never writes its own response. It retains `APP_TIMEOUT`, chain order and security headers without upgrading dependencies.
-- [ ] A handler that returns a raw, standard-wrapped or `ungerr`-wrapped `context.DeadlineExceeded` before its response starts produces exactly one redacted 503 response while the connection remains writable. Existing explicit `AppError` classifications remain intact. The API error documentation describes this response and `openapi.json` explicitly lists 503 for operations governed by the request deadline; no new stable error code is added.
-- [ ] A handler that ignores cancellation and later succeeds retains its successful response. A started response is never followed by replacement error JSON, including when recovery handles a later panic.
-- [ ] Cancellation during a started response produces classified server logs and no second write. Logs distinguish cancellation from deadline expiry, do not duplicate the same failure, and do not report ordinary middleware cleanup as cancellation.
-- [ ] The default server write timeout exceeds the application deadline and leaves time to send the timeout response. The supported timeout settings and their delivery limits are documented and tested.
+- [x] The repo-owned middleware runs the handler synchronously with a deadline context and never writes its own response. It retains `APP_TIMEOUT`, chain order and security headers without upgrading dependencies.
+- [x] A handler that returns a raw, standard-wrapped or `ungerr`-wrapped `context.DeadlineExceeded` before its response starts produces exactly one redacted 503 response while the connection remains writable. Existing explicit `AppError` classifications remain intact. The API error documentation describes this response and `openapi.json` explicitly lists 503 for operations governed by the request deadline; no new stable error code is added.
+- [x] A handler that ignores cancellation and later succeeds retains its successful response. A started response is never followed by replacement error JSON, including when recovery handles a later panic.
+- [x] Cancellation during a started response produces classified server logs and no second write. Logs distinguish cancellation from deadline expiry, do not duplicate the same failure, and do not report ordinary middleware cleanup as cancellation.
+- [x] The default server write timeout exceeds the application deadline and leaves time to send the timeout response. The supported timeout settings and their delivery limits are documented and tested.
 
 ### Regression proof
 
-- [ ] A Gin/Huma boundary suite covers deadline classification (including standard and `ungerr` wrapping and preserved explicit `AppError` classifications), cancellation during a started response, context-ignoring late success, panic after a started response, and normal completion without a false cancellation log. Assert response ownership, classified logs and preserved headers; run it with the race detector through the shared compose test environment. Exercise the actual middleware chain: the existing route suites use `humatest` without `setupSentinel`.
-- [ ] A burst of 1000 requests that abort after 2 ms leaves the API process alive, repeated until the loop has run at least five times without a crash.
-- [ ] Neither fatal signature reappears when the e2e suite runs repeatedly against the stack: `concurrent map iteration and map write` and `concurrent map writes`.
-- [ ] `scripts/verification/backend.sh` passes, including the HTTP route suites.
+- [x] A Gin/Huma boundary suite covers deadline classification (including standard and `ungerr` wrapping and preserved explicit `AppError` classifications), cancellation during a started response, context-ignoring late success, panic after a started response, and normal completion without a false cancellation log. Assert response ownership, classified logs and preserved headers; run it with the race detector through the shared compose test environment. Exercise the actual middleware chain: the existing route suites use `humatest` without `setupSentinel`.
+- [x] A burst of 1000 requests that abort after 2 ms leaves the API process alive, repeated until the loop has run at least five times without a crash.
+- [x] Neither fatal signature reappears when the e2e suite runs repeatedly against the stack: `concurrent map iteration and map write` and `concurrent map writes`.
+- [x] `scripts/verification/backend.sh` passes, including the HTTP route suites.
 
 ## Comments
 
-The design interview approved synchronous, context-only middleware after an independent Pi GPT-6 Astra advisor compared it with a hard response cutoff and a synchronized copy of sentinel-go's design. A hard cutoff would require a different response-ownership contract and isolated handler state; it is outside this issue. This decision changes the issue contract only; implementation and verification remain open.
+The design interview approved synchronous, context-only middleware after an independent Pi GPT-6 Astra advisor compared it with a hard response cutoff and a synchronized copy of sentinel-go's design. A hard cutoff would require a different response-ownership contract and isolated handler state; it is outside this issue.
+
+Implementation: the synchronous deadline middleware owns no response writes. The five existing endpoint wrappers call the shared classifier because Huma directly serializes `StatusError` values, including `ungerr.UnknownError`, without calling its error-construction hooks. The classifier walks standard and `ungerr` wrapping, preserves explicit AppErrors, and returns no replacement body after a response starts. Recovery also checks Gin's actual writer state. The socket write timeout is `10s + max(APP_TIMEOUT, 0s) + 1s`, or 21s by default.
+
+Verification: the initial boundary test failed with 500 instead of 503. Further red tests caught timeout JSON replacing late success and panic/deadline JSON appended after a started response. All boundary tests now pass under the compose race detector. `scripts/verification/backend.sh` passes all five steps, including HTTP route tests. Two separate `scripts/verification/frontend.sh e2e` runs each passed all 89 tests. Five bursts of 1,000 concurrent requests with a 2 ms client limit left the API alive with an unchanged start time and restart count; the next catalog request returned 200. API logs contained neither fatal map-write signature. OpenAPI now lists 503 on all 76 operations and retains their default error responses.
+
+Independent review of implementation commit `d3e60d46`: Standards found 0 violations or actionable smells; Spec found 0 gaps, scope changes or incorrect implementations. No review fixes were needed. Reviewers checked code and supplied test logs; they did not rerun tests or load probes. The implementation run owns the verification results above.

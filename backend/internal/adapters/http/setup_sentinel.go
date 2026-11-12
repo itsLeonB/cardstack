@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/gin-gonic/gin"
+	httpapi "github.com/itsLeonB/cardstack/backend/internal/adapters/http/huma"
 	"github.com/itsLeonB/cardstack/backend/internal/core/config"
 	"github.com/kroma-labs/sentinel-go/httpserver"
 	sentinelGin "github.com/kroma-labs/sentinel-go/httpserver/adapters/gin"
@@ -59,7 +60,7 @@ func setupSentinel(router *gin.Engine, skipPaths []string, logger zerolog.Logger
 		sentinelGin.Recovery(logger),
 		sentinelGin.Tracing(tracingCfg),
 		sentinelGin.CORS(corsCfg),
-		sentinelGin.Timeout(config.Global.Timeout),
+		httpapi.RequestDeadline(config.Global.Timeout, logger),
 		sentinelGin.Metrics(metrics),
 		sentinelGin.RateLimit(httpserver.RateLimitConfig{
 			// ponytail: per-IP global limit. 100 req/s burst 200 is generous for

@@ -4,7 +4,7 @@
 //
 //   - Endpoint[Req, Res]: the common shape — a request type Req, a response
 //     type Res wrapped in httpapi.Envelope, and a service call that either
-//     succeeds or returns an error untouched.
+//     succeeds or returns an error through the shared HTTP classifier.
 //   - NoBodyEndpoint[Req]: a route with no response body at all (e.g. 204).
 //   - ListEndpoint[Req, Res]: a route returning Envelope[[]Res] plus an
 //     X-Total-Count header set to len(result).
@@ -90,7 +90,7 @@ func Register[Req, Res any](api huma.API, e Endpoint[Req, Res], mw ...func(huma.
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*envelopeOutput[Res], error) {
 		res, err := e.HandlerFunc(ctx, *in)
 		if err != nil {
-			return nil, err
+			return nil, httpapi.ClassifyError(ctx, err)
 		}
 
 		return &envelopeOutput[Res]{Body: httpapi.NewEnvelope(res)}, nil
@@ -137,7 +137,7 @@ func RegisterWithMeta[Req, Res, Meta any](api huma.API, e EndpointWithMeta[Req, 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*envelopeWithMetaOutput[Res, Meta], error) {
 		res, meta, err := e.HandlerFunc(ctx, *in)
 		if err != nil {
-			return nil, err
+			return nil, httpapi.ClassifyError(ctx, err)
 		}
 
 		return &envelopeWithMetaOutput[Res, Meta]{Body: httpapi.NewEnvelopeWithMeta(res, meta)}, nil
@@ -179,7 +179,7 @@ func RegisterNoBody[Req any](api huma.API, e NoBodyEndpoint[Req], mw ...func(hum
 
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*noBodyOutput, error) {
 		if err := e.HandlerFunc(ctx, *in); err != nil {
-			return nil, err
+			return nil, httpapi.ClassifyError(ctx, err)
 		}
 
 		return &noBodyOutput{}, nil
@@ -225,7 +225,7 @@ func RegisterList[Req, Res any](api huma.API, e ListEndpoint[Req, Res], mw ...fu
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*listOutput[Res], error) {
 		res, err := e.HandlerFunc(ctx, *in)
 		if err != nil {
-			return nil, err
+			return nil, httpapi.ClassifyError(ctx, err)
 		}
 
 		return &listOutput[Res]{XTotalCount: len(res), Body: httpapi.NewEnvelope(res)}, nil
@@ -270,7 +270,7 @@ func RegisterRedirect[Req any](api huma.API, e RedirectEndpoint[Req], mw ...func
 	huma.Register(api, op, func(ctx context.Context, in *Req) (*redirectOutput, error) {
 		url, err := e.HandlerFunc(ctx, *in)
 		if err != nil {
-			return nil, err
+			return nil, httpapi.ClassifyError(ctx, err)
 		}
 
 		return &redirectOutput{Status: http.StatusTemporaryRedirect, Location: url}, nil

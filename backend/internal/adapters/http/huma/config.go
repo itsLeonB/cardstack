@@ -3,6 +3,8 @@
 package httpapi
 
 import (
+	"reflect"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +33,15 @@ func NewConfig() huma.Config {
 	installErrorClassifier()
 
 	cfg := huma.DefaultConfig("Cardstack API", "1.0")
+	cfg.Info.Description = "A handler that returns a deadline error before the response starts receives a redacted 503 Service Unavailable response. Deadlines are cooperative: late success stays successful, and a disconnect or socket timeout can prevent delivery."
+	cfg.OnAddOperation = append(cfg.OnAddOperation, func(oapi *huma.OpenAPI, op *huma.Operation) {
+		op.Responses["503"] = &huma.Response{
+			Description: "Service Unavailable: a handler returned a deadline error before the response started.",
+			Content: map[string]*huma.MediaType{
+				"application/problem+json": {Schema: oapi.Components.Schemas.Schema(reflect.TypeFor[ErrorModel](), true, "ErrorModel")},
+			},
+		}
+	})
 
 	cfg.CreateHooks = nil
 	cfg.SchemasPath = ""
