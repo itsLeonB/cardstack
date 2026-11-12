@@ -6,12 +6,20 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 )
 
-// ToTradeItemView maps one offered Trade Item to its view.
+// ToTradeItemView maps one offered Trade Item to its view. Collection is nil
+// when the item's source Collection was deleted: the Trade Item is part of
+// the agreed deal and outlives it.
 func ToTradeItemView(host ImageHost, item entity.TradeItem) dto.TradeItemView {
+	var collection *string
+	if item.SourceCollectionID != nil {
+		title := item.SourceCollection.Title
+		collection = &title
+	}
+
 	return dto.TradeItemView{
 		Card:       ToBinderCardSummary(host, item.Card),
 		Quantity:   item.Quantity,
-		Collection: item.SourceCollection.Title,
+		Collection: collection,
 	}
 }
 

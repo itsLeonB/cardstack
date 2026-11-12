@@ -2476,7 +2476,7 @@
             "$ref": "#/components/schemas/CardSummary"
           },
           "collection": {
-            "description": "The title of the Collection the Card is meant to leave.",
+            "description": "The title of the Collection the Card is meant to leave; absent when that Collection was deleted.",
             "type": "string"
           },
           "quantity": {
@@ -2486,8 +2486,7 @@
         },
         "required": [
           "card",
-          "quantity",
-          "collection"
+          "quantity"
         ],
         "type": "object"
       },
@@ -7363,6 +7362,11 @@
             "description": "Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Start a Trade and get its link Slug; the caller takes the owner seat in state open",
         "tags": [
           "trades"
@@ -7449,6 +7453,11 @@
             "description": "Error"
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "summary": "Take the Trade's second seat once, moving it to negotiating; a second join gets 409 trade_seat_taken",
         "tags": [
           "trades"

@@ -47,5 +47,5 @@ type TradeView struct {
 type TradeItemView struct {
 	Card       CardSummary `json:"card"`
 	Quantity   int         `json:"quantity"`
-	Collection string      `json:"collection" doc:"The title of the Collection the Card is meant to leave."`
+	Collection *string     `json:"collection,omitempty" doc:"The title of the Collection the Card is meant to leave; absent when that Collection was deleted."`
 }
