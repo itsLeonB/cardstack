@@ -120,6 +120,64 @@ describe("a lost session, wired through the real router", () => {
   })
 })
 
+describe("a session change", () => {
+  it("re-runs the Trade loader, so the page drops the last session's view", async () => {
+    // A Clerk whose session can be swapped without signing out, so no
+    // auth-lost redirect gets in the way.
+    const listeners = new Set<
+      (e: { session?: { id: string } | null }) => void
+    >()
+    const clerk: ClerkLike = {
+      session: { id: "sess_1", getToken: async () => "jwt" },
+      addListener: (callback) => {
+        listeners.add(callback)
+        callback({ session: clerk.session ?? null })
+        return () => listeners.delete(callback)
+      },
+      signOut: async () => {},
+    }
+    const emit = (id: string) => {
+      clerk.session = { id, getToken: async () => "jwt" }
+      for (const callback of listeners) callback({ session: { id } })
+    }
+
+    const tradeGets: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input))
+        if (url.pathname === "/trades/trade-1") {
+          tradeGets.push(url.pathname)
+          return new Response(
+            JSON.stringify({
+              data: {
+                slug: "trade-1",
+                status: "open",
+                ownerName: "Ash",
+                ownerItems: [],
+                otherItems: [],
+                isOwner: false,
+                isParticipant: false,
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        }
+        return new Response("{}", { status: 200 })
+      })
+    )
+    window.history.pushState({}, "", "/trades/trade-1")
+    const router = getRouter()
+    clerkAuth.publish(clerk)
+    await router.load()
+    expect(tradeGets).toHaveLength(1)
+
+    emit("sess_2")
+
+    await vi.waitFor(() => expect(tradeGets).toHaveLength(2))
+  })
+})
+
 describe("the removed /admin address", () => {
   it("matches no route, so the root's not-found page answers it as any unknown address", () => {
     const router = getRouter()
