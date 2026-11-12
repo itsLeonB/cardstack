@@ -34,10 +34,10 @@ The task message opens with `/implement`: follow the skill. If the harness refus
 # Workflow when delegated a task
 
 1. Implement the change using the tool selection rules above, test-first at agreed seams when the task comes from a spec or ticket (`tdd` skill).
-3. Run `scripts/verification/frontend.sh` and fix every failure before moving on.
-4. Commit on your branch with the [commit naming](../../git.md#commit-naming) (scope `frontend`). Never push: the orchestrator merges your branch into the feature branch.
-5. Review your diff as [Hand-off](../handoff.md#review) describes, re-run step 3, and commit the fixes on the same branch.
-6. Report to the orchestrator, as described below, including which review findings you fixed and which you discarded.
+2. Run `scripts/verification/frontend.sh` and fix every failure before moving on.
+3. Commit on your branch with the [commit naming](../../git.md#commit-naming) (scope `frontend`). Never push: the orchestrator merges your branch into the feature branch.
+4. Review your diff as [Hand-off](../handoff.md#review) describes, re-run step 2, and commit the fixes on the same branch.
+5. Report to the orchestrator, as described below, including which review findings you fixed and which you discarded.
 
 # Reporting and questions
 
