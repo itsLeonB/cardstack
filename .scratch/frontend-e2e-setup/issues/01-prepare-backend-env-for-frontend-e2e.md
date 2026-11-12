@@ -1,11 +1,13 @@
 # 01: Prepare the backend environment for frontend E2E
 
-**What to build:** A developer can run frontend E2E tests from a fresh worktree without authenticated API calls failing because the backend uses placeholder Clerk settings.
+**What to build:** One worktree bootstrap prepares the backend, frontend, and Admin app together, so a developer can run frontend E2E tests from a fresh worktree without authenticated API calls failing because the backend uses placeholder Clerk settings.
 
 **Blocked by:** None (can start immediately).
 
 **Status:** ready-for-agent
 
-- [ ] A fresh frontend worktree obtains the backend environment needed for authenticated E2E tests through the supported setup, without exposing secret values.
-- [ ] The setup or verification step reports missing required backend settings before tests fail with misleading API errors, while preserving supported guest-only and CI runs.
-- [ ] Automated checks cover a fresh worktree with available settings and the missing-settings case.
+- [ ] One supported bootstrap command replaces the backend and frontend bootstrap scripts, copies available `.envrc`, `backend/.env`, `frontend/.env`, and `admin/.env` files from the main checkout, starts backend tooling and the database, and prepares frontend and Admin app tooling and dependencies.
+- [ ] Bootstrap never overwrites an existing worktree env file, reports skipped files, and does not expose secret values.
+- [ ] Signed-in E2E verification reports missing or placeholder required backend Clerk settings before tests run, without exposing their values; guest-only and CI runs remain supported.
+- [ ] Automated checks cover fresh worktrees with settings available and missing, repeated bootstrap without overwriting existing files, and signed-in and guest-only verification.
+- [ ] Update callers, agent role instructions, and documentation to use the new command; remove the old bootstrap scripts.
