@@ -1,4 +1,4 @@
-# 01: Make the local sign-in browser test reliable
+# 02: Make the local sign-in browser test reliable
 
 **What to build:** A developer can run the real Clerk sign-in browser test locally and get a reliable result that matches the supported test setup.
 
