@@ -16,10 +16,9 @@ ALTER TABLE trade_items ADD CONSTRAINT trade_items_source_collection_id_fkey
 
 ALTER TABLE trade_items DROP CONSTRAINT trade_items_source_collection_id_fkey;
 
--- Items whose source is already gone cannot satisfy the old NOT NULL; they
--- are dropped on the way back, as the old cascade would have done anyway.
-DELETE FROM trade_items WHERE source_collection_id IS NULL;
-
+-- Items whose source is already gone cannot satisfy the old NOT NULL, so
+-- SET NOT NULL fails and the whole rollback rolls back. They are agreed
+-- deal items: the rollback must never delete them silently.
 ALTER TABLE trade_items ALTER COLUMN source_collection_id SET NOT NULL;
 ALTER TABLE trade_items ADD CONSTRAINT trade_items_source_collection_id_fkey
     FOREIGN KEY (source_collection_id) REFERENCES collections (id) ON DELETE CASCADE;

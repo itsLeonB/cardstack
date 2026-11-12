@@ -67,7 +67,8 @@ func NewTradeService(
 func (s *tradeService) Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error) {
 	// The slug embeds the row id, so the id is made here rather than left to
 	// the database default (same trick as the profile Slug, ADR-0025). The
-	// long tail keeps the link unguessable: it is the room's only address.
+	// 12-hex tail is the only entropy in the link — it is the room's only
+	// address — so uuid.New keeps it fully random.
 	trade := entity.Trade{
 		BaseEntity:     crud.BaseEntity{ID: uuid.New()},
 		Slug:           "",
