@@ -62,6 +62,46 @@ describe("decideClerkE2e", () => {
     }
   })
 
+  it("skips when the API's Clerk settings are still the compose placeholders", () => {
+    const decision = decideClerkE2e({
+      ...full,
+      CLERK_SECRET_KEY: "sk_test_placeholder",
+      CLERK_ISSUER: "https://placeholder.clerk.accounts.dev",
+    })
+    expect(decision.action).toBe("skip")
+    expect(decision).toMatchObject({
+      reason: expect.stringContaining("CLERK_SECRET_KEY"),
+    })
+    expect(decision).toMatchObject({
+      reason: expect.stringContaining("CLERK_ISSUER"),
+    })
+  })
+
+  it("fails when sign-in is required and the API's Clerk settings are placeholders", () => {
+    const decision = decideClerkE2e({
+      ...full,
+      CLERK_SECRET_KEY: "sk_test_placeholder",
+      [REQUIRE_SIGN_IN_VARIABLE]: "true",
+    })
+    expect(decision.action).toBe("fail")
+    const message = decision.action === "fail" ? decision.message : ""
+    expect(message).toContain("CLERK_SECRET_KEY")
+    expect(message).not.toContain("sk_test_placeholder")
+  })
+
+  it("skips when only the API's Clerk issuer is the compose placeholder", () => {
+    // CLERK_SECRET_KEY is what mints tokens; the issuer placeholder breaks
+    // verification of the tokens it mints, so the run would fail in the API.
+    const decision = decideClerkE2e({
+      ...full,
+      CLERK_ISSUER: "https://placeholder.clerk.accounts.dev",
+    })
+    expect(decision.action).toBe("skip")
+    expect(decision).toMatchObject({
+      reason: expect.stringContaining("CLERK_ISSUER"),
+    })
+  })
+
   it("fails when sign-in is required and anything is missing, naming only what is missing", () => {
     const decision = decideClerkE2e({
       ...full,

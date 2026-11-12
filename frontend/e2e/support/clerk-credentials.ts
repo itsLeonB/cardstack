@@ -25,6 +25,21 @@ function missingVariables(env: Env) {
   return REQUIRED.filter((name) => !env[name]?.trim())
 }
 
+// Placeholders from compose.defaults.env: the API boots on them but no real
+// Clerk call can succeed, so a signed-in run would fail deep in the browser
+// with misleading errors. Names only, never values.
+const PLACEHOLDERS = {
+  CLERK_SECRET_KEY: /^sk_test_placeholder$/,
+  CLERK_ISSUER: /^https:\/\/placeholder\.clerk\.accounts\.dev$/,
+} satisfies Record<string, RegExp>
+
+function placeholderVariables(env: Env) {
+  return Object.entries(PLACEHOLDERS)
+    .filter(([name]) => Boolean(env[name]?.trim()))
+    .filter(([name, pattern]) => pattern.test(env[name]!.trim()))
+    .map(([name]) => name)
+}
+
 export function readClerkE2eCredentials(env: Env): ClerkE2eCredentials | null {
   if (missingVariables(env).length > 0) return null
   return {
@@ -41,15 +56,24 @@ export type ClerkE2eDecision =
 // Messages name variables, never values.
 export function decideClerkE2e(env: Env): ClerkE2eDecision {
   const missing = missingVariables(env)
-  if (missing.length === 0) return { action: "run" }
+  const placeholders = placeholderVariables(env)
+  if (missing.length === 0 && placeholders.length === 0) {
+    return { action: "run" }
+  }
+  const problems = [
+    missing.length > 0 ? `missing or empty: ${missing.join(", ")}` : "",
+    placeholders.length > 0
+      ? `still the compose placeholder: ${placeholders.join(", ")}`
+      : "",
+  ].filter(Boolean)
   if (env[REQUIRE_SIGN_IN_VARIABLE] === "true") {
     return {
       action: "fail",
-      message: `${REQUIRE_SIGN_IN_VARIABLE} is true but these variables are missing or empty: ${missing.join(", ")}.`,
+      message: `${REQUIRE_SIGN_IN_VARIABLE} is true but these variables are ${problems.join("; ")}.`,
     }
   }
   return {
     action: "skip",
-    reason: `Clerk sign-in e2e is not configured (missing: ${missing.join(", ")}); fork pull requests and local runs without them skip these specs.`,
+    reason: `Clerk sign-in e2e is not configured (${problems.join("; ")}); fork pull requests and local runs without them skip these specs.`,
   }
 }

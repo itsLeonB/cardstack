@@ -7,7 +7,7 @@ Set up a fresh clone so agents and their MCP servers see the variables `.mcp.jso
 3. Run `direnv allow` in the repo root, and again after every `.envrc` change.
 4. Start your agent from that shell, inside the repo.
 
-Worktrees don't hold gitignored files. A delegate runs `scripts/bootstrap-worktree/<component>.sh` first: it copies `.envrc` and the component's env files from the main checkout, runs `direnv allow`, and starts the compose stack's tooling container (the frontend script also installs dependencies in it).
+Worktrees don't hold gitignored files. A delegate runs `scripts/bootstrap-worktree.sh` first: it copies `.envrc`, `backend/.env`, `frontend/.env` and `admin/.env` from the main checkout (never overwriting a file that already exists), runs `direnv allow`, starts the compose stack's tooling containers, and installs frontend dependencies. For signed-in E2E, `backend/.env` must hold a real Clerk development instance — `CLERK_SECRET_KEY` and `CLERK_ISSUER` from `scripts/clerk-setup.sh`; the compose placeholders in `compose.defaults.env` make the API boot but every authenticated call fails, and the signed-in specs report it before the browser run.
 
 When an MCP server needs a new `${VAR}`, add it to `.envrc.example` in the same change and tell the team to update `.envrc` and run `direnv allow`.
 
