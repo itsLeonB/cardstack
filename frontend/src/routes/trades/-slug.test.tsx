@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   Outlet,
@@ -88,6 +95,7 @@ function clerkState(state: ClerkState) {
 
 afterEach(() => {
   cleanup()
+  clerkAuth.onSessionChange(null)
   clerkAuth.publish(null)
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -102,6 +110,14 @@ function pick(options: {
 }): any {
   const { loader, head, component } = options
   return { loader, head, component }
+}
+
+function deferredResponse() {
+  let resolve!: (response: Response) => void
+  const promise = new Promise<Response>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
 }
 
 async function renderTradePage(path = PAGE) {
@@ -122,6 +138,10 @@ async function renderTradePage(path = PAGE) {
     history: createMemoryHistory({ initialEntries: [path] }),
     context: { queryClient },
   })
+  clerkAuth.onSessionChange(() => {
+    queryClient.removeQueries()
+    void router.invalidate()
+  })
   render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
@@ -131,6 +151,112 @@ async function renderTradePage(path = PAGE) {
 }
 
 describe("Trade page", () => {
+  it.each(["sess_3", "sess_1", null])(
+    "hides old data across stalled reads and repeated changes to %s",
+    async (lastSession) => {
+      clerkState("signed-in")
+      const clerk = fakeClerk("sess_1")
+      clerkAuth.publish(clerk)
+      const stalled = deferredResponse()
+      const latest = deferredResponse()
+      let gets = 0
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          gets += 1
+          if (gets > 1) return gets === 2 ? stalled.promise : latest.promise
+          return new Response(
+            JSON.stringify({
+              data: tradeView({ ownerItems: [{ card: pikachu, quantity: 2 }] }),
+            }),
+            {
+              headers: { "content-type": "application/json" },
+            }
+          )
+        })
+      )
+      await renderTradePage()
+      expect(await screen.findByText("Ash Ketchum")).toBeTruthy()
+      expect(screen.getByText(/Pikachu × 2/)).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Join this Trade" })
+      ).toBeTruthy()
+
+      act(() => clerk.emit("sess_2"))
+
+      expect(screen.queryByText("Ash Ketchum")).toBeNull()
+      expect(screen.queryByText(/Pikachu × 2/)).toBeNull()
+      expect(
+        screen.queryByRole("button", { name: "Join this Trade" })
+      ).toBeNull()
+      expect(screen.getByRole("status").textContent).toContain("Loading")
+      await waitFor(() => expect(gets).toBe(2))
+      act(() => {
+        if (lastSession === null) clerkState("guest")
+        clerk.emit(lastSession)
+      })
+      expect(screen.queryByText("Ash Ketchum")).toBeNull()
+      await waitFor(() => expect(gets).toBe(3))
+      await act(async () => {
+        stalled.resolve(
+          new Response(
+            JSON.stringify({ data: tradeView({ ownerName: "Stale offer" }) })
+          )
+        )
+      })
+      expect(screen.queryByText("Stale offer")).toBeNull()
+      expect(screen.queryByText("Ash Ketchum")).toBeNull()
+      expect(
+        screen.queryByRole("button", { name: "Join this Trade" })
+      ).toBeNull()
+      await act(async () => {
+        latest.resolve(
+          new Response(JSON.stringify({ code: "trade_not_found" }), {
+            status: 404,
+          })
+        )
+      })
+      expect(
+        await screen.findByRole("heading", { name: "Trade not found" })
+      ).toBeTruthy()
+    }
+  )
+
+  it("resets the full-seat message when navigating to another Trade", async () => {
+    clerkState("signed-in")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname
+        return new Response(
+          JSON.stringify(
+            path.endsWith("/join")
+              ? { code: "trade_seat_taken" }
+              : { data: tradeView({ slug: path.split("/").at(-1) }) }
+          ),
+          { status: path.endsWith("/join") ? 409 : 200 }
+        )
+      })
+    )
+    const router = await renderTradePage()
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Join this Trade" })
+    )
+    expect(await screen.findByText("This Trade is already full.")).toBeTruthy()
+
+    await act(async () => {
+      await router.navigate({
+        to: "/trades/$slug",
+        params: { slug: "trade-2" },
+      })
+    })
+
+    expect(
+      await screen.findByRole("button", { name: "Join this Trade" })
+    ).toBeTruthy()
+    expect(screen.queryByText("This Trade is already full.")).toBeNull()
+  })
+
   it("keeps the offer and says the Trade is full when the seat is taken", async () => {
     clerkState("signed-in")
     const requests = stubTradeApi()
@@ -205,16 +331,89 @@ describe("Trade page", () => {
   })
 })
 
-describe("Trade loader", () => {
-  function fakeClerk(sessionId: string | null): ClerkLike {
-    return {
-      session: sessionId
-        ? { id: sessionId, getToken: async () => "jwt" }
-        : null,
-      addListener: () => () => {},
-      signOut: async () => {},
-    }
+function fakeClerk(sessionId: string | null): ClerkLike & {
+  emit: (id: string | null) => void
+} {
+  const listeners = new Set<Parameters<ClerkLike["addListener"]>[0]>()
+  return {
+    session: sessionId ? { id: sessionId, getToken: async () => "jwt" } : null,
+    addListener(callback) {
+      listeners.add(callback)
+      callback({ session: this.session })
+      return () => listeners.delete(callback)
+    },
+    emit(id) {
+      this.session = id ? { id, getToken: async () => "jwt" } : null
+      for (const callback of listeners) callback({ session: this.session })
+    },
+    signOut: async () => {},
   }
+}
+
+describe("Trade loader", () => {
+  it("drops a response even when the session switched away and back before it arrived", async () => {
+    const clerk = fakeClerk("sess_1")
+    clerkAuth.publish(clerk)
+    let gets = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        gets += 1
+        if (gets === 1) {
+          clerk.emit("sess_2")
+          clerk.emit("sess_1")
+        }
+        return new Response(
+          JSON.stringify(
+            gets === 1 ? { data: tradeView() } : { code: "trade_not_found" }
+          ),
+          { status: gets === 1 ? 200 : 404 }
+        )
+      })
+    )
+    // SAFETY: the loader only reads queryClient and slug.
+    const loader = Route.options.loader as any
+    const result = await loader({
+      context: {
+        queryClient: new QueryClient({
+          defaultOptions: { queries: { retry: false } },
+        }),
+      },
+      params: { slug: "trade-1" },
+    })
+
+    expect(result).toMatchObject({ trade: "missing" })
+  })
+
+  it.each(["sess_3", "sess_1"])(
+    "rejects the retry too when the session changes again to %s",
+    async (lastSession) => {
+      const clerk = fakeClerk("sess_1")
+      clerkAuth.publish(clerk)
+      let gets = 0
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          gets += 1
+          clerk.emit(gets === 1 ? "sess_2" : lastSession)
+          return new Response(JSON.stringify({ data: tradeView() }))
+        })
+      )
+      // SAFETY: the loader only reads queryClient and slug.
+      const loader = Route.options.loader as any
+      const result = await loader({
+        context: {
+          queryClient: new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          }),
+        },
+        params: { slug: "trade-1" },
+      })
+
+      expect(gets).toBe(2)
+      expect(result).toMatchObject({ trade: null })
+    }
+  )
 
   it("reads again when the session changed while the request was in flight", async () => {
     clerkAuth.publish(fakeClerk("sess_1"))
@@ -246,6 +445,6 @@ describe("Trade loader", () => {
     })
 
     expect(gets).toBe(2)
-    expect(result).toBe("missing")
+    expect(result).toMatchObject({ trade: "missing" })
   })
 })
