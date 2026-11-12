@@ -7,7 +7,7 @@ One compose stack (`compose.yaml` at the repository root) gives agents and CI th
 | Service | What it is |
 | --- | --- |
 | `db` | `pgvector/pgvector:pg18`, throwaway data (`down` removes it). The tests require pgvector (ADR-0005, ADR-0018). |
-| `migrate`, `api` | The unchanged production backend image (`backend/Dockerfile`): its migrate binary once, then the API. |
+| `migrate`, `api` | The unchanged production backend image (`backend/Dockerfile`): its migrate binary once, then the API. The API restarts itself after a crash (`restart: on-failure:5`); after five failed restarts `api-ready` goes unhealthy and `docker compose up --wait` fails loudly (`docker compose ps` shows the exited container). |
 | `api-ready` | A sidecar whose health check asks the API from outside, because the API image has no shell. `up --wait` returns once the database is ready, the migration finished and the API answers. |
 | `web`, `admin` | The user app and the Admin app from production-style images (`frontend/app.Dockerfile`, `admin/app.Dockerfile`), each served by `tools/serve.ts`, which reads that app's own `vercel.json`. |
 | `backend-tools`, `frontend-tools` | Long-lived tooling containers with the repository bind-mounted at `/workspace`, running as your user. `backend-tools` has Go, a C compiler (the race detector needs cgo) and the pinned lint tool. `frontend-tools` is the official Playwright image at the version `frontend/package.json` pins, plus bun, and serves both frontend packages. |
