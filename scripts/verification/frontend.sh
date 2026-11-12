@@ -40,6 +40,16 @@ step_e2e() {
     VITE_CLERK_PUBLISHABLE_KEY="$(sed -n 's/^VITE_CLERK_PUBLISHABLE_KEY=//p' "$root/frontend/.env" | tr -d '"\r')"
     export VITE_CLERK_PUBLISHABLE_KEY
   fi
+  # The API's Clerk issuer, resolved the way compose resolves it: an explicit
+  # export wins, then backend/.env, then the compose.defaults.env placeholder.
+  # Playwright's placeholder guard needs the same value the API sees.
+  if [ -z "${CLERK_ISSUER:-}" ] && [ -f "$root/backend/.env" ]; then
+    CLERK_ISSUER="$(sed -n 's/^CLERK_ISSUER=//p' "$root/backend/.env" | tr -d '"\r' | head -1)"
+  fi
+  if [ -z "${CLERK_ISSUER:-}" ] && [ -f "$root/compose.defaults.env" ]; then
+    CLERK_ISSUER="$(sed -n 's/^CLERK_ISSUER=//p' "$root/compose.defaults.env" | tr -d '"\r' | head -1)"
+  fi
+  export CLERK_ISSUER
   # Skip compose.override.yaml: it rebuilds the app with a localhost API
   # address, which the browser in the tooling container cannot reach.
   export COMPOSE_FILE="$root/compose.yaml"

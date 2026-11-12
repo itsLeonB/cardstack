@@ -16,6 +16,11 @@ if [ "$root" = "$main" ]; then
 fi
 
 for f in .envrc backend/.env frontend/.env admin/.env; do
+  dir=${f%/*}
+  if [ "$dir" != "$f" ] && [ ! -d "$root/$dir" ]; then
+    echo "skipped $f (no $dir/ in this worktree)"
+    continue
+  fi
   if [ -e "$root/$f" ]; then
     echo "kept $f (already exists)"
   elif [ -e "$main/$f" ]; then
@@ -33,6 +38,6 @@ fi
 
 cd "$root"
 source scripts/verification/lib.sh
-up backend-tools frontend-tools
+up backend-tools frontend-tools db
 # Installs both frontend packages' dependencies in the tooling container.
 scripts/verification/frontend.sh install
