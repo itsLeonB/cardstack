@@ -40,7 +40,8 @@ services:
       timeout: 5s
       retries: 30
 
-  # The production image's own migrate binary, run once.
+  # The production image's own migrate binary, run once. One-shot on purpose:
+  # its restart stays "no" so a failed migration never becomes a restart loop.
   migrate:
     build:
       context: backend
@@ -82,6 +83,14 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    # The engine restarts the container after a non-zero exit, so a fatal
+    # error does not leave the stack dead. Five attempts bound a crash loop;
+    # after the last one the container stays exited and `api-ready` reports
+    # unhealthy, which fails `docker compose up --wait` loudly. `docker
+    # compose stop api` still stays stopped: a graceful exit is not a failure.
+    # Every other service keeps the default (no restart): migrate is one-shot,
+    # and the tooling containers are long-lived by hand.
+    restart: "on-failure:5"
 
   # The API image is distroless, with no shell to run a health check in, so
   # this sidecar asks the API from outside. `up --wait` returns once it is

@@ -13,6 +13,10 @@ Where cardstack runs, which env vars each deploy needs, and how to find out why 
 
 Get the live origins from the Vercel and Railway dashboards or CLIs, not from this doc. The production domain stays out of the repository: the Admin app's hostname is chosen at deploy time and written here as `<admin-origin>`.
 
+## Restart policy
+
+Production does not depend on the compose stack: Railway restarts the `api` service after a crash, so a fatal error costs a short outage, not a dead service. The compose stack's own `restart: on-failure:5` on `compose.yaml` applies to local development and CI only, where the same crash brings the container back (and after five failed restarts leaves `api-ready` unhealthy, failing `docker compose up --wait` loudly).
+
 The Admin app's Vercel project builds from the `admin` directory (Root Directory `admin`). It has no preview environment and no Playwright suite: `.github/workflows/preview-environments.yml` provisions only the user app, and `admin-ci.yml` runs typecheck, lint, format, tests and build on changes under `admin/`.
 
 ## Env vars

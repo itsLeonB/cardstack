@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Why
 
@@ -18,8 +18,19 @@ Evidence and the reproduction command: `.scratch/test-audit/report.md` section 6
 
 ## Acceptance criteria
 
-- [ ] Killing the API container out from under a running stack brings it back to serving without any manual command, and the stack's readiness reports the API as healthy again once it serves.
-- [ ] A crash loop is visible rather than silent: repeated restarts are bounded, and the failure is reported where a human or agent will look, not only in container logs.
-- [ ] The policy covers the API and states what the other services keep, so a deliberate one-shot service is not turned into a restart loop.
-- [ ] `scripts/verification/frontend.sh e2e` passes against the stack after a forced crash of the API.
-- [ ] Deployment documentation states the production equivalent, so nobody assumes the compose policy protects production.
+- [x] Killing the API container out from under a running stack brings it back to serving without any manual command, and the stack's readiness reports the API as healthy again once it serves.
+- [x] A crash loop is visible rather than silent: repeated restarts are bounded, and the failure is reported where a human or agent will look, not only in container logs.
+- [x] The policy covers the API and states what the other services keep, so a deliberate one-shot service is not turned into a restart loop.
+- [x] `scripts/verification/frontend.sh e2e` passes against the stack after a forced crash of the API.
+- [x] Deployment documentation states the production equivalent, so nobody assumes the compose policy protects production.
+
+## Comments
+
+Implemented on `fix/api-self-restart`: `restart: "on-failure:5"` on the `api` service in `compose.yaml`, with comments stating that every other service keeps the default (migrate stays one-shot), and the production equivalent (Railway restarts the container; the compose policy is dev/CI only) in `docs/agents/deployment.md`. `docs/agents/testing.md`'s `api` row now tells the reader where a crash loop shows: `api-ready` unhealthy, `docker compose ps` showing the exited container, `docker compose up --wait` failing loudly.
+
+Verified live against the stack:
+
+- Ticket 01's fix removed the sentinel-go crash, so the concurrent-curl reproduction no longer kills the API; a forced in-container crash (memory-limited container driven past its limit) restarted the API automatically with no manual command, and `api-ready` reported healthy again once it served.
+- A same-image test container failing from inside restarted exactly 5 times and then stayed exited: the loop is bounded.
+- `scripts/verification/frontend.sh e2e` against the stack after that forced crash: 89 passed (1.5m).
+- A manual `docker compose kill api` does not restart the container: Docker ignores restart policies after operator stop/kill, by design. The compose comment records the distinction (a graceful stop stays stopped).
