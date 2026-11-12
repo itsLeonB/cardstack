@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 // don't run scripts, and Vercel serves one static shell for every URL, so the
 // header is the only server-visible directive.
 describe("vercel.json", () => {
-  it.each(["/auth/:path*", "/s/:path*"])(
+  it.each(["/auth/:path*", "/s/:path*", "/trades/:path*"])(
     "sends X-Robots-Tag: noindex for %s",
     (source) => {
       // SAFETY: vercel.json is a checked-in file whose shape this very test asserts.

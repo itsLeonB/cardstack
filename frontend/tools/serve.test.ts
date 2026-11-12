@@ -48,7 +48,7 @@ describe("serve (user app)", () => {
     expect(await response.text()).toBe(SHELL)
   })
 
-  it.each(["/auth", "/auth/x", "/auth/sign-in/deep", "/s/abc"])(
+  it.each(["/auth", "/auth/x", "/auth/sign-in/deep", "/s/abc", "/trades/x"])(
     "sends X-Robots-Tag: noindex on %s",
     async (path) => {
       const response = await get(path)
@@ -57,7 +57,7 @@ describe("serve (user app)", () => {
     }
   )
 
-  it.each(["/", "/catalog", "/collections", "/authz", "/s-other"])(
+  it.each(["/", "/catalog", "/collections", "/authz", "/s-other", "/tradesx"])(
     "sends no X-Robots-Tag on %s",
     async (path) => {
       const response = await get(path)

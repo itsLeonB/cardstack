@@ -117,7 +117,8 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
 })
 
 // The caller holds neither seat: read what is offered, then take the second
-// seat; a join that loses the race is told the Trade is full.
+// seat; a join that loses the race is told the Trade is full, and the
+// refetch answers the loser's 404 like any other non-participant read.
 test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
   useSignedInSuite()
 
@@ -170,20 +171,16 @@ test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
   test("a join that loses the seat is told the Trade is full", async ({
     page,
   }) => {
-    // The read answers the post-join truth once someone else holds the seat.
+    // Once someone else holds the seat the real API answers this caller's
+    // read with the same 404 as an unknown slug (a non-participant).
     let seatTaken = false
     await page.route(`${API}/trades/${SLUG}`, (route) =>
-      reply(route, 200, {
-        data: tradeView(
-          seatTaken
-            ? {
-                status: "negotiating",
-                otherName: "Ash Ketchum",
-                isParticipant: true,
-              }
-            : {}
-        ),
-      })
+      seatTaken
+        ? reply(route, 404, {
+            code: "trade_not_found",
+            detail: "Trade not found.",
+          })
+        : reply(route, 200, { data: tradeView() })
     )
     await page.route(`${API}/trades/${SLUG}/join`, (route) => {
       seatTaken = true
@@ -198,11 +195,32 @@ test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
     await page.getByRole("button", { name: "Join this Trade" }).click()
 
     await expect(page.getByText("This Trade is already full.")).toBeVisible()
-    // The page refetches to the truth: the seat is someone else's now.
+    // The page refetches to the truth: the Trade is someone else's now, so
+    // the loser reads the shared not-found.
     await expect(
-      page.getByRole("button", { name: "Join this Trade" })
-    ).toHaveCount(0)
-    await expect(page.getByText("Negotiating")).toBeVisible()
-    await expect(page.getByText("Ash Ketchum").nth(1)).toBeVisible()
+      page.getByRole("heading", { name: "Trade not found" })
+    ).toBeVisible()
+  })
+})
+
+// A Guest opening a Trade link gets the same not-found as an unknown slug:
+// the API answers 404 and the page renders it, never a login redirect.
+test.describe("Trade guest", () => {
+  test("a guest reads the same not-found as an unknown slug", async ({
+    page,
+  }) => {
+    await page.route(`${API}/trades/${SLUG}`, (route) =>
+      reply(route, 404, {
+        code: "trade_not_found",
+        detail: "Trade not found.",
+      })
+    )
+
+    await page.goto(`/trades/${SLUG}`)
+
+    await expect(
+      page.getByRole("heading", { name: "Trade not found" })
+    ).toBeVisible()
+    await expect(page).not.toHaveURL(/\/auth\/login/)
   })
 })
