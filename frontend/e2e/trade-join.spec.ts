@@ -174,19 +174,28 @@ test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
     // Once someone else holds the seat the real API answers this caller's
     // read with the same 404 as an unknown slug (a non-participant) — but
     // the caller who just saw the offer keeps it, with the full notice.
+    let joined = false
     await page.route(`${API}/trades/${SLUG}`, (route) =>
-      reply(route, 200, { data: tradeView() })
+      joined
+        ? reply(route, 404, { code: "trade_not_found" })
+        : reply(route, 200, { data: tradeView() })
     )
-    await page.route(`${API}/trades/${SLUG}/join`, (route) =>
-      reply(route, 409, {
+    await page.route(`${API}/trades/${SLUG}/join`, (route) => {
+      joined = true
+      return reply(route, 409, {
         code: "trade_seat_taken",
         detail: "Seat taken.",
       })
-    )
+    })
 
     await signInAsTestUser(page)
     await page.goto(`/trades/${SLUG}`)
+    const seatRead = page.waitForResponse(
+      (response) =>
+        response.url() === `${API}/trades/${SLUG}` && response.status() === 404
+    )
     await page.getByRole("button", { name: "Join this Trade" }).click()
+    await seatRead
 
     await expect(page.getByText("This Trade is already full.")).toBeVisible()
     await expect(page.getByText("Ash Ketchum")).toBeVisible()

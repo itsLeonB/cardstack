@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { toast } from "sonner"
+import { NETWORK_ERROR } from "@/lib/collections"
 import {
   act,
   cleanup,
@@ -63,9 +65,11 @@ interface ApiReply {
 function stubTradeApi({
   get = { status: 200, body: { data: tradeView() } },
   join = { status: 409, body: { code: "trade_seat_taken" } },
+  getAfterJoin,
 }: {
   get?: ApiReply
   join?: ApiReply
+  getAfterJoin?: ApiReply
 } = {}) {
   const requests: string[] = []
   const fetchMock = vi.fn(
@@ -77,7 +81,12 @@ function stubTradeApi({
           status: r.status,
           headers: { "content-type": "application/json" },
         })
-      if (url.pathname === TRADE_PATH) return reply(get)
+      if (url.pathname === TRADE_PATH)
+        return reply(
+          getAfterJoin && requests.includes(`POST ${TRADE_PATH}/join`)
+            ? getAfterJoin
+            : get
+        )
       if (url.pathname === `${TRADE_PATH}/join`) return reply(join)
       return reply({
         status: 500,
@@ -259,7 +268,9 @@ describe("Trade page", () => {
 
   it("keeps the offer and says the Trade is full when the seat is taken", async () => {
     clerkState("signed-in")
-    const requests = stubTradeApi()
+    const requests = stubTradeApi({
+      getAfterJoin: { status: 404, body: { code: "trade_not_found" } },
+    })
     await renderTradePage()
 
     fireEvent.click(
@@ -267,15 +278,154 @@ describe("Trade page", () => {
     )
 
     expect(await screen.findByText("This Trade is already full.")).toBeTruthy()
-    // The offer the caller already read stays; the page does not refetch
-    // into the 404 a non-participant gets.
+    await waitFor(() =>
+      expect(requests.filter((r) => r === `GET ${TRADE_PATH}`)).toHaveLength(2)
+    )
+    // A non-participant keeps the offer after the authoritative read returns 404.
     expect(screen.getByText("Ash Ketchum")).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Join this Trade" })).toBeNull()
     expect(
       screen.queryByRole("heading", { name: "Trade not found" })
     ).toBeNull()
-    expect(requests.filter((r) => r === `GET ${TRADE_PATH}`)).toHaveLength(1)
   })
+
+  it("shows the joined Trade when this participant already took the seat", async () => {
+    clerkState("signed-in")
+    stubTradeApi({
+      getAfterJoin: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            otherName: "Misty",
+            isParticipant: true,
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Join this Trade" })
+    )
+
+    expect(await screen.findByText("Negotiating")).toBeTruthy()
+    expect(screen.getByText("Misty")).toBeTruthy()
+    expect(screen.queryByText("This Trade is already full.")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Join this Trade" })).toBeNull()
+  })
+
+  it.each([
+    { stage: "join", failure: "HTTP", message: "Join failed." },
+    { stage: "join", failure: "network", message: NETWORK_ERROR },
+    { stage: "read", failure: "HTTP", message: "Read failed." },
+    { stage: "read", failure: "network", message: NETWORK_ERROR },
+  ])(
+    "reports a $stage $failure failure without losing the offer",
+    async ({ stage, failure, message }) => {
+      clerkState("signed-in")
+      const errorToast = vi.spyOn(toast, "error")
+      stubTradeApi()
+      await renderTradePage()
+      const join = await screen.findByRole("button", {
+        name: "Join this Trade",
+      })
+      const network = vi.mocked(fetch)
+      if (stage === "read")
+        network.mockResolvedValueOnce(
+          new Response(JSON.stringify({ code: "trade_seat_taken" }), {
+            status: 409,
+          })
+        )
+      if (failure === "network")
+        network.mockRejectedValueOnce(new TypeError("offline"))
+      else
+        network.mockResolvedValueOnce(
+          new Response(JSON.stringify({ detail: message }), { status: 500 })
+        )
+
+      fireEvent.click(join)
+
+      await waitFor(() => expect(errorToast).toHaveBeenCalledWith(message))
+      expect(screen.getByText("Ash Ketchum")).toBeTruthy()
+      if (stage === "read")
+        expect(screen.getByText("This Trade is already full.")).toBeTruthy()
+      else
+        expect(
+          screen.getByRole("button", { name: "Join this Trade" })
+        ).toBeTruthy()
+      expect(
+        screen.queryByRole("heading", { name: "Trade not found" })
+      ).toBeNull()
+    }
+  )
+
+  it.each([200, 404, 500, "network"] as const)(
+    "ignores a late conflict read returning %s after the session changes away and back",
+    async (status) => {
+      clerkState("signed-in")
+      const clerk = fakeClerk("sess_1")
+      clerkAuth.publish(clerk)
+      const errorToast = vi.spyOn(toast, "error")
+      stubTradeApi()
+      await renderTradePage()
+      const join = await screen.findByRole("button", {
+        name: "Join this Trade",
+      })
+      let resolve!: (response: Response) => void
+      let reject!: (error: Error) => void
+      const stalled = new Promise<Response>((done, fail) => {
+        resolve = done
+        reject = fail
+      })
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ code: "trade_seat_taken" }), {
+            status: 409,
+          })
+        )
+        .mockReturnValueOnce(stalled)
+      fireEvent.click(join)
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+
+      act(() => {
+        clerk.emit("sess_2")
+        clerk.emit("sess_1")
+      })
+      expect(
+        await screen.findByRole("button", { name: "Join this Trade" })
+      ).toBeTruthy()
+      const readsBeforeReply = vi.mocked(fetch).mock.calls.length
+      await act(async () => {
+        if (status === "network") reject(new TypeError("offline"))
+        else
+          resolve(
+            new Response(
+              JSON.stringify(
+                status === 200
+                  ? {
+                      data: tradeView({
+                        status: "negotiating",
+                        isParticipant: true,
+                      }),
+                    }
+                  : { detail: "Old session failure." }
+              ),
+              { status }
+            )
+          )
+      })
+
+      expect(screen.getByText("Ash Ketchum")).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Join this Trade" })
+      ).toBeTruthy()
+      expect(screen.queryByText("Negotiating")).toBeNull()
+      expect(screen.queryByText("This Trade is already full.")).toBeNull()
+      expect(errorToast).not.toHaveBeenCalled()
+      expect(fetch).toHaveBeenCalledTimes(readsBeforeReply)
+    }
+  )
 
   it("names the item without a source Collection when it was deleted", async () => {
     clerkState("signed-in")
