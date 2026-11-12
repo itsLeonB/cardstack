@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** needs-info
 
 ## Reproduction
 
@@ -60,3 +60,21 @@ Repeated wrong-password attempts subsequently locked the shared Clerk user. Cler
 Before further auth runs, isolate the wrong-password test with a fresh disposable Clerk development user for each attempt, including retries, and delete only that fixture-owned user during teardown. Keep the shared user for successful sign-ins. Keep lockout protection enabled: Testing Tokens do not promise a lockout bypass, and `+clerk_test` addresses prevent mail delivery rather than failed-password lockout. See [official-source research and recovery limits](../research/clerk-test-user-lockout.md).
 
 Next investigation: implement the disposable-user fixture, then resume diagnosis of the original timeout. A form-transition race remains a hypothesis, not a confirmed finding. The missing-form failures are also unresolved. No lockout-setting change or automatic unlock of the shared user is part of the proposed fix.
+
+### Recheck on base `97cee565`
+
+This base already includes the disposable-user fixture, prompt recheck, code-send wait and extra fixture setup time from `cf0f3a5d` and `ff3fefc1`. No code changed during this recheck. The timeout did not reproduce; passing runs do not prove that these fixes removed every intermittent failure.
+
+All focused runs used the compose stack, real Clerk, `E2E_REQUIRE_SIGN_IN=true` and no retries. Failed-password attempts used only fresh disposable users; the shared user received only successful-password attempts. No cleanup failure was reported. Console output was redacted before display; focused runs used the line reporter and the untraced signed-in project.
+
+| Command | Result |
+| --- | --- |
+| `scripts/verification/frontend.sh e2e` | 89 passed; 106 seconds including stack preparation, 1.3 minutes in Playwright. |
+| `docker compose exec -T -w /workspace/frontend -e PLAYWRIGHT_BASE_URL=http://web:3000 -e E2E_REQUIRE_SIGN_IN=true frontend-tools bunx playwright test e2e/sign-in.spec.ts --project=chromium-signed-in --retries=0 --repeat-each=5 --workers=1 --reporter=line` | 10 passed in 68.8 seconds, five runs of each sign-in test. |
+| `docker compose exec -T -w /workspace/frontend -e PLAYWRIGHT_BASE_URL=http://web:3000 -e E2E_REQUIRE_SIGN_IN=true frontend-tools bunx playwright test e2e/sign-in.spec.ts --grep 'a wrong password' --project=chromium-signed-in --retries=0 --repeat-each=20 --workers=2 --reporter=line` | 20 passed in 87.7 seconds. |
+
+Use the spec path or test name, not the old `:42` selector: fixture setup now occupies that line.
+
+Diagnosis stopped at Phase 1: the existing tests exercise the reported flow, but there is no reproduced failure or short, repeatable failing command on this base. Phases 2–5 cannot proceed without that signal. No new cause is established, no speculative fix or new regression test was added, and no debug instrumentation remains. CI was not run.
+
+To resume, provide a fresh failure on this base or newer: commit, exact command and redacted error with the active Clerk prompt. Do not share a raw HAR, trace, HTML report, cookies, headers, email or password. Keep this issue open until a failing run supplies the missing evidence.
