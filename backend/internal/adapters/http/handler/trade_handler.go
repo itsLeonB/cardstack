@@ -70,6 +70,7 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 			Summary:     "Start a Trade and get its link Slug; the caller takes the owner seat in state open",
 			Tags:        []string{"trades"},
 			SuccessCode: http.StatusCreated,
+			Secured:     true,
 			HandlerFunc: h.create,
 		}),
 		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{
@@ -79,6 +80,7 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 			Summary:     "Take the Trade's second seat once, moving it to negotiating; a second join gets 409 trade_seat_taken",
 			Tags:        []string{"trades"},
 			SuccessCode: http.StatusOK,
+			Secured:     true,
 			HandlerFunc: h.join,
 		}),
 	}
