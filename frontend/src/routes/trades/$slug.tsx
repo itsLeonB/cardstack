@@ -14,6 +14,7 @@ import type { TradeItemView, TradeView } from "@/generated/models"
 import { clerkAuth } from "@/lib/clerk-auth"
 import { useIsGuest } from "@/lib/session"
 import {
+  getTrade,
   getGetTradeQueryKey,
   getGetTradeQueryOptions,
   useJoinTrade,
@@ -195,9 +196,8 @@ function OwnerLink({ slug }: { slug: string }) {
 function JoinSeat({ trade }: { trade: TradeView }) {
   const router = useRouter()
   const joinMutation = useJoinTrade()
-  // Set when the seat goes between the read and the join: a refetch would
-  // answer this caller the same 404 as an unknown slug, so the page keeps
-  // the offer it already showed and says the Trade is full instead.
+  const sessionVersion = clerkAuth.currentSessionVersion()
+  // Keep the offer if another participant's seat makes the fresh read a 404.
   const [seatTaken, setSeatTaken] = useState(false)
 
   if (trade.isParticipant || trade.status !== "open") return null
@@ -216,18 +216,37 @@ function JoinSeat({ trade }: { trade: TradeView }) {
         joinMutation.mutate(
           { slug: trade.slug },
           {
-            onSuccess: (response) => {
+            onSuccess: async (response) => {
+              if (clerkAuth.currentSessionVersion() !== sessionVersion) return
               if (response.status === 200) {
                 void router.invalidate()
                 return
               }
               if (response.data.code === "trade_seat_taken") {
                 setSeatTaken(true)
+                try {
+                  const current = await getTrade(trade.slug)
+                  if (clerkAuth.currentSessionVersion() !== sessionVersion)
+                    return
+                  if (current.status === 200) {
+                    void router.invalidate()
+                  } else if (current.status !== 404) {
+                    toast.error(
+                      current.data.detail ?? "Could not load this Trade."
+                    )
+                  }
+                } catch {
+                  if (clerkAuth.currentSessionVersion() === sessionVersion)
+                    toast.error(NETWORK_ERROR)
+                }
                 return
               }
               toast.error(response.data.detail ?? "Could not join this Trade.")
             },
-            onError: () => toast.error(NETWORK_ERROR),
+            onError: () => {
+              if (clerkAuth.currentSessionVersion() === sessionVersion)
+                toast.error(NETWORK_ERROR)
+            },
           }
         )
       }
