@@ -71,12 +71,11 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 		return nil, nil, err
 	}
 
-	httpCfg := httpserver.ProductionConfig()
+	httpCfg := serverConfig(configs.App)
 	httpCfg.LoggerConfig = &httpserver.LoggerConfig{
 		Logger:    zerologger,
 		SkipPaths: skipPaths,
 	}
-	httpCfg.Addr = fmt.Sprintf(":%s", configs.App.Port)
 
 	srv := httpserver.New(
 		httpserver.WithConfig(httpCfg),
@@ -86,6 +85,14 @@ func Setup(configs config.Config) (*httpserver.Server, func(), error) {
 	)
 
 	return srv, cleanup, nil
+}
+
+func serverConfig(app config.App) httpserver.Config {
+	cfg := httpserver.ProductionConfig()
+	cfg.Addr = fmt.Sprintf(":%s", app.Port)
+	// The socket timer also covers body reads; leave time after both budgets to write.
+	cfg.WriteTimeout = cfg.ReadTimeout + max(app.Timeout, 0) + time.Second
+	return cfg
 }
 
 // ginMode maps APP_ENV to a mode gin accepts, which panics on any other value.

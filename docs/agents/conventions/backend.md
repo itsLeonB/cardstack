@@ -4,7 +4,7 @@ These apply to every backend change, whether made by the orchestrator or a compo
 
 ## Errors
 
-- Wrap with `ungerr.Wrap`/`ungerr.Wrapf` at the exact first location an error originates in our own code (e.g. inside the helper that calls `rand.Read`). Callers of our own functions, and of `crud.Repository` (it already wraps with ungerr), return the plain `err` unchanged. The single Huma-level seam (`backend/internal/adapters/http/huma/errors.go`, ADR-0013) classifies and unwraps it once.
+- Wrap with `ungerr.Wrap`/`ungerr.Wrapf` at the exact first location an error originates in our own code (e.g. inside the helper that calls `rand.Read`). Callers of our own functions, and of `crud.Repository` (it already wraps with ungerr), return the plain `err` unchanged. The shared HTTP seam (`backend/internal/adapters/http/huma/errors.go`, ADR-0013) classifies it once through the endpoint wrappers or Huma's construction hooks; use those wrappers so `StatusError` cannot bypass classification.
 - Return known, client-safe failures as `ungerr.XxxError(...)` AppErrors. Handlers return AppError types rather than calling `huma.ErrorXXX(...)` with ad hoc messages (ADR-0013).
 - Construct each `ungerr.XxxError(...)` at its return site, because ungerr records the line that built it. Share only the message as a constant.
 - Give a failure the client must branch on a stable code, not a message to parse: return `apperr.WithCode(ungerr.XxxError(msg), apperr.CodeXxx)` from the service, declare the constant in `internal/core/apperr`, and document it on `httpapi.ErrorModel` (ADR-0013). Do not give a code to a failure the client only displays.
