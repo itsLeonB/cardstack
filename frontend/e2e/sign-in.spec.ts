@@ -1,10 +1,74 @@
-import { test, expect } from "playwright/test"
+import { randomUUID } from "node:crypto"
+import { test as base, expect } from "playwright/test"
+import { z } from "zod"
 import {
   expectShowsTestUserEmail,
   signInThroughForm,
   SIGNED_IN_TAG,
   useSignedInSuite,
 } from "./support/clerk-auth"
+
+const test = base.extend<{ disposableEmail: string }>({
+  disposableEmail: async ({ page }, use, testInfo) => {
+    testInfo.setTimeout(testInfo.timeout + 10_000)
+    void page
+    const secret = process.env.CLERK_SECRET_KEY?.trim()
+    if (!secret?.startsWith("sk_test_")) {
+      throw new Error("Disposable users require a Clerk development secret key")
+    }
+    const email = `e2e-${randomUUID()}+clerk_test@example.com`
+    const headers = {
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/json",
+    }
+    const response = await fetch("https://api.clerk.com/v1/users", {
+      method: "POST",
+      headers,
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({
+        email_address: [email],
+        password: `E2e-${randomUUID()}-aA1!`,
+      }),
+    })
+    if (!response.ok) {
+      throw new Error(
+        `Clerk test user creation failed: HTTP ${response.status}`
+      )
+    }
+    const user = z
+      .object({ id: z.string().min(1) })
+      .parse(await response.json())
+    let useError: unknown
+    try {
+      await use(email)
+    } catch (error) {
+      useError = error
+    }
+    try {
+      const deletion = await fetch(
+        `https://api.clerk.com/v1/users/${encodeURIComponent(user.id)}`,
+        { method: "DELETE", headers, signal: AbortSignal.timeout(10_000) }
+      )
+      if (!deletion.ok) {
+        throw new Error(
+          `Clerk test user ${user.id} deletion failed: HTTP ${deletion.status}`
+        )
+      }
+    } catch (error) {
+      const cleanupError = new Error(
+        `Clerk test user ${user.id} cleanup failed`,
+        { cause: error }
+      )
+      if (useError)
+        throw new AggregateError(
+          [useError, cleanupError],
+          "Test and Clerk cleanup failed"
+        )
+      throw cleanupError
+    }
+    if (useError) throw useError
+  },
+})
 
 // The thin end-to-end proof of sign-in (ADR-0015): Clerk's real development
 // instance, the dedicated test user, Clerk Testing Tokens. The happy path and
@@ -41,9 +105,11 @@ test.describe("Sign-in with Clerk", { tag: SIGNED_IN_TAG }, () => {
 
   test("a wrong password shows Clerk's error and gives no session", async ({
     page,
+    disposableEmail,
   }) => {
     // A fixed dummy, never derived from the real password.
     await signInThroughForm(page, "/auth/login", {
+      email: disposableEmail,
       password: "definitely-not-the-password-1A!",
     })
 

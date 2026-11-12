@@ -77,11 +77,11 @@ async function fillSecret(field: Locator, value: string, timeoutMs = 5_000) {
 
 // Types into Clerk's real sign-in form at `url`, for the specs where the form
 // is the subject; a spec that only needs a session uses signInAsTestUser.
-// `password` overrides the test user's, for the wrong-password failure.
+// Override credentials for a disposable user in the wrong-password test.
 export async function signInThroughForm(
   page: Page,
   url: string,
-  { password }: { password?: string } = {}
+  { email, password }: { email?: string; password?: string } = {}
 ) {
   requireSignedInTag()
   const testUser = requireCredentials()
@@ -92,7 +92,7 @@ export async function signInThroughForm(
   // development instance outlasts Playwright's 5 s default.
   await fillSecret(
     page.getByRole("textbox", { name: /email address/i }),
-    testUser.email,
+    email ?? testUser.email,
     15_000
   )
   // Clerk shows the password on the same step as the email or on a second one,
@@ -114,9 +114,12 @@ export async function signInThroughForm(
   // spends the whole test timeout instead of letting the caller assert.
   const codeSent = page
     .waitForResponse((res) => res.url().includes("/prepare_second_factor"), {
-      timeout: 5_000,
+      timeout: 10_000,
     })
-    .catch(() => {}) // only awaited when a code is asked for
+    .then(
+      (response) => response.ok(),
+      () => false
+    )
   await continueButton.click()
 
   // Clerk submits a password typed on the first step straight away. When it is
@@ -138,12 +141,17 @@ export async function signInThroughForm(
       () => false
     )
   if (!prompted) return
+  // Clerk can replace the code field with the password step while sending.
+  let sent = false
+  if (await codeField.isVisible()) sent = await codeSent
+  await passwordStep.or(codeField).first().waitFor({ state: "visible" })
+  if ((await codeField.isVisible()) && !sent) sent = await codeSent
   if (await passwordStep.isVisible()) {
     await fillSecret(passwordField, typed)
     await continueButton.click()
     return
   }
-  await codeSent
+  if (!sent) throw new Error("Clerk did not send the verification code")
   await codeField.fill("424242")
 }
 
