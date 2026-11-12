@@ -49,7 +49,7 @@ export const GetTradeResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 }),
-  "collection": zod.string().describe('The title of the Collection the Card is meant to leave.'),
+  "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "quantity": zod.int()
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
@@ -75,7 +75,7 @@ export const GetTradeResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 }),
-  "collection": zod.string().describe('The title of the Collection the Card is meant to leave.'),
+  "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
@@ -117,7 +117,7 @@ export const JoinTradeResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 }),
-  "collection": zod.string().describe('The title of the Collection the Card is meant to leave.'),
+  "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "quantity": zod.int()
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
@@ -143,7 +143,7 @@ export const JoinTradeResponse = zod.object({
 }),
   "tags": zod.array(zod.string()).nullable()
 }),
-  "collection": zod.string().describe('The title of the Collection the Card is meant to leave.'),
+  "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),

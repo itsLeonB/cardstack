@@ -172,34 +172,30 @@ test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
     page,
   }) => {
     // Once someone else holds the seat the real API answers this caller's
-    // read with the same 404 as an unknown slug (a non-participant).
-    let seatTaken = false
+    // read with the same 404 as an unknown slug (a non-participant) — but
+    // the caller who just saw the offer keeps it, with the full notice.
     await page.route(`${API}/trades/${SLUG}`, (route) =>
-      seatTaken
-        ? reply(route, 404, {
-            code: "trade_not_found",
-            detail: "Trade not found.",
-          })
-        : reply(route, 200, { data: tradeView() })
+      reply(route, 200, { data: tradeView() })
     )
-    await page.route(`${API}/trades/${SLUG}/join`, (route) => {
-      seatTaken = true
-      return reply(route, 409, {
+    await page.route(`${API}/trades/${SLUG}/join`, (route) =>
+      reply(route, 409, {
         code: "trade_seat_taken",
         detail: "Seat taken.",
       })
-    })
+    )
 
     await signInAsTestUser(page)
     await page.goto(`/trades/${SLUG}`)
     await page.getByRole("button", { name: "Join this Trade" }).click()
 
     await expect(page.getByText("This Trade is already full.")).toBeVisible()
-    // The page refetches to the truth: the Trade is someone else's now, so
-    // the loser reads the shared not-found.
+    await expect(page.getByText("Ash Ketchum")).toBeVisible()
+    await expect(
+      page.getByRole("button", { name: "Join this Trade" })
+    ).toHaveCount(0)
     await expect(
       page.getByRole("heading", { name: "Trade not found" })
-    ).toBeVisible()
+    ).toHaveCount(0)
   })
 })
 
@@ -221,6 +217,8 @@ test.describe("Trade guest", () => {
     await expect(
       page.getByRole("heading", { name: "Trade not found" })
     ).toBeVisible()
+    // The guest's only way in is signing in; the 404 itself says nothing.
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible()
     await expect(page).not.toHaveURL(/\/auth\/login/)
   })
 })

@@ -8,7 +8,7 @@ import type { CardSummary } from './cardSummary.ts';
 
 export interface TradeItemView {
   card: CardSummary;
-  /** The title of the Collection the Card is meant to leave. */
-  collection: string;
+  /** The title of the Collection the Card is meant to leave; absent when that Collection was deleted. */
+  collection?: string;
   quantity: number;
 }

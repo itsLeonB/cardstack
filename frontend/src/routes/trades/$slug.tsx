@@ -1,6 +1,8 @@
+import { useState } from "react"
 import { toast } from "sonner"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 
+import { SignInLink } from "@/components/auth/sign-in-link"
 import { NotFoundView } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
@@ -9,6 +11,8 @@ import { NETWORK_ERROR } from "@/lib/collections"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
+import { clerkAuth } from "@/lib/clerk-auth"
+import { useIsGuest } from "@/lib/session"
 import {
   getGetTradeQueryKey,
   getGetTradeQueryOptions,
@@ -27,10 +31,20 @@ export const Route = createFileRoute("/trades/$slug")({
   // Read fresh on every visit: a cached view would keep offering a seat
   // someone took since.
   loader: async ({ context: { queryClient }, params }) => {
-    const response = await queryClient.fetchQuery({
-      ...getGetTradeQueryOptions(params.slug),
-      staleTime: 0,
-    })
+    const read = () =>
+      queryClient.fetchQuery({
+        ...getGetTradeQueryOptions(params.slug),
+        staleTime: 0,
+      })
+    // The answer belongs to the session that asked: a session change while
+    // the request was in flight would cache one identity's Trade under the
+    // next one's visit, so it is dropped and read again.
+    const session = clerkAuth.currentSessionId()
+    let response = await read()
+    if (clerkAuth.currentSessionId() !== session) {
+      queryClient.removeQueries({ queryKey: getGetTradeQueryKey(params.slug) })
+      response = await read()
+    }
     if (response.status === 404) {
       queryClient.removeQueries({ queryKey: getGetTradeQueryKey(params.slug) })
       return "missing" as const
@@ -54,8 +68,23 @@ const STATUS_LABELS = {
 function TradePage() {
   const trade = Route.useLoaderData()
   const router = useRouter()
+  const isGuest = useIsGuest()
 
-  if (trade === "missing") return <NotFoundView resource="Trade" />
+  if (trade === "missing") {
+    const { pathname, searchStr } = router.state.location
+    return (
+      <NotFoundView resource="Trade">
+        {/* A Guest's read is the same 404 as an unknown slug; the link asks
+            for an account without confirming the Trade exists. */}
+        {isGuest && (
+          <p className="text-sm">
+            <SignInLink redirect={pathname + searchStr}>Sign in</SignInLink> to
+            see this Trade.
+          </p>
+        )}
+      </NotFoundView>
+    )
+  }
 
   function retry() {
     void router.invalidate()
@@ -116,9 +145,12 @@ function TradeSide({
           <p className="text-sm text-muted-foreground">No Cards offered yet.</p>
         ) : (
           <ul className="flex flex-col gap-1 text-sm">
-            {items.map((item) => (
-              <li key={`${item.card.id}-${item.collection}`}>
-                {item.card.name} × {item.quantity} — from {item.collection}
+            {items.map((item, index) => (
+              <li key={`${item.card.id}-${index}`}>
+                {item.card.name} × {item.quantity}
+                {item.collection
+                  ? ` — from ${item.collection}`
+                  : " — from a deleted Collection"}
               </li>
             ))}
           </ul>
@@ -142,8 +174,19 @@ function OwnerLink({ slug }: { slug: string }) {
 function JoinSeat({ trade }: { trade: TradeView }) {
   const router = useRouter()
   const joinMutation = useJoinTrade()
+  // Set when the seat goes between the read and the join: a refetch would
+  // answer this caller the same 404 as an unknown slug, so the page keeps
+  // the offer it already showed and says the Trade is full instead.
+  const [seatTaken, setSeatTaken] = useState(false)
 
   if (trade.isParticipant || trade.status !== "open") return null
+
+  if (seatTaken)
+    return (
+      <p role="status" className="text-sm">
+        This Trade is already full.
+      </p>
+    )
 
   return (
     <Button
@@ -157,14 +200,11 @@ function JoinSeat({ trade }: { trade: TradeView }) {
                 void router.invalidate()
                 return
               }
-              // The seat is gone: refetch so the page shows who holds it.
-              if (response.data.code === "trade_seat_taken")
-                void router.invalidate()
-              toast.error(
-                response.data.code === "trade_seat_taken"
-                  ? "This Trade is already full."
-                  : (response.data.detail ?? "Could not join this Trade.")
-              )
+              if (response.data.code === "trade_seat_taken") {
+                setSeatTaken(true)
+                return
+              }
+              toast.error(response.data.detail ?? "Could not join this Trade.")
             },
             onError: () => toast.error(NETWORK_ERROR),
           }
