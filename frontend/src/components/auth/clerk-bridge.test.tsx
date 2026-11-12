@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render } from "@testing-library/react"
 import { useAuth, useClerk } from "@clerk/react"
 import { clerkAuth } from "@/lib/clerk-auth"
+import type { ClerkLike } from "@/lib/clerk-auth"
 import { ClerkBridge } from "./clerk-bridge"
 
 // oxlint-disable-next-line anti-slop/no-module-mocking
@@ -17,7 +18,14 @@ afterEach(() => {
 function clerkState(isLoaded: boolean) {
   // SAFETY: partial hook results covering only the fields ClerkBridge reads.
   vi.mocked(useAuth).mockReturnValue({ isLoaded } as any)
-  const instance = { session: null }
+  const instance: ClerkLike = {
+    session: null,
+    addListener(callback) {
+      callback({ session: null })
+      return () => {}
+    },
+    signOut: async () => {},
+  }
   // SAFETY: stand-in for the Clerk instance; the bridge only passes it on.
   vi.mocked(useClerk).mockReturnValue(instance as any)
   return instance

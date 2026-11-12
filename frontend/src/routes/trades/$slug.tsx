@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { toast } from "sonner"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 
@@ -36,20 +36,28 @@ export const Route = createFileRoute("/trades/$slug")({
         ...getGetTradeQueryOptions(params.slug),
         staleTime: 0,
       })
-    // The answer belongs to the session that asked: a session change while
-    // the request was in flight would cache one identity's Trade under the
-    // next one's visit, so it is dropped and read again.
-    const session = clerkAuth.currentSessionId()
-    let response = await read()
-    if (clerkAuth.currentSessionId() !== session) {
-      queryClient.removeQueries({ queryKey: getGetTradeQueryKey(params.slug) })
-      response = await read()
+    // Check both attempts: even the retry can cross another session change.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const sessionVersion = clerkAuth.currentSessionVersion()
+      const response = await read()
+      if (clerkAuth.currentSessionVersion() !== sessionVersion) {
+        queryClient.removeQueries({
+          queryKey: getGetTradeQueryKey(params.slug),
+        })
+        continue
+      }
+      if (response.status === 404) {
+        queryClient.removeQueries({
+          queryKey: getGetTradeQueryKey(params.slug),
+        })
+        return { sessionVersion, trade: "missing" as const }
+      }
+      return {
+        sessionVersion,
+        trade: response.status === 200 ? response.data.data : null,
+      }
     }
-    if (response.status === 404) {
-      queryClient.removeQueries({ queryKey: getGetTradeQueryKey(params.slug) })
-      return "missing" as const
-    }
-    return response.status === 200 ? response.data.data : null
+    return { sessionVersion: clerkAuth.currentSessionVersion(), trade: null }
   },
   head: ({ params }) => ({
     meta: [...pageHead(params.slug).meta, NOINDEX_META],
@@ -66,9 +74,22 @@ const STATUS_LABELS = {
 } satisfies Record<string, string>
 
 function TradePage() {
-  const trade = Route.useLoaderData()
+  const { trade, sessionVersion } = Route.useLoaderData()
+  const currentVersion = useSyncExternalStore(
+    clerkAuth.subscribeSession,
+    clerkAuth.currentSessionVersion,
+    clerkAuth.currentSessionVersion
+  )
   const router = useRouter()
   const isGuest = useIsGuest()
+
+  if (sessionVersion !== currentVersion)
+    return (
+      <PageContainer>
+        <PageHeader title="Trade" />
+        <p role="status">Loading Trade...</p>
+      </PageContainer>
+    )
 
   if (trade === "missing") {
     const { pathname, searchStr } = router.state.location
@@ -121,7 +142,7 @@ function TradePage() {
         items={trade.otherItems ?? []}
       />
       {trade.isOwner && <OwnerLink slug={trade.slug} />}
-      <JoinSeat trade={trade} />
+      <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
     </PageContainer>
   )
 }
