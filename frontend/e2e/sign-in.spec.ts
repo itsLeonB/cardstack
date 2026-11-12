@@ -9,7 +9,8 @@ import {
 } from "./support/clerk-auth"
 
 const test = base.extend<{ disposableEmail: string }>({
-  disposableEmail: async ({ page }, use) => {
+  disposableEmail: async ({ page }, use, testInfo) => {
+    testInfo.setTimeout(testInfo.timeout + 10_000)
     void page
     const secret = process.env.CLERK_SECRET_KEY?.trim()
     if (!secret?.startsWith("sk_test_")) {
