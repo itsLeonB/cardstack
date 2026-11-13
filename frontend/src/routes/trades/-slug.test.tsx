@@ -888,6 +888,135 @@ describe("Trade page", () => {
     expect(screen.getAllByText("Accepted the deal.")).toHaveLength(2)
   })
 
+  it("shows the not-found view when a poll returns 404 for a cancelled Trade", async () => {
+    clerkState("signed-in")
+    let gets = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname
+        if (path === "/collections")
+          return new Response(
+            JSON.stringify({
+              data: [{ id: "collection-1", title: "Binder" }],
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+        if (path === "/collections/collection-1/entries")
+          return new Response(
+            JSON.stringify({
+              data: [{ card: pikachu, quantity: 1 }],
+              meta: { total: 1, page: 1, limit: 100 },
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+        gets += 1
+        // The loader's read sees the live Trade; every later read — the
+        // poll — sees it cancelled, which the API answers as the shared
+        // not-found.
+        const missing = path === TRADE_PATH && gets > 1
+        return new Response(
+          JSON.stringify(
+            missing
+              ? { code: "trade_not_found" }
+              : {
+                  data: tradeView({
+                    status: "negotiating",
+                    isParticipant: true,
+                    isOwner: true,
+                    otherName: "Misty",
+                  }),
+                }
+          ),
+          {
+            status: missing ? 404 : 200,
+            headers: { "content-type": "application/json" },
+          }
+        )
+      })
+    )
+    const { queryClient } = await renderTradePage()
+    expect(await screen.findByText("Negotiating")).toBeTruthy()
+
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+
+    // The poll's 404 reran the loader, whose fresh read also answers 404,
+    // so the page shows the not-found view.
+    expect(
+      await screen.findByRole("heading", { name: "Trade not found" })
+    ).toBeTruthy()
+    expect(screen.queryByText("Negotiating")).toBeNull()
+  })
+
+  it("refreshes when the other participant accepts while the offer revision is unchanged", async () => {
+    clerkState("signed-in")
+    let gets = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname
+        if (path === "/collections")
+          return new Response(
+            JSON.stringify({
+              data: [{ id: "collection-1", title: "Binder" }],
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+        if (path === "/collections/collection-1/entries")
+          return new Response(
+            JSON.stringify({
+              data: [{ card: pikachu, quantity: 1 }],
+              meta: { total: 1, page: 1, limit: 100 },
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+        gets += 1
+        // Revision stays put: acceptance and status move without an offer
+        // edit, which the offer-only revision cannot see.
+        const data =
+          path === TRADE_PATH && gets > 1
+            ? tradeView({
+                status: "locked",
+                isParticipant: true,
+                isOwner: true,
+                otherName: "Misty",
+                accepted: true,
+                otherAccepted: true,
+                revision: "2026-04-04T00:00:00Z",
+              })
+            : tradeView({
+                status: "negotiating",
+                isParticipant: true,
+                isOwner: true,
+                otherName: "Misty",
+                accepted: true,
+                revision: "2026-04-04T00:00:00Z",
+              })
+        return new Response(JSON.stringify({ data }), {
+          headers: { "content-type": "application/json" },
+        })
+      })
+    )
+    const { queryClient } = await renderTradePage()
+    expect(await screen.findByText("Waiting on Misty to accept.")).toBeTruthy()
+
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+
+    expect(await screen.findByText("Locked")).toBeTruthy()
+    expect(screen.getAllByText("Accepted the deal.")).toHaveLength(2)
+    expect(
+      screen.queryByRole("button", { name: "Accept the Trade" })
+    ).toBeNull()
+  })
+
   it("does not poll a Trade the viewer is not part of", async () => {
     clerkState("guest")
     let gets = 0
