@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/service"
@@ -32,6 +33,20 @@ type tradeJoinInput struct {
 	Slug string `path:"slug" doc:"The Trade's Slug, the last segment of its link."`
 }
 
+type tradeItemInput struct {
+	Slug string `path:"slug" doc:"The Trade's Slug."`
+	Body struct {
+		CardID             uuid.UUID `json:"cardId" required:"true"`
+		SourceCollectionID uuid.UUID `json:"sourceCollectionId" required:"true"`
+		Quantity           int       `json:"quantity" required:"true"`
+	}
+}
+
+type tradeItemRemovalInput struct {
+	Slug   string    `path:"slug"`
+	ItemID uuid.UUID `path:"itemId"`
+}
+
 func (h *TradeHandler) create(ctx context.Context, _ tradeSlugInput) (dto.TradeSlug, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -58,30 +73,51 @@ func (h *TradeHandler) join(ctx context.Context, in tradeJoinInput) (dto.TradeVi
 	return h.tradeSvc.Join(ctx, dto.TradeJoinRequest{ProfileID: profileID, Slug: in.Slug})
 }
 
+func (h *TradeHandler) addItem(ctx context.Context, in tradeItemInput) (dto.TradeView, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return h.tradeSvc.AddItem(ctx, dto.TradeItemRequest{
+		ProfileID: profileID, Slug: in.Slug, CardID: in.Body.CardID,
+		SourceCollectionID: in.Body.SourceCollectionID, Quantity: in.Body.Quantity,
+	})
+}
+
+func (h *TradeHandler) removeItem(ctx context.Context, in tradeItemRemovalInput) (dto.TradeView, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return h.tradeSvc.RemoveItem(ctx, dto.TradeItemRemovalRequest{
+		ProfileID: profileID, Slug: in.Slug, ItemID: in.ItemID,
+	})
+}
+
 // Routes are private: create and join need the Auth Identity, so a Guest gets
 // 401 (ADR-0028). The slug is the whole address; there is no list or
 // owner-scoped read here.
 func (h *TradeHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
 		endpoint.New(endpoint.Endpoint[tradeSlugInput, dto.TradeSlug]{
-			OperationID: "create-trade",
-			Method:      http.MethodPost,
-			Path:        "/trades",
-			Summary:     "Start a Trade and get its link Slug; the caller takes the owner seat in state open",
-			Tags:        []string{"trades"},
-			SuccessCode: http.StatusCreated,
-			Secured:     true,
-			HandlerFunc: h.create,
+			OperationID: "create-trade", Method: http.MethodPost, Path: "/trades",
+			Summary: "Start a Trade and get its link Slug; the caller takes the owner seat in state open",
+			Tags:    []string{"trades"}, SuccessCode: http.StatusCreated, Secured: true, HandlerFunc: h.create,
 		}),
 		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{
-			OperationID: "join-trade",
-			Method:      http.MethodPost,
-			Path:        "/trades/{slug}/join",
-			Summary:     "Take the Trade's second seat once, moving it to negotiating; a second join gets 409 trade_seat_taken",
-			Tags:        []string{"trades"},
-			SuccessCode: http.StatusOK,
-			Secured:     true,
-			HandlerFunc: h.join,
+			OperationID: "join-trade", Method: http.MethodPost, Path: "/trades/{slug}/join",
+			Summary: "Take the Trade's second seat once, moving it to negotiating",
+			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.join,
+		}),
+		endpoint.New(endpoint.Endpoint[tradeItemInput, dto.TradeView]{
+			OperationID: "add-trade-item", Method: http.MethodPost, Path: "/trades/{slug}/items",
+			Summary: "Add a Card and source Collection to the caller's side while negotiating",
+			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem,
+		}),
+		endpoint.New(endpoint.Endpoint[tradeItemRemovalInput, dto.TradeView]{
+			OperationID: "remove-trade-item", Method: http.MethodDelete, Path: "/trades/{slug}/items/{itemId}",
+			Summary: "Remove a Trade Item from the caller's side while negotiating",
+			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.removeItem,
 		}),
 	}
 }

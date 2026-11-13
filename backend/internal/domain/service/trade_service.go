@@ -31,37 +31,31 @@ const tradeOwnerJoinMsg = "the Trade's owner cannot claim its own second seat"
 // Get is guest-allowed and answers the same not-found as an unknown slug, so
 // a signed-in caller who is not a participant gets that too.
 type TradeService interface {
-	// Create starts a Trade with the caller on the owner seat, state open,
-	// and returns its Slug for the link.
 	Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error)
-	// Get reads a Trade by slug without claiming anything: its state, both
-	// participants' display names, and the Trade Items on each side. A Guest
-	// gets the same not-found as an unknown slug (user story 43). While the
-	// Trade is open any signed-in holder of the link may read it (that is how
-	// the second user reads the offer before joining); once someone holds the
-	// second seat only participants may, and an unknown, cancelled or
-	// not-yours slug is the same not-found.
 	Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error)
-	// Join fills the second seat once, moving the Trade to negotiating. A
-	// second attempt fails with CodeTradeSeatTaken, and two joins at once
-	// leave exactly one winner.
 	Join(ctx context.Context, req dto.TradeJoinRequest) (dto.TradeView, error)
+	AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error)
+	RemoveItem(ctx context.Context, req dto.TradeItemRemovalRequest) (dto.TradeView, error)
 }
 
 type tradeService struct {
-	transactor crud.Transactor
-	trades     repository.TradeRepository
-	profiles   crud.Repository[entity.UserProfile]
-	images     mapper.ImageHost
+	transactor  crud.Transactor
+	trades      repository.TradeRepository
+	collections repository.CollectionRepository
+	cards       crud.Repository[entity.Card]
+	profiles    crud.Repository[entity.UserProfile]
+	images      mapper.ImageHost
 }
 
 func NewTradeService(
 	transactor crud.Transactor,
 	trades repository.TradeRepository,
+	collections repository.CollectionRepository,
+	cards crud.Repository[entity.Card],
 	profiles crud.Repository[entity.UserProfile],
 	images mapper.ImageHost,
 ) TradeService {
-	return &tradeService{transactor: transactor, trades: trades, profiles: profiles, images: images}
+	return &tradeService{transactor: transactor, trades: trades, collections: collections, cards: cards, profiles: profiles, images: images}
 }
 
 func (s *tradeService) Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error) {
@@ -178,4 +172,90 @@ func (s *tradeService) Join(ctx context.Context, req dto.TradeJoinRequest) (dto.
 	}
 
 	return s.view(ctx, fresh, req.ProfileID)
+}
+
+func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error) {
+	if req.Quantity <= 0 {
+		return dto.TradeView{}, ungerr.BadRequestError("trade item quantity must be positive")
+	}
+
+	var trade entity.Trade
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		trade, err = s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		if err != nil {
+			return err
+		}
+		side, ok := tradeItemSide(trade, req.ProfileID)
+		if trade.IsZero() || !ok {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		if trade.Status != entity.TradeStatusNegotiating {
+			return ungerr.ConflictError("trade items can only change while negotiating")
+		}
+		for _, existing := range trade.TradeItems {
+			if existing.Side == side && existing.CardID == req.CardID && existing.SourceCollectionID != nil && *existing.SourceCollectionID == req.SourceCollectionID {
+				return ungerr.ConflictError("trade item already exists")
+			}
+		}
+		if _, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.SourceCollectionID, false); err != nil {
+			return err
+		}
+		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
+			Model: entity.Card{BaseEntity: crud.BaseEntity{ID: req.CardID}},
+		})
+		if err != nil {
+			return err
+		}
+		if card.IsZero() {
+			return ungerr.NotFoundError("card not found")
+		}
+		collectionID := req.SourceCollectionID
+		return s.trades.AddItem(ctx, entity.TradeItem{
+			TradeID: trade.ID, Side: side, CardID: req.CardID,
+			SourceCollectionID: &collectionID, Quantity: req.Quantity,
+		})
+	})
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return s.Get(ctx, dto.TradeLookup{Slug: req.Slug, ProfileID: req.ProfileID})
+}
+
+func (s *tradeService) RemoveItem(ctx context.Context, req dto.TradeItemRemovalRequest) (dto.TradeView, error) {
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		trade, err := s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		if err != nil {
+			return err
+		}
+		side, ok := tradeItemSide(trade, req.ProfileID)
+		if trade.IsZero() || !ok {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		if trade.Status != entity.TradeStatusNegotiating {
+			return ungerr.ConflictError("trade items can only change while negotiating")
+		}
+		removed, err := s.trades.RemoveItem(ctx, trade.ID, req.ItemID, side)
+		if err != nil {
+			return err
+		}
+		if !removed {
+			return ungerr.NotFoundError("trade item not found")
+		}
+		return nil
+	})
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return s.Get(ctx, dto.TradeLookup{Slug: req.Slug, ProfileID: req.ProfileID})
+}
+
+func tradeItemSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
+	if trade.OwnerProfileID == profileID {
+		return entity.SideOwner, true
+	}
+	if trade.ParticipantProfileID != nil && *trade.ParticipantProfileID == profileID {
+		return entity.SideParticipant, true
+	}
+	return 0, false
 }
