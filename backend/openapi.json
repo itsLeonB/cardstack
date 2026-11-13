@@ -2469,6 +2469,20 @@
         ],
         "type": "object"
       },
+      "TradeAcceptInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "description": "The offer revision the caller's view showed — the revision field of the Trade read. Accept refuses a stale one.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
       "TradeItemInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2573,6 +2587,11 @@
             "description": "The owner's display name, never their email.",
             "type": "string"
           },
+          "revision": {
+            "description": "The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.",
+            "format": "date-time",
+            "type": "string"
+          },
           "slug": {
             "type": "string"
           },
@@ -2597,6 +2616,7 @@
           "waitingOnMe",
           "otherAccepted",
           "waitingOnOther",
+          "revision",
           "ownerItems",
           "otherItems",
           "isOwner",
@@ -8117,16 +8137,26 @@
         "operationId": "accept-trade",
         "parameters": [
           {
-            "description": "The Trade's Slug, the last segment of its link.",
+            "description": "The Trade's Slug.",
             "in": "path",
             "name": "slug",
             "required": true,
             "schema": {
-              "description": "The Trade's Slug, the last segment of its link.",
+              "description": "The Trade's Slug.",
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeAcceptInputBody"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -8164,7 +8194,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing",
+        "summary": "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing",
         "tags": [
           "trades"
         ]

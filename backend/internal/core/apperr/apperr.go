@@ -54,6 +54,11 @@ const CodeTradeOwnerJoin = "trade_owner_join"
 // accept or change (GLOSSARY.md: Trade).
 const CodeTradeNotNegotiating = "trade_not_negotiating"
 
+// CodeTradeStaleRevision refuses an accept whose offer revision no longer
+// matches the Trade's: the offer changed since the caller read it, so the
+// accept would lock a deal they never saw (GLOSSARY.md: Trade).
+const CodeTradeStaleRevision = "trade_stale_revision"
+
 // coded deliberately embeds the AppError interface rather than the concrete
 // ungerr error, so it is not a huma.StatusError: Huma then routes it through
 // the classifier in the httpapi package instead of marshalling it directly,

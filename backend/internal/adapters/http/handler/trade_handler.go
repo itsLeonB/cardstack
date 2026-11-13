@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	authpkg "github.com/itsLeonB/cardstack/backend/internal/adapters/http/auth"
@@ -26,6 +27,13 @@ type tradeSlugInput struct{}
 // tradeLookupInput is GET /trades/{slug}: read the room by its link.
 type tradeLookupInput struct {
 	Slug string `path:"slug" doc:"The Trade's Slug, the last segment of its link."`
+}
+
+type tradeAcceptInput struct {
+	Slug string `path:"slug" doc:"The Trade's Slug."`
+	Body struct {
+		Revision time.Time `json:"revision" required:"true" doc:"The offer revision the caller's view showed — the revision field of the Trade read. Accept refuses a stale one."`
+	}
 }
 
 // tradeJoinInput is POST /trades/{slug}/join: claim the second seat.
@@ -86,12 +94,14 @@ func (h *TradeHandler) addItem(ctx context.Context, in tradeItemInput) (dto.Trad
 
 // accept builds the request DTO from the slug path param and the caller's
 // profile, then accepts the caller's side.
-func (h *TradeHandler) accept(ctx context.Context, in tradeLookupInput) (dto.TradeView, error) {
+func (h *TradeHandler) accept(ctx context.Context, in tradeAcceptInput) (dto.TradeView, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
 		return dto.TradeView{}, err
 	}
-	return h.tradeSvc.Accept(ctx, dto.TradeLookup{Slug: in.Slug, ProfileID: profileID})
+	return h.tradeSvc.Accept(ctx, dto.TradeAcceptRequest{
+		Slug: in.Slug, ProfileID: profileID, Revision: in.Body.Revision,
+	})
 }
 
 func (h *TradeHandler) removeItem(ctx context.Context, in tradeItemRemovalInput) (dto.TradeView, error) {
@@ -124,9 +134,9 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 			Summary: "Add a Card and source Collection to the caller's side while negotiating",
 			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem,
 		}),
-		endpoint.New(endpoint.Endpoint[tradeLookupInput, dto.TradeView]{
+		endpoint.New(endpoint.Endpoint[tradeAcceptInput, dto.TradeView]{
 			OperationID: "accept-trade", Method: http.MethodPost, Path: "/trades/{slug}/accept",
-			Summary: "Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing",
+			Summary: "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing",
 			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.accept,
 		}),
 		endpoint.New(endpoint.Endpoint[tradeItemRemovalInput, dto.TradeView]{
