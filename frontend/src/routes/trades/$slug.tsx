@@ -396,7 +396,10 @@ function TradeSide({
                 onChange={(event) => setQuantity(event.target.value)}
               />
             </div>
-            {(entriesQuery.isError || entriesQuery.data?.status !== 200) &&
+            {!entriesQuery.isPending &&
+              (entriesQuery.isError ||
+                (entriesQuery.data !== undefined &&
+                  entriesQuery.data.status !== 200)) &&
               collectionId !== "" && (
                 <p
                   role="alert"
