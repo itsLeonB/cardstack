@@ -22,6 +22,63 @@ func (_m *MockTradeService) EXPECT() *MockTradeService_Expecter {
 	return &MockTradeService_Expecter{mock: &_m.Mock}
 }
 
+// Accept provides a mock function with given fields: ctx, req
+func (_m *MockTradeService) Accept(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Accept")
+	}
+
+	var r0 dto.TradeView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeLookup) (dto.TradeView, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeLookup) dto.TradeView); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.TradeView)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.TradeLookup) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeService_Accept_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Accept'
+type MockTradeService_Accept_Call struct {
+	*mock.Call
+}
+
+// Accept is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.TradeLookup
+func (_e *MockTradeService_Expecter) Accept(ctx interface{}, req interface{}) *MockTradeService_Accept_Call {
+	return &MockTradeService_Accept_Call{Call: _e.mock.On("Accept", ctx, req)}
+}
+
+func (_c *MockTradeService_Accept_Call) Run(run func(ctx context.Context, req dto.TradeLookup)) *MockTradeService_Accept_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.TradeLookup))
+	})
+	return _c
+}
+
+func (_c *MockTradeService_Accept_Call) Return(_a0 dto.TradeView, _a1 error) *MockTradeService_Accept_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeService_Accept_Call) RunAndReturn(run func(context.Context, dto.TradeLookup) (dto.TradeView, error)) *MockTradeService_Accept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddItem provides a mock function with given fields: ctx, req
 func (_m *MockTradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error) {
 	ret := _m.Called(ctx, req)

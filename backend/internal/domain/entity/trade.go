@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	crud "github.com/itsLeonB/go-crud"
 )
@@ -33,12 +35,26 @@ type Trade struct {
 	OwnerProfileID       uuid.UUID   `gorm:"type:uuid;not null;index"`
 	ParticipantProfileID *uuid.UUID  `gorm:"type:uuid;index"`
 	Status               TradeStatus `gorm:"type:text;not null;default:'open'"`
+	// OwnerAcceptedAt and ParticipantAcceptedAt record each seat's
+	// acceptance (spec: two nullable acceptance timestamps beside the
+	// status column); the second one moves Status to locked.
+	OwnerAcceptedAt       *time.Time `gorm:"type:timestamptz"`
+	ParticipantAcceptedAt *time.Time `gorm:"type:timestamptz"`
 
 	// TradeItems are loaded only via crud.Specification.PreloadRelations.
 	TradeItems []TradeItem `gorm:"foreignKey:TradeID"`
 }
 
 func (Trade) TableName() string { return "trades" }
+
+// AcceptedAt is the seat's acceptance timestamp, nil until that side
+// accepts. Side is entity.SideOwner or entity.SideParticipant.
+func (t Trade) AcceptedAt(side int) *time.Time {
+	if side == SideOwner {
+		return t.OwnerAcceptedAt
+	}
+	return t.ParticipantAcceptedAt
+}
 
 // TradeItem is one entry on a Trade side (GLOSSARY.md: Trade Item): a Card, a
 // quantity, and the Collection it is meant to leave. Side names the seat:
