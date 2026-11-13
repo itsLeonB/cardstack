@@ -290,6 +290,7 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	assert.NotEmpty(t, view.Data.OwnerItems[0].Card.Name)
 	assert.NotEmpty(t, view.Data.OwnerItems[0].Card.ExpansionSet.Name)
 	assert.NotEmpty(t, view.Data.OwnerItems[0].Card.Rarity.Name)
+	assert.Contains(t, resp.Body.String(), `"imageUrl"`)
 	assert.Equal(t, "First source", view.Data.OwnerItems[0].Collection)
 	itemID := view.Data.OwnerItems[0].ID
 
