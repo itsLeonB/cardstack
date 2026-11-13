@@ -36,6 +36,11 @@ const tradeNotAcceptableMsg = "a Trade accepts only while negotiating"
 // apperr.CodeTradeNotNegotiating, never on this text.
 const tradeItemsLockedMsg = "trade items can only change while negotiating"
 
+// tradeStaleRevisionMsg is the message of the accept refusal when the offer
+// changed since the caller read it; the client branches on
+// apperr.CodeTradeStaleRevision, never on this text.
+const tradeStaleRevisionMsg = "the trade changed since you read it; read it again and accept the deal as it now stands"
+
 // TradeService is the room a Trade link opens (GLOSSARY.md: Trade, ADR-0028).
 // Create and Join need the Auth Identity, so their routes answer a Guest 401.
 // Get is guest-allowed and answers the same not-found as an unknown slug, so
@@ -46,7 +51,7 @@ type TradeService interface {
 	Join(ctx context.Context, req dto.TradeJoinRequest) (dto.TradeView, error)
 	AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error)
 	RemoveItem(ctx context.Context, req dto.TradeItemRemovalRequest) (dto.TradeView, error)
-	Accept(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error)
+	Accept(ctx context.Context, req dto.TradeAcceptRequest) (dto.TradeView, error)
 }
 
 type tradeService struct {
@@ -284,7 +289,17 @@ func tradeSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
 // negotiating Trade accepts: open has no second seat to agree with, and
 // executed or cancelled Trades are done — both refuse with
 // apperr.CodeTradeNotNegotiating.
-func (s *tradeService) Accept(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
+// Accept records the caller's side as accepting the deal as it stood when
+// they read it. The Trade row is locked FOR UPDATE for the whole check and
+// write, so a concurrent item edit either lands first — and the revision
+// compare below refuses this accept as stale — or waits and then sees the
+// acceptance. The second acceptance moves the Trade to locked in the same
+// transaction (spec: both sides freeze so the set cannot drift). Accepting
+// again from a side that already accepted changes nothing and does not
+// error. Only a negotiating Trade accepts: open has no second seat to agree
+// with, and executed or cancelled Trades are done — both refuse with
+// apperr.CodeTradeNotNegotiating.
+func (s *tradeService) Accept(ctx context.Context, req dto.TradeAcceptRequest) (dto.TradeView, error) {
 	var trade entity.Trade
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
@@ -311,11 +326,16 @@ func (s *tradeService) Accept(ctx context.Context, req dto.TradeLookup) (dto.Tra
 		if trade.Status != entity.TradeStatusNegotiating {
 			return apperr.WithCode(ungerr.ConflictError(tradeNotAcceptableMsg), apperr.CodeTradeNotNegotiating)
 		}
-		_, err = s.trades.Accept(ctx, trade.ID, side)
-		return err
+		// The caller accepts the offer revision they last read; an edit
+		// since then bumped updated_at and this accept would lock a deal
+		// they never saw.
+		if !req.Revision.Equal(trade.UpdatedAt) {
+			return apperr.WithCode(ungerr.ConflictError(tradeStaleRevisionMsg), apperr.CodeTradeStaleRevision)
+		}
+		return s.trades.Accept(ctx, trade, side)
 	})
 	if err != nil {
 		return dto.TradeView{}, err
 	}
-	return s.Get(ctx, req)
+	return s.Get(ctx, dto.TradeLookup{Slug: req.Slug, ProfileID: req.ProfileID})
 }

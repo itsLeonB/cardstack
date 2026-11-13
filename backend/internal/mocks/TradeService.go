@@ -23,7 +23,7 @@ func (_m *MockTradeService) EXPECT() *MockTradeService_Expecter {
 }
 
 // Accept provides a mock function with given fields: ctx, req
-func (_m *MockTradeService) Accept(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
+func (_m *MockTradeService) Accept(ctx context.Context, req dto.TradeAcceptRequest) (dto.TradeView, error) {
 	ret := _m.Called(ctx, req)
 
 	if len(ret) == 0 {
@@ -32,16 +32,16 @@ func (_m *MockTradeService) Accept(ctx context.Context, req dto.TradeLookup) (dt
 
 	var r0 dto.TradeView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeLookup) (dto.TradeView, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeAcceptRequest) (dto.TradeView, error)); ok {
 		return rf(ctx, req)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeLookup) dto.TradeView); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeAcceptRequest) dto.TradeView); ok {
 		r0 = rf(ctx, req)
 	} else {
 		r0 = ret.Get(0).(dto.TradeView)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, dto.TradeLookup) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, dto.TradeAcceptRequest) error); ok {
 		r1 = rf(ctx, req)
 	} else {
 		r1 = ret.Error(1)
@@ -57,14 +57,14 @@ type MockTradeService_Accept_Call struct {
 
 // Accept is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req dto.TradeLookup
+//   - req dto.TradeAcceptRequest
 func (_e *MockTradeService_Expecter) Accept(ctx interface{}, req interface{}) *MockTradeService_Accept_Call {
 	return &MockTradeService_Accept_Call{Call: _e.mock.On("Accept", ctx, req)}
 }
 
-func (_c *MockTradeService_Accept_Call) Run(run func(ctx context.Context, req dto.TradeLookup)) *MockTradeService_Accept_Call {
+func (_c *MockTradeService_Accept_Call) Run(run func(ctx context.Context, req dto.TradeAcceptRequest)) *MockTradeService_Accept_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(dto.TradeLookup))
+		run(args[0].(context.Context), args[1].(dto.TradeAcceptRequest))
 	})
 	return _c
 }
@@ -74,7 +74,7 @@ func (_c *MockTradeService_Accept_Call) Return(_a0 dto.TradeView, _a1 error) *Mo
 	return _c
 }
 
-func (_c *MockTradeService_Accept_Call) RunAndReturn(run func(context.Context, dto.TradeLookup) (dto.TradeView, error)) *MockTradeService_Accept_Call {
+func (_c *MockTradeService_Accept_Call) RunAndReturn(run func(context.Context, dto.TradeAcceptRequest) (dto.TradeView, error)) *MockTradeService_Accept_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
@@ -20,16 +21,17 @@ type tradeSlugEnvelope struct {
 
 type tradeViewEnvelope struct {
 	Data struct {
-		Slug           string  `json:"slug"`
-		Status         string  `json:"status"`
-		OwnerName      string  `json:"ownerName"`
-		OtherName      *string `json:"otherName"`
-		Accepted       bool    `json:"accepted"`
-		WaitingOnMe    bool    `json:"waitingOnMe"`
-		OtherAccepted  bool    `json:"otherAccepted"`
-		WaitingOnOther bool    `json:"waitingOnOther"`
-		IsOwner        bool    `json:"isOwner"`
-		IsParticipant  bool    `json:"isParticipant"`
+		Slug           string    `json:"slug"`
+		Status         string    `json:"status"`
+		OwnerName      string    `json:"ownerName"`
+		OtherName      *string   `json:"otherName"`
+		Accepted       bool      `json:"accepted"`
+		WaitingOnMe    bool      `json:"waitingOnMe"`
+		Revision       time.Time `json:"revision"`
+		OtherAccepted  bool      `json:"otherAccepted"`
+		WaitingOnOther bool      `json:"waitingOnOther"`
+		IsOwner        bool      `json:"isOwner"`
+		IsParticipant  bool      `json:"isParticipant"`
 		OwnerItems     []struct {
 			ID   string `json:"id"`
 			Card struct {
@@ -83,8 +85,10 @@ func joinTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
 	return api.Post("/trades/"+slug+"/join", bearer(token), map[string]any{})
 }
 
-func acceptTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
-	return api.Post("/trades/"+slug+"/accept", bearer(token), map[string]any{})
+// acceptTrade posts the accept with the offer revision the caller's last
+// read showed — the revision field of the TradeView the test decoded.
+func acceptTrade(api testAPI, token, slug string, revision time.Time) *httptest.ResponseRecorder {
+	return api.Post("/trades/"+slug+"/accept", bearer(token), map[string]any{"revision": revision})
 }
 
 func decodeTradeView(t *testing.T, resp *httptest.ResponseRecorder) tradeViewEnvelope {
@@ -359,10 +363,11 @@ func TestTradeAcceptAndLock(t *testing.T) {
 	slug := createTrade(t, api, owner)
 
 	// open: no second participant, so nobody can accept.
-	resp := acceptTrade(api, owner, slug)
+	openView := decodeTradeView(t, getTrade(api, owner, slug))
+	resp := acceptTrade(api, owner, slug, openView.Data.Revision)
 	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
 	assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
-	assert.Equal(t, http.StatusNotFound, acceptTrade(api, joiner, slug).Code)
+	assert.Equal(t, http.StatusNotFound, acceptTrade(api, joiner, slug, time.Time{}).Code)
 
 	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
 
@@ -384,7 +389,8 @@ func TestTradeAcceptAndLock(t *testing.T) {
 
 	// First accept: still negotiating; the read tells each side where it
 	// stands, including that it waits on the other side.
-	resp = acceptTrade(api, owner, slug)
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	resp = acceptTrade(api, owner, slug, ownerView.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	view := decodeTradeView(t, resp)
 	assert.Equal(t, "negotiating", view.Data.Status)
@@ -402,8 +408,10 @@ func TestTradeAcceptAndLock(t *testing.T) {
 	assert.False(t, view.Data.WaitingOnOther)
 
 	// Second accept: locked, and a repeat accept from the same side changes
-	// nothing and does not error.
-	resp = acceptTrade(api, joiner, slug)
+	// nothing and does not error. The repeat accepts still send the revision
+	// they last read — a locked Trade's revision no longer moves.
+	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
+	resp = acceptTrade(api, joiner, slug, joinerView.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	view = decodeTradeView(t, resp)
 	assert.Equal(t, "locked", view.Data.Status)
@@ -412,10 +420,11 @@ func TestTradeAcceptAndLock(t *testing.T) {
 	assert.True(t, view.Data.OtherAccepted)
 	assert.False(t, view.Data.WaitingOnOther)
 
-	resp = acceptTrade(api, joiner, slug)
+	resp = acceptTrade(api, joiner, slug, view.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
-	resp = acceptTrade(api, owner, slug)
+	ownerLocked := decodeTradeView(t, getTrade(api, owner, slug))
+	resp = acceptTrade(api, owner, slug, ownerLocked.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
 
@@ -437,7 +446,8 @@ func TestTradeAcceptAndLock(t *testing.T) {
 	require.NoError(t, api.db.Model(&entity.Trade{}).Where("slug = ?", slug).
 		Update("status", entity.TradeStatusExecuted).Error)
 	for _, token := range []string{owner, joiner} {
-		resp = acceptTrade(api, token, slug)
+		stale := decodeTradeView(t, getTrade(api, token, slug))
+		resp = acceptTrade(api, token, slug, stale.Data.Revision)
 		require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
 		assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
 	}
@@ -445,5 +455,71 @@ func TestTradeAcceptAndLock(t *testing.T) {
 	cancelled := createTrade(t, api, outsider)
 	require.NoError(t, api.db.Model(&entity.Trade{}).Where("slug = ?", cancelled).
 		Update("status", entity.TradeStatusCancelled).Error)
-	assert.Equal(t, http.StatusNotFound, acceptTrade(api, outsider, cancelled).Code)
+	assert.Equal(t, http.StatusNotFound, acceptTrade(api, outsider, cancelled, time.Time{}).Code)
+}
+
+// TestTradeAcceptStaleRevision: an accept must name the offer revision the
+// caller last read. An item edit after that read bumps the revision and
+// clears both seats' acceptances, so the stale accept is refused with
+// trade_stale_revision and the Trade stays negotiating until both sides
+// accept the deal as it now stands.
+func TestTradeAcceptStaleRevision(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner := api.newUserToken(t)
+	joiner := api.newUserToken(t)
+
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+
+	col := api.Post("/collections", bearer(owner), map[string]any{"title": "Offer"})
+	require.Equal(t, http.StatusCreated, col.Code, col.Body.String())
+	var created struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(col.Body.Bytes(), &created))
+	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	addItem := func() *httptest.ResponseRecorder {
+		return api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+			"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+		})
+	}
+	require.Equal(t, http.StatusOK, addItem().Code)
+
+	// The joiner reads the offer and accepts it.
+	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
+	resp = acceptTrade(api, joiner, slug, joinerView.Data.Revision)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "negotiating", decodeTradeView(t, resp).Data.Status)
+
+	// The owner edits the offer: the joiner's acceptance no longer stands and
+	// the revision the joiner holds is stale.
+	itemID := decodeTradeView(t, getTrade(api, owner, slug)).Data.OwnerItems[0].ID
+	resp = api.Delete("/trades/"+slug+"/items/"+itemID, bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+
+	// The stale accept is refused; the Trade did not lock.
+	resp = acceptTrade(api, joiner, slug, joinerView.Data.Revision)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_stale_revision", errorCode(t, resp))
+	view := decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.Equal(t, "negotiating", view.Data.Status)
+	assert.False(t, view.Data.Accepted) // the edit invalidated the joiner's acceptance
+
+	// Re-reading shows the new revision and the cleared acceptances; the
+	// owner accepts the deal as it now stands, then the joiner re-accepts
+	// the new revision and the second acceptance locks.
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	resp = acceptTrade(api, owner, slug, ownerView.Data.Revision)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "negotiating", decodeTradeView(t, resp).Data.Status)
+
+	joinerView = decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.NotEqual(t, ownerView.Data.Revision, joinerView.Data.Revision) // sanity: revisions moved
+	resp = acceptTrade(api, joiner, slug, joinerView.Data.Revision)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
 }
