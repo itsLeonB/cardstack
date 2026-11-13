@@ -409,7 +409,7 @@ func TestTradeAcceptAndLock(t *testing.T) {
 
 	// Second accept: locked, and a repeat accept from the same side changes
 	// nothing and does not error. The repeat accepts still send the revision
-	// they last read — a locked Trade's revision no longer moves.
+	// they last read — a locked Trade's offer revision no longer moves.
 	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
 	resp = acceptTrade(api, joiner, slug, joinerView.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
@@ -518,8 +518,73 @@ func TestTradeAcceptStaleRevision(t *testing.T) {
 	assert.Equal(t, "negotiating", decodeTradeView(t, resp).Data.Status)
 
 	joinerView = decodeTradeView(t, getTrade(api, joiner, slug))
-	assert.NotEqual(t, ownerView.Data.Revision, joinerView.Data.Revision) // sanity: revisions moved
+	// Both seats read the same offer revision: an acceptance moves only
+	// updated_at, so the owner's accept did not stale the joiner's view.
+	assert.Equal(t, ownerView.Data.Revision, joinerView.Data.Revision)
 	resp = acceptTrade(api, joiner, slug, joinerView.Data.Revision)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
+}
+
+// TestTradeAcceptSharedRevision: both participants read the same offer
+// revision — no intervening read — and both accepts name it. One acceptance
+// cannot stale the other: the first locks the Trade and the second, still
+// holding the revision it read, is accepted idempotently or lands the lock
+// itself, whichever wins the row lock first. A repeat accept on the
+// revision already held stays a no-op.
+func TestTradeAcceptSharedRevision(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner := api.newUserToken(t)
+	joiner := api.newUserToken(t)
+
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+
+	col := api.Post("/collections", bearer(owner), map[string]any{"title": "Offer"})
+	require.Equal(t, http.StatusCreated, col.Code, col.Body.String())
+	var created struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(col.Body.Bytes(), &created))
+	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+		"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+	})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+
+	// Both seats read once and hold the identical offer revision.
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
+	require.Equal(t, ownerView.Data.Revision, joinerView.Data.Revision)
+
+	// Both accepts race on the same revision; whichever lands first, the
+	// other either completes the lock or is a repeat no-op. Neither is
+	// refused as stale: an acceptance never moves the offer revision.
+	var wg sync.WaitGroup
+	results := make([]*httptest.ResponseRecorder, 2)
+	tokens := []string{owner, joiner}
+	revisions := []time.Time{ownerView.Data.Revision, joinerView.Data.Revision}
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			results[i] = acceptTrade(api, tokens[i], slug, revisions[i])
+		}(i)
+	}
+	wg.Wait()
+
+	for _, resp := range results {
+		require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	}
+	assert.Equal(t, "locked", decodeTradeView(t, getTrade(api, owner, slug)).Data.Status)
+
+	// The held revision is still valid once locked: a repeat accept on it
+	// changes nothing and does not error.
+	resp = acceptTrade(api, owner, slug, ownerView.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
 }

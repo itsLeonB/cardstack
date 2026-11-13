@@ -8,6 +8,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
+	"gorm.io/gorm"
 )
 
 // TradeRepository is crud.Repository[entity.Trade] plus the Trade's lookups:
@@ -20,10 +21,11 @@ type TradeRepository interface {
 	AddItem(ctx context.Context, item entity.TradeItem) error
 	RemoveItem(ctx context.Context, tradeID, itemID uuid.UUID, side int) (bool, error)
 	// OfferChanged records that the offer moved: it bumps the Trade's
-	// updated_at — the revision an accept compares against — and clears
+	// offer_revision — the revision an accept compares against — and clears
 	// both seats' acceptances, because an edit after an acceptance means
-	// the deal they agreed to no longer stands. Item edits call it in the
-	// same transaction while the caller holds the Trade's row lock.
+	// the deal they agreed to no longer stands. It also bumps updated_at,
+	// the record-changed column. Item edits call it in the same
+	// transaction while the caller holds the Trade's row lock.
 	OfferChanged(ctx context.Context, trade entity.Trade) error
 	// Accept stamps one seat's acceptance on the locked Trade row and, when
 	// the other seat already accepted, moves it to locked. The caller holds
@@ -92,7 +94,7 @@ func (r *tradeRepository) Join(ctx context.Context, id, profileID uuid.UUID) (bo
 	return result.RowsAffected == 1, nil
 }
 
-// AddItem inserts the Trade Item and bumps the Trade's offer revision in
+// AddItem inserts the Trade Item and bumps the Trade's offer_revision in
 // the same transaction, so an accept that read the offer before this edit
 // refuses as stale. The caller holds the Trade's row lock.
 func (r *tradeRepository) AddItem(ctx context.Context, item entity.TradeItem) error {
@@ -131,16 +133,12 @@ func (r *tradeRepository) Accept(ctx context.Context, trade entity.Trade, side i
 }
 
 // OfferChanged records that the offer moved: it bumps the Trade's
-// updated_at — the revision an accept compares against — and clears both
+// offer_revision — the revision an accept compares against — and clears both
 // seats' acceptances, because an edit after an acceptance means the deal
-// they agreed to no longer stands. Item edits call it in the same
-// transaction while the caller holds the Trade's row lock.
-// OfferChanged records that the offer moved: it bumps the Trade's
-// updated_at — the revision an accept compares against — and clears both
-// seats' acceptances, because an edit after an acceptance means the deal
-// they agreed to no longer stands. It writes only those columns, so the
-// caller need not pass the whole row. Item edits call it in the same
-// transaction while the caller holds the Trade's row lock.
+// they agreed to no longer stands. It also bumps updated_at, the
+// record-changed column. It writes only those columns, so the caller need
+// not pass the whole row. Item edits call it in the same transaction while
+// the caller holds the Trade's row lock.
 func (r *tradeRepository) OfferChanged(ctx context.Context, trade entity.Trade) error {
 	db, err := r.GetGormInstance(ctx)
 	if err != nil {
@@ -151,7 +149,8 @@ func (r *tradeRepository) OfferChanged(ctx context.Context, trade entity.Trade) 
 		Updates(map[string]any{
 			"owner_accepted_at":       nil,
 			"participant_accepted_at": nil,
-			"updated_at":              time.Now(),
+			"offer_revision":          gorm.Expr("GREATEST(now(), offer_revision + interval '1 microsecond')"),
+			"updated_at":              gorm.Expr("GREATEST(now(), updated_at + interval '1 microsecond')"),
 		})
 	if result.Error != nil {
 		return ungerr.Wrap(result.Error, "recording trade offer change")

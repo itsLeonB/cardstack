@@ -40,6 +40,10 @@ type Trade struct {
 	// status column); the second one moves Status to locked.
 	OwnerAcceptedAt       *time.Time `gorm:"type:timestamptz"`
 	ParticipantAcceptedAt *time.Time `gorm:"type:timestamptz"`
+	// OfferRevision is the offer revision an accept compares against: it
+	// moves only when the offer does (item edits, OfferChanged), never on
+	// an acceptance, so one seat's accept cannot stale the other's.
+	OfferRevision time.Time `gorm:"type:timestamptz"`
 
 	// TradeItems are loaded only via crud.Specification.PreloadRelations.
 	TradeItems []TradeItem `gorm:"foreignKey:TradeID"`

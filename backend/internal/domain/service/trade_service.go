@@ -37,7 +37,8 @@ const tradeNotAcceptableMsg = "a Trade accepts only while negotiating"
 const tradeItemsLockedMsg = "trade items can only change while negotiating"
 
 // tradeStaleRevisionMsg is the message of the accept refusal when the offer
-// changed since the caller read it; the client branches on
+// changed since the caller read it — item edits bump offer_revision while
+// an acceptance moves only updated_at; the client branches on
 // apperr.CodeTradeStaleRevision, never on this text.
 const tradeStaleRevisionMsg = "the trade changed since you read it; read it again and accept the deal as it now stands"
 
@@ -282,13 +283,6 @@ func tradeSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
 	return 0, false
 }
 
-// Accept records the caller's side as accepting the deal as it stands. The
-// second acceptance moves the Trade to locked inside the same transaction
-// (spec: both sides freeze so the set cannot drift). Accepting again from a
-// side that already accepted changes nothing and does not error. Only a
-// negotiating Trade accepts: open has no second seat to agree with, and
-// executed or cancelled Trades are done — both refuse with
-// apperr.CodeTradeNotNegotiating.
 // Accept records the caller's side as accepting the deal as it stood when
 // they read it. The Trade row is locked FOR UPDATE for the whole check and
 // write, so a concurrent item edit either lands first — and the revision
@@ -327,9 +321,9 @@ func (s *tradeService) Accept(ctx context.Context, req dto.TradeAcceptRequest) (
 			return apperr.WithCode(ungerr.ConflictError(tradeNotAcceptableMsg), apperr.CodeTradeNotNegotiating)
 		}
 		// The caller accepts the offer revision they last read; an edit
-		// since then bumped updated_at and this accept would lock a deal
-		// they never saw.
-		if !req.Revision.Equal(trade.UpdatedAt) {
+		// since then bumped offer_revision and this accept would lock a
+		// deal they never saw.
+		if !req.Revision.Equal(trade.OfferRevision) {
 			return apperr.WithCode(ungerr.ConflictError(tradeStaleRevisionMsg), apperr.CodeTradeStaleRevision)
 		}
 		return s.trades.Accept(ctx, trade, side)

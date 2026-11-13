@@ -26,8 +26,8 @@ type TradeLookup struct {
 
 // TradeAcceptRequest is the caller's acceptance of the deal as it stood when
 // they read it: Revision is the offer revision the view showed (the Trade's
-// updated_at at read time), so an accept on a stale view is refused instead
-// of locking a deal the caller never saw.
+// offer_revision at read time), so an accept on a stale view is refused
+// instead of locking a deal the caller never saw.
 type TradeAcceptRequest struct {
 	Slug      string
 	ProfileID uuid.UUID

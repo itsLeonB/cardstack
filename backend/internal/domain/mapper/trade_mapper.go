@@ -59,7 +59,7 @@ func ToTradeView(host ImageHost, t entity.Trade, ownerName string, otherName *st
 		Status:     t.Status,
 		OwnerName:  ownerName,
 		OtherName:  otherName,
-		Revision:   t.UpdatedAt,
+		Revision:   t.OfferRevision,
 		OwnerItems: []dto.TradeItemView{},
 		OtherItems: []dto.TradeItemView{},
 		IsOwner:    t.OwnerProfileID == profileID,
