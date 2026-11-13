@@ -27,7 +27,7 @@ Serena is rooted at your worktree, and its symbol-level tools are the primary wa
 - **mcp__postgres**: use for inspecting or querying the database when a task needs it (schema checks, verifying migrations). This MCP may fail to connect in some environments — tell the orchestrator if so rather than guessing at schema.
 - **tdd**: load when asked to build test-first, fix a bug via a regression test first, or the task comes from a spec/ticket file (e.g. `.scratch/<feature>/`) — drive TDD at agreed seams either way.
 
-Use the skills named in the task message. Implement directly in your worktree, run typechecking regularly, and run `code-review` as described in [Hand-off](../handoff.md#review).
+Select the skills relevant to your task. Implement directly in your worktree, run typechecking regularly, and run `code-review` as described in [Hand-off](../handoff.md#review).
 
 # Workflow when delegated a task
 

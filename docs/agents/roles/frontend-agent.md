@@ -29,7 +29,7 @@ Before writing or changing code, read `docs/agents/conventions/general.md` and `
 - **frontend-design, web-design-guidelines, accessibility**: load for new UI or visual/UX changes, and to check WCAG/keyboard/screen-reader compliance.
 - **tdd**: load when asked to build test-first, fix a bug via a regression test first, or the task comes from a spec/ticket file (e.g. `.scratch/<feature>/`) — drive TDD at agreed seams either way.
 
-Use the skills named in the task message. Implement directly in your worktree, run typechecking regularly, and run `code-review` as described in [Hand-off](../handoff.md#review).
+Select the skills relevant to your task. Implement directly in your worktree, run typechecking regularly, and run `code-review` as described in [Hand-off](../handoff.md#review).
 
 # Workflow when delegated a task
 

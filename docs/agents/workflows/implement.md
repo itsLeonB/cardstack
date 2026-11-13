@@ -79,7 +79,7 @@ Every delegate gets a task message with these parts. The role file owns workspac
 
 1. **Role.** Read `docs/agents/roles/<component>-agent.md` and follow it. Implement the component task directly in the worker's worktree.
 2. **Task.** The ticket path under `.scratch/`, or the task text.
-3. **Skills.** Name the skills relevant to the task, including `tdd` at agreed seams and `code-review` for the worker's review. For example, UI work can need `ui-ux-pro-max` and `shadcn`.
+3. **Skills.** Let the worker select the skills relevant to its task. The worker runs `code-review` for its review.
 4. **Review children.** State that the worker runs its own review and may spawn its review children; a harness allows child subagents only when its task says so.
 
 ### Report protocol

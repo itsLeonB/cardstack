@@ -6,7 +6,7 @@ How a spec runs when the maintainer invokes `/implement-spec`. This is the orche
 
 One implementer per ticket, `deepseek-flash` with `max` thinking, delegated as in [Delegating](implement.md#delegating): own worktree, own branch, the [task message](implement.md#task-message) with the ticket path as the Task. A ticket spanning components gets one implementer per component, and the `backend` one goes first when the change alters `backend/openapi.json`, so the others branch from the regenerated contract.
 
-The implementer is the worker and implements directly in its own context, including its own review ([Review](../handoff.md#review)). The [task message](implement.md#task-message) names the task-specific skills and review children; a ticket is one loop, reviewed once by its implementer.
+The implementer is the worker and implements directly in its own context, including its own review ([Review](../handoff.md#review)). The worker selects the task-specific skills; a ticket is one loop, reviewed once by its implementer.
 
 ## Merger
 
