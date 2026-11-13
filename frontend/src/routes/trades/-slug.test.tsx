@@ -67,12 +67,28 @@ function stubTradeApi({
   get = { status: 200, body: { data: tradeView() } },
   join = { status: 409, body: { code: "trade_seat_taken" } },
   getAfterJoin,
+  collectionReplies = [
+    { status: 200, body: { data: [{ id: "collection-1", title: "Binder" }] } },
+  ],
+  entryReplies = [
+    {
+      status: 200,
+      body: {
+        data: [{ card: pikachu, quantity: 2 }],
+        meta: { total: 1, page: 1, limit: 100 },
+      },
+    },
+  ],
 }: {
   get?: ApiReply
   join?: ApiReply
   getAfterJoin?: ApiReply
+  collectionReplies?: ApiReply[]
+  entryReplies?: ApiReply[]
 } = {}) {
   const requests: string[] = []
+  let collectionRequest = 0
+  let entryRequest = 0
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input))
@@ -92,18 +108,15 @@ function stubTradeApi({
         )
       if (url.pathname === `${TRADE_PATH}/join`) return reply(join)
       if (url.pathname === "/collections")
-        return reply({
-          status: 200,
-          body: { data: [{ id: "collection-1", title: "Binder" }] },
-        })
+        return reply(
+          collectionReplies[
+            Math.min(collectionRequest++, collectionReplies.length - 1)
+          ]
+        )
       if (url.pathname === "/collections/collection-1/entries")
-        return reply({
-          status: 200,
-          body: {
-            data: [{ card: pikachu, quantity: 2 }],
-            meta: { total: 1, page: 1, limit: 100 },
-          },
-        })
+        return reply(
+          entryReplies[Math.min(entryRequest++, entryReplies.length - 1)]
+        )
       if (url.pathname === `${TRADE_PATH}/items` && init?.method === "POST")
         return reply({ status: 200, body: { data: tradeView() } })
       if (
@@ -490,6 +503,57 @@ describe("Trade page", () => {
         `POST ${TRADE_PATH}/items ${JSON.stringify({ cardId: "pikachu", quantity: 3, sourceCollectionId: "collection-1" })}`
       )
     )
+  })
+
+  it("can retry failed Collection and Card loads", async () => {
+    clerkState("signed-in")
+    stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+          }),
+        },
+      },
+      collectionReplies: [
+        { status: 503, body: { detail: "Unavailable" } },
+        {
+          status: 200,
+          body: { data: [{ id: "collection-1", title: "Binder" }] },
+        },
+      ],
+      entryReplies: [
+        { status: 503, body: { detail: "Unavailable" } },
+        {
+          status: 200,
+          body: {
+            data: [{ card: pikachu, quantity: 2 }],
+            meta: { total: 1, page: 1, limit: 100 },
+          },
+        },
+      ],
+    })
+    await renderTradePage()
+    const user = userEvent.setup()
+
+    await screen.findByText("Could not load your Collections.")
+    await user.click(screen.getByRole("button", { name: "Retry Collections" }))
+    await screen.findByRole("option", { name: "Binder" })
+    await user.selectOptions(
+      screen.getByLabelText("Source Collection"),
+      "collection-1"
+    )
+    await screen.findByText("Could not load Cards from this Collection.")
+    await user.click(screen.getByRole("button", { name: "Retry Cards" }))
+
+    expect(
+      await screen.findByRole("option", {
+        name: "Pikachu — Base Set — Rare",
+      })
+    ).toBeTruthy()
   })
 
   it("removes the participant's own Trade Item while negotiating", async () => {

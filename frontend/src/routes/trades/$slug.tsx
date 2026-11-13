@@ -315,9 +315,20 @@ function TradeSide({
           !collectionsQuery.isPending &&
           (collectionsQuery.isError ||
             collectionsQuery.data?.status !== 200) && (
-            <p role="alert" className="text-sm text-destructive">
-              Could not load your Collections.
-            </p>
+            <div
+              role="alert"
+              className="flex flex-col items-start gap-2 text-sm text-destructive"
+            >
+              <p>Could not load your Collections.</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void collectionsQuery.refetch()}
+              >
+                Retry Collections
+              </Button>
+            </div>
           )}
         {editable &&
           collectionsQuery.data?.status === 200 &&
@@ -401,12 +412,20 @@ function TradeSide({
                 (entriesQuery.data !== undefined &&
                   entriesQuery.data.status !== 200)) &&
               collectionId !== "" && (
-                <p
+                <div
                   role="alert"
-                  className="text-sm text-destructive sm:col-span-2"
+                  className="flex flex-col items-start gap-2 text-sm text-destructive sm:col-span-2"
                 >
-                  Could not load Cards from this Collection.
-                </p>
+                  <p>Could not load Cards from this Collection.</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void entriesQuery.refetch()}
+                  >
+                    Retry Cards
+                  </Button>
+                </div>
               )}
             <Button
               type="submit"
