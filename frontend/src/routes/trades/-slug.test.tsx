@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { toast } from "sonner"
+import userEvent from "@testing-library/user-event"
 import { NETWORK_ERROR } from "@/lib/collections"
 import {
   act,
@@ -75,7 +76,9 @@ function stubTradeApi({
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input))
-      requests.push(`${init?.method ?? "GET"} ${url.pathname}`)
+      requests.push(
+        `${init?.method ?? "GET"} ${url.pathname}${init?.method === "POST" && url.pathname === `${TRADE_PATH}/items` ? ` ${String(init.body)}` : ""}`
+      )
       const reply = (r: ApiReply) =>
         new Response(JSON.stringify(r.body), {
           status: r.status,
@@ -88,6 +91,26 @@ function stubTradeApi({
             : get
         )
       if (url.pathname === `${TRADE_PATH}/join`) return reply(join)
+      if (url.pathname === "/collections")
+        return reply({
+          status: 200,
+          body: { data: [{ id: "collection-1", title: "Binder" }] },
+        })
+      if (url.pathname === "/collections/collection-1/entries")
+        return reply({
+          status: 200,
+          body: {
+            data: [{ card: pikachu, quantity: 2 }],
+            meta: { total: 1, page: 1, limit: 100 },
+          },
+        })
+      if (url.pathname === `${TRADE_PATH}/items` && init?.method === "POST")
+        return reply({ status: 200, body: { data: tradeView() } })
+      if (
+        url.pathname.startsWith(`${TRADE_PATH}/items/`) &&
+        init?.method === "DELETE"
+      )
+        return reply({ status: 200, body: { data: tradeView() } })
       return reply({
         status: 500,
         body: { detail: `unexpected ${url.pathname}` },
@@ -176,7 +199,9 @@ describe("Trade page", () => {
           if (gets > 1) return gets === 2 ? stalled.promise : latest.promise
           return new Response(
             JSON.stringify({
-              data: tradeView({ ownerItems: [{ card: pikachu, quantity: 2 }] }),
+              data: tradeView({
+                ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+              }),
             }),
             {
               headers: { "content-type": "application/json" },
@@ -427,6 +452,72 @@ describe("Trade page", () => {
     }
   )
 
+  it("adds a Card from one of the participant's Collections while negotiating", async () => {
+    clerkState("signed-in")
+    const requests = stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+    const user = userEvent.setup()
+
+    await screen.findByRole("option", { name: "Binder" })
+    await user.selectOptions(
+      await screen.findByLabelText("Source Collection"),
+      "collection-1"
+    )
+    await waitFor(() =>
+      expect(requests).toContain("GET /collections/collection-1/entries")
+    )
+    fireEvent.change(await screen.findByLabelText("Card"), {
+      target: { value: "pikachu" },
+    })
+    fireEvent.change(screen.getByLabelText("Quantity"), {
+      target: { value: "3" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Add Card" }))
+
+    await waitFor(() =>
+      expect(requests).toContain(
+        `POST ${TRADE_PATH}/items ${JSON.stringify({ cardId: "pikachu", quantity: 3, sourceCollectionId: "collection-1" })}`
+      )
+    )
+  })
+
+  it("removes the participant's own Trade Item while negotiating", async () => {
+    clerkState("signed-in")
+    const requests = stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+            ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Remove Pikachu" })
+    )
+
+    await waitFor(() =>
+      expect(requests).toContain(`DELETE ${TRADE_PATH}/items/item-1`)
+    )
+  })
+
   it("names the item without a source Collection when it was deleted", async () => {
     clerkState("signed-in")
     stubTradeApi({
@@ -436,8 +527,13 @@ describe("Trade page", () => {
           data: tradeView({
             isParticipant: true,
             ownerItems: [
-              { card: pikachu, quantity: 2 },
-              { card: pikachu, quantity: 1, collection: "Binder" },
+              { id: "item-1", card: pikachu, quantity: 2 },
+              {
+                id: "item-2",
+                card: pikachu,
+                quantity: 1,
+                collection: "Binder",
+              },
             ],
           }),
         },
@@ -445,10 +541,11 @@ describe("Trade page", () => {
     })
     await renderTradePage()
 
-    expect(
-      await screen.findByText(/Pikachu × 2 — from a deleted Collection/)
-    ).toBeTruthy()
-    expect(screen.getByText(/Pikachu × 1 — from Binder/)).toBeTruthy()
+    expect(await screen.findByText("Pikachu × 2")).toBeTruthy()
+    expect(screen.getByText("From a deleted Collection")).toBeTruthy()
+    expect(screen.getByText("Pikachu × 1")).toBeTruthy()
+    expect(screen.getByText("From Binder")).toBeTruthy()
+    expect(screen.getAllByText("Base Set · Rare")).toHaveLength(2)
   })
 
   it("offers a Guest sign-in that returns to the Trade when the read is missing", async () => {
