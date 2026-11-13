@@ -1,5 +1,5 @@
 import type { FormEvent } from "react"
-import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
@@ -108,25 +108,35 @@ function TradePage() {
     refetchInterval: 10_000,
   })
   // Poll results land in the shared query cache; rerun the loader once the
-  // cached view is newer than the one the loader last returned.
-  const lastRevision = useRef<string | null>(null)
+  // cached view differs from the one the loader last returned. Revision
+  // moves only on offer edits, so acceptance and status changes (the other
+  // participant accepting, the Trade locking, a cancel) need their own
+  // fields in the comparison.
   useEffect(() => {
     if (!trade || trade === "missing") return
-    const revision =
-      tradeQuery.data?.status === 200
-        ? tradeQuery.data.data.data.revision
-        : null
-    if (revision && revision !== lastRevision.current) {
-      lastRevision.current = revision
-      if (trade.revision !== revision) {
-        // The poll's fresh cache entry would satisfy the loader's fetchQuery
-        // without a request; mark it stale so the loader really rereads.
-        void queryClient
-          .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
-          .then(() => router.invalidate())
-      }
+    // A cancelled Trade, or one the caller is no longer part of, answers the
+    // poll's GET with the same 404 an unknown slug gets; rerun the loader
+    // so the page shows the not-found view instead of a stale offer.
+    if (tradeQuery.data?.status === 404) {
+      void router.invalidate()
+      return
     }
-  }, [trade, tradeQuery.data, router])
+    const polled =
+      tradeQuery.data?.status === 200 ? tradeQuery.data.data.data : null
+    if (!polled) return
+    if (
+      polled.revision !== trade.revision ||
+      polled.status !== trade.status ||
+      polled.accepted !== trade.accepted ||
+      polled.otherAccepted !== trade.otherAccepted
+    ) {
+      // The poll's fresh cache entry would satisfy the loader's fetchQuery
+      // without a request; mark it stale so the loader really rereads.
+      void queryClient
+        .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
+        .then(() => router.invalidate())
+    }
+  }, [trade, tradeQuery.data, router, queryClient])
 
   if (sessionVersion !== currentVersion)
     return (
