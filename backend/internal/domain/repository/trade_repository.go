@@ -13,15 +13,11 @@ import (
 // by slug, and the conditional join that claims the second seat.
 type TradeRepository interface {
 	crud.Repository[entity.Trade]
-	// FindBySlug returns the Trade with this slug, preloading its Trade Items
-	// with their Cards (Rarity and Expansion Set) and source Collections, or
-	// the zero value with a nil error when there is none.
 	FindBySlug(ctx context.Context, slug string) (entity.Trade, error)
-	// Join claims the second seat for profileID when it is empty, moving the
-	// Trade to negotiating. It reports false, changing nothing, when the seat
-	// is taken or the Trade is no longer open — one conditional UPDATE, so two
-	// joins at once leave exactly one winner.
+	FindBySlugForUpdate(ctx context.Context, slug string) (entity.Trade, error)
 	Join(ctx context.Context, id, profileID uuid.UUID) (bool, error)
+	AddItem(ctx context.Context, item entity.TradeItem) error
+	RemoveItem(ctx context.Context, tradeID, itemID uuid.UUID, side int) (bool, error)
 }
 
 type tradeRepository struct {
@@ -51,6 +47,17 @@ func (r *tradeRepository) FindBySlug(ctx context.Context, slug string) (entity.T
 	})
 }
 
+func (r *tradeRepository) FindBySlugForUpdate(ctx context.Context, slug string) (entity.Trade, error) {
+	if slug == "" {
+		return entity.Trade{}, nil
+	}
+	return r.FindFirst(ctx, crud.Specification[entity.Trade]{
+		Model:            entity.Trade{Slug: slug},
+		ForUpdate:        true,
+		PreloadRelations: tradeItemPreloads,
+	})
+}
+
 // Join is one conditional UPDATE, so two joins racing on the same Trade
 // serialize on the row: the second finds participant_profile_id no longer
 // NULL and updates nothing. RowsAffected decides the winner, never inferred
@@ -71,5 +78,28 @@ func (r *tradeRepository) Join(ctx context.Context, id, profileID uuid.UUID) (bo
 		return false, ungerr.Wrap(result.Error, "joining trade")
 	}
 
+	return result.RowsAffected == 1, nil
+}
+
+func (r *tradeRepository) AddItem(ctx context.Context, item entity.TradeItem) error {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return err
+	}
+	if err := db.Create(&item).Error; err != nil {
+		return ungerr.Wrap(err, "adding trade item")
+	}
+	return nil
+}
+
+func (r *tradeRepository) RemoveItem(ctx context.Context, tradeID, itemID uuid.UUID, side int) (bool, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return false, err
+	}
+	result := db.Where("trade_id = ? AND id = ? AND side = ?", tradeID, itemID, side).Delete(&entity.TradeItem{})
+	if result.Error != nil {
+		return false, ungerr.Wrap(result.Error, "removing trade item")
+	}
 	return result.RowsAffected == 1, nil
 }

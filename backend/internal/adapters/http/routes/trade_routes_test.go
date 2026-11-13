@@ -27,14 +27,34 @@ type tradeViewEnvelope struct {
 		IsOwner       bool    `json:"isOwner"`
 		IsParticipant bool    `json:"isParticipant"`
 		OwnerItems    []struct {
+			ID   string `json:"id"`
 			Card struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
+				ID           string `json:"id"`
+				Name         string `json:"name"`
+				ImageURL     string `json:"imageUrl"`
+				ExpansionSet struct {
+					Name string `json:"name"`
+				} `json:"expansionSet"`
+				Rarity struct {
+					Name string `json:"name"`
+				} `json:"rarity"`
 			} `json:"card"`
 			Quantity   int    `json:"quantity"`
 			Collection string `json:"collection"`
 		} `json:"ownerItems"`
 		OtherItems []struct {
+			ID   string `json:"id"`
+			Card struct {
+				ID           string `json:"id"`
+				Name         string `json:"name"`
+				ImageURL     string `json:"imageUrl"`
+				ExpansionSet struct {
+					Name string `json:"name"`
+				} `json:"expansionSet"`
+				Rarity struct {
+					Name string `json:"name"`
+				} `json:"rarity"`
+			} `json:"card"`
 			Quantity int `json:"quantity"`
 		} `json:"otherItems"`
 	} `json:"data"`
@@ -217,4 +237,101 @@ func TestTradeReadCancelled(t *testing.T) {
 	assert.Equal(t, getTrade(api, owner, "no-such-trade").Body.String(), resp.Body.String())
 
 	assert.Equal(t, http.StatusNotFound, joinTrade(api, owner, slug).Code)
+}
+
+func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner := api.newUserToken(t)
+	joiner := api.newUserToken(t)
+	outsider := api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+
+	createCollection := func(token, title string) string {
+		t.Helper()
+		resp := api.Post("/collections", bearer(token), map[string]any{"title": title})
+		require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+		var created struct {
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &created))
+		return created.Data.ID
+	}
+	first := createCollection(owner, "First source")
+	second := createCollection(owner, "Second source")
+	foreign := createCollection(outsider, "Foreign source")
+	firstEntries := "/collections/" + first + "/entries"
+	resp := api.Post(firstEntries, bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+
+	add := func(collectionID string, quantity int) *httptest.ResponseRecorder {
+		t.Helper()
+		return api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+			"cardId": cards[0], "sourceCollectionId": collectionID, "quantity": quantity,
+		})
+	}
+	assert.Equal(t, http.StatusConflict, add(first, 1).Code)
+	assert.Equal(t, http.StatusConflict, api.Delete("/trades/"+slug+"/items/00000000-0000-0000-0000-000000000001", bearer(owner)).Code)
+	assert.Equal(t, http.StatusBadRequest, add(first, 0).Code)
+	assert.Equal(t, http.StatusBadRequest, add(first, -1).Code)
+
+	openView := decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.Equal(t, "open", openView.Data.Status)
+	assert.Empty(t, openView.Data.OwnerItems)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+		"cardId": "00000000-0000-0000-0000-000000000000", "sourceCollectionId": first, "quantity": 1,
+	})
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+	assert.Equal(t, http.StatusNotFound, add(foreign, 1).Code)
+
+	// Offering more than the source currently holds is allowed before execution.
+	resp = add(first, 5)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	view := decodeTradeView(t, resp)
+	require.Len(t, view.Data.OwnerItems, 1)
+	assert.Equal(t, cards[0].String(), view.Data.OwnerItems[0].Card.ID)
+	assert.NotEmpty(t, view.Data.OwnerItems[0].Card.Name)
+	assert.NotEmpty(t, view.Data.OwnerItems[0].Card.ExpansionSet.Name)
+	assert.NotEmpty(t, view.Data.OwnerItems[0].Card.Rarity.Name)
+	assert.Contains(t, resp.Body.String(), `"imageUrl"`)
+	assert.Equal(t, "First source", view.Data.OwnerItems[0].Collection)
+	itemID := view.Data.OwnerItems[0].ID
+
+	resp = api.Delete("/trades/"+slug+"/items/"+itemID, bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Empty(t, decodeTradeView(t, resp).Data.OwnerItems)
+	resp = add(first, 5)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	itemID = decodeTradeView(t, resp).Data.OwnerItems[0].ID
+
+	assert.Equal(t, http.StatusConflict, add(first, 2).Code)
+	resp = add(second, 2)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	view = decodeTradeView(t, resp)
+	require.Len(t, view.Data.OwnerItems, 2)
+	joinerSource := createCollection(joiner, "Joiner source")
+	resp = api.Post("/trades/"+slug+"/items", bearer(joiner), map[string]any{
+		"cardId": cards[0], "sourceCollectionId": joinerSource, "quantity": 1,
+	})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	view = decodeTradeView(t, resp)
+	require.Len(t, view.Data.OtherItems, 1)
+	assert.Equal(t, cards[0].String(), view.Data.OtherItems[0].Card.ID)
+	assert.NotEmpty(t, view.Data.OtherItems[0].Card.ExpansionSet.Name)
+	assert.NotEmpty(t, view.Data.OtherItems[0].Card.Rarity.Name)
+
+	resp = api.Delete("/trades/"+slug+"/items/"+itemID, bearer(joiner))
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+	resp = api.Delete("/trades/"+slug+"/items/"+itemID, bearer(owner))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Len(t, decodeTradeView(t, resp).Data.OwnerItems, 1)
+
+	require.NoError(t, api.db.Model(&entity.Trade{}).Where("slug = ?", slug).
+		Update("status", entity.TradeStatusLocked).Error)
+	assert.Equal(t, http.StatusConflict, add(second, 1).Code)
+	resp = api.Delete("/trades/"+slug+"/items/"+decodeTradeView(t, getTrade(api, owner, slug)).Data.OwnerItems[0].ID, bearer(owner))
+	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
 }

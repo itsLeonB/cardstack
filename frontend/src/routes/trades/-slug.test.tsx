@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { toast } from "sonner"
+import userEvent from "@testing-library/user-event"
 import { NETWORK_ERROR } from "@/lib/collections"
 import {
   act,
@@ -66,16 +67,34 @@ function stubTradeApi({
   get = { status: 200, body: { data: tradeView() } },
   join = { status: 409, body: { code: "trade_seat_taken" } },
   getAfterJoin,
+  collectionReplies = [
+    { status: 200, body: { data: [{ id: "collection-1", title: "Binder" }] } },
+  ],
+  entryReplies = [
+    {
+      status: 200,
+      body: {
+        data: [{ card: pikachu, quantity: 2 }],
+        meta: { total: 1, page: 1, limit: 100 },
+      },
+    },
+  ],
 }: {
   get?: ApiReply
   join?: ApiReply
   getAfterJoin?: ApiReply
+  collectionReplies?: ApiReply[]
+  entryReplies?: ApiReply[]
 } = {}) {
   const requests: string[] = []
+  let collectionRequest = 0
+  let entryRequest = 0
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input))
-      requests.push(`${init?.method ?? "GET"} ${url.pathname}`)
+      requests.push(
+        `${init?.method ?? "GET"} ${url.pathname}${init?.method === "POST" && url.pathname === `${TRADE_PATH}/items` ? ` ${String(init.body)}` : ""}`
+      )
       const reply = (r: ApiReply) =>
         new Response(JSON.stringify(r.body), {
           status: r.status,
@@ -88,6 +107,23 @@ function stubTradeApi({
             : get
         )
       if (url.pathname === `${TRADE_PATH}/join`) return reply(join)
+      if (url.pathname === "/collections")
+        return reply(
+          collectionReplies[
+            Math.min(collectionRequest++, collectionReplies.length - 1)
+          ]
+        )
+      if (url.pathname === "/collections/collection-1/entries")
+        return reply(
+          entryReplies[Math.min(entryRequest++, entryReplies.length - 1)]
+        )
+      if (url.pathname === `${TRADE_PATH}/items` && init?.method === "POST")
+        return reply({ status: 200, body: { data: tradeView() } })
+      if (
+        url.pathname.startsWith(`${TRADE_PATH}/items/`) &&
+        init?.method === "DELETE"
+      )
+        return reply({ status: 200, body: { data: tradeView() } })
       return reply({
         status: 500,
         body: { detail: `unexpected ${url.pathname}` },
@@ -176,7 +212,9 @@ describe("Trade page", () => {
           if (gets > 1) return gets === 2 ? stalled.promise : latest.promise
           return new Response(
             JSON.stringify({
-              data: tradeView({ ownerItems: [{ card: pikachu, quantity: 2 }] }),
+              data: tradeView({
+                ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+              }),
             }),
             {
               headers: { "content-type": "application/json" },
@@ -265,6 +303,47 @@ describe("Trade page", () => {
     ).toBeTruthy()
     expect(screen.queryByText("This Trade is already full.")).toBeNull()
   })
+
+  it.each([true, false])(
+    "clears the draft when navigating to another Trade (owner: %s)",
+    async (isOwner) => {
+      clerkState("signed-in")
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL) => {
+          const path = new URL(String(input)).pathname
+          const data =
+            path === "/collections"
+              ? [{ id: "collection-1", title: "Binder" }]
+              : tradeView({
+                  slug: path.split("/").at(-1),
+                  status: "negotiating",
+                  isParticipant: true,
+                  isOwner,
+                })
+          return new Response(JSON.stringify({ data }), {
+            headers: { "content-type": "application/json" },
+          })
+        })
+      )
+      const router = await renderTradePage()
+      fireEvent.change(await screen.findByLabelText("Quantity"), {
+        target: { value: "7" },
+      })
+
+      await act(async () => {
+        await router.navigate({
+          to: "/trades/$slug",
+          params: { slug: "trade-2" },
+        })
+      })
+
+      expect(await screen.findByLabelText("Quantity")).toHaveProperty(
+        "value",
+        "1"
+      )
+    }
+  )
 
   it("keeps the offer and says the Trade is full when the seat is taken", async () => {
     clerkState("signed-in")
@@ -427,6 +506,123 @@ describe("Trade page", () => {
     }
   )
 
+  it("adds a Card from one of the participant's Collections while negotiating", async () => {
+    clerkState("signed-in")
+    const requests = stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+    const user = userEvent.setup()
+
+    await screen.findByRole("option", { name: "Binder" })
+    await user.selectOptions(
+      await screen.findByLabelText("Source Collection"),
+      "collection-1"
+    )
+    await waitFor(() =>
+      expect(requests).toContain("GET /collections/collection-1/entries")
+    )
+    fireEvent.change(await screen.findByLabelText("Card"), {
+      target: { value: "pikachu" },
+    })
+    fireEvent.change(screen.getByLabelText("Quantity"), {
+      target: { value: "3" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Add Card" }))
+
+    await waitFor(() =>
+      expect(requests).toContain(
+        `POST ${TRADE_PATH}/items ${JSON.stringify({ cardId: "pikachu", quantity: 3, sourceCollectionId: "collection-1" })}`
+      )
+    )
+  })
+
+  it("can retry failed Collection and Card loads", async () => {
+    clerkState("signed-in")
+    stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+          }),
+        },
+      },
+      collectionReplies: [
+        { status: 503, body: { detail: "Unavailable" } },
+        {
+          status: 200,
+          body: { data: [{ id: "collection-1", title: "Binder" }] },
+        },
+      ],
+      entryReplies: [
+        { status: 503, body: { detail: "Unavailable" } },
+        {
+          status: 200,
+          body: {
+            data: [{ card: pikachu, quantity: 2 }],
+            meta: { total: 1, page: 1, limit: 100 },
+          },
+        },
+      ],
+    })
+    await renderTradePage()
+    const user = userEvent.setup()
+
+    await screen.findByText("Could not load your Collections.")
+    await user.click(screen.getByRole("button", { name: "Retry Collections" }))
+    await screen.findByRole("option", { name: "Binder" })
+    await user.selectOptions(
+      screen.getByLabelText("Source Collection"),
+      "collection-1"
+    )
+    await screen.findByText("Could not load Cards from this Collection.")
+    await user.click(screen.getByRole("button", { name: "Retry Cards" }))
+
+    expect(
+      await screen.findByRole("option", {
+        name: "Pikachu — Base Set — Rare",
+      })
+    ).toBeTruthy()
+  })
+
+  it("removes the participant's own Trade Item while negotiating", async () => {
+    clerkState("signed-in")
+    const requests = stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+            ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Remove Pikachu" })
+    )
+
+    await waitFor(() =>
+      expect(requests).toContain(`DELETE ${TRADE_PATH}/items/item-1`)
+    )
+  })
+
   it("names the item without a source Collection when it was deleted", async () => {
     clerkState("signed-in")
     stubTradeApi({
@@ -436,8 +632,13 @@ describe("Trade page", () => {
           data: tradeView({
             isParticipant: true,
             ownerItems: [
-              { card: pikachu, quantity: 2 },
-              { card: pikachu, quantity: 1, collection: "Binder" },
+              { id: "item-1", card: pikachu, quantity: 2 },
+              {
+                id: "item-2",
+                card: pikachu,
+                quantity: 1,
+                collection: "Binder",
+              },
             ],
           }),
         },
@@ -445,10 +646,11 @@ describe("Trade page", () => {
     })
     await renderTradePage()
 
-    expect(
-      await screen.findByText(/Pikachu × 2 — from a deleted Collection/)
-    ).toBeTruthy()
-    expect(screen.getByText(/Pikachu × 1 — from Binder/)).toBeTruthy()
+    expect(await screen.findByText("Pikachu × 2")).toBeTruthy()
+    expect(screen.getByText("From a deleted Collection")).toBeTruthy()
+    expect(screen.getByText("Pikachu × 1")).toBeTruthy()
+    expect(screen.getByText("From Binder")).toBeTruthy()
+    expect(screen.getAllByText("Base Set · Rare")).toHaveLength(2)
   })
 
   it("offers a Guest sign-in that returns to the Trade when the read is missing", async () => {

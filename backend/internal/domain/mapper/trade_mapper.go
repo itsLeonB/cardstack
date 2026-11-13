@@ -17,6 +17,7 @@ func ToTradeItemView(host ImageHost, item entity.TradeItem) dto.TradeItemView {
 	}
 
 	return dto.TradeItemView{
+		ID:         item.ID,
 		Card:       ToBinderCardSummary(host, item.Card),
 		Quantity:   item.Quantity,
 		Collection: collection,
