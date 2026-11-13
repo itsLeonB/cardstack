@@ -50,7 +50,7 @@ The orchestrator stays on its current checkout and the feature branch, delegates
    Exception: when the change alters `backend/openapi.json`, delegate the `backend` component first, merge its branch into the feature branch, then delegate the others from that merged state, so they regenerate from the new contract.
 3. **Delegate each component** with the [task message](#task-message), in its own worktree, based on the feature branch. Where you can choose the branch name, follow [branch naming](../../git.md#branch-naming) as `<type>/<feature>-<component>` (example: `feat/users-management-backend`), and never nest it under the feature branch (`<feature branch>/<component>`): git cannot hold a branch and a directory of the same name. Never fetch from origin; the base is the local feature branch.
 4. **Record the worktree path.** The branch name is a request, the worktree path is the contract: some harnesses create the worker's branch and name it themselves. Take the absolute worktree path from the harness when it starts the worker, or from `git worktree list` otherwise, and read the live branch from git (`git -C <path> branch --show-current`) rather than assuming the requested name. Run `git -C <path> ...` for diffs and logs. Workers never rename their branch.
-5. **Collect.** The delegate ends with a [report](#report-protocol); treat it as the signal that work is ready. A delegate that ends failed or without a report starts [recovery](#failure-recovery).
+5. **Collect.** The delegate ends with a [report](#report-protocol). Work is ready only when the latest required verification on the final changes passed; a later failure blocks the merge even if an earlier run passed. A delegate that ends failed or without a report starts [recovery](#failure-recovery).
 6. **Check scope.** `git -C <worktree path> diff --name-only <feature branch>...HEAD` must list only paths under the child's component directories. Run it only on a clean worktree: `git -C <worktree path> status --porcelain` must print nothing, because uncommitted edits (staged, unstaged or untracked) are invisible to the diff. If it prints anything, send the delegate back to commit or discard it before the merge. Tool restrictions do not enforce scope, so this check does. The delegate has already reviewed its own diff once (see [Review](#review)), so the orchestrator does not review it again here.
 7. **Merge and clean up**, per child once it is done, in this order:
    1. Merge the child's branch into the feature branch: `merge-ticket merge --worktree <worktree path> --component <component>` (from `tools/`, see `docs/security.md`) reads the live branch from the worktree and refuses a detached HEAD, checks the child worktree is clean (step 6), checks scope against the component's directories (`frontend` covers `frontend/` and `admin/`), then runs `git merge --no-ff`. It refuses on a protected branch. `tools/README.md` lists the other forms.
@@ -75,12 +75,12 @@ The replacement is the child from then on.
 
 ### Task message
 
-Every delegate gets the same four-line message. The role file is the single source for workspace, scope, verification and commit, and it names the review and report contract, so the message does not restate them; the one exception is the review-children line, which a harness reads before the role file.
+Every delegate gets a task message with these parts. The role file owns workspace, scope, verification, commit and reporting.
 
-1. **Directive.** The line `/implement`, so the worker runs the skill as if the maintainer had invoked it.
-2. **Role.** Read `docs/agents/roles/<component>-agent.md` and follow it.
-3. **Task.** The ticket path under `.scratch/`, or the task text.
-4. **Review children.** One line saying the worker runs the review itself and may spawn its review children; a harness allows a child subagents only when its task says so.
+1. **Role.** Read `docs/agents/roles/<component>-agent.md` and follow it. Implement the component task directly in the worker's worktree.
+2. **Task.** The ticket path under `.scratch/`, or the task text.
+3. **Skills.** Let the worker select the skills relevant to its task. The worker runs `code-review` for its review.
+4. **Review children.** State that the worker runs its own review and may spawn its review children; a harness allows child subagents only when its task says so.
 
 ### Report protocol
 
