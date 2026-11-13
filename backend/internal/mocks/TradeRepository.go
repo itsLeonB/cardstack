@@ -28,6 +28,54 @@ func (_m *MockTradeRepository) EXPECT() *MockTradeRepository_Expecter {
 	return &MockTradeRepository_Expecter{mock: &_m.Mock}
 }
 
+// Accept provides a mock function with given fields: ctx, trade, side
+func (_m *MockTradeRepository) Accept(ctx context.Context, trade entity.Trade, side int) error {
+	ret := _m.Called(ctx, trade, side)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Accept")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, entity.Trade, int) error); ok {
+		r0 = rf(ctx, trade, side)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockTradeRepository_Accept_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Accept'
+type MockTradeRepository_Accept_Call struct {
+	*mock.Call
+}
+
+// Accept is a helper method to define mock.On call
+//   - ctx context.Context
+//   - trade entity.Trade
+//   - side int
+func (_e *MockTradeRepository_Expecter) Accept(ctx interface{}, trade interface{}, side interface{}) *MockTradeRepository_Accept_Call {
+	return &MockTradeRepository_Accept_Call{Call: _e.mock.On("Accept", ctx, trade, side)}
+}
+
+func (_c *MockTradeRepository_Accept_Call) Run(run func(ctx context.Context, trade entity.Trade, side int)) *MockTradeRepository_Accept_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(entity.Trade), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_Accept_Call) Return(_a0 error) *MockTradeRepository_Accept_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockTradeRepository_Accept_Call) RunAndReturn(run func(context.Context, entity.Trade, int) error) *MockTradeRepository_Accept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddItem provides a mock function with given fields: ctx, item
 func (_m *MockTradeRepository) AddItem(ctx context.Context, item entity.TradeItem) error {
 	ret := _m.Called(ctx, item)
@@ -627,6 +675,53 @@ func (_c *MockTradeRepository_Join_Call) Return(_a0 bool, _a1 error) *MockTradeR
 }
 
 func (_c *MockTradeRepository_Join_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) (bool, error)) *MockTradeRepository_Join_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// OfferChanged provides a mock function with given fields: ctx, trade
+func (_m *MockTradeRepository) OfferChanged(ctx context.Context, trade entity.Trade) error {
+	ret := _m.Called(ctx, trade)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OfferChanged")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, entity.Trade) error); ok {
+		r0 = rf(ctx, trade)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockTradeRepository_OfferChanged_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OfferChanged'
+type MockTradeRepository_OfferChanged_Call struct {
+	*mock.Call
+}
+
+// OfferChanged is a helper method to define mock.On call
+//   - ctx context.Context
+//   - trade entity.Trade
+func (_e *MockTradeRepository_Expecter) OfferChanged(ctx interface{}, trade interface{}) *MockTradeRepository_OfferChanged_Call {
+	return &MockTradeRepository_OfferChanged_Call{Call: _e.mock.On("OfferChanged", ctx, trade)}
+}
+
+func (_c *MockTradeRepository_OfferChanged_Call) Run(run func(ctx context.Context, trade entity.Trade)) *MockTradeRepository_OfferChanged_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(entity.Trade))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_OfferChanged_Call) Return(_a0 error) *MockTradeRepository_OfferChanged_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockTradeRepository_OfferChanged_Call) RunAndReturn(run func(context.Context, entity.Trade) error) *MockTradeRepository_OfferChanged_Call {
 	_c.Call.Return(run)
 	return _c
 }

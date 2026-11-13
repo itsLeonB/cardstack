@@ -125,6 +125,7 @@ export * from './setWishlistItemInputBody.ts';
 export * from './sharedCollectionSummary.ts';
 export * from './sharedWishlistSummary.ts';
 export * from './stringFacetOption.ts';
+export * from './tradeAcceptInputBody.ts';
 export * from './tradeItemInputBody.ts';
 export * from './tradeItemView.ts';
 export * from './tradeSlug.ts';

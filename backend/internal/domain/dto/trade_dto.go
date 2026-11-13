@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 )
@@ -20,6 +22,16 @@ type TradeSlug struct {
 type TradeLookup struct {
 	Slug      string
 	ProfileID uuid.UUID
+}
+
+// TradeAcceptRequest is the caller's acceptance of the deal as it stood when
+// they read it: Revision is the offer revision the view showed (the Trade's
+// offer_revision at read time), so an accept on a stale view is refused
+// instead of locking a deal the caller never saw.
+type TradeAcceptRequest struct {
+	Slug      string
+	ProfileID uuid.UUID
+	Revision  time.Time
 }
 
 // TradeJoinRequest claims the second seat of a Trade.
@@ -46,14 +58,19 @@ type TradeItemRemovalRequest struct {
 // display names, and the Trade Items on each side. Emails and Auth Identities
 // are never part of it (ADR-0028).
 type TradeView struct {
-	Slug          string             `json:"slug"`
-	Status        entity.TradeStatus `json:"status" doc:"open, negotiating, locked, executed or cancelled."`
-	OwnerName     string             `json:"ownerName" doc:"The owner's display name, never their email."`
-	OtherName     *string            `json:"otherName,omitempty" doc:"The second seat's display name once joined; absent while the seat is empty."`
-	OwnerItems    []TradeItemView    `json:"ownerItems"`
-	OtherItems    []TradeItemView    `json:"otherItems"`
-	IsOwner       bool               `json:"isOwner" doc:"Whether the caller holds the owner seat."`
-	IsParticipant bool               `json:"isParticipant" doc:"Whether the caller holds either seat."`
+	Slug           string             `json:"slug"`
+	Status         entity.TradeStatus `json:"status" doc:"open, negotiating, locked, executed or cancelled."`
+	OwnerName      string             `json:"ownerName" doc:"The owner's display name, never their email."`
+	OtherName      *string            `json:"otherName,omitempty" doc:"The second seat's display name once joined; absent while the seat is empty."`
+	Accepted       bool               `json:"accepted" doc:"Whether the caller's own side has accepted the deal as it stands."`
+	WaitingOnMe    bool               `json:"waitingOnMe" doc:"Whether the Trade is negotiating and the caller's side has not accepted yet — it is waiting on them."`
+	OtherAccepted  bool               `json:"otherAccepted" doc:"Whether the other seat has accepted the deal as it stands; false while the second seat is empty."`
+	WaitingOnOther bool               `json:"waitingOnOther" doc:"Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them."`
+	Revision       time.Time          `json:"revision" doc:"The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since."`
+	OwnerItems     []TradeItemView    `json:"ownerItems"`
+	OtherItems     []TradeItemView    `json:"otherItems"`
+	IsOwner        bool               `json:"isOwner" doc:"Whether the caller holds the owner seat."`
+	IsParticipant  bool               `json:"isParticipant" doc:"Whether the caller holds either seat."`
 }
 
 // TradeItemView is one Trade Item as the room shows it: the Card, the

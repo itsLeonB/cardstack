@@ -1,6 +1,6 @@
-import { useState, useSyncExternalStore } from "react"
 import type { FormEvent } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useEffect, useState, useSyncExternalStore } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 
@@ -23,6 +23,7 @@ import {
   useJoinTrade,
   useAddTradeItem,
   useRemoveTradeItem,
+  useAcceptTrade,
 } from "@/generated/endpoints/trades/trades"
 import { getListCollectionsQueryOptions } from "@/generated/endpoints/collections/collections"
 import { getListCollectionEntriesQueryOptions } from "@/generated/endpoints/inventory/inventory"
@@ -89,7 +90,53 @@ function TradePage() {
     clerkAuth.currentSessionVersion
   )
   const router = useRouter()
+  const queryClient = useQueryClient()
   const isGuest = useIsGuest()
+
+  // Keep the view of this Trade current while the page is open: the other
+  // participant's joins, item edits and acceptance change it, and the
+  // offer can lock without either side touching this browser.
+  const tradeQuery = useQuery({
+    ...getGetTradeQueryOptions(trade && trade !== "missing" ? trade.slug : ""),
+    enabled:
+      trade !== null && trade !== "missing" && trade.isParticipant === true,
+    // The loader owns the first read; this observer only polls. Fresh data
+    // stays fresh so mount and focus never double the loader's request.
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10_000,
+  })
+  // Poll results land in the shared query cache; rerun the loader once the
+  // cached view differs from the one the loader last returned. Revision
+  // moves only on offer edits, so acceptance and status changes (the other
+  // participant accepting, the Trade locking, a cancel) need their own
+  // fields in the comparison.
+  useEffect(() => {
+    if (!trade || trade === "missing") return
+    // A cancelled Trade, or one the caller is no longer part of, answers the
+    // poll's GET with the same 404 an unknown slug gets; rerun the loader
+    // so the page shows the not-found view instead of a stale offer.
+    if (tradeQuery.data?.status === 404) {
+      void router.invalidate()
+      return
+    }
+    const polled =
+      tradeQuery.data?.status === 200 ? tradeQuery.data.data.data : null
+    if (!polled) return
+    if (
+      polled.revision !== trade.revision ||
+      polled.status !== trade.status ||
+      polled.accepted !== trade.accepted ||
+      polled.otherAccepted !== trade.otherAccepted
+    ) {
+      // The poll's fresh cache entry would satisfy the loader's fetchQuery
+      // without a request; mark it stale so the loader really rereads.
+      void queryClient
+        .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
+        .then(() => router.invalidate())
+    }
+  }, [trade, tradeQuery.data, router, queryClient])
 
   if (sessionVersion !== currentVersion)
     return (
@@ -116,7 +163,8 @@ function TradePage() {
   }
 
   function retry() {
-    void router.invalidate()
+    if (clerkAuth.currentSessionVersion() === sessionVersion)
+      void router.invalidate()
   }
 
   if (!trade)
@@ -133,6 +181,17 @@ function TradePage() {
         </div>
       </PageContainer>
     )
+
+  const negotiating = trade.isParticipant && trade.status === "negotiating"
+  // `accepted` is the caller's own seat, `otherAccepted` the seat across
+  // the table; each card asks for its own seat's flag.
+  const ownerAccepted = trade.isOwner ? trade.accepted : trade.otherAccepted
+  const seatAccepted = trade.isOwner ? trade.otherAccepted : trade.accepted
+  function acceptLabel(accepted: boolean, own: boolean, name: string) {
+    if (accepted) return "Accepted the deal."
+    if (!negotiating) return null
+    return own ? "Waiting on you to accept." : `Waiting on ${name} to accept.`
+  }
 
   return (
     <PageContainer>
@@ -152,6 +211,7 @@ function TradePage() {
         editable={
           trade.isParticipant && trade.status === "negotiating" && trade.isOwner
         }
+        acceptLabel={acceptLabel(ownerAccepted, trade.isOwner, trade.ownerName)}
       />
       <TradeSide
         key={`${sessionVersion}:${trade.slug}:other`}
@@ -163,7 +223,15 @@ function TradePage() {
           trade.status === "negotiating" &&
           !trade.isOwner
         }
+        acceptLabel={acceptLabel(
+          seatAccepted,
+          !trade.isOwner,
+          trade.otherName ?? "the other participant"
+        )}
       />
+      {trade.isParticipant && trade.status === "negotiating" && (
+        <AcceptTrade trade={trade} />
+      )}
       {trade.isOwner && <OwnerLink slug={trade.slug} />}
       <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
     </PageContainer>
@@ -175,11 +243,13 @@ function TradeSide({
   items,
   slug,
   editable,
+  acceptLabel,
 }: {
   name: string | null
   items: TradeItemView[]
   slug: string
   editable: boolean
+  acceptLabel: string | null
 }) {
   const router = useRouter()
   const [collectionId, setCollectionId] = useState("")
@@ -266,6 +336,9 @@ function TradeSide({
         <CardTitle>
           <h2 className="text-lg">{name ?? "Waiting for someone to join"}</h2>
         </CardTitle>
+        {acceptLabel && (
+          <p className="text-sm text-muted-foreground">{acceptLabel}</p>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {items.length === 0 ? (
@@ -518,5 +591,57 @@ function JoinSeat({ trade }: { trade: TradeView }) {
     >
       {joinMutation.isPending ? "Joining..." : "Join this Trade"}
     </Button>
+  )
+}
+
+/** The caller's one acceptance of the deal as it stands; the second
+ * acceptance locks the Trade server-side. */
+function AcceptTrade({ trade }: { trade: TradeView }) {
+  const router = useRouter()
+  const acceptMutation = useAcceptTrade()
+  const sessionVersion = clerkAuth.currentSessionVersion()
+
+  if (trade.accepted)
+    return (
+      <p role="status" className="text-sm">
+        You accepted the deal as it stands.
+      </p>
+    )
+
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Button
+        disabled={acceptMutation.isPending}
+        onClick={() =>
+          acceptMutation.mutate(
+            { slug: trade.slug, data: { revision: trade.revision } },
+            {
+              onSuccess: (response) => {
+                if (clerkAuth.currentSessionVersion() !== sessionVersion) return
+                if (response.status === 200) {
+                  void router.invalidate()
+                  return
+                }
+                toast.error(
+                  response.data.detail ?? "Could not accept the Trade."
+                )
+                // The Trade may have moved on (locked, cancelled, or its
+                // offer changed under this view): resync.
+                void router.invalidate()
+              },
+              onError: () => {
+                if (clerkAuth.currentSessionVersion() === sessionVersion)
+                  toast.error(NETWORK_ERROR)
+              },
+            }
+          )
+        }
+      >
+        {acceptMutation.isPending ? "Accepting..." : "Accept the Trade"}
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        Accept the deal as it stands. The Trade locks when both sides accept.
+      </p>
+    </div>
   )
 }
