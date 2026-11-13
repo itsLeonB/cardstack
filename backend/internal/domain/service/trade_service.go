@@ -175,6 +175,9 @@ func (s *tradeService) Join(ctx context.Context, req dto.TradeJoinRequest) (dto.
 }
 
 func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error) {
+	if req.CardID == uuid.Nil {
+		return dto.TradeView{}, ungerr.NotFoundError("card not found")
+	}
 	if req.Quantity <= 0 {
 		return dto.TradeView{}, ungerr.BadRequestError("trade item quantity must be positive")
 	}

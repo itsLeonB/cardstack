@@ -275,6 +275,10 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	}
 	assert.Equal(t, http.StatusBadRequest, add(first, 0).Code)
 	assert.Equal(t, http.StatusBadRequest, add(first, -1).Code)
+	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+		"cardId": "00000000-0000-0000-0000-000000000000", "sourceCollectionId": first, "quantity": 1,
+	})
+	assert.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 	assert.Equal(t, http.StatusNotFound, add(foreign, 1).Code)
 
 	// Offering more than the source currently holds is allowed before execution.
