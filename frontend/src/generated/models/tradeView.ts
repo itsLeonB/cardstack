@@ -8,10 +8,14 @@
 import type { TradeItemView } from './tradeItemView.ts';
 
 export interface TradeView {
+  /** Whether the caller's own side has accepted the deal as it stands. */
+  accepted: boolean;
   /** Whether the caller holds the owner seat. */
   isOwner: boolean;
   /** Whether the caller holds either seat. */
   isParticipant: boolean;
+  /** Whether the other seat has accepted the deal as it stands; false while the second seat is empty. */
+  otherAccepted: boolean;
   /** @nullable */
   otherItems: TradeItemView[] | null;
   /** The second seat's display name once joined; absent while the seat is empty. */
@@ -23,4 +27,8 @@ export interface TradeView {
   slug: string;
   /** open, negotiating, locked, executed or cancelled. */
   status: string;
+  /** Whether the Trade is negotiating and the caller's side has not accepted yet — it is waiting on them. */
+  waitingOnMe: boolean;
+  /** Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them. */
+  waitingOnOther: boolean;
 }
