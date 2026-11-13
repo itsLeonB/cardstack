@@ -84,6 +84,16 @@ func (h *TradeHandler) addItem(ctx context.Context, in tradeItemInput) (dto.Trad
 	})
 }
 
+// accept builds the request DTO from the slug path param and the caller's
+// profile, then accepts the caller's side.
+func (h *TradeHandler) accept(ctx context.Context, in tradeLookupInput) (dto.TradeView, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return h.tradeSvc.Accept(ctx, dto.TradeLookup{Slug: in.Slug, ProfileID: profileID})
+}
+
 func (h *TradeHandler) removeItem(ctx context.Context, in tradeItemRemovalInput) (dto.TradeView, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -113,6 +123,11 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 			OperationID: "add-trade-item", Method: http.MethodPost, Path: "/trades/{slug}/items",
 			Summary: "Add a Card and source Collection to the caller's side while negotiating",
 			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem,
+		}),
+		endpoint.New(endpoint.Endpoint[tradeLookupInput, dto.TradeView]{
+			OperationID: "accept-trade", Method: http.MethodPost, Path: "/trades/{slug}/accept",
+			Summary: "Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing",
+			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.accept,
 		}),
 		endpoint.New(endpoint.Endpoint[tradeItemRemovalInput, dto.TradeView]{
 			OperationID: "remove-trade-item", Method: http.MethodDelete, Path: "/trades/{slug}/items/{itemId}",

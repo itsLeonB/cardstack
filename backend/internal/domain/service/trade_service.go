@@ -26,6 +26,16 @@ const tradeNotFoundMsg = "trade not found"
 // branches on apperr.CodeTradeOwnerJoin, never on this text.
 const tradeOwnerJoinMsg = "the Trade's owner cannot claim its own second seat"
 
+// tradeNotAcceptableMsg is the message of the accept refusal while the Trade
+// is not negotiating; the client branches on
+// apperr.CodeTradeNotNegotiating, never on this text.
+const tradeNotAcceptableMsg = "a Trade accepts only while negotiating"
+
+// tradeItemsLockedMsg is the message of the item-edit refusal once the Trade
+// is no longer negotiating; the client branches on
+// apperr.CodeTradeNotNegotiating, never on this text.
+const tradeItemsLockedMsg = "trade items can only change while negotiating"
+
 // TradeService is the room a Trade link opens (GLOSSARY.md: Trade, ADR-0028).
 // Create and Join need the Auth Identity, so their routes answer a Guest 401.
 // Get is guest-allowed and answers the same not-found as an unknown slug, so
@@ -36,6 +46,7 @@ type TradeService interface {
 	Join(ctx context.Context, req dto.TradeJoinRequest) (dto.TradeView, error)
 	AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error)
 	RemoveItem(ctx context.Context, req dto.TradeItemRemovalRequest) (dto.TradeView, error)
+	Accept(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error)
 }
 
 type tradeService struct {
@@ -189,12 +200,12 @@ func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (d
 		if err != nil {
 			return err
 		}
-		side, ok := tradeItemSide(trade, req.ProfileID)
+		side, ok := tradeSide(trade, req.ProfileID)
 		if trade.IsZero() || !ok {
 			return ungerr.NotFoundError(tradeNotFoundMsg)
 		}
 		if trade.Status != entity.TradeStatusNegotiating {
-			return ungerr.ConflictError("trade items can only change while negotiating")
+			return apperr.WithCode(ungerr.ConflictError(tradeItemsLockedMsg), apperr.CodeTradeNotNegotiating)
 		}
 		for _, existing := range trade.TradeItems {
 			if existing.Side == side && existing.CardID == req.CardID && existing.SourceCollectionID != nil && *existing.SourceCollectionID == req.SourceCollectionID {
@@ -231,12 +242,12 @@ func (s *tradeService) RemoveItem(ctx context.Context, req dto.TradeItemRemovalR
 		if err != nil {
 			return err
 		}
-		side, ok := tradeItemSide(trade, req.ProfileID)
+		side, ok := tradeSide(trade, req.ProfileID)
 		if trade.IsZero() || !ok {
 			return ungerr.NotFoundError(tradeNotFoundMsg)
 		}
 		if trade.Status != entity.TradeStatusNegotiating {
-			return ungerr.ConflictError("trade items can only change while negotiating")
+			return apperr.WithCode(ungerr.ConflictError(tradeItemsLockedMsg), apperr.CodeTradeNotNegotiating)
 		}
 		removed, err := s.trades.RemoveItem(ctx, trade.ID, req.ItemID, side)
 		if err != nil {
@@ -253,7 +264,10 @@ func (s *tradeService) RemoveItem(ctx context.Context, req dto.TradeItemRemovalR
 	return s.Get(ctx, dto.TradeLookup{Slug: req.Slug, ProfileID: req.ProfileID})
 }
 
-func tradeItemSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
+// tradeSide names the seat the caller holds, or false when they hold none.
+// It answers the owner seat even while the Trade is open, so the owner can
+// be told their accept is refused rather than that the Trade does not exist.
+func tradeSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
 	if trade.OwnerProfileID == profileID {
 		return entity.SideOwner, true
 	}
@@ -261,4 +275,47 @@ func tradeItemSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
 		return entity.SideParticipant, true
 	}
 	return 0, false
+}
+
+// Accept records the caller's side as accepting the deal as it stands. The
+// second acceptance moves the Trade to locked inside the same transaction
+// (spec: both sides freeze so the set cannot drift). Accepting again from a
+// side that already accepted changes nothing and does not error. Only a
+// negotiating Trade accepts: open has no second seat to agree with, and
+// executed or cancelled Trades are done — both refuse with
+// apperr.CodeTradeNotNegotiating.
+func (s *tradeService) Accept(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
+	var trade entity.Trade
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		trade, err = s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		if err != nil {
+			return err
+		}
+		// A cancelled Trade answers the same not-found as an unknown slug,
+		// the rule Get and Join already follow.
+		if trade.IsZero() || trade.Status == entity.TradeStatusCancelled {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		side, ok := tradeSide(trade, req.ProfileID)
+		if !ok {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		// A side that already accepted re-accepting changes nothing, even
+		// once the Trade has locked. An executed Trade keeps its
+		// timestamps, so the status still has to be live.
+		if trade.AcceptedAt(side) != nil &&
+			(trade.Status == entity.TradeStatusNegotiating || trade.Status == entity.TradeStatusLocked) {
+			return nil
+		}
+		if trade.Status != entity.TradeStatusNegotiating {
+			return apperr.WithCode(ungerr.ConflictError(tradeNotAcceptableMsg), apperr.CodeTradeNotNegotiating)
+		}
+		_, err = s.trades.Accept(ctx, trade.ID, side)
+		return err
+	})
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return s.Get(ctx, req)
 }

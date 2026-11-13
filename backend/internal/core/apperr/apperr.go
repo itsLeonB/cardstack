@@ -49,6 +49,11 @@ const CodeTradeSeatTaken = "trade_seat_taken"
 // hold the owner seat, and the second seat cannot also be theirs.
 const CodeTradeOwnerJoin = "trade_owner_join"
 
+// CodeTradeNotNegotiating refuses an accept, or a Trade Item add or remove,
+// on a Trade that is not negotiating: only a negotiating Trade's sides can
+// accept or change (GLOSSARY.md: Trade).
+const CodeTradeNotNegotiating = "trade_not_negotiating"
+
 // coded deliberately embeds the AppError interface rather than the concrete
 // ungerr error, so it is not a huma.StatusError: Huma then routes it through
 // the classifier in the httpapi package instead of marshalling it directly,

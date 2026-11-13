@@ -1511,7 +1511,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. move_to_binder: a Move's destination is a binder, and a Move chooses no Slot. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed. trade_seat_taken: the Trade's second seat is already claimed. trade_owner_join: the Trade's owner cannot claim its own second seat.",
+            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. move_to_binder: a Move's destination is a binder, and a Move chooses no Slot. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed. trade_seat_taken: the Trade's second seat is already claimed. trade_owner_join: the Trade's owner cannot claim its own second seat. trade_not_negotiating: only a negotiating Trade's sides can accept or change its Trade Items.",
             "examples": [
               "login_required"
             ],
@@ -2531,12 +2531,20 @@
       "TradeView": {
         "additionalProperties": false,
         "properties": {
+          "accepted": {
+            "description": "Whether the caller's own side has accepted the deal as it stands.",
+            "type": "boolean"
+          },
           "isOwner": {
             "description": "Whether the caller holds the owner seat.",
             "type": "boolean"
           },
           "isParticipant": {
             "description": "Whether the caller holds either seat.",
+            "type": "boolean"
+          },
+          "otherAccepted": {
+            "description": "Whether the other seat has accepted the deal as it stands; false while the second seat is empty.",
             "type": "boolean"
           },
           "otherItems": {
@@ -2571,12 +2579,24 @@
           "status": {
             "description": "open, negotiating, locked, executed or cancelled.",
             "type": "string"
+          },
+          "waitingOnMe": {
+            "description": "Whether the Trade is negotiating and the caller's side has not accepted yet — it is waiting on them.",
+            "type": "boolean"
+          },
+          "waitingOnOther": {
+            "description": "Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them.",
+            "type": "boolean"
           }
         },
         "required": [
           "slug",
           "status",
           "ownerName",
+          "accepted",
+          "waitingOnMe",
+          "otherAccepted",
+          "waitingOnOther",
           "ownerItems",
           "otherItems",
           "isOwner",
@@ -8087,6 +8107,64 @@
           }
         },
         "summary": "Read a Trade by its slug: state, both display names and the Trade Items on each side, without claiming the seat. An unknown, cancelled, not-yours or guest-opened slug is the same 404",
+        "tags": [
+          "trades"
+        ]
+      }
+    },
+    "/trades/{slug}/accept": {
+      "post": {
+        "operationId": "accept-trade",
+        "parameters": [
+          {
+            "description": "The Trade's Slug, the last segment of its link.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "description": "The Trade's Slug, the last segment of its link.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeTradeView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Service Unavailable: a handler returned a deadline error before the response started."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing",
         "tags": [
           "trades"
         ]

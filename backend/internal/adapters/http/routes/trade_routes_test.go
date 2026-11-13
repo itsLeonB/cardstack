@@ -20,13 +20,17 @@ type tradeSlugEnvelope struct {
 
 type tradeViewEnvelope struct {
 	Data struct {
-		Slug          string  `json:"slug"`
-		Status        string  `json:"status"`
-		OwnerName     string  `json:"ownerName"`
-		OtherName     *string `json:"otherName"`
-		IsOwner       bool    `json:"isOwner"`
-		IsParticipant bool    `json:"isParticipant"`
-		OwnerItems    []struct {
+		Slug           string  `json:"slug"`
+		Status         string  `json:"status"`
+		OwnerName      string  `json:"ownerName"`
+		OtherName      *string `json:"otherName"`
+		Accepted       bool    `json:"accepted"`
+		WaitingOnMe    bool    `json:"waitingOnMe"`
+		OtherAccepted  bool    `json:"otherAccepted"`
+		WaitingOnOther bool    `json:"waitingOnOther"`
+		IsOwner        bool    `json:"isOwner"`
+		IsParticipant  bool    `json:"isParticipant"`
+		OwnerItems     []struct {
 			ID   string `json:"id"`
 			Card struct {
 				ID           string `json:"id"`
@@ -77,6 +81,10 @@ func getTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
 
 func joinTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
 	return api.Post("/trades/"+slug+"/join", bearer(token), map[string]any{})
+}
+
+func acceptTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
+	return api.Post("/trades/"+slug+"/accept", bearer(token), map[string]any{})
 }
 
 func decodeTradeView(t *testing.T, resp *httptest.ResponseRecorder) tradeViewEnvelope {
@@ -334,4 +342,108 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, add(second, 1).Code)
 	resp = api.Delete("/trades/"+slug+"/items/"+decodeTradeView(t, getTrade(api, owner, slug)).Data.OwnerItems[0].ID, bearer(owner))
 	assert.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+}
+
+// TestTradeAcceptAndLock covers the two-step acceptance: the first accept
+// leaves the Trade negotiating and tells each side where it stands; the
+// second locks it and freezes both sides; a repeat accept is a harmless
+// no-op. Accept is refused from open (no second seat), executed and
+// cancelled.
+func TestTradeAcceptAndLock(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner := api.newUserToken(t)
+	joiner := api.newUserToken(t)
+	outsider := api.newUserToken(t)
+
+	slug := createTrade(t, api, owner)
+
+	// open: no second participant, so nobody can accept.
+	resp := acceptTrade(api, owner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
+	assert.Equal(t, http.StatusNotFound, acceptTrade(api, joiner, slug).Code)
+
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+
+	// A Trade Item on the owner's side, so the freeze has something to hold.
+	col := api.Post("/collections", bearer(owner), map[string]any{"title": "Offer"})
+	require.Equal(t, http.StatusCreated, col.Code, col.Body.String())
+	var created struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(col.Body.Bytes(), &created))
+	resp = api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+		"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+	})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+
+	// First accept: still negotiating; the read tells each side where it
+	// stands, including that it waits on the other side.
+	resp = acceptTrade(api, owner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	view := decodeTradeView(t, resp)
+	assert.Equal(t, "negotiating", view.Data.Status)
+	assert.True(t, view.Data.Accepted)
+	assert.False(t, view.Data.WaitingOnMe)
+	assert.False(t, view.Data.OtherAccepted)
+	assert.True(t, view.Data.WaitingOnOther)
+
+	// The joiner reads the mirror: their side has not accepted (waitingOnMe),
+	// and the other side — the owner — already has.
+	view = decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.False(t, view.Data.Accepted)
+	assert.True(t, view.Data.WaitingOnMe)
+	assert.True(t, view.Data.OtherAccepted)
+	assert.False(t, view.Data.WaitingOnOther)
+
+	// Second accept: locked, and a repeat accept from the same side changes
+	// nothing and does not error.
+	resp = acceptTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	view = decodeTradeView(t, resp)
+	assert.Equal(t, "locked", view.Data.Status)
+	assert.True(t, view.Data.Accepted)
+	assert.False(t, view.Data.WaitingOnMe)
+	assert.True(t, view.Data.OtherAccepted)
+	assert.False(t, view.Data.WaitingOnOther)
+
+	resp = acceptTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
+	resp = acceptTrade(api, owner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
+
+	// The freeze: adding and removing a Trade Item are refused with the
+	// stable code on both sides.
+	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
+		"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+	})
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
+	itemID := decodeTradeView(t, getTrade(api, owner, slug)).Data.OwnerItems[0].ID
+	resp = api.Delete("/trades/"+slug+"/items/"+itemID, bearer(owner))
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
+	assert.Len(t, decodeTradeView(t, getTrade(api, owner, slug)).Data.OwnerItems, 1)
+
+	// executed: accept is refused with the same code; cancelled answers the
+	// same not-found as an unknown slug.
+	require.NoError(t, api.db.Model(&entity.Trade{}).Where("slug = ?", slug).
+		Update("status", entity.TradeStatusExecuted).Error)
+	for _, token := range []string{owner, joiner} {
+		resp = acceptTrade(api, token, slug)
+		require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+		assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
+	}
+
+	cancelled := createTrade(t, api, outsider)
+	require.NoError(t, api.db.Model(&entity.Trade{}).Where("slug = ?", cancelled).
+		Update("status", entity.TradeStatusCancelled).Error)
+	assert.Equal(t, http.StatusNotFound, acceptTrade(api, outsider, cancelled).Code)
 }

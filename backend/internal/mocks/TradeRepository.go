@@ -28,6 +28,64 @@ func (_m *MockTradeRepository) EXPECT() *MockTradeRepository_Expecter {
 	return &MockTradeRepository_Expecter{mock: &_m.Mock}
 }
 
+// Accept provides a mock function with given fields: ctx, id, side
+func (_m *MockTradeRepository) Accept(ctx context.Context, id uuid.UUID, side int) (bool, error) {
+	ret := _m.Called(ctx, id, side)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Accept")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) (bool, error)); ok {
+		return rf(ctx, id, side)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) bool); ok {
+		r0 = rf(ctx, id, side)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, int) error); ok {
+		r1 = rf(ctx, id, side)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeRepository_Accept_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Accept'
+type MockTradeRepository_Accept_Call struct {
+	*mock.Call
+}
+
+// Accept is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - side int
+func (_e *MockTradeRepository_Expecter) Accept(ctx interface{}, id interface{}, side interface{}) *MockTradeRepository_Accept_Call {
+	return &MockTradeRepository_Accept_Call{Call: _e.mock.On("Accept", ctx, id, side)}
+}
+
+func (_c *MockTradeRepository_Accept_Call) Run(run func(ctx context.Context, id uuid.UUID, side int)) *MockTradeRepository_Accept_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_Accept_Call) Return(_a0 bool, _a1 error) *MockTradeRepository_Accept_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeRepository_Accept_Call) RunAndReturn(run func(context.Context, uuid.UUID, int) (bool, error)) *MockTradeRepository_Accept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddItem provides a mock function with given fields: ctx, item
 func (_m *MockTradeRepository) AddItem(ctx context.Context, item entity.TradeItem) error {
 	ret := _m.Called(ctx, item)
