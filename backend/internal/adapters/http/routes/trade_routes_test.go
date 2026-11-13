@@ -272,8 +272,15 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 			"cardId": cards[0], "sourceCollectionId": collectionID, "quantity": quantity,
 		})
 	}
+	assert.Equal(t, http.StatusConflict, add(first, 1).Code)
+	assert.Equal(t, http.StatusConflict, api.Delete("/trades/"+slug+"/items/00000000-0000-0000-0000-000000000001", bearer(owner)).Code)
 	assert.Equal(t, http.StatusBadRequest, add(first, 0).Code)
 	assert.Equal(t, http.StatusBadRequest, add(first, -1).Code)
+
+	openView := decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.Equal(t, "open", openView.Data.Status)
+	assert.Empty(t, openView.Data.OwnerItems)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
 	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
 		"cardId": "00000000-0000-0000-0000-000000000000", "sourceCollectionId": first, "quantity": 1,
 	})
@@ -293,9 +300,6 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	assert.Equal(t, "First source", view.Data.OwnerItems[0].Collection)
 	itemID := view.Data.OwnerItems[0].ID
 
-	openView := decodeTradeView(t, getTrade(api, joiner, slug))
-	assert.Equal(t, "open", openView.Data.Status)
-	assert.Len(t, openView.Data.OwnerItems, 1)
 	resp = api.Delete("/trades/"+slug+"/items/"+itemID, bearer(owner))
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.Empty(t, decodeTradeView(t, resp).Data.OwnerItems)
@@ -308,7 +312,6 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	view = decodeTradeView(t, resp)
 	require.Len(t, view.Data.OwnerItems, 2)
-	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
 	joinerSource := createCollection(joiner, "Joiner source")
 	resp = api.Post("/trades/"+slug+"/items", bearer(joiner), map[string]any{
 		"cardId": cards[0], "sourceCollectionId": joinerSource, "quantity": 1,
