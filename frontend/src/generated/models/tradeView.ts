@@ -24,6 +24,8 @@ export interface TradeView {
   ownerItems: TradeItemView[] | null;
   /** The owner's display name, never their email. */
   ownerName: string;
+  /** The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since. */
+  revision: string;
   slug: string;
   /** open, negotiating, locked, executed or cancelled. */
   status: string;
