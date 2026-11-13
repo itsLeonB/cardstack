@@ -43,7 +43,7 @@ type Trade struct {
 	// OfferRevision is the offer revision an accept compares against: it
 	// moves only when the offer does (item edits, OfferChanged), never on
 	// an acceptance, so one seat's accept cannot stale the other's.
-	OfferRevision time.Time `gorm:"type:timestamptz"`
+	OfferRevision time.Time `gorm:"type:timestamptz;default:now()"`
 
 	// TradeItems are loaded only via crud.Specification.PreloadRelations.
 	TradeItems []TradeItem `gorm:"foreignKey:TradeID"`
