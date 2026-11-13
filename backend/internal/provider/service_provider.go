@@ -132,6 +132,8 @@ func ProvideTradeService(ds *DataSources, images mapper.ImageHost) service.Trade
 	return service.NewTradeService(
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewTradeRepository(crud.NewRepository[entity.Trade](ds.Gorm)),
+		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		crud.NewRepository[entity.Card](ds.Gorm),
 		crud.NewRepository[entity.UserProfile](ds.Gorm),
 		images,
 	)

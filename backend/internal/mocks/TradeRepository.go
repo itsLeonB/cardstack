@@ -28,6 +28,53 @@ func (_m *MockTradeRepository) EXPECT() *MockTradeRepository_Expecter {
 	return &MockTradeRepository_Expecter{mock: &_m.Mock}
 }
 
+// AddItem provides a mock function with given fields: ctx, item
+func (_m *MockTradeRepository) AddItem(ctx context.Context, item entity.TradeItem) error {
+	ret := _m.Called(ctx, item)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddItem")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, entity.TradeItem) error); ok {
+		r0 = rf(ctx, item)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockTradeRepository_AddItem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddItem'
+type MockTradeRepository_AddItem_Call struct {
+	*mock.Call
+}
+
+// AddItem is a helper method to define mock.On call
+//   - ctx context.Context
+//   - item entity.TradeItem
+func (_e *MockTradeRepository_Expecter) AddItem(ctx interface{}, item interface{}) *MockTradeRepository_AddItem_Call {
+	return &MockTradeRepository_AddItem_Call{Call: _e.mock.On("AddItem", ctx, item)}
+}
+
+func (_c *MockTradeRepository_AddItem_Call) Run(run func(ctx context.Context, item entity.TradeItem)) *MockTradeRepository_AddItem_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(entity.TradeItem))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_AddItem_Call) Return(_a0 error) *MockTradeRepository_AddItem_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockTradeRepository_AddItem_Call) RunAndReturn(run func(context.Context, entity.TradeItem) error) *MockTradeRepository_AddItem_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function with given fields: ctx, model
 func (_m *MockTradeRepository) Delete(ctx context.Context, model entity.Trade) error {
 	ret := _m.Called(ctx, model)
@@ -234,6 +281,63 @@ func (_c *MockTradeRepository_FindBySlug_Call) Return(_a0 entity.Trade, _a1 erro
 }
 
 func (_c *MockTradeRepository_FindBySlug_Call) RunAndReturn(run func(context.Context, string) (entity.Trade, error)) *MockTradeRepository_FindBySlug_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindBySlugForUpdate provides a mock function with given fields: ctx, slug
+func (_m *MockTradeRepository) FindBySlugForUpdate(ctx context.Context, slug string) (entity.Trade, error) {
+	ret := _m.Called(ctx, slug)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindBySlugForUpdate")
+	}
+
+	var r0 entity.Trade
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (entity.Trade, error)); ok {
+		return rf(ctx, slug)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) entity.Trade); ok {
+		r0 = rf(ctx, slug)
+	} else {
+		r0 = ret.Get(0).(entity.Trade)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, slug)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeRepository_FindBySlugForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindBySlugForUpdate'
+type MockTradeRepository_FindBySlugForUpdate_Call struct {
+	*mock.Call
+}
+
+// FindBySlugForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - slug string
+func (_e *MockTradeRepository_Expecter) FindBySlugForUpdate(ctx interface{}, slug interface{}) *MockTradeRepository_FindBySlugForUpdate_Call {
+	return &MockTradeRepository_FindBySlugForUpdate_Call{Call: _e.mock.On("FindBySlugForUpdate", ctx, slug)}
+}
+
+func (_c *MockTradeRepository_FindBySlugForUpdate_Call) Run(run func(ctx context.Context, slug string)) *MockTradeRepository_FindBySlugForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_FindBySlugForUpdate_Call) Return(_a0 entity.Trade, _a1 error) *MockTradeRepository_FindBySlugForUpdate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeRepository_FindBySlugForUpdate_Call) RunAndReturn(run func(context.Context, string) (entity.Trade, error)) *MockTradeRepository_FindBySlugForUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -523,6 +627,65 @@ func (_c *MockTradeRepository_Join_Call) Return(_a0 bool, _a1 error) *MockTradeR
 }
 
 func (_c *MockTradeRepository_Join_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) (bool, error)) *MockTradeRepository_Join_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveItem provides a mock function with given fields: ctx, tradeID, itemID, side
+func (_m *MockTradeRepository) RemoveItem(ctx context.Context, tradeID uuid.UUID, itemID uuid.UUID, side int) (bool, error) {
+	ret := _m.Called(ctx, tradeID, itemID, side)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveItem")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) (bool, error)); ok {
+		return rf(ctx, tradeID, itemID, side)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) bool); ok {
+		r0 = rf(ctx, tradeID, itemID, side)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r1 = rf(ctx, tradeID, itemID, side)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeRepository_RemoveItem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveItem'
+type MockTradeRepository_RemoveItem_Call struct {
+	*mock.Call
+}
+
+// RemoveItem is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tradeID uuid.UUID
+//   - itemID uuid.UUID
+//   - side int
+func (_e *MockTradeRepository_Expecter) RemoveItem(ctx interface{}, tradeID interface{}, itemID interface{}, side interface{}) *MockTradeRepository_RemoveItem_Call {
+	return &MockTradeRepository_RemoveItem_Call{Call: _e.mock.On("RemoveItem", ctx, tradeID, itemID, side)}
+}
+
+func (_c *MockTradeRepository_RemoveItem_Call) Run(run func(ctx context.Context, tradeID uuid.UUID, itemID uuid.UUID, side int)) *MockTradeRepository_RemoveItem_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_RemoveItem_Call) Return(_a0 bool, _a1 error) *MockTradeRepository_RemoveItem_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeRepository_RemoveItem_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID, int) (bool, error)) *MockTradeRepository_RemoveItem_Call {
 	_c.Call.Return(run)
 	return _c
 }

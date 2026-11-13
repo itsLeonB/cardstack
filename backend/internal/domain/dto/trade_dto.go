@@ -28,6 +28,20 @@ type TradeJoinRequest struct {
 	Slug      string
 }
 
+type TradeItemRequest struct {
+	Slug               string
+	ProfileID          uuid.UUID
+	CardID             uuid.UUID
+	SourceCollectionID uuid.UUID
+	Quantity           int
+}
+
+type TradeItemRemovalRequest struct {
+	Slug      string
+	ProfileID uuid.UUID
+	ItemID    uuid.UUID
+}
+
 // TradeView is a Trade as a signed-in reader sees it: its state, both seats'
 // display names, and the Trade Items on each side. Emails and Auth Identities
 // are never part of it (ADR-0028).
@@ -45,6 +59,7 @@ type TradeView struct {
 // TradeItemView is one Trade Item as the room shows it: the Card, the
 // quantity, and the source Collection it is meant to leave.
 type TradeItemView struct {
+	ID         uuid.UUID   `json:"id"`
 	Card       CardSummary `json:"card"`
 	Quantity   int         `json:"quantity"`
 	Collection *string     `json:"collection,omitempty" doc:"The title of the Collection the Card is meant to leave; absent when that Collection was deleted."`
