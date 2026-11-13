@@ -145,6 +145,7 @@ function TradePage() {
         }
       />
       <TradeSide
+        key={`${sessionVersion}:${trade.slug}:owner`}
         name={trade.ownerName}
         items={trade.ownerItems ?? []}
         slug={trade.slug}
@@ -153,6 +154,7 @@ function TradePage() {
         }
       />
       <TradeSide
+        key={`${sessionVersion}:${trade.slug}:other`}
         name={trade.otherName ?? null}
         items={trade.otherItems ?? []}
         slug={trade.slug}

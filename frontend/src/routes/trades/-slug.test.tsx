@@ -304,6 +304,47 @@ describe("Trade page", () => {
     expect(screen.queryByText("This Trade is already full.")).toBeNull()
   })
 
+  it.each([true, false])(
+    "clears the draft when navigating to another Trade (owner: %s)",
+    async (isOwner) => {
+      clerkState("signed-in")
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL) => {
+          const path = new URL(String(input)).pathname
+          const data =
+            path === "/collections"
+              ? [{ id: "collection-1", title: "Binder" }]
+              : tradeView({
+                  slug: path.split("/").at(-1),
+                  status: "negotiating",
+                  isParticipant: true,
+                  isOwner,
+                })
+          return new Response(JSON.stringify({ data }), {
+            headers: { "content-type": "application/json" },
+          })
+        })
+      )
+      const router = await renderTradePage()
+      fireEvent.change(await screen.findByLabelText("Quantity"), {
+        target: { value: "7" },
+      })
+
+      await act(async () => {
+        await router.navigate({
+          to: "/trades/$slug",
+          params: { slug: "trade-2" },
+        })
+      })
+
+      expect(await screen.findByLabelText("Quantity")).toHaveProperty(
+        "value",
+        "1"
+      )
+    }
+  )
+
   it("keeps the offer and says the Trade is full when the seat is taken", async () => {
     clerkState("signed-in")
     const requests = stubTradeApi({
