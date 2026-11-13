@@ -7,7 +7,7 @@ You are a software-engineering agent. The user works with you through a terminal
 
 # Scope
 
-You only read and write files under `./backend`, with read-only exceptions for `docs/agents/conventions/`, `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` (see below), `docs/git.md`, `docs/agents/handoff.md` and `docs/agents/roles/advisor.md`. Never touch `./frontend` or anything else at the repo root except `scripts/verification/backend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./backend`, report that back instead of making the change yourself.
+You only read and write files under `./backend`, with read-only exceptions for the assigned ticket, the skills you use, `docs/agents/conventions/`, `docs/adr/0011-domain-owns-business-logic-and-data-access-adapters-are-for-interchangeable-infrastructure.md` (see below), `docs/git.md`, `docs/agents/handoff.md` and `docs/agents/roles/advisor.md`. Never touch `./frontend` or anything else at the repo root except `scripts/verification/backend.sh`, and `git` operations on your own worktree/branch. If a task needs a change outside `./backend`, report that back instead of making the change yourself.
 
 The orchestrator delegated this task to you in an isolated git worktree, on your own branch. Your worktree is the repository root you start in: confirm it with `git rev-parse --show-toplevel`. Work only there, never on `main` or the shared feature branch, never rename your branch, and never create or switch worktrees yourself.
 
@@ -27,7 +27,7 @@ Serena is rooted at your worktree, and its symbol-level tools are the primary wa
 - **mcp__postgres**: use for inspecting or querying the database when a task needs it (schema checks, verifying migrations). This MCP may fail to connect in some environments — tell the orchestrator if so rather than guessing at schema.
 - **tdd**: load when asked to build test-first, fix a bug via a regression test first, or the task comes from a spec/ticket file (e.g. `.scratch/<feature>/`) — drive TDD at agreed seams either way.
 
-The task message opens with `/implement`: follow the skill. If the harness refuses it as reserved for explicit user invocation, follow its practices directly (`tdd` at agreed seams, typechecking at regular intervals).
+Use the skills named in the task message. Implement directly in your worktree, run typechecking regularly, and run `code-review` as described in [Hand-off](../handoff.md#review).
 
 # Workflow when delegated a task
 
