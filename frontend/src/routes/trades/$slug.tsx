@@ -1,6 +1,6 @@
-import { useState, useSyncExternalStore } from "react"
 import type { FormEvent } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 
@@ -90,7 +90,43 @@ function TradePage() {
     clerkAuth.currentSessionVersion
   )
   const router = useRouter()
+  const queryClient = useQueryClient()
   const isGuest = useIsGuest()
+
+  // Keep the view of this Trade current while the page is open: the other
+  // participant's joins, item edits and acceptance change it, and the
+  // offer can lock without either side touching this browser.
+  const tradeQuery = useQuery({
+    ...getGetTradeQueryOptions(trade && trade !== "missing" ? trade.slug : ""),
+    enabled:
+      trade !== null && trade !== "missing" && trade.isParticipant === true,
+    // The loader owns the first read; this observer only polls. Fresh data
+    // stays fresh so mount and focus never double the loader's request.
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10_000,
+  })
+  // Poll results land in the shared query cache; rerun the loader once the
+  // cached view is newer than the one the loader last returned.
+  const lastRevision = useRef<string | null>(null)
+  useEffect(() => {
+    if (!trade || trade === "missing") return
+    const revision =
+      tradeQuery.data?.status === 200
+        ? tradeQuery.data.data.data.revision
+        : null
+    if (revision && revision !== lastRevision.current) {
+      lastRevision.current = revision
+      if (trade.revision !== revision) {
+        // The poll's fresh cache entry would satisfy the loader's fetchQuery
+        // without a request; mark it stale so the loader really rereads.
+        void queryClient
+          .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
+          .then(() => router.invalidate())
+      }
+    }
+  }, [trade, tradeQuery.data, router])
 
   if (sessionVersion !== currentVersion)
     return (
@@ -117,7 +153,8 @@ function TradePage() {
   }
 
   function retry() {
-    void router.invalidate()
+    if (clerkAuth.currentSessionVersion() === sessionVersion)
+      void router.invalidate()
   }
 
   if (!trade)
@@ -552,6 +589,7 @@ function JoinSeat({ trade }: { trade: TradeView }) {
 function AcceptTrade({ trade }: { trade: TradeView }) {
   const router = useRouter()
   const acceptMutation = useAcceptTrade()
+  const sessionVersion = clerkAuth.currentSessionVersion()
 
   if (trade.accepted)
     return (
@@ -566,9 +604,10 @@ function AcceptTrade({ trade }: { trade: TradeView }) {
         disabled={acceptMutation.isPending}
         onClick={() =>
           acceptMutation.mutate(
-            { slug: trade.slug },
+            { slug: trade.slug, data: { revision: trade.revision } },
             {
               onSuccess: (response) => {
+                if (clerkAuth.currentSessionVersion() !== sessionVersion) return
                 if (response.status === 200) {
                   void router.invalidate()
                   return
@@ -576,10 +615,14 @@ function AcceptTrade({ trade }: { trade: TradeView }) {
                 toast.error(
                   response.data.detail ?? "Could not accept the Trade."
                 )
-                // The Trade may have moved on (locked, cancelled): resync.
+                // The Trade may have moved on (locked, cancelled, or its
+                // offer changed under this view): resync.
                 void router.invalidate()
               },
-              onError: () => toast.error(NETWORK_ERROR),
+              onError: () => {
+                if (clerkAuth.currentSessionVersion() === sessionVersion)
+                  toast.error(NETWORK_ERROR)
+              },
             }
           )
         }

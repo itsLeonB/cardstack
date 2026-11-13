@@ -11,6 +11,7 @@ import {
   waitFor,
 } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { getGetTradeQueryKey } from "@/generated/endpoints/trades/trades"
 import {
   Outlet,
   RouterProvider,
@@ -48,6 +49,7 @@ function tradeView(overrides: Partial<TradeView> = {}) {
   return {
     slug: "trade-1",
     status: "open",
+    revision: "2026-01-01T00:00:00Z",
     ownerName: "Ash Ketchum",
     ownerItems: [],
     otherItems: [],
@@ -72,7 +74,9 @@ function stubTradeApi({
   join = { status: 409, body: { code: "trade_seat_taken" } },
   getAfterJoin,
   accept = { status: 200, body: { data: tradeView() } },
-  getAfterAccept,
+  getAfterAccept = [],
+  staleAccept,
+  getAfterStale,
   collectionReplies = [
     { status: 200, body: { data: [{ id: "collection-1", title: "Binder" }] } },
   ],
@@ -90,7 +94,9 @@ function stubTradeApi({
   join?: ApiReply
   getAfterJoin?: ApiReply
   accept?: ApiReply
-  getAfterAccept?: ApiReply
+  getAfterAccept?: ApiReply[]
+  staleAccept?: ApiReply
+  getAfterStale?: ApiReply
   collectionReplies?: ApiReply[]
   entryReplies?: ApiReply[]
 } = {}) {
@@ -101,24 +107,33 @@ function stubTradeApi({
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input))
       requests.push(
-        `${init?.method ?? "GET"} ${url.pathname}${init?.method === "POST" && url.pathname === `${TRADE_PATH}/items` ? ` ${String(init.body)}` : ""}`
+        `${init?.method ?? "GET"} ${url.pathname}${init?.method === "POST" && (url.pathname === `${TRADE_PATH}/items` || url.pathname === `${TRADE_PATH}/accept`) ? ` ${String(init.body)}` : ""}`
       )
       const reply = (r: ApiReply) =>
         new Response(JSON.stringify(r.body), {
           status: r.status,
           headers: { "content-type": "application/json" },
         })
-      if (url.pathname === TRADE_PATH)
-        return reply(
-          requests.includes(`POST ${TRADE_PATH}/accept`) && getAfterAccept
-            ? getAfterAccept
-            : getAfterJoin && requests.includes(`POST ${TRADE_PATH}/join`)
-              ? getAfterJoin
-              : get
-        )
+      const accepts = requests.filter((r) =>
+        r.startsWith(`POST ${TRADE_PATH}/accept`)
+      ).length
+      if (url.pathname === TRADE_PATH) {
+        const afterAccept =
+          accepts === 1 && staleAccept
+            ? (getAfterStale ?? get)
+            : accepts > 0
+              ? (getAfterAccept[
+                  Math.min(accepts - 1, getAfterAccept.length - 1)
+                ] ?? get)
+              : getAfterJoin &&
+                  requests.some((r) => r.startsWith(`POST ${TRADE_PATH}/join`))
+                ? getAfterJoin
+                : get
+        return reply(afterAccept)
+      }
       if (url.pathname === `${TRADE_PATH}/join`) return reply(join)
       if (url.pathname === `${TRADE_PATH}/accept` && init?.method === "POST")
-        return reply(accept)
+        return reply(accepts === 1 && staleAccept ? staleAccept : accept)
       if (url.pathname === "/collections")
         return reply(
           collectionReplies[
@@ -143,7 +158,7 @@ function stubTradeApi({
     }
   )
   vi.stubGlobal("fetch", fetchMock)
-  return requests
+  return { requests, fetchMock }
 }
 
 function clerkState(state: ClerkState) {
@@ -204,7 +219,7 @@ async function renderTradePage(path = PAGE) {
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
-  return router
+  return { router, queryClient }
 }
 
 describe("Trade page", () => {
@@ -297,7 +312,7 @@ describe("Trade page", () => {
         )
       })
     )
-    const router = await renderTradePage()
+    const { router } = await renderTradePage()
     fireEvent.click(
       await screen.findByRole("button", { name: "Join this Trade" })
     )
@@ -338,7 +353,7 @@ describe("Trade page", () => {
           })
         })
       )
-      const router = await renderTradePage()
+      const { router } = await renderTradePage()
       fireEvent.change(await screen.findByLabelText("Quantity"), {
         target: { value: "7" },
       })
@@ -359,7 +374,7 @@ describe("Trade page", () => {
 
   it("keeps the offer and says the Trade is full when the seat is taken", async () => {
     clerkState("signed-in")
-    const requests = stubTradeApi({
+    const { requests } = stubTradeApi({
       getAfterJoin: { status: 404, body: { code: "trade_not_found" } },
     })
     await renderTradePage()
@@ -520,7 +535,7 @@ describe("Trade page", () => {
 
   it("adds a Card from one of the participant's Collections while negotiating", async () => {
     clerkState("signed-in")
-    const requests = stubTradeApi({
+    const { requests } = stubTradeApi({
       get: {
         status: 200,
         body: {
@@ -611,7 +626,7 @@ describe("Trade page", () => {
 
   it("removes the participant's own Trade Item while negotiating", async () => {
     clerkState("signed-in")
-    const requests = stubTradeApi({
+    const { requests } = stubTradeApi({
       get: {
         status: 200,
         body: {
@@ -675,7 +690,7 @@ describe("Trade page", () => {
       accepted: true,
       otherAccepted: true,
     })
-    const requests = stubTradeApi({
+    const { requests } = stubTradeApi({
       get: {
         status: 200,
         body: {
@@ -689,7 +704,7 @@ describe("Trade page", () => {
         },
       },
       accept: { status: 200, body: { data: locked } },
-      getAfterAccept: { status: 200, body: { data: locked } },
+      getAfterAccept: [{ status: 200, body: { data: locked } }],
     })
     await renderTradePage()
 
@@ -697,11 +712,207 @@ describe("Trade page", () => {
       await screen.findByRole("button", { name: "Accept the Trade" })
     )
 
-    await waitFor(() => expect(requests).toContain(`POST ${TRADE_PATH}/accept`))
+    await waitFor(() =>
+      expect(
+        requests.some((r) => r.startsWith(`POST ${TRADE_PATH}/accept`))
+      ).toBe(true)
+    )
     expect(await screen.findByText("Locked")).toBeTruthy()
     expect(
       screen.queryByRole("button", { name: "Accept the Trade" })
     ).toBeNull()
+  })
+
+  it("sends the displayed offer revision when accepting", async () => {
+    clerkState("signed-in")
+    const { fetchMock } = stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            revision: "2026-02-02T10:00:00Z",
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Accept the Trade" })
+    )
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input).endsWith("/accept") &&
+            JSON.parse(String(init?.body)).revision === "2026-02-02T10:00:00Z"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("refreshes a stale accept without accepting the changed offer", async () => {
+    clerkState("signed-in")
+    const errorToast = vi.spyOn(toast, "error")
+    const changed = tradeView({
+      status: "negotiating",
+      isParticipant: true,
+      isOwner: true,
+      revision: "2026-03-03T00:00:00Z",
+      ownerItems: [{ id: "item-9", card: pikachu, quantity: 5 }],
+    })
+    const locked = tradeView({
+      ...changed,
+      status: "locked",
+      accepted: true,
+      otherAccepted: true,
+    })
+    const { requests } = stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+          }),
+        },
+      },
+      staleAccept: {
+        status: 409,
+        body: {
+          code: "trade_stale_revision",
+          detail:
+            "the trade changed since you read it; read it again and accept the deal as it now stands",
+        },
+      },
+      getAfterStale: { status: 200, body: { data: changed } },
+      accept: { status: 200, body: { data: locked } },
+      getAfterAccept: [{ status: 200, body: { data: locked } }],
+    })
+    await renderTradePage()
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Accept the Trade" })
+    )
+
+    // The refused accept resyncs the view: the changed offer shows, the
+    // accept control stays, and nothing is silently accepted.
+    expect(await screen.findByText("Pikachu × 5")).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Accept the Trade" })
+    ).toBeTruthy()
+    expect(errorToast).toHaveBeenCalledWith(
+      "the trade changed since you read it; read it again and accept the deal as it now stands"
+    )
+    expect(requests).toContain(
+      `POST ${TRADE_PATH}/accept {"revision":"2026-01-01T00:00:00Z"}`
+    )
+
+    // Accepting again sends the revision of the view now displayed.
+    fireEvent.click(screen.getByRole("button", { name: "Accept the Trade" }))
+    await waitFor(() =>
+      expect(requests).toContain(
+        `POST ${TRADE_PATH}/accept {"revision":"2026-03-03T00:00:00Z"}`
+      )
+    )
+    expect(await screen.findByText("Locked")).toBeTruthy()
+  })
+
+  it("refreshes the open Trade when the other participant accepts and locks", async () => {
+    clerkState("signed-in")
+    let gets = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname
+        // The editable side's Collection and entry reads need real
+        // envelopes; only the Trade GET changes state.
+        if (path === "/collections")
+          return new Response(
+            JSON.stringify({
+              data: [{ id: "collection-1", title: "Binder" }],
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+        if (path === "/collections/collection-1/entries")
+          return new Response(
+            JSON.stringify({
+              data: [{ card: pikachu, quantity: 1 }],
+              meta: { total: 1, page: 1, limit: 100 },
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+        gets += 1
+        const data =
+          path === TRADE_PATH && gets > 1
+            ? tradeView({
+                status: "locked",
+                isParticipant: true,
+                isOwner: true,
+                otherName: "Misty",
+                accepted: true,
+                otherAccepted: true,
+                revision: "2026-04-05T00:00:00Z",
+              })
+            : tradeView({
+                status: "negotiating",
+                isParticipant: true,
+                isOwner: true,
+                otherName: "Misty",
+                revision: "2026-04-04T00:00:00Z",
+              })
+        return new Response(JSON.stringify({ data }), {
+          headers: { "content-type": "application/json" },
+        })
+      })
+    )
+    const { queryClient } = await renderTradePage()
+    expect(await screen.findByText("Negotiating")).toBeTruthy()
+
+    // The poll's 10s tick is the trigger; refetching the Trade's query is
+    // the same cache write the tick produces.
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+
+    expect(await screen.findByText("Locked")).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Accept the Trade" })
+    ).toBeNull()
+    expect(screen.getAllByText("Accepted the deal.")).toHaveLength(2)
+  })
+
+  it("does not poll a Trade the viewer is not part of", async () => {
+    clerkState("guest")
+    let gets = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        gets += 1
+        return new Response(
+          JSON.stringify({ data: tradeView({ status: "negotiating" }) }),
+          { headers: { "content-type": "application/json" } }
+        )
+      })
+    )
+    const { queryClient } = await renderTradePage()
+    expect(await screen.findByText("Negotiating")).toBeTruthy()
+
+    // The poll observer is mounted but disabled for a non-participant, so
+    // no interval ever schedules another read.
+    const observers = queryClient
+      .getQueryCache()
+      .findAll({ queryKey: getGetTradeQueryKey("trade-1") })
+      .flatMap((query) => [...query.observers])
+    expect(observers.length).toBeGreaterThan(0)
+    expect(observers.every((o) => o.options.enabled === false)).toBe(true)
+    expect(gets).toBe(1)
   })
 
   it("shows who still has to accept on each side", async () => {

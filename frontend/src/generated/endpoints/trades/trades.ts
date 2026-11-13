@@ -28,6 +28,7 @@ import type {
   EnvelopeTradeSlug,
   EnvelopeTradeView,
   ErrorModel,
+  TradeAcceptInputBody,
   TradeItemInputBody
 } from '../../models';
 
@@ -314,16 +315,31 @@ export const getAcceptTradeUrl = (slug: string,) => {
 }
 
 /**
- * @summary Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing
+ * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing
  */
-export const acceptTrade = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<acceptTradeResponse> => {
+export const acceptTrade = async (slug: string,
+    tradeAcceptInputBody: TradeAcceptInputBody, options?: Parameters<typeof customFetch>[1]): Promise<acceptTradeResponse> => {
 
-  return customFetch<acceptTradeResponse>(getAcceptTradeUrl(slug),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<acceptTradeResponse>(getAcceptTradeUrl(slug),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(tradeAcceptInputBody)
   }
 );}
 
@@ -348,9 +364,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptTrade>>, AcceptTradeMutationVariables> = (props) => {
-          const {slug} = props ?? {};
+          const {slug,data} = props ?? {};
 
-          return  acceptTrade(slug,requestOptions)
+          return  acceptTrade(slug,data,requestOptions)
         }
 
 
@@ -361,12 +377,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AcceptTradeMutationResult = NonNullable<Awaited<ReturnType<typeof acceptTrade>>>
-
+    export type AcceptTradeMutationBody = TradeAcceptInputBody
     export type AcceptTradeMutationError = ErrorModel
-    export type AcceptTradeMutationVariables = {slug: string}
+    export type AcceptTradeMutationVariables = {slug: string;data: TradeAcceptInputBody}
 
     /**
- * @summary Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing
+ * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing
  */
 export const useAcceptTrade = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptTrade>>, TError,AcceptTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -84,6 +84,7 @@ export const GetTradeResponse = zod.object({
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
   "slug": zod.string(),
   "status": zod.string().describe('open, negotiating, locked, executed or cancelled.'),
   "waitingOnMe": zod.boolean().describe('Whether the Trade is negotiating and the caller\'s side has not accepted yet — it is waiting on them.'),
@@ -92,10 +93,14 @@ export const GetTradeResponse = zod.object({
 })
 
 /**
- * @summary Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing
+ * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing
  */
 export const AcceptTradeParams = zod.object({
-  "slug": zod.string().describe('The Trade\'s Slug, the last segment of its link.')
+  "slug": zod.string().describe('The Trade\'s Slug.')
+})
+
+export const AcceptTradeBody = zod.object({
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision the caller\'s view showed — the revision field of the Trade read. Accept refuses a stale one.')
 })
 
 export const AcceptTradeResponse = zod.object({
@@ -158,6 +163,7 @@ export const AcceptTradeResponse = zod.object({
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
   "slug": zod.string(),
   "status": zod.string().describe('open, negotiating, locked, executed or cancelled.'),
   "waitingOnMe": zod.boolean().describe('Whether the Trade is negotiating and the caller\'s side has not accepted yet — it is waiting on them.'),
@@ -238,6 +244,7 @@ export const AddTradeItemResponse = zod.object({
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
   "slug": zod.string(),
   "status": zod.string().describe('open, negotiating, locked, executed or cancelled.'),
   "waitingOnMe": zod.boolean().describe('Whether the Trade is negotiating and the caller\'s side has not accepted yet — it is waiting on them.'),
@@ -313,6 +320,7 @@ export const RemoveTradeItemResponse = zod.object({
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
   "slug": zod.string(),
   "status": zod.string().describe('open, negotiating, locked, executed or cancelled.'),
   "waitingOnMe": zod.boolean().describe('Whether the Trade is negotiating and the caller\'s side has not accepted yet — it is waiting on them.'),
@@ -387,6 +395,7 @@ export const JoinTradeResponse = zod.object({
   "quantity": zod.int()
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
   "slug": zod.string(),
   "status": zod.string().describe('open, negotiating, locked, executed or cancelled.'),
   "waitingOnMe": zod.boolean().describe('Whether the Trade is negotiating and the caller\'s side has not accepted yet — it is waiting on them.'),
