@@ -193,8 +193,8 @@ func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (d
 		if trade.IsZero() || !ok {
 			return ungerr.NotFoundError(tradeNotFoundMsg)
 		}
-		if trade.Status != entity.TradeStatusNegotiating && (trade.Status != entity.TradeStatusOpen || side != entity.SideOwner) {
-			return ungerr.ConflictError("trade items can only change while open or negotiating")
+		if trade.Status != entity.TradeStatusNegotiating {
+			return ungerr.ConflictError("trade items can only change while negotiating")
 		}
 		for _, existing := range trade.TradeItems {
 			if existing.Side == side && existing.CardID == req.CardID && existing.SourceCollectionID != nil && *existing.SourceCollectionID == req.SourceCollectionID {
@@ -235,8 +235,8 @@ func (s *tradeService) RemoveItem(ctx context.Context, req dto.TradeItemRemovalR
 		if trade.IsZero() || !ok {
 			return ungerr.NotFoundError(tradeNotFoundMsg)
 		}
-		if trade.Status != entity.TradeStatusNegotiating && (trade.Status != entity.TradeStatusOpen || side != entity.SideOwner) {
-			return ungerr.ConflictError("trade items can only change while open or negotiating")
+		if trade.Status != entity.TradeStatusNegotiating {
+			return ungerr.ConflictError("trade items can only change while negotiating")
 		}
 		removed, err := s.trades.RemoveItem(ctx, trade.ID, req.ItemID, side)
 		if err != nil {
