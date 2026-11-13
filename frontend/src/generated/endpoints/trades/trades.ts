@@ -281,7 +281,104 @@ export function useGetTrade<TData = Awaited<ReturnType<typeof getTrade>>, TError
 
 
 
-export type addTradeItemResponse200 = {
+export type acceptTradeResponse200 = {
+  data: EnvelopeTradeView
+  status: 200
+}
+
+export type acceptTradeResponse503 = {
+  data: ErrorModel
+  status: 503
+}
+
+export type acceptTradeResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200 | 503>
+}
+
+export type acceptTradeResponseSuccess = (acceptTradeResponse200) & {
+  headers: Headers;
+};
+export type acceptTradeResponseError = (acceptTradeResponse503 | acceptTradeResponseDefault) & {
+  headers: Headers;
+};
+
+export type acceptTradeResponse = (acceptTradeResponseSuccess | acceptTradeResponseError)
+
+export const getAcceptTradeUrl = (slug: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/trades/${slug}/accept`
+}
+
+/**
+ * @summary Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing
+ */
+export const acceptTrade = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<acceptTradeResponse> => {
+
+  return customFetch<acceptTradeResponse>(getAcceptTradeUrl(slug),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptTradeMutationKey = () => ['acceptTrade'] as const;
+
+export const getAcceptTradeMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptTrade>>, TError,AcceptTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptTrade>>, TError,AcceptTradeMutationVariables, TContext> => {
+
+const mutationKey = getAcceptTradeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptTrade>>, AcceptTradeMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  acceptTrade(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptTradeMutationResult = NonNullable<Awaited<ReturnType<typeof acceptTrade>>>
+
+    export type AcceptTradeMutationError = ErrorModel
+    export type AcceptTradeMutationVariables = {slug: string}
+
+    /**
+ * @summary Accept the Trade as it stands for the caller's side; the second acceptance locks the Trade. A repeat accept changes nothing
+ */
+export const useAcceptTrade = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptTrade>>, TError,AcceptTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof acceptTrade>>,
+        TError,
+        AcceptTradeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptTradeMutationOptions(options), queryClient);
+    }
+    export type addTradeItemResponse200 = {
   data: EnvelopeTradeView
   status: 200
 }
