@@ -1023,6 +1023,54 @@ describe("Trade page", () => {
     ).toBeNull()
   })
 
+  it("updates short items when availability changes without a new revision", async () => {
+    clerkState("signed-in")
+    let available = 2
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: tradeView({
+                status: "locked",
+                isParticipant: true,
+                isOwner: true,
+                otherName: "Misty",
+                ownerItems: [
+                  tradeItem("item-1", 2, { available, short: available < 2 }),
+                ],
+              }),
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+      )
+    )
+    const { queryClient } = await renderTradePage()
+    expect(
+      await screen.findByRole("button", { name: "Confirm handover" })
+    ).toBeTruthy()
+    expect(screen.queryByText("only 1 of 2 available")).toBeNull()
+
+    available = 1
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+    expect(await screen.findByText("only 1 of 2 available")).toBeTruthy()
+
+    available = 2
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+    await waitFor(() =>
+      expect(screen.queryByText("only 1 of 2 available")).toBeNull()
+    )
+  })
+
   it("does not poll a Trade the viewer is not part of", async () => {
     clerkState("guest")
     let gets = 0
