@@ -153,8 +153,12 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 // nothing reserves the offered quantities. Available is the participant's
 // total holding of the Card across all their Collections — the same total
 // execution checks — and Short is Available below the offered Quantity.
-// It reads only: no state and no quantity changes.
+// It reads only: no state and no quantity changes. An executed Trade's
+// items already moved, so its holdings say nothing about the deal.
 func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.TradeView) error {
+	if t.Status == entity.TradeStatusExecuted {
+		return nil
+	}
 	type holdingKey struct{ profileID, cardID uuid.UUID }
 	totals := make(map[holdingKey]int)
 	total := func(profileID uuid.UUID, cardID uuid.UUID) (int, error) {
