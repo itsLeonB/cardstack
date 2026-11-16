@@ -878,6 +878,7 @@ func TestTradeConfirmDrawsPartOfBinder(t *testing.T) {
 		assert.Equal(t, before[page-1].Data.Layout, after.Data.Layout)
 		assert.Equal(t, before[page-1].Data.Leaf, after.Data.Leaf)
 		assert.Equal(t, before[page-1].Data.Side, after.Data.Side)
+		require.Len(t, after.Data.Slots, len(before[page-1].Data.Slots))
 		for i, slot := range after.Data.Slots {
 			old := before[page-1].Data.Slots[i]
 			if old.Card != nil && old.Card.ID == cards[0].String() {
@@ -961,4 +962,48 @@ func TestTradeConfirmEmptyBinderShortMovesNothing(t *testing.T) {
 	assert.Equal(t, "locked", ownerView.Data.Status)
 	assert.Nil(t, ownerView.Data.InboxID)
 	assert.Nil(t, joinerView.Data.InboxID)
+}
+
+func TestTradeConfirmBinderFallsBackToOtherCollection(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		empty bool
+	}{
+		{name: "binder has a copy"},
+		{name: "binder is empty", empty: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := newTestAPI(t)
+			card := newTestCards(t, 1)[0]
+			owner, joiner := api.newUserToken(t), api.newUserToken(t)
+			binder := newBinderCollection(t, api, owner)
+			createBinder(t, api, owner, binder, 2, 2, 1)
+			decodeBinderPage(t, placeCardAt(api, owner, binder, 1, 1, 1, card))
+			fallback := tradeCollection(t, api, owner, "Fallback")
+			addTradeCard(t, api, owner, fallback, card.String(), 2)
+			slug := createTrade(t, api, owner)
+			require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+			offerTradeCard(t, api, owner, slug, binder, card.String(), 2)
+			lockTrade(t, api, owner, joiner, slug)
+			if tc.empty {
+				decodeBinderPage(t, clearSlotAt(api, owner, binder, 1, 1, 1))
+			}
+			require.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+			resp := confirmTrade(api, joiner, slug)
+			require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+			inbox := decodeTradeView(t, resp).Data.InboxID
+			require.NotNil(t, inbox)
+			assert.Equal(t, map[string]int{card.String(): 2}, tradeEntryQuantities(t, api, joiner, inbox.String()))
+			assert.Empty(t, tradeEntryQuantities(t, api, owner, binder))
+			assert.Equal(t, "empty", getPage(t, api, owner, binder, 1).Data.Slots[0].State)
+			if tc.empty {
+				assert.Empty(t, tradeEntryQuantities(t, api, owner, fallback))
+				assert.Zero(t, masterQuantity(t, api, owner, card))
+			} else {
+				assert.Equal(t, map[string]int{card.String(): 1}, tradeEntryQuantities(t, api, owner, fallback))
+				assert.Equal(t, 1, masterQuantity(t, api, owner, card))
+			}
+			assert.Equal(t, 2, masterQuantity(t, api, joiner, card))
+		})
+	}
 }
