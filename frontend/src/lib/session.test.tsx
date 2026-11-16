@@ -6,7 +6,9 @@ import { toast } from "sonner"
 import {
   LOGOUT_FAILED,
   createSessionChangeHandler,
+  readInSession,
   resetCache,
+  SessionChangedError,
   useIsGuest,
   useSession,
   useSignOut,
@@ -122,6 +124,23 @@ describe("resetCache", () => {
 
     expect(queryClient.getQueryData(["/collections"])).toBeUndefined()
     expect(queryClient.getQueryData(["/inventory"])).toBeUndefined()
+  })
+})
+
+describe("readInSession", () => {
+  it("rejects a response from a session that changed while the read was pending", async () => {
+    let sessionId = "session-1"
+    let resolveRead!: (value: string) => void
+    const result = readInSession(
+      sessionId,
+      () => sessionId,
+      () => new Promise<string>((resolve) => (resolveRead = resolve))
+    )
+
+    sessionId = "session-2"
+    resolveRead("old session data")
+
+    await expect(result).rejects.toBeInstanceOf(SessionChangedError)
   })
 })
 

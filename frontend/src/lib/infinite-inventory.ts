@@ -1,5 +1,6 @@
 import { keepPreviousData } from "@tanstack/react-query"
 import {
+  getListCollectionEntriesInfiniteQueryKey,
   listCollectionEntries,
   listMasterInventory,
   useListCollectionEntriesInfinite,
@@ -13,6 +14,7 @@ import type { BinderSlotTarget, InventoryItem } from "@/generated/models"
 import type { CatalogFilters } from "@/lib/catalog-search"
 import { infinitePages, mergePages } from "@/lib/infinite-pages"
 import type { CardList, ListPage } from "@/lib/infinite-pages"
+import { readInSession, SessionChangedError } from "@/lib/session"
 
 /** The endpoints allow 100 per page at most. */
 export const INVENTORY_PAGE_SIZE = 100
@@ -57,20 +59,41 @@ export function mergeInventoryPages(
 export function useInfiniteCollectionEntries(
   collectionId: string,
   filters: CatalogFilters,
-  canRefetchOnFocus: () => boolean
+  canRefetchOnFocus: () => boolean,
+  session?: { id: string | null; currentSessionId: () => string | null }
 ) {
   const params = { ...filters, limit: INVENTORY_PAGE_SIZE }
+  const sessionQueryOptions = session
+    ? {
+        queryKey: [
+          ...getListCollectionEntriesInfiniteQueryKey(collectionId, params),
+          session.id,
+        ],
+        enabled:
+          session.id !== null && session.currentSessionId() === session.id,
+        retry: (failureCount: number, error: Error) =>
+          !(error instanceof SessionChangedError) && failureCount < 3,
+      }
+    : {
+        queryKey: getListCollectionEntriesInfiniteQueryKey(
+          collectionId,
+          params
+        ),
+      }
   return useListCollectionEntriesInfinite(collectionId, params, {
     query: {
-      ...infinitePages(
-        (page, signal) =>
-          listCollectionEntries(collectionId, { ...params, page }, { signal }),
-        "Could not load this Collection's Cards."
-      ),
+      ...infinitePages((page, signal) => {
+        const read = () =>
+          listCollectionEntries(collectionId, { ...params, page }, { signal })
+        if (!session) return read()
+        if (!session.id) throw new SessionChangedError()
+        return readInSession(session.id, session.currentSessionId, read)
+      }, "Could not load this Collection's Cards."),
+      ...sessionQueryOptions,
       gcTime: 0,
       refetchOnMount: "always",
       refetchOnWindowFocus: canRefetchOnFocus,
-      placeholderData: keepPreviousData,
+      placeholderData: session ? undefined : keepPreviousData,
       select: (data) => mergeInventoryPages(data.pages),
     },
   })

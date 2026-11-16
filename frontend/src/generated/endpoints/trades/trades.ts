@@ -315,7 +315,7 @@ export const getAcceptTradeUrl = (slug: string,) => {
 }
 
 /**
- * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing
+ * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade
  */
 export const acceptTrade = async (slug: string,
     tradeAcceptInputBody: TradeAcceptInputBody, options?: Parameters<typeof customFetch>[1]): Promise<acceptTradeResponse> => {
@@ -382,7 +382,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AcceptTradeMutationVariables = {slug: string;data: TradeAcceptInputBody}
 
     /**
- * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing
+ * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade
  */
 export const useAcceptTrade = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptTrade>>, TError,AcceptTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -393,6 +393,103 @@ export const useAcceptTrade = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getAcceptTradeMutationOptions(options), queryClient);
+    }
+    export type confirmTradeResponse200 = {
+  data: EnvelopeTradeView
+  status: 200
+}
+
+export type confirmTradeResponse503 = {
+  data: ErrorModel
+  status: 503
+}
+
+export type confirmTradeResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200 | 503>
+}
+
+export type confirmTradeResponseSuccess = (confirmTradeResponse200) & {
+  headers: Headers;
+};
+export type confirmTradeResponseError = (confirmTradeResponse503 | confirmTradeResponseDefault) & {
+  headers: Headers;
+};
+
+export type confirmTradeResponse = (confirmTradeResponseSuccess | confirmTradeResponseError)
+
+export const getConfirmTradeUrl = (slug: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/trades/${slug}/confirm`
+}
+
+/**
+ * @summary Confirm handover; the second confirmation executes the Trade
+ */
+export const confirmTrade = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<confirmTradeResponse> => {
+
+  return customFetch<confirmTradeResponse>(getConfirmTradeUrl(slug),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmTradeMutationKey = () => ['confirmTrade'] as const;
+
+export const getConfirmTradeMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmTrade>>, TError,ConfirmTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmTrade>>, TError,ConfirmTradeMutationVariables, TContext> => {
+
+const mutationKey = getConfirmTradeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmTrade>>, ConfirmTradeMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  confirmTrade(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmTradeMutationResult = NonNullable<Awaited<ReturnType<typeof confirmTrade>>>
+
+    export type ConfirmTradeMutationError = ErrorModel
+    export type ConfirmTradeMutationVariables = {slug: string}
+
+    /**
+ * @summary Confirm handover; the second confirmation executes the Trade
+ */
+export const useConfirmTrade = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmTrade>>, TError,ConfirmTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof confirmTrade>>,
+        TError,
+        ConfirmTradeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmTradeMutationOptions(options), queryClient);
     }
     export type addTradeItemResponse200 = {
   data: EnvelopeTradeView

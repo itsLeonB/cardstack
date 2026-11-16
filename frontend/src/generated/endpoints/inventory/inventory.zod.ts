@@ -173,7 +173,7 @@ export const CountCollectionEntriesResponse = zod.object({
 })
 
 /**
- * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.
+ * @summary Move Cards, every copy of each, from one of the current user's own Collections into another. A Trade Inbox can be the source so its received Cards can be filed out. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can also be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. A binder or Trade Inbox cannot be the destination. All or nothing: a refusal changes neither Collection.
  */
 export const MoveCollectionEntriesParams = zod.object({
   "id": zod.string().describe('Source Collection ID')
@@ -195,7 +195,7 @@ export const moveCollectionEntriesBodyFilterTagsMax = 20;
 
 export const MoveCollectionEntriesBody = zod.object({
   "cardIds": zod.array(zod.string()).min(1).max(moveCollectionEntriesBodyCardIdsMax).nullish().describe('The Cards to move, with every copy of each. Unique within the request (400 otherwise). Exactly one of cardIds and filter is required.'),
-  "destinationId": zod.string().describe('The Collection to move them to: another of your own plain Collections. A binder is refused.'),
+  "destinationId": zod.string().describe('The Collection to move them to: another of your own plain Collections. A Trade Inbox cannot be the destination.'),
   "filter": zod.object({
   "categories": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterCategoriesMax).nullish().describe('Only Cards with any of these exact categories (repeatable, at most 20; e.g. Pokémon, Trainer, Energi).'),
   "expansionSetIds": zod.array(zod.string()).max(moveCollectionEntriesBodyFilterExpansionSetIdsMax).nullish().describe('Only Cards in any of these Expansion Sets (repeatable, at most 20).'),
