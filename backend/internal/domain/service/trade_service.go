@@ -338,7 +338,7 @@ type tradeTransfer struct {
 	destinationProfileID uuid.UUID
 	cardID               uuid.UUID
 	sourceID             uuid.UUID
-	destID               uuid.UUID
+	destinationID        uuid.UUID
 	quantity             int
 }
 
@@ -421,7 +421,7 @@ func (s *tradeService) execute(ctx context.Context, trade *entity.Trade) error {
 			sourceKey := holdingKey{profileID, item.CardID, *item.SourceCollectionID}
 			quantity := min(left, available[sourceKey])
 			if quantity > 0 {
-				plans = append(plans, tradeTransfer{profileID: profileID, destinationProfileID: receiverID, cardID: item.CardID, sourceID: *item.SourceCollectionID, destID: inboxes[receiverID], quantity: quantity})
+				plans = append(plans, tradeTransfer{profileID: profileID, destinationProfileID: receiverID, cardID: item.CardID, sourceID: *item.SourceCollectionID, destinationID: inboxes[receiverID], quantity: quantity})
 				available[sourceKey] -= quantity
 				left -= quantity
 			}
@@ -435,7 +435,7 @@ func (s *tradeService) execute(ctx context.Context, trade *entity.Trade) error {
 			if quantity == 0 {
 				continue
 			}
-			plans = append(plans, tradeTransfer{profileID: profileID, destinationProfileID: receiverID, cardID: item.CardID, sourceID: row.CollectionID, destID: inboxes[receiverID], quantity: quantity})
+			plans = append(plans, tradeTransfer{profileID: profileID, destinationProfileID: receiverID, cardID: item.CardID, sourceID: row.CollectionID, destinationID: inboxes[receiverID], quantity: quantity})
 			available[sourceKey] -= quantity
 			left -= quantity
 		}
@@ -444,7 +444,7 @@ func (s *tradeService) execute(ctx context.Context, trade *entity.Trade) error {
 		}
 	}
 	for _, plan := range plans {
-		if err := s.transfers.TransferQuantity(ctx, dto.InventoryTransferRequest{ProfileID: plan.profileID, DestinationProfileID: plan.destinationProfileID, SourceID: plan.sourceID, DestinationID: plan.destID, CardID: plan.cardID, Quantity: plan.quantity}); err != nil {
+		if err := s.transfers.TransferQuantity(ctx, dto.InventoryTransferRequest{ProfileID: plan.profileID, DestinationProfileID: plan.destinationProfileID, SourceID: plan.sourceID, DestinationID: plan.destinationID, CardID: plan.cardID, Quantity: plan.quantity}); err != nil {
 			return err
 		}
 	}

@@ -296,6 +296,65 @@ func (_c *MockCollectionRepository_FindSharedCollection_Call) RunAndReturn(run f
 	return _c
 }
 
+// FindUserCollections provides a mock function with given fields: ctx, profileID
+func (_m *MockCollectionRepository) FindUserCollections(ctx context.Context, profileID uuid.UUID) ([]entity.Collection, error) {
+	ret := _m.Called(ctx, profileID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindUserCollections")
+	}
+
+	var r0 []entity.Collection
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]entity.Collection, error)); ok {
+		return rf(ctx, profileID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []entity.Collection); ok {
+		r0 = rf(ctx, profileID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.Collection)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, profileID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockCollectionRepository_FindUserCollections_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindUserCollections'
+type MockCollectionRepository_FindUserCollections_Call struct {
+	*mock.Call
+}
+
+// FindUserCollections is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileID uuid.UUID
+func (_e *MockCollectionRepository_Expecter) FindUserCollections(ctx interface{}, profileID interface{}) *MockCollectionRepository_FindUserCollections_Call {
+	return &MockCollectionRepository_FindUserCollections_Call{Call: _e.mock.On("FindUserCollections", ctx, profileID)}
+}
+
+func (_c *MockCollectionRepository_FindUserCollections_Call) Run(run func(ctx context.Context, profileID uuid.UUID)) *MockCollectionRepository_FindUserCollections_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockCollectionRepository_FindUserCollections_Call) Return(_a0 []entity.Collection, _a1 error) *MockCollectionRepository_FindUserCollections_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockCollectionRepository_FindUserCollections_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]entity.Collection, error)) *MockCollectionRepository_FindUserCollections_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGormInstance provides a mock function with given fields: ctx
 func (_m *MockCollectionRepository) GetGormInstance(ctx context.Context) (*gorm.DB, error) {
 	ret := _m.Called(ctx)

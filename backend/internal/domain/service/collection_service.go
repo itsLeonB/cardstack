@@ -65,17 +65,10 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 	if req.ProfileID == uuid.Nil {
 		return []dto.CollectionSummary{}, nil
 	}
-	collections, err := s.repo.FindAll(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: req.ProfileID}, PreloadRelations: []string{"Layout"}})
+	collections, err := s.repo.FindUserCollections(ctx, req.ProfileID)
 	if err != nil {
 		return nil, err
 	}
-	visible := collections[:0]
-	for _, collection := range collections {
-		if collection.TradeID == nil {
-			visible = append(visible, collection)
-		}
-	}
-	collections = visible
 	ids := ezutil.MapSlice(collections, func(c entity.Collection) uuid.UUID { return c.ID })
 	counts, err := s.repo.SumQuantities(ctx, ids)
 	if err != nil {

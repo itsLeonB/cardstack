@@ -12,7 +12,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/mocks"
-	crud "github.com/itsLeonB/go-crud"
+
 	"github.com/itsLeonB/ungerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -82,11 +82,7 @@ func TestCollectionService_List(t *testing.T) {
 	f := newCollectionFixture(t)
 
 	layout := entity.CollectionLayout{BaseEntity: baseEntity(uuid.New()), CollectionID: id, Rows: 2, Columns: 2}
-	f.repo.EXPECT().
-		FindAll(ctx, crud.Specification[entity.Collection]{
-			Model:            entity.Collection{ProfileID: profileID},
-			PreloadRelations: []string{"Layout"},
-		}).
+	f.repo.EXPECT().FindUserCollections(ctx, profileID).
 		Return([]entity.Collection{
 			{BaseEntity: baseEntity(id), ProfileID: profileID, Title: "Binder", Layout: &layout},
 			{BaseEntity: baseEntity(emptyID), ProfileID: profileID, Title: "Empty"},
@@ -113,7 +109,7 @@ func TestCollectionService_List_PropagatesSumError(t *testing.T) {
 	wantErr := errors.New("boom")
 	f := newCollectionFixture(t)
 
-	f.repo.EXPECT().FindAll(ctx, mock.Anything).
+	f.repo.EXPECT().FindUserCollections(ctx, profileID).
 		Return([]entity.Collection{{BaseEntity: baseEntity(uuid.New()), ProfileID: profileID}}, nil).Once()
 	f.repo.EXPECT().SumQuantities(ctx, mock.Anything).Return(nil, wantErr).Once()
 
