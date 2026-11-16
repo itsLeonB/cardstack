@@ -43,6 +43,7 @@ type BinderSlotService interface {
 	// reconciles each Card's Inventory Entry, so a Card left with no Slot has none.
 	// Other Slots, Unidentified ones included, are untouched.
 	ClearCards(ctx context.Context, req dto.BinderCardsClear) error
+	ClearQuantity(ctx context.Context, req dto.BinderCardsClearQuantity) error
 }
 
 type binderSlotService struct {
@@ -92,6 +93,33 @@ func (s *binderSlotService) WriteSlot(ctx context.Context, req dto.BinderSlotWri
 		}
 
 		return s.writeSlots(ctx, c, layout, []dto.BinderSlotChange{{Target: req.Target, State: req.State, CardID: req.CardID}})
+	})
+}
+
+func (s *binderSlotService) ClearQuantity(ctx context.Context, req dto.BinderCardsClearQuantity) error {
+	if req.Quantity <= 0 {
+		return ungerr.BadRequestError(quantityNotPositiveMsg)
+	}
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		collection, layout, err := s.lockBinder(ctx, req.ProfileID, req.CollectionID)
+		if err != nil {
+			return err
+		}
+		slots, err := s.slots.ListOccupiedSlots(ctx, collection.ID, []uuid.UUID{req.CardID})
+		if err != nil {
+			return err
+		}
+		if len(slots) < req.Quantity {
+			return ungerr.UnprocessableEntityError("binder quantity is too short")
+		}
+		changes := make([]dto.BinderSlotChange, 0, req.Quantity)
+		for _, slot := range slots[:req.Quantity] {
+			changes = append(changes, dto.BinderSlotChange{
+				Target: dto.BinderSlotTarget{Page: mapper.PageOf(slot.Leaf.Position, slot.Side), Row: slot.Row, Column: slot.Column},
+				State:  dto.BinderSlotEmpty,
+			})
+		}
+		return s.writeSlots(ctx, collection, layout, changes)
 	})
 }
 

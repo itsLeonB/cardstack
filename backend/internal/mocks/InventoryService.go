@@ -604,6 +604,53 @@ func (_c *MockInventoryService_Remove_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// TransferQuantity provides a mock function with given fields: ctx, req
+func (_m *MockInventoryService) TransferQuantity(ctx context.Context, req dto.InventoryTransferRequest) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TransferQuantity")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.InventoryTransferRequest) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockInventoryService_TransferQuantity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransferQuantity'
+type MockInventoryService_TransferQuantity_Call struct {
+	*mock.Call
+}
+
+// TransferQuantity is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.InventoryTransferRequest
+func (_e *MockInventoryService_Expecter) TransferQuantity(ctx interface{}, req interface{}) *MockInventoryService_TransferQuantity_Call {
+	return &MockInventoryService_TransferQuantity_Call{Call: _e.mock.On("TransferQuantity", ctx, req)}
+}
+
+func (_c *MockInventoryService_TransferQuantity_Call) Run(run func(ctx context.Context, req dto.InventoryTransferRequest)) *MockInventoryService_TransferQuantity_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.InventoryTransferRequest))
+	})
+	return _c
+}
+
+func (_c *MockInventoryService_TransferQuantity_Call) Return(_a0 error) *MockInventoryService_TransferQuantity_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockInventoryService_TransferQuantity_Call) RunAndReturn(run func(context.Context, dto.InventoryTransferRequest) error) *MockInventoryService_TransferQuantity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateQuantity provides a mock function with given fields: ctx, req
 func (_m *MockInventoryService) UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error) {
 	ret := _m.Called(ctx, req)

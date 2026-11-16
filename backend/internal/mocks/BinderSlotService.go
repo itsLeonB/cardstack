@@ -69,6 +69,53 @@ func (_c *MockBinderSlotService_ClearCards_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// ClearQuantity provides a mock function with given fields: ctx, req
+func (_m *MockBinderSlotService) ClearQuantity(ctx context.Context, req dto.BinderCardsClearQuantity) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearQuantity")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.BinderCardsClearQuantity) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockBinderSlotService_ClearQuantity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearQuantity'
+type MockBinderSlotService_ClearQuantity_Call struct {
+	*mock.Call
+}
+
+// ClearQuantity is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.BinderCardsClearQuantity
+func (_e *MockBinderSlotService_Expecter) ClearQuantity(ctx interface{}, req interface{}) *MockBinderSlotService_ClearQuantity_Call {
+	return &MockBinderSlotService_ClearQuantity_Call{Call: _e.mock.On("ClearQuantity", ctx, req)}
+}
+
+func (_c *MockBinderSlotService_ClearQuantity_Call) Run(run func(ctx context.Context, req dto.BinderCardsClearQuantity)) *MockBinderSlotService_ClearQuantity_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.BinderCardsClearQuantity))
+	})
+	return _c
+}
+
+func (_c *MockBinderSlotService_ClearQuantity_Call) Return(_a0 error) *MockBinderSlotService_ClearQuantity_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockBinderSlotService_ClearQuantity_Call) RunAndReturn(run func(context.Context, dto.BinderCardsClearQuantity) error) *MockBinderSlotService_ClearQuantity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MoveSlot provides a mock function with given fields: ctx, req
 func (_m *MockBinderSlotService) MoveSlot(ctx context.Context, req dto.BinderSlotMove) error {
 	ret := _m.Called(ctx, req)

@@ -60,6 +60,15 @@ type InventoryMoveRequest struct {
 	Filter  *CardFilter
 }
 
+type InventoryTransferRequest struct {
+	ProfileID            uuid.UUID
+	DestinationProfileID uuid.UUID
+	SourceID             uuid.UUID
+	DestinationID        uuid.UUID
+	CardID               uuid.UUID
+	Quantity             int
+}
+
 // InventoryMoveResult counts what a Move moved: Cards is the number of
 // Inventory Entries, Copies the sum of their quantities.
 type InventoryMoveResult struct {

@@ -133,6 +133,8 @@ func ProvideTradeService(ds *DataSources, images mapper.ImageHost) service.Trade
 		crud.NewTransactor(ds.Gorm),
 		catalogrepository.NewTradeRepository(crud.NewRepository[entity.Trade](ds.Gorm)),
 		catalogrepository.NewCollectionRepository(crud.NewRepository[entity.Collection](ds.Gorm)),
+		catalogrepository.NewInventoryRepository(crud.NewRepository[entity.InventoryEntry](ds.Gorm)),
+		ProvideInventoryService(ds, images),
 		crud.NewRepository[entity.Card](ds.Gorm),
 		crud.NewRepository[entity.UserProfile](ds.Gorm),
 		images,
