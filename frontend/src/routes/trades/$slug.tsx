@@ -111,7 +111,9 @@ function TradePage() {
       polled.accepted !== trade.accepted ||
       polled.otherAccepted !== trade.otherAccepted ||
       polled.confirmed !== trade.confirmed ||
-      polled.otherConfirmed !== trade.otherConfirmed
+      polled.otherConfirmed !== trade.otherConfirmed ||
+      JSON.stringify(polled.ownerItems) !== JSON.stringify(trade.ownerItems) ||
+      JSON.stringify(polled.otherItems) !== JSON.stringify(trade.otherItems)
     ) {
       void queryClient
         .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
