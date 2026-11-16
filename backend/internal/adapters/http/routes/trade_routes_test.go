@@ -760,7 +760,8 @@ func TestTradeConfirmOneSidedTradeCreatesOnlyReceiverInbox(t *testing.T) {
 	filed := tradeCollection(t, api, joiner, "Filed")
 	move := api.Post("/collections/"+joinerInbox.String()+"/entries/move", bearer(joiner), map[string]any{"cardIds": []string{cards[0].String()}, "destinationId": filed})
 	assert.Equal(t, http.StatusOK, move.Code, move.Body.String())
-	assert.Empty(t, tradeEntryQuantities(t, api, joiner, joinerInbox.String()))
+	assert.Equal(t, http.StatusNotFound, api.Get("/collections/"+joinerInbox.String(), bearer(joiner)).Code)
+	assert.Nil(t, decodeTradeView(t, getTrade(api, joiner, slug)).Data.InboxID)
 	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, filed))
 }
 

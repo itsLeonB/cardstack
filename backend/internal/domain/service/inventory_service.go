@@ -511,6 +511,17 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 				return err
 			}
 		}
+		if src.TradeID != nil {
+			remaining, err := s.entries.SumQuantity(ctx, src.ID)
+			if err != nil {
+				return err
+			}
+			if remaining == 0 {
+				if err := s.collections.Delete(ctx, src); err != nil {
+					return err
+				}
+			}
+		}
 
 		result = dto.InventoryMoveResult{Cards: len(moving), Copies: copies}
 		return nil
