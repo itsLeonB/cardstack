@@ -185,15 +185,21 @@ func (s *tradeService) List(ctx context.Context, req dto.TradeListRequest) ([]dt
 		}
 	}
 	names := make(map[uuid.UUID]string, len(otherIDs))
-	for id := range otherIDs {
-		profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
-			Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}},
-		})
+	if len(otherIDs) > 0 {
+		ids := make([]uuid.UUID, 0, len(otherIDs))
+		for id := range otherIDs {
+			ids = append(ids, id)
+		}
+		db, err := s.profiles.GetGormInstance(ctx)
 		if err != nil {
 			return nil, err
 		}
-		if !profile.IsZero() {
-			names[id] = profile.Name
+		var profiles []entity.UserProfile
+		if err := db.Where("id IN ?", ids).Find(&profiles).Error; err != nil {
+			return nil, ungerr.Wrap(err, "listing trade counterpart profiles")
+		}
+		for _, profile := range profiles {
+			names[profile.ID] = profile.Name
 		}
 	}
 
