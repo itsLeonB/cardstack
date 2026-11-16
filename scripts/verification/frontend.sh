@@ -58,7 +58,7 @@ step_e2e() {
   compose run --rm seed
   RUN_DIR=frontend \
     RUN_ENV="VITE_CLERK_PUBLISHABLE_KEY CLERK_SECRET_KEY CLERK_ISSUER E2E_CLERK_USER_EMAIL E2E_CLERK_USER_PASSWORD E2E_REQUIRE_SIGN_IN CI" \
-    run env PLAYWRIGHT_BASE_URL=http://web:3000 PLAYWRIGHT_HTML_OPEN=never \
+    run env PLAYWRIGHT_BASE_URL=http://web:3000 \
       bunx playwright test
 }
 

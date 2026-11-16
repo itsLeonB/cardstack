@@ -16,7 +16,7 @@ A delegate reports in its final message. A report has five parts:
 
 1. **Status**: done, or blocked.
 2. **Commit SHAs**: every commit on the branch since the base.
-3. **Verification results**: each command and its latest result on the final changes, including failures and skipped checks. Earlier passes do not replace a later failure.
+3. **Verification results**: each command and its latest result on the final changes, including failures and skipped checks. For a command that stays running after tests finish, report the test summary, command exit status, and remaining process separately. Earlier passes do not replace a later failure.
 4. **Review**: which code review findings were fixed and which were discarded, with the reason for each discard.
 5. **Deviations or questions**: anything done differently from the task, or what is needed from the orchestrator.
 

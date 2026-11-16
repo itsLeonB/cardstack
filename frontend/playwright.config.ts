@@ -32,7 +32,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   // Keep this at its default location: CI uploads playwright-report/ as a
   // build artifact on failure by that exact path.
-  reporter: "html",
+  reporter: [["html", { open: "never" }]],
   use: {
     baseURL,
     trace: "on-first-retry",
