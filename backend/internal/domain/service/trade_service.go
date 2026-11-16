@@ -148,11 +148,13 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 }
 
 // markShort re-checks every Trade Item against what its offering
-// participant currently holds and marks the ones that no longer match: a
-// locked Trade can go stale while the two sides arrange to meet, because
-// nothing reserves the offered quantities. Available is the participant's
-// total holding of the Card across all their Collections — the same total
-// execution checks — and Short is Available below the offered Quantity.
+// participant currently holds and marks the ones that can no longer be
+// satisfied: a locked Trade can go stale while the two sides arrange to
+// meet, because nothing reserves the offered quantities. It mirrors
+// execute's check — the Trade's items are summed per offering participant
+// and Card in order, so split offers share one holding — and an item is
+// short once the cumulative demand it adds passes the total holding, the
+// same item execution would fail on. Available stays that total holding.
 // It reads only: no state and no quantity changes. An executed Trade's
 // items already moved, so its holdings say nothing about the deal.
 func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.TradeView) error {
@@ -160,39 +162,40 @@ func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.
 		return nil
 	}
 	type holdingKey struct{ profileID, cardID uuid.UUID }
-	totals := make(map[holdingKey]int)
-	total := func(profileID uuid.UUID, cardID uuid.UUID) (int, error) {
-		key := holdingKey{profileID, cardID}
-		if total, ok := totals[key]; ok {
-			return total, nil
-		}
-		holdings, err := s.inventory.ListHoldings(ctx, profileID, cardID)
-		if err != nil {
-			return 0, err
-		}
-		sum := 0
-		for _, h := range holdings {
-			sum += h.Quantity
-		}
-		totals[key] = sum
-		return sum, nil
+	available := make(map[holdingKey]int)
+	required := make(map[holdingKey]int)
+	items := make(map[uuid.UUID]*dto.TradeItemView, len(view.OwnerItems)+len(view.OtherItems))
+	for i := range view.OwnerItems {
+		items[view.OwnerItems[i].ID] = &view.OwnerItems[i]
 	}
-	mark := func(items []dto.TradeItemView, profileID uuid.UUID) error {
-		for i := range items {
-			available, err := total(profileID, items[i].Card.ID)
+	for i := range view.OtherItems {
+		items[view.OtherItems[i].ID] = &view.OtherItems[i]
+	}
+	for _, item := range t.TradeItems {
+		profileID := t.OwnerProfileID
+		if item.Side == entity.SideParticipant {
+			if t.ParticipantProfileID == nil {
+				continue
+			}
+			profileID = *t.ParticipantProfileID
+		}
+		key := holdingKey{profileID, item.CardID}
+		if _, ok := available[key]; !ok {
+			rows, err := s.inventory.ListHoldings(ctx, profileID, item.CardID)
 			if err != nil {
 				return err
 			}
-			items[i].Available = available
-			items[i].Short = available < items[i].Quantity
+			for _, row := range rows {
+				available[key] += row.Quantity
+			}
 		}
-		return nil
-	}
-	if err := mark(view.OwnerItems, t.OwnerProfileID); err != nil {
-		return err
-	}
-	if t.ParticipantProfileID != nil {
-		return mark(view.OtherItems, *t.ParticipantProfileID)
+		required[key] += item.Quantity
+		v := items[item.ID]
+		if v == nil {
+			continue
+		}
+		v.Available = available[key]
+		v.Short = required[key] > available[key]
 	}
 	return nil
 }

@@ -111,13 +111,14 @@ type TradeView struct {
 // offering participant's current total holding of the Card across their
 // Collections, re-checked on every read; Short marks an item that can no
 // longer be satisfied — the mismatch a locked Trade can develop while the
-// two sides arrange to meet. Execution still refuses it with
-// apperr.CodeTradeItemShort.
+// two sides arrange to meet. Offerings of the same Card share that holding
+// in offer order, so a split offer is short once its cumulative demand
+// passes it. Execution still refuses it with apperr.CodeTradeItemShort.
 type TradeItemView struct {
 	ID         uuid.UUID   `json:"id"`
 	Card       CardSummary `json:"card"`
 	Quantity   int         `json:"quantity"`
 	Collection *string     `json:"collection,omitempty" doc:"The title of the Collection the Card is meant to leave; absent when that Collection was deleted."`
 	Available  int         `json:"available" doc:"How many of the Card the offering participant currently holds across all their Collections."`
-	Short      bool        `json:"short" doc:"True when Available is below the offered Quantity: the Trade Item can no longer be satisfied."`
+	Short      bool        `json:"short" doc:"True when the cumulative offered quantity of this Card — this item plus the earlier offers sharing its holding — passes Available: the Trade Item can no longer be satisfied."`
 }

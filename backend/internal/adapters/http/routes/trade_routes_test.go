@@ -1272,3 +1272,48 @@ func TestTradeReadMarksShortItem(t *testing.T) {
 	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, joiner, joinerSource))
 	assert.Equal(t, "locked", decodeTradeView(t, getTrade(api, owner, slug)).Data.Status)
 }
+
+// TestTradeReadMarksSplitOfferShort: execution sums a participant's offers
+// of the same Card across their whole holding, so a Trade can offer one Card
+// from two Collections. When that combined offer outgrows the holding, the
+// read marks only the item whose cumulative demand passes what is
+// available — the earlier offer still reads satisfied beside the same
+// Available total — and execution still refuses the Trade.
+func TestTradeReadMarksSplitOfferShort(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSourceA := tradeCollection(t, api, owner, "Owner source A")
+	ownerSourceB := tradeCollection(t, api, owner, "Owner source B")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSourceA, cards[0].String(), 1)
+	addTradeCard(t, api, owner, ownerSourceB, cards[0].String(), 1)
+	addTradeCard(t, api, joiner, joinerSource, cards[1].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSourceA, cards[0].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSourceB, cards[0].String(), 1)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+
+	// The owner moves one offered copy out of reach after locking: the
+	// combined offer of 2 now exceeds the holding of 1.
+	resp := api.Delete("/collections/"+ownerSourceB+"/entries/"+cards[0].String(), bearer(owner))
+	require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
+
+	// Both offers report the same available total; only the one that pushes
+	// the cumulative demand over it is marked short.
+	view := decodeTradeView(t, getTrade(api, owner, slug))
+	require.Len(t, view.Data.OwnerItems, 2)
+	assert.Equal(t, 1, view.Data.OwnerItems[0].Available)
+	assert.False(t, view.Data.OwnerItems[0].Short)
+	assert.Equal(t, 1, view.Data.OwnerItems[1].Available)
+	assert.True(t, view.Data.OwnerItems[1].Short)
+	assert.False(t, view.Data.OtherItems[0].Short)
+
+	// Execution refuses the whole Trade, as before.
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp = confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_item_short", errorCode(t, resp))
+}
