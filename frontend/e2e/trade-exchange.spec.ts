@@ -51,6 +51,30 @@ async function api(
   )
 }
 
+async function collectionQuantity(
+  page: Page,
+  collectionId: string,
+  cardId: string
+) {
+  const response = await api(
+    page,
+    `/collections/${collectionId}/entries`,
+    "GET"
+  )
+  expect(response.status).toBe(200)
+  const entries = z
+    .object({
+      data: z.array(
+        z.object({
+          card: z.object({ id: z.string() }),
+          quantity: z.number(),
+        })
+      ),
+    })
+    .parse(response.body).data
+  return entries.find((entry) => entry.card.id === cardId)?.quantity ?? 0
+}
+
 async function createCollection(page: Page, title: string) {
   const response = await api(page, "/collections", "POST", { title })
   expect(response.status).toBe(201)
@@ -128,7 +152,9 @@ async function addOffer(
       `Trade offer failed (${response.status()}): ${problem.success ? problem.data.detail : "API error"}`
     )
   }
-  await expect(page.getByText(`${cardName} × 1`, { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: `Remove ${cardName}`, exact: true })
+  ).toBeVisible()
 }
 
 async function startTrade(page: Page): Promise<string> {
@@ -212,11 +238,15 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       }
 
       const slug = await startTrade(page)
+      await expect(
+        page.getByRole("button", { name: "Add Card", exact: true })
+      ).toHaveCount(0)
       await partner.goto(`/trades/${slug}`)
       await partner.getByRole("button", { name: "Join this Trade" }).click()
       await expect(
         partner.getByText("Negotiating", { exact: true })
       ).toBeVisible()
+      await page.reload()
       await addOffer(page, ownerCollection, ownerCard.id, ownerCard.name)
       await addOffer(
         partner,
@@ -247,6 +277,23 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       await expect(
         partner.getByRole("link", { name: ownerCard.name })
       ).toBeVisible()
+      const ownerTrade = await api(page, `/trades/${slug}`, "GET")
+      const partnerTrade = await api(partner, `/trades/${slug}`, "GET")
+      expect(ownerTrade.status).toBe(200)
+      expect(partnerTrade.status).toBe(200)
+      const inboxSchema = z.object({ data: z.object({ inboxId: z.string() }) })
+      const ownerInbox = inboxSchema.parse(ownerTrade.body).data.inboxId
+      const partnerInbox = inboxSchema.parse(partnerTrade.body).data.inboxId
+      expect(
+        await collectionQuantity(page, ownerCollection, ownerCard.id)
+      ).toBe(1)
+      expect(
+        await collectionQuantity(partner, partnerCollection, partnerCard.id)
+      ).toBe(1)
+      expect(await collectionQuantity(page, ownerInbox, partnerCard.id)).toBe(1)
+      expect(
+        await collectionQuantity(partner, partnerInbox, ownerCard.id)
+      ).toBe(1)
       await expect(partner.getByLabel("Quantity")).toHaveCount(0)
       await expect(
         partner.getByRole("button", { name: /add|delete|rename/i })
@@ -258,6 +305,10 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       const shortSlug = await startTrade(page)
       await partner.goto(`/trades/${shortSlug}`)
       await partner.getByRole("button", { name: "Join this Trade" }).click()
+      await expect(
+        partner.getByText("Negotiating", { exact: true })
+      ).toBeVisible()
+      await page.reload()
       await addOffer(page, ownerCollection, ownerCard.id, ownerCard.name)
       await addOffer(
         partner,
@@ -267,6 +318,9 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       )
       await lockTrade(page, partner)
       await partner.reload()
+      await expect(
+        partner.getByRole("button", { name: "Confirm handover" })
+      ).toBeVisible({ timeout: 20_000 })
       const shortage = await api(
         page,
         `/collections/${ownerCollection}/entries`,
@@ -294,10 +348,29 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
           0
         )
       ).toBe(0)
+      const unchanged = [
+        [partner, partnerCollection, partnerCard.id],
+        [page, ownerInbox, partnerCard.id],
+        [partner, partnerInbox, ownerCard.id],
+      ] as const
+      const beforeRefusal = await Promise.all(
+        unchanged.map(([userPage, collectionId, cardId]) =>
+          collectionQuantity(userPage, collectionId, cardId)
+        )
+      )
+      expect(beforeRefusal).toEqual([1, 1, 1])
       await test.step("partner confirms the short Trade", async () => {
+        const confirmationResponse = partner.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname ===
+              `/trades/${shortSlug}/confirm` &&
+            response.request().method() === "POST",
+          { timeout: 20_000 }
+        )
         await partner
           .getByRole("button", { name: "Confirm handover" })
           .click({ timeout: 8_000 })
+        expect((await confirmationResponse).ok()).toBe(true)
       })
       const refusalResponse = page.waitForResponse(
         (response) =>
@@ -318,6 +391,12 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       expect(refusalBody.detail).toContain(ownerCard.name)
       await expect(page.getByRole("alert")).toContainText(ownerCard.name)
       await expect(page.getByText("Locked", { exact: true })).toBeVisible()
+      const afterRefusal = await Promise.all(
+        unchanged.map(([userPage, collectionId, cardId]) =>
+          collectionQuantity(userPage, collectionId, cardId)
+        )
+      )
+      expect(afterRefusal).toEqual(beforeRefusal)
     } finally {
       await partnerContext.close().catch(() => undefined)
       await Promise.all([

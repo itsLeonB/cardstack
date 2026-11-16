@@ -187,11 +187,7 @@ function TradePage() {
         name={trade.ownerName}
         items={trade.ownerItems ?? []}
         slug={trade.slug}
-        editable={
-          trade.isParticipant &&
-          trade.isOwner &&
-          (trade.status === "open" || trade.status === "negotiating")
-        }
+        editable={negotiating && trade.isOwner}
         acceptLabel={acceptLabel(ownerAccepted, trade.isOwner, trade.ownerName)}
       />
       <TradeSide
