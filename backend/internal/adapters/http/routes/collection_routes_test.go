@@ -48,8 +48,9 @@ func TestCollectionsFlow(t *testing.T) {
 	assert.Equal(t, "Base Set Binder", created.Data.Title)
 	assert.Equal(t, limit, created.Data.MaxCardCount)
 	id := created.Data.ID
+	newerID := newPlainCollection(t, api, owner, 0)
 
-	// The owner's list includes it.
+	// The owner's list is newest first.
 	listResp := api.Get("/collections", bearer(owner))
 	require.Equal(t, http.StatusOK, listResp.Code, listResp.Body.String())
 	var ownerList collectionListEnvelope
@@ -58,7 +59,7 @@ func TestCollectionsFlow(t *testing.T) {
 	for _, c := range ownerList.Data {
 		ownerIDs = append(ownerIDs, c.ID)
 	}
-	assert.Contains(t, ownerIDs, id)
+	assert.Equal(t, []string{newerID, id}, ownerIDs)
 
 	// The other user's list does not include it.
 	otherListResp := api.Get("/collections", bearer(other))

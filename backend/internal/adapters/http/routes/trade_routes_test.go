@@ -765,6 +765,39 @@ func TestTradeConfirmOneSidedTradeCreatesOnlyReceiverInbox(t *testing.T) {
 	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, filed))
 }
 
+func TestTradeInboxRetainsUnpublishedCardsAfterFiling(t *testing.T) {
+	api := newTestAPI(t)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	visibleCard := newTestCards(t, 1)[0]
+	hiddenCard := newTestCards(t, 1)[0]
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	source := tradeCollection(t, api, owner, "Source")
+	for _, card := range []uuid.UUID{visibleCard, hiddenCard} {
+		addTradeCard(t, api, owner, source, card.String(), 1)
+		offerTradeCard(t, api, owner, slug, source, card.String(), 1)
+	}
+	lockTrade(t, api, owner, joiner, slug)
+	require.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	confirmed := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, confirmed.Code, confirmed.Body.String())
+	inbox := decodeTradeView(t, confirmed).Data.InboxID
+	require.NotNil(t, inbox)
+
+	var hidden entity.Card
+	require.NoError(t, api.db.First(&hidden, hiddenCard).Error)
+	require.NoError(t, api.db.Model(&entity.ExpansionSet{}).Where("id = ?", hidden.ExpansionSetID).Update("published", false).Error)
+
+	destination := tradeCollection(t, api, joiner, "Filed")
+	moved := moveEntries(api, joiner, inbox.String(), destination, visibleCard)
+	require.Equal(t, http.StatusOK, moved.Code, moved.Body.String())
+	require.Equal(t, http.StatusOK, api.Get("/collections/"+inbox.String(), bearer(joiner)).Code)
+
+	require.NoError(t, api.db.Model(&entity.ExpansionSet{}).Where("id = ?", hidden.ExpansionSetID).Update("published", true).Error)
+	assert.Equal(t, map[string]int{hiddenCard.String(): 1}, tradeEntryQuantities(t, api, joiner, inbox.String()))
+	assert.Equal(t, map[string]int{visibleCard.String(): 1}, tradeEntryQuantities(t, api, joiner, destination))
+}
+
 func TestTradeConfirmSameCardOnBothSidesPreservesEachMasterQuantity(t *testing.T) {
 	api := newTestAPI(t)
 	cards := newTestCards(t, 1)

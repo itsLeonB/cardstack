@@ -78,6 +78,7 @@ func (r *collectionRepository) FindUserCollections(ctx context.Context, profileI
 	var collections []entity.Collection
 	err = db.Model(&entity.Collection{}).
 		Where("profile_id = ? AND trade_id IS NULL", profileID).
+		Scopes(crud.DefaultOrder()).
 		Preload("Layout").
 		Find(&collections).
 		Error
