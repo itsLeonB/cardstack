@@ -28,7 +28,8 @@ const (
 // Trade is a swap agreed between two profiles (GLOSSARY.md: Trade). The
 // creator is OwnerProfileID; ParticipantProfileID is the second seat,
 // claimed atomically by the first join (docs/adr/0028). Slug is the link's
-// address, permanent for the Trade's life; a new Trade draws a new one.
+// address, permanent for the Trade's life until a cancel replaces it with a
+// dead one, so the old link never comes back; a new Trade draws a new one.
 type Trade struct {
 	crud.BaseEntity
 	Slug                 string      `gorm:"not null;uniqueIndex"`

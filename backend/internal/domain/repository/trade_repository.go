@@ -17,6 +17,9 @@ type TradeRepository interface {
 	crud.Repository[entity.Trade]
 	FindBySlug(ctx context.Context, slug string) (entity.Trade, error)
 	FindBySlugForUpdate(ctx context.Context, slug string) (entity.Trade, error)
+	// FindForProfile lists every Trade the profile holds a seat in — owner
+	// or participant — newest first, executed and cancelled included.
+	FindForProfile(ctx context.Context, profileID uuid.UUID) ([]entity.Trade, error)
 	Join(ctx context.Context, id, profileID uuid.UUID) (bool, error)
 	AddItem(ctx context.Context, item entity.TradeItem) error
 	RemoveItem(ctx context.Context, tradeID, itemID uuid.UUID, side int) (bool, error)
@@ -31,6 +34,11 @@ type TradeRepository interface {
 	// the other seat already accepted, moves it to locked. The caller holds
 	// the row lock (FindBySlugForUpdate) and has already checked the rule.
 	Accept(ctx context.Context, trade entity.Trade, side int) error
+	// Cancel marks the Trade cancelled and replaces its slug with a dead one
+	// derived from the row id, so the old link can never resolve again. The
+	// caller holds the row lock (FindBySlugForUpdate) and has already
+	// checked the rule.
+	Cancel(ctx context.Context, trade entity.Trade) error
 }
 
 type tradeRepository struct {
@@ -69,6 +77,27 @@ func (r *tradeRepository) FindBySlugForUpdate(ctx context.Context, slug string) 
 		ForUpdate:        true,
 		PreloadRelations: tradeItemPreloads,
 	})
+}
+
+// FindForProfile lists every Trade the profile holds a seat in, either side,
+// newest first — executed and cancelled stay as history. The seat filter is
+// in the WHERE clause, not in Go.
+func (r *tradeRepository) FindForProfile(ctx context.Context, profileID uuid.UUID) ([]entity.Trade, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var trades []entity.Trade
+	err = db.Model(&entity.Trade{}).
+		Where("owner_profile_id = ? OR participant_profile_id = ?", profileID, profileID).
+		Scopes(crud.DefaultOrder()).
+		Find(&trades).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "finding trades for profile")
+	}
+	return trades, nil
 }
 
 // Join is one conditional UPDATE, so two joins racing on the same Trade
@@ -130,6 +159,28 @@ func (r *tradeRepository) Accept(ctx context.Context, trade entity.Trade, side i
 
 	_, err := r.Update(ctx, trade)
 	return err
+}
+
+// Cancel marks the Trade cancelled and retires its slug in one UPDATE: the
+// slug gains a '-dead-' suffix with the row's own id tail, so it differs from
+// the live slug forever and no new Trade can draw it (a fresh slug embeds a
+// fresh id tail). The row lock the caller holds serializes the write.
+func (r *tradeRepository) Cancel(ctx context.Context, trade entity.Trade) error {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return err
+	}
+	result := db.Model(&entity.Trade{}).
+		Where("id = ?", trade.ID).
+		Updates(map[string]any{
+			"status":     entity.TradeStatusCancelled,
+			"slug":       gorm.Expr("slug || '-dead-' || right(id::text, 12)"),
+			"updated_at": gorm.Expr("GREATEST(now(), updated_at + interval '1 microsecond')"),
+		})
+	if result.Error != nil {
+		return ungerr.Wrap(result.Error, "cancelling trade")
+	}
+	return nil
 }
 
 // OfferChanged records that the offer moved: it bumps the Trade's

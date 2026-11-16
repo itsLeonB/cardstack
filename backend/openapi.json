@@ -1222,6 +1222,24 @@
         ],
         "type": "object"
       },
+      "EnvelopeListTradeSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TradeSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "EnvelopeMatchResult": {
         "additionalProperties": false,
         "properties": {
@@ -1511,7 +1529,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed.",
+            "description": "A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed (confirm or cancel on an executed Trade).",
             "examples": [
               "login_required"
             ],
@@ -2539,6 +2557,42 @@
         },
         "required": [
           "slug"
+        ],
+        "type": "object"
+      },
+      "TradeSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "description": "When the Trade was made; the list shows its age from this.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "otherName": {
+            "description": "The second seat's display name once joined; absent while the seat is empty.",
+            "type": "string"
+          },
+          "slug": {
+            "description": "The Trade's link address while it is live; absent once cancelled, when the link is dead.",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "When the Trade last changed state or offer.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "createdAt",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -8046,6 +8100,58 @@
       }
     },
     "/trades": {
+      "get": {
+        "operationId": "list-trades",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeListTradeSummary"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Total-Count": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Service Unavailable: a handler returned a deadline error before the response started."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the Trades the caller participates in, newest first, including executed and cancelled history; each row carries its state and age",
+        "tags": [
+          "trades"
+        ]
+      },
       "post": {
         "operationId": "create-trade",
         "responses": {
@@ -8207,6 +8313,57 @@
           }
         ],
         "summary": "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade",
+        "tags": [
+          "trades"
+        ]
+      }
+    },
+    "/trades/{slug}/cancel": {
+      "delete": {
+        "operationId": "cancel-trade",
+        "parameters": [
+          {
+            "description": "The Trade's Slug.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "description": "The Trade's Slug.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Service Unavailable: a handler returned a deadline error before the response started."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Cancel a Trade the caller participates in while it is open, negotiating or locked; the slug dies with it and an executed Trade refuses with trade_executed",
         "tags": [
           "trades"
         ]

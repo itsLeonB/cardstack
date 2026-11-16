@@ -59,6 +59,31 @@ type TradeItemRemovalRequest struct {
 	ItemID    uuid.UUID
 }
 
+// TradeListRequest lists the Trades the caller participates in, newest
+// first, including executed and cancelled history.
+type TradeListRequest struct {
+	ProfileID uuid.UUID
+}
+
+// TradeCancelRequest cancels the Trade the slug addresses, as the caller.
+type TradeCancelRequest struct {
+	Slug      string
+	ProfileID uuid.UUID
+}
+
+// TradeSummary is one row of the Trades list: enough to find the Trade again
+// — its state, age and who the other seat is — without opening it. Slug is
+// absent once the Trade is cancelled: the link is dead, so the row is
+// history, not an address.
+type TradeSummary struct {
+	ID        uuid.UUID          `json:"id"`
+	Slug      *string            `json:"slug,omitempty" doc:"The Trade's link address while it is live; absent once cancelled, when the link is dead."`
+	Status    entity.TradeStatus `json:"status"`
+	OtherName *string            `json:"otherName,omitempty" doc:"The second seat's display name once joined; absent while the seat is empty."`
+	CreatedAt time.Time          `json:"createdAt" doc:"When the Trade was made; the list shows its age from this."`
+	UpdatedAt time.Time          `json:"updatedAt" doc:"When the Trade last changed state or offer."`
+}
+
 // TradeView is a Trade as a signed-in reader sees it: its state, both seats'
 // display names, and the Trade Items on each side. Emails and Auth Identities
 // are never part of it (ADR-0028).
