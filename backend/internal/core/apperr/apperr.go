@@ -58,6 +58,9 @@ const CodeTradeNotNegotiating = "trade_not_negotiating"
 // matches the Trade's: the offer changed since the caller read it, so the
 // accept would lock a deal they never saw (GLOSSARY.md: Trade).
 const CodeTradeStaleRevision = "trade_stale_revision"
+const CodeTradeItemShort = "trade_item_short"
+const CodeTradeEmpty = "trade_empty"
+const CodeTradeExecuted = "trade_executed"
 
 // coded deliberately embeds the AppError interface rather than the concrete
 // ungerr error, so it is not a huma.StatusError: Huma then routes it through

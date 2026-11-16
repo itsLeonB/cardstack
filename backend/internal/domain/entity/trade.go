@@ -38,8 +38,10 @@ type Trade struct {
 	// OwnerAcceptedAt and ParticipantAcceptedAt record each seat's
 	// acceptance (spec: two nullable acceptance timestamps beside the
 	// status column); the second one moves Status to locked.
-	OwnerAcceptedAt       *time.Time `gorm:"type:timestamptz"`
-	ParticipantAcceptedAt *time.Time `gorm:"type:timestamptz"`
+	OwnerAcceptedAt        *time.Time `gorm:"type:timestamptz"`
+	ParticipantAcceptedAt  *time.Time `gorm:"type:timestamptz"`
+	OwnerConfirmedAt       *time.Time `gorm:"type:timestamptz"`
+	ParticipantConfirmedAt *time.Time `gorm:"type:timestamptz"`
 	// OfferRevision is the offer revision an accept compares against: it
 	// moves only when the offer does (item edits, OfferChanged), never on
 	// an acceptance, so one seat's accept cannot stale the other's.

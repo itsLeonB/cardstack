@@ -50,10 +50,9 @@ type InventoryService interface {
 	Add(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	UpdateQuantity(ctx context.Context, req dto.InventoryEntryRequest) (dto.InventoryEntry, error)
 	Remove(ctx context.Context, req dto.InventoryEntryLookup) error
-	// Move takes the listed Cards, every copy of each, from the source
-	// Collection into the destination, in one transaction. A refusal changes
-	// neither Collection.
+	// Move takes whole entries from the source into the destination in one transaction.
 	Move(ctx context.Context, req dto.InventoryMoveRequest) (dto.InventoryMoveResult, error)
+	TransferQuantity(ctx context.Context, req dto.InventoryTransferRequest) error
 	// BulkUpdate applies the items in order in one transaction, declining (not
 	// failing) an item that is over capacity or names an unknown Card.
 	BulkUpdate(ctx context.Context, req dto.InventoryBulkUpdateRequest) ([]dto.InventoryChangeResult, error)
@@ -83,6 +82,87 @@ func NewInventoryService(
 	binderSlots BinderSlotService,
 ) InventoryService {
 	return &inventoryService{transactor: transactor, collections: collections, layouts: layouts, slots: slots, entries: entries, catalog: catalog, cards: cards, images: images, binderSlots: binderSlots}
+}
+
+func (s *inventoryService) TransferQuantity(ctx context.Context, req dto.InventoryTransferRequest) error {
+	if req.Quantity <= 0 || req.CardID == uuid.Nil || req.SourceID == req.DestinationID {
+		return ungerr.BadRequestError("invalid inventory transfer")
+	}
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		ids := []uuid.UUID{req.SourceID, req.DestinationID}
+		if bytes.Compare(ids[1][:], ids[0][:]) < 0 {
+			ids[0], ids[1] = ids[1], ids[0]
+		}
+		profiles := map[uuid.UUID]uuid.UUID{req.SourceID: req.ProfileID, req.DestinationID: req.DestinationProfileID}
+		if profiles[req.DestinationID] == uuid.Nil {
+			profiles[req.DestinationID] = req.ProfileID
+		}
+		owned := make(map[uuid.UUID]entity.Collection, 2)
+		for _, id := range ids {
+			collection, err := s.collections.GetOwnedCollection(ctx, profiles[id], id, true)
+			if err != nil {
+				return err
+			}
+			owned[id] = collection
+		}
+		source, destination := owned[req.SourceID], owned[req.DestinationID]
+		isBinder, err := s.layouts.IsBinder(ctx, destination.ID)
+		if err != nil {
+			return err
+		}
+		if isBinder {
+			return apperr.WithCode(ungerr.ConflictError(moveToBinderMsg), apperr.CodeMoveToBinder)
+		}
+		entry, err := s.getEntry(ctx, source.ID, req.CardID)
+		if err != nil {
+			return err
+		}
+		if entry.Quantity < req.Quantity {
+			return ungerr.UnprocessableEntityError("inventory quantity is too short")
+		}
+		if destination.MaxCardCount > 0 {
+			total, err := s.entries.SumQuantity(ctx, destination.ID)
+			if err != nil {
+				return err
+			}
+			if total+req.Quantity > destination.MaxCardCount {
+				return ungerr.UnprocessableEntityError(fmt.Sprintf(moveCapacityMsg, countOf(destination.MaxCardCount, "card", "cards"), countOf(total+req.Quantity-destination.MaxCardCount, "copy", "copies")))
+			}
+		}
+		return s.transferQuantity(ctx, source, destination, entry, req.Quantity)
+	})
+}
+
+func (s *inventoryService) transferQuantity(ctx context.Context, source, destination entity.Collection, entry entity.InventoryEntry, quantity int) error {
+	sourceBinder, err := s.layouts.IsBinder(ctx, source.ID)
+	if err != nil {
+		return err
+	}
+	if sourceBinder {
+		if err := s.binderSlots.ClearQuantity(ctx, dto.BinderCardsClearQuantity{ProfileID: source.ProfileID, CollectionID: source.ID, CardID: entry.CardID, Quantity: quantity}); err != nil {
+			return err
+		}
+	} else if entry.Quantity == quantity {
+		if err := s.entries.Delete(ctx, entry); err != nil {
+			return err
+		}
+	} else {
+		entry.Quantity -= quantity
+		if _, err := s.entries.Update(ctx, entry); err != nil {
+			return err
+		}
+	}
+	destinationEntry, err := s.findEntry(ctx, destination.ID, entry.CardID)
+	if err != nil {
+		return err
+	}
+	if destinationEntry.IsZero() {
+		_, err = s.entries.Insert(ctx, entity.InventoryEntry{CollectionID: destination.ID, CardID: entry.CardID, Quantity: quantity})
+	} else {
+		destinationEntry.Quantity += quantity
+		_, err = s.entries.Update(ctx, destinationEntry)
+	}
+	return err
 }
 
 func (s *inventoryService) List(ctx context.Context, req dto.InventoryListRequest) ([]dto.InventoryItem, dto.PaginationMeta, error) {
@@ -253,6 +333,9 @@ func (s *inventoryService) Add(ctx context.Context, req dto.InventoryEntryReques
 		if err != nil {
 			return err
 		}
+		if c.TradeID != nil {
+			return ungerr.ConflictError("trade inbox is read-only")
+		}
 		if err := s.refuseBinder(ctx, c.ID); err != nil {
 			return err
 		}
@@ -303,6 +386,9 @@ func (s *inventoryService) UpdateQuantity(ctx context.Context, req dto.Inventory
 		if err != nil {
 			return err
 		}
+		if c.TradeID != nil {
+			return ungerr.ConflictError("trade inbox is read-only")
+		}
 		if err := s.refuseBinder(ctx, c.ID); err != nil {
 			return err
 		}
@@ -332,6 +418,9 @@ func (s *inventoryService) Remove(ctx context.Context, req dto.InventoryEntryLoo
 		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
 			return err
+		}
+		if c.TradeID != nil {
+			return ungerr.ConflictError("trade inbox is read-only")
 		}
 		if err := s.refuseBinder(ctx, c.ID); err != nil {
 			return err
@@ -374,11 +463,10 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 			owned[id] = c
 		}
 		src, dst := owned[req.SourceID], owned[req.DestinationID]
-
-		srcBinder, err := s.layouts.IsBinder(ctx, src.ID)
-		if err != nil {
-			return err
+		if dst.TradeID != nil {
+			return ungerr.ConflictError("trade inbox cannot be a move destination")
 		}
+
 		isBinder, err := s.layouts.IsBinder(ctx, dst.ID)
 		if err != nil {
 			return err
@@ -422,32 +510,20 @@ func (s *inventoryService) Move(ctx context.Context, req dto.InventoryMoveReques
 			}
 		}
 
-		if srcBinder {
-			// ADR-0020: a binder's entries follow its Slots, so ClearCards empties
-			// the Slots holding these Cards and reconciles each entry away.
-			if err := s.binderSlots.ClearCards(ctx, dto.BinderCardsClear{ProfileID: req.ProfileID, CollectionID: src.ID, CardIDs: cardIDs}); err != nil {
+		for _, entry := range moving {
+			if err := s.transferQuantity(ctx, src, dst, entry, entry.Quantity); err != nil {
 				return err
 			}
 		}
-
-		for _, entry := range moving {
-			if !srcBinder {
-				if err := s.entries.Delete(ctx, entry); err != nil {
+		if src.TradeID != nil {
+			remaining, err := s.entries.FindFirst(ctx, crud.Specification[entity.InventoryEntry]{Model: entity.InventoryEntry{CollectionID: src.ID}})
+			if err != nil {
+				return err
+			}
+			if remaining.IsZero() {
+				if err := s.collections.Delete(ctx, src); err != nil {
 					return err
 				}
-			}
-			existing, err := s.findEntry(ctx, dst.ID, entry.CardID)
-			if err != nil {
-				return err
-			}
-			if existing.IsZero() {
-				_, err = s.entries.Insert(ctx, entity.InventoryEntry{CollectionID: dst.ID, CardID: entry.CardID, Quantity: entry.Quantity})
-			} else {
-				existing.Quantity += entry.Quantity
-				_, err = s.entries.Update(ctx, existing)
-			}
-			if err != nil {
-				return err
 			}
 		}
 
@@ -526,6 +602,9 @@ func (s *inventoryService) BulkUpdate(ctx context.Context, req dto.InventoryBulk
 		c, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.CollectionID, true)
 		if err != nil {
 			return err
+		}
+		if c.TradeID != nil {
+			return ungerr.ConflictError("trade inbox is read-only")
 		}
 		if err := s.refuseBinder(ctx, c.ID); err != nil {
 			return err

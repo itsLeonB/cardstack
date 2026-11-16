@@ -34,6 +34,11 @@ type TradeAcceptRequest struct {
 	Revision  time.Time
 }
 
+type TradeConfirmRequest struct {
+	Slug      string
+	ProfileID uuid.UUID
+}
+
 // TradeJoinRequest claims the second seat of a Trade.
 type TradeJoinRequest struct {
 	ProfileID uuid.UUID
@@ -65,6 +70,9 @@ type TradeView struct {
 	Accepted       bool               `json:"accepted" doc:"Whether the caller's own side has accepted the deal as it stands."`
 	WaitingOnMe    bool               `json:"waitingOnMe" doc:"Whether the Trade is negotiating and the caller's side has not accepted yet — it is waiting on them."`
 	OtherAccepted  bool               `json:"otherAccepted" doc:"Whether the other seat has accepted the deal as it stands; false while the second seat is empty."`
+	Confirmed      bool               `json:"confirmed"`
+	OtherConfirmed bool               `json:"otherConfirmed"`
+	InboxID        *uuid.UUID         `json:"inboxId,omitempty" doc:"The caller's own Trade Inbox, when this Trade gave them cards."`
 	WaitingOnOther bool               `json:"waitingOnOther" doc:"Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them."`
 	Revision       time.Time          `json:"revision" doc:"The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since."`
 	OwnerItems     []TradeItemView    `json:"ownerItems"`

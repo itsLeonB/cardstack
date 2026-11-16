@@ -18,7 +18,8 @@ type Collection struct {
 	MaxCardCount int       `gorm:"not null;default:0"`
 	// Slug is set only while the Collection is Shared (ADR-0025): nil means
 	// private. The migration owns its unique index, per owner.
-	Slug *string
+	Slug    *string
+	TradeID *uuid.UUID `gorm:"type:uuid"`
 
 	// Layout is set only when the Collection is a binder. Loaded only via
 	// crud.Specification.PreloadRelations.

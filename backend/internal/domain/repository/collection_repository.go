@@ -23,6 +23,9 @@ type CollectionRepository interface {
 	// zero value with a nil error. forUpdate row-locks the match; use it
 	// inside crud.Transactor.WithinTransaction with the callback's ctx.
 	GetOwnedCollection(ctx context.Context, profileID, collectionID uuid.UUID, forUpdate bool) (entity.Collection, error)
+	// FindUserCollections lists regular Collections only; Trade Inboxes stay
+	// out of the owner's Collections list.
+	FindUserCollections(ctx context.Context, profileID uuid.UUID) ([]entity.Collection, error)
 	// FindSharedCollection returns the profile's Collection with this Slug, or
 	// the zero value with a nil error when there is none, including when the
 	// Collection is private (its Slug is nil). The caller maps a miss to the
@@ -64,6 +67,25 @@ func (r *collectionRepository) GetOwnedCollection(ctx context.Context, profileID
 	}
 
 	return c, nil
+}
+
+func (r *collectionRepository) FindUserCollections(ctx context.Context, profileID uuid.UUID) ([]entity.Collection, error) {
+	db, err := r.GetGormInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var collections []entity.Collection
+	err = db.Model(&entity.Collection{}).
+		Where("profile_id = ? AND trade_id IS NULL", profileID).
+		Scopes(crud.DefaultOrder()).
+		Preload("Layout").
+		Find(&collections).
+		Error
+	if err != nil {
+		return nil, ungerr.Wrap(err, "finding user collections")
+	}
+	return collections, nil
 }
 
 // FindSharedCollection filters by owner and Slug in the query. A zero-value

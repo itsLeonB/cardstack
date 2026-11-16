@@ -109,6 +109,13 @@ type BinderCardsClear struct {
 	CardIDs      []uuid.UUID
 }
 
+type BinderCardsClearQuantity struct {
+	ProfileID    uuid.UUID
+	CollectionID uuid.UUID
+	CardID       uuid.UUID
+	Quantity     int
+}
+
 // BinderSlotChange is one Slot's new state inside a Page or placement write. State
 // is one of the BinderSlot constants, and CardID is read only when it is card.
 type BinderSlotChange struct {

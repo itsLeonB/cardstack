@@ -51,6 +51,24 @@ export function resetCache(queryClient: QueryClient) {
   queryClient.removeQueries()
 }
 
+export class SessionChangedError extends Error {
+  constructor() {
+    super("The session changed during this request")
+    this.name = "SessionChangedError"
+  }
+}
+
+export async function readInSession<T>(
+  sessionId: string,
+  currentSessionId: () => string | null,
+  read: () => Promise<T>
+): Promise<T> {
+  if (currentSessionId() !== sessionId) throw new SessionChangedError()
+  const result = await read()
+  if (currentSessionId() !== sessionId) throw new SessionChangedError()
+  return result
+}
+
 // Set by `useSignOut` so the sign-out it asked for is not mistaken for a session
 // Clerk lost; the next sign-out transition consumes it. Cleared if Clerk fails.
 let deliberateSignOut = false

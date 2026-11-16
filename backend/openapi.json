@@ -1511,7 +1511,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "description": "A stable machine-readable code for the failure, set only when a client is meant to branch on it. login_required: this needs a signed-in caller. binder_quantity_locked: a binder's quantities change only by placing or clearing Slots. collection_not_empty: a Layout needs a Collection with no Inventory Entries. binder_layout_locked: rows, columns or the Layout cannot change while a Slot holds a card. binder_leaf_in_use: the Leaf has a card on one of its Pages. binder_max_card_count: a binder's capacity is its Slot count, so max_card_count must stay 0. move_to_binder: a Move's destination is a binder, and a Move chooses no Slot. photo_storage_not_configured: this server has no private photo bucket, so no scan photo upload address can be signed. trade_seat_taken: the Trade's second seat is already claimed. trade_owner_join: the Trade's owner cannot claim its own second seat. trade_not_negotiating: only a negotiating Trade's sides can accept or change its Trade Items.",
+            "description": "A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed.",
             "examples": [
               "login_required"
             ],
@@ -1827,7 +1827,7 @@
             ]
           },
           "destinationId": {
-            "description": "The Collection to move them to: another of your own plain Collections. A binder is refused.",
+            "description": "The Collection to move them to: another of your own plain Collections. A Trade Inbox cannot be the destination.",
             "type": "string"
           },
           "filter": {
@@ -2549,6 +2549,13 @@
             "description": "Whether the caller's own side has accepted the deal as it stands.",
             "type": "boolean"
           },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "inboxId": {
+            "description": "The caller's own Trade Inbox, when this Trade gave them cards.",
+            "type": "string"
+          },
           "isOwner": {
             "description": "Whether the caller holds the owner seat.",
             "type": "boolean"
@@ -2559,6 +2566,9 @@
           },
           "otherAccepted": {
             "description": "Whether the other seat has accepted the deal as it stands; false while the second seat is empty.",
+            "type": "boolean"
+          },
+          "otherConfirmed": {
             "type": "boolean"
           },
           "otherItems": {
@@ -2615,6 +2625,8 @@
           "accepted",
           "waitingOnMe",
           "otherAccepted",
+          "confirmed",
+          "otherConfirmed",
           "waitingOnOther",
           "revision",
           "ownerItems",
@@ -5926,7 +5938,7 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Move Cards, every copy of each, from one of the current user's own Collections into another. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. All or nothing: a refusal changes neither Collection.",
+        "summary": "Move Cards, every copy of each, from one of the current user's own Collections into another. A Trade Inbox can be the source so its received Cards can be filed out. Name the Cards by cardIds, or every Inventory Entry the Collection's list shows for a filter, across all pages. A binder can also be the source: the Slots holding the Cards are emptied in the same transaction. A Card the destination already holds has its quantity added to its entry. A binder or Trade Inbox cannot be the destination. All or nothing: a refusal changes neither Collection.",
         "tags": [
           "inventory"
         ]
@@ -8194,7 +8206,65 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing",
+        "summary": "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade",
+        "tags": [
+          "trades"
+        ]
+      }
+    },
+    "/trades/{slug}/confirm": {
+      "post": {
+        "operationId": "confirm-trade",
+        "parameters": [
+          {
+            "description": "The Trade's Slug.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "description": "The Trade's Slug.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeTradeView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Service Unavailable: a handler returned a deadline error before the response started."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Confirm handover; the second confirmation executes the Trade",
         "tags": [
           "trades"
         ]
