@@ -1151,14 +1151,12 @@ describe("Trade page", () => {
     })
     await renderTradePage()
 
-    // Each side names the Card, the offered quantity and what remains:
-    // the marker tracks the item's own side.
-    expect(
-      await screen.findByText("Short: Pikachu × 2, only 1 available")
-    ).toBeTruthy()
-    expect(screen.getByText("Short: Pikachu × 1, none available")).toBeTruthy()
+    // Each side's marker names the offered quantity beside what remains;
+    // a satisfied item carries none.
+    expect(await screen.findByText("only 1 of 2 available")).toBeTruthy()
+    expect(screen.getByText("none of 1 available")).toBeTruthy()
+    expect(screen.getAllByText(/of \d+ available/)).toHaveLength(2)
     expect(screen.getAllByText("Pikachu × 3")).toHaveLength(1)
-    expect(screen.queryByText(/Pikachu × 3, .*available/)).toBeNull()
   })
 
   it("offers a Guest sign-in that returns to the Trade when the read is missing", async () => {

@@ -341,13 +341,13 @@ function TradeSide({
                       : "From a deleted Collection"}
                   </p>
                   {item.short && (
-                    <p role="status" className="mt-1">
+                    <p className="mt-1">
                       <Badge variant="destructive">
-                        Short: {item.card.name} × {item.quantity},{" "}
+                        <span className="sr-only">Short: </span>
                         {item.available === 0
                           ? "none"
                           : `only ${item.available}`}{" "}
-                        available
+                        of {item.quantity} available
                       </Badge>
                     </p>
                   )}
