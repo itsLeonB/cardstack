@@ -154,7 +154,8 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 // execute's check — the Trade's items are summed per offering participant
 // and Card in order, so split offers share one holding — and an item is
 // short once the cumulative demand it adds passes the total holding, the
-// same item execution would fail on. Available stays that total holding.
+// same item execution would fail on. Available is the quantity left for
+// that item, capped at its offered quantity to keep excess holdings private.
 // It reads only: no state and no quantity changes. An executed Trade's
 // items already moved, so its holdings say nothing about the deal.
 func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.TradeView) error {
@@ -189,13 +190,14 @@ func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.
 				available[key] += row.Quantity
 			}
 		}
+		remaining := max(0, available[key]-required[key])
 		required[key] += item.Quantity
 		v := items[item.ID]
 		if v == nil {
 			continue
 		}
-		v.Available = available[key]
-		v.Short = required[key] > available[key]
+		v.Available = min(item.Quantity, remaining)
+		v.Short = v.Available < item.Quantity
 	}
 	return nil
 }
