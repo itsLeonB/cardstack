@@ -2525,6 +2525,11 @@
       "TradeItemView": {
         "additionalProperties": false,
         "properties": {
+          "available": {
+            "description": "How many of the Card the offering participant currently holds across all their Collections.",
+            "format": "int64",
+            "type": "integer"
+          },
           "card": {
             "$ref": "#/components/schemas/CardSummary"
           },
@@ -2538,12 +2543,18 @@
           "quantity": {
             "format": "int64",
             "type": "integer"
+          },
+          "short": {
+            "description": "True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.",
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "card",
-          "quantity"
+          "quantity",
+          "available",
+          "short"
         ],
         "type": "object"
       },
