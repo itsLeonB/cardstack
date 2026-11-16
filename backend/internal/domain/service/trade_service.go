@@ -132,6 +132,9 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		otherName = &other.Name
 	}
 	view := mapper.ToTradeView(s.images, t, owner.Name, otherName, profileID)
+	if err := s.markShort(ctx, t, &view); err != nil {
+		return dto.TradeView{}, err
+	}
 	if view.IsParticipant && t.Status == entity.TradeStatusExecuted {
 		inbox, err := s.collections.FindFirst(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: profileID, TradeID: &t.ID}})
 		if err != nil {
@@ -142,6 +145,56 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		}
 	}
 	return view, nil
+}
+
+// markShort re-checks every Trade Item against what its offering
+// participant currently holds and marks the ones that no longer match: a
+// locked Trade can go stale while the two sides arrange to meet, because
+// nothing reserves the offered quantities. Available is the participant's
+// total holding of the Card across all their Collections — the same total
+// execution checks — and Short is Available below the offered Quantity.
+// It reads only: no state and no quantity changes. An executed Trade's
+// items already moved, so its holdings say nothing about the deal.
+func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.TradeView) error {
+	if t.Status == entity.TradeStatusExecuted {
+		return nil
+	}
+	type holdingKey struct{ profileID, cardID uuid.UUID }
+	totals := make(map[holdingKey]int)
+	total := func(profileID uuid.UUID, cardID uuid.UUID) (int, error) {
+		key := holdingKey{profileID, cardID}
+		if total, ok := totals[key]; ok {
+			return total, nil
+		}
+		holdings, err := s.inventory.ListHoldings(ctx, profileID, cardID)
+		if err != nil {
+			return 0, err
+		}
+		sum := 0
+		for _, h := range holdings {
+			sum += h.Quantity
+		}
+		totals[key] = sum
+		return sum, nil
+	}
+	mark := func(items []dto.TradeItemView, profileID uuid.UUID) error {
+		for i := range items {
+			available, err := total(profileID, items[i].Card.ID)
+			if err != nil {
+				return err
+			}
+			items[i].Available = available
+			items[i].Short = available < items[i].Quantity
+		}
+		return nil
+	}
+	if err := mark(view.OwnerItems, t.OwnerProfileID); err != nil {
+		return err
+	}
+	if t.ParticipantProfileID != nil {
+		return mark(view.OtherItems, *t.ParticipantProfileID)
+	}
+	return nil
 }
 
 func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
