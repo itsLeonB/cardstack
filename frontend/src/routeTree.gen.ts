@@ -21,6 +21,7 @@ import { Route as CatalogSearchRouteImport } from './routes/catalog/search'
 import { Route as TradesSlugRouteImport } from './routes/trades/$slug'
 import { Route as AuthenticatedCollectionsIndexRouteImport } from './routes/_authenticated/collections/index'
 import { Route as AuthenticatedCollectionsNewRouteImport } from './routes/_authenticated/collections/new'
+import { Route as AuthenticatedTradeInboxesCollectionIdRouteImport } from './routes/_authenticated/trade-inboxes/$collectionId'
 import { Route as AuthLoginIndexRouteImport } from './routes/auth/login/index'
 import { Route as AuthLoginSplatRouteImport } from './routes/auth/login/$'
 import { Route as AuthRegisterIndexRouteImport } from './routes/auth/register/index'
@@ -92,6 +93,12 @@ const AuthenticatedCollectionsNewRoute =
   AuthenticatedCollectionsNewRouteImport.update({
     id: '/collections/new',
     path: '/collections/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedTradeInboxesCollectionIdRoute =
+  AuthenticatedTradeInboxesCollectionIdRouteImport.update({
+    id: '/trade-inboxes/$collectionId',
+    path: '/trade-inboxes/$collectionId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthLoginIndexRoute = AuthLoginIndexRouteImport.update({
@@ -167,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
+  '/trade-inboxes/$collectionId': typeof AuthenticatedTradeInboxesCollectionIdRoute
   '/auth/login/$': typeof AuthLoginSplatRoute
   '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
@@ -190,6 +198,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthIndexRoute
   '/catalog': typeof CatalogIndexRoute
   '/collections/new': typeof AuthenticatedCollectionsNewRoute
+  '/trade-inboxes/$collectionId': typeof AuthenticatedTradeInboxesCollectionIdRoute
   '/auth/login/$': typeof AuthLoginSplatRoute
   '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
@@ -216,6 +225,7 @@ export interface FileRoutesById {
   '/auth/': typeof AuthIndexRoute
   '/catalog/': typeof CatalogIndexRoute
   '/_authenticated/collections/new': typeof AuthenticatedCollectionsNewRoute
+  '/_authenticated/trade-inboxes/$collectionId': typeof AuthenticatedTradeInboxesCollectionIdRoute
   '/auth/login/$': typeof AuthLoginSplatRoute
   '/auth/register/$': typeof AuthRegisterSplatRoute
   '/catalog/sets/$expansionSetId': typeof CatalogSetsExpansionSetIdRoute
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/auth/'
     | '/catalog/'
     | '/collections/new'
+    | '/trade-inboxes/$collectionId'
     | '/auth/login/$'
     | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/catalog'
     | '/collections/new'
+    | '/trade-inboxes/$collectionId'
     | '/auth/login/$'
     | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
@@ -290,6 +302,7 @@ export interface FileRouteTypes {
     | '/auth/'
     | '/catalog/'
     | '/_authenticated/collections/new'
+    | '/_authenticated/trade-inboxes/$collectionId'
     | '/auth/login/$'
     | '/auth/register/$'
     | '/catalog/sets/$expansionSetId'
@@ -403,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCollectionsNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/trade-inboxes/$collectionId': {
+      id: '/_authenticated/trade-inboxes/$collectionId'
+      path: '/trade-inboxes/$collectionId'
+      fullPath: '/trade-inboxes/$collectionId'
+      preLoaderRoute: typeof AuthenticatedTradeInboxesCollectionIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/auth/login/': {
       id: '/auth/login/'
       path: '/login'
@@ -508,6 +528,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedWishlistRoute: typeof AuthenticatedWishlistRoute
   AuthenticatedCollectionsNewRoute: typeof AuthenticatedCollectionsNewRoute
+  AuthenticatedTradeInboxesCollectionIdRoute: typeof AuthenticatedTradeInboxesCollectionIdRoute
   AuthenticatedCollectionsIndexRoute: typeof AuthenticatedCollectionsIndexRoute
   AuthenticatedCollectionsCollectionIdEditRoute: typeof AuthenticatedCollectionsCollectionIdEditRoute
   AuthenticatedCollectionsCollectionIdScanRoute: typeof AuthenticatedCollectionsCollectionIdScanRoute
@@ -519,6 +540,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedWishlistRoute: AuthenticatedWishlistRoute,
   AuthenticatedCollectionsNewRoute: AuthenticatedCollectionsNewRoute,
+  AuthenticatedTradeInboxesCollectionIdRoute:
+    AuthenticatedTradeInboxesCollectionIdRoute,
   AuthenticatedCollectionsIndexRoute: AuthenticatedCollectionsIndexRoute,
   AuthenticatedCollectionsCollectionIdEditRoute:
     AuthenticatedCollectionsCollectionIdEditRoute,

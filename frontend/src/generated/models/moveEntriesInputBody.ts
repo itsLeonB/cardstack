@@ -15,7 +15,7 @@ export interface MoveEntriesInputBody {
      * @nullable
      */
   cardIds?: string[] | null;
-  /** The Collection to move them to: another of your own plain Collections. A binder is refused. */
+  /** The Collection to move them to: another of your own plain Collections. A Trade Inbox cannot be the destination. */
   destinationId: string;
   /** Move every Inventory Entry the source's list shows for these filters, across all pages; {} moves every entry the source's list shows. Exactly one of cardIds and filter is required. */
   filter?: CardFilterParams;

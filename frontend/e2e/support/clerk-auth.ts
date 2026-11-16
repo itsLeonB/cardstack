@@ -59,6 +59,13 @@ export async function signInAsTestUser(page: Page) {
   await clerk.signIn({ page, emailAddress: email })
 }
 
+export async function signInAsUser(page: Page, emailAddress: string) {
+  requireSignedInTag()
+  await setupClerkTestingToken({ page })
+  await page.goto("/")
+  await clerk.signIn({ page, emailAddress })
+}
+
 // The native setter plus an `input` event is what React's controlled inputs
 // (Clerk's form) listen for.
 async function fillSecret(field: Locator, value: string, timeoutMs = 5_000) {

@@ -2,7 +2,7 @@ import type { FormEvent } from "react"
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 
 import { SignInLink } from "@/components/auth/sign-in-link"
 import { NotFoundView } from "@/components/layout/not-found"
@@ -24,6 +24,7 @@ import {
   useAddTradeItem,
   useRemoveTradeItem,
   useAcceptTrade,
+  useConfirmTrade,
 } from "@/generated/endpoints/trades/trades"
 import { getListCollectionsQueryOptions } from "@/generated/endpoints/collections/collections"
 import { getListCollectionEntriesQueryOptions } from "@/generated/endpoints/inventory/inventory"
@@ -92,31 +93,17 @@ function TradePage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const isGuest = useIsGuest()
-
-  // Keep the view of this Trade current while the page is open: the other
-  // participant's joins, item edits and acceptance change it, and the
-  // offer can lock without either side touching this browser.
   const tradeQuery = useQuery({
     ...getGetTradeQueryOptions(trade && trade !== "missing" ? trade.slug : ""),
     enabled:
       trade !== null && trade !== "missing" && trade.isParticipant === true,
-    // The loader owns the first read; this observer only polls. Fresh data
-    // stays fresh so mount and focus never double the loader's request.
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchInterval: 10_000,
   })
-  // Poll results land in the shared query cache; rerun the loader once the
-  // cached view differs from the one the loader last returned. Revision
-  // moves only on offer edits, so acceptance and status changes (the other
-  // participant accepting, the Trade locking, a cancel) need their own
-  // fields in the comparison.
   useEffect(() => {
     if (!trade || trade === "missing") return
-    // A cancelled Trade, or one the caller is no longer part of, answers the
-    // poll's GET with the same 404 an unknown slug gets; rerun the loader
-    // so the page shows the not-found view instead of a stale offer.
     if (tradeQuery.data?.status === 404) {
       void router.invalidate()
       return
@@ -128,10 +115,10 @@ function TradePage() {
       polled.revision !== trade.revision ||
       polled.status !== trade.status ||
       polled.accepted !== trade.accepted ||
-      polled.otherAccepted !== trade.otherAccepted
+      polled.otherAccepted !== trade.otherAccepted ||
+      polled.confirmed !== trade.confirmed ||
+      polled.otherConfirmed !== trade.otherConfirmed
     ) {
-      // The poll's fresh cache entry would satisfy the loader's fetchQuery
-      // without a request; mark it stale so the loader really rereads.
       void queryClient
         .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
         .then(() => router.invalidate())
@@ -145,13 +132,10 @@ function TradePage() {
         <p role="status">Loading Trade...</p>
       </PageContainer>
     )
-
   if (trade === "missing") {
     const { pathname, searchStr } = router.state.location
     return (
       <NotFoundView resource="Trade">
-        {/* A Guest's read is the same 404 as an unknown slug; the link asks
-            for an account without confirming the Trade exists. */}
         {isGuest && (
           <p className="text-sm">
             <SignInLink redirect={pathname + searchStr}>Sign in</SignInLink> to
@@ -161,12 +145,10 @@ function TradePage() {
       </NotFoundView>
     )
   }
-
   function retry() {
     if (clerkAuth.currentSessionVersion() === sessionVersion)
       void router.invalidate()
   }
-
   if (!trade)
     return (
       <PageContainer>
@@ -183,8 +165,6 @@ function TradePage() {
     )
 
   const negotiating = trade.isParticipant && trade.status === "negotiating"
-  // `accepted` is the caller's own seat, `otherAccepted` the seat across
-  // the table; each card asks for its own seat's flag.
   const ownerAccepted = trade.isOwner ? trade.accepted : trade.otherAccepted
   const seatAccepted = trade.isOwner ? trade.otherAccepted : trade.accepted
   function acceptLabel(accepted: boolean, own: boolean, name: string) {
@@ -192,7 +172,6 @@ function TradePage() {
     if (!negotiating) return null
     return own ? "Waiting on you to accept." : `Waiting on ${name} to accept.`
   }
-
   return (
     <PageContainer>
       <PageHeader
@@ -209,7 +188,9 @@ function TradePage() {
         items={trade.ownerItems ?? []}
         slug={trade.slug}
         editable={
-          trade.isParticipant && trade.status === "negotiating" && trade.isOwner
+          trade.isParticipant &&
+          trade.isOwner &&
+          (trade.status === "open" || trade.status === "negotiating")
         }
         acceptLabel={acceptLabel(ownerAccepted, trade.isOwner, trade.ownerName)}
       />
@@ -218,19 +199,30 @@ function TradePage() {
         name={trade.otherName ?? null}
         items={trade.otherItems ?? []}
         slug={trade.slug}
-        editable={
-          trade.isParticipant &&
-          trade.status === "negotiating" &&
-          !trade.isOwner
-        }
+        editable={trade.isParticipant && negotiating && !trade.isOwner}
         acceptLabel={acceptLabel(
           seatAccepted,
           !trade.isOwner,
           trade.otherName ?? "the other participant"
         )}
       />
-      {trade.isParticipant && trade.status === "negotiating" && (
-        <AcceptTrade trade={trade} />
+      {trade.isParticipant && negotiating && <AcceptTrade trade={trade} />}
+      {trade.isParticipant && trade.status === "locked" && (
+        <ConfirmTrade trade={trade} />
+      )}
+      {trade.status === "executed" && (
+        <>
+          <p role="status">The exchange is complete.</p>
+          {trade.inboxId && (
+            <Link
+              to="/trade-inboxes/$collectionId"
+              params={{ collectionId: trade.inboxId }}
+              className="text-foreground underline"
+            >
+              View your Trade Inbox
+            </Link>
+          )}
+        </>
       )}
       {trade.isOwner && <OwnerLink slug={trade.slug} />}
       <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
@@ -642,6 +634,58 @@ function AcceptTrade({ trade }: { trade: TradeView }) {
       <p className="text-sm text-muted-foreground">
         Accept the deal as it stands. The Trade locks when both sides accept.
       </p>
+    </div>
+  )
+}
+
+function ConfirmTrade({ trade }: { trade: TradeView }) {
+  const router = useRouter()
+  const mutation = useConfirmTrade()
+  const sessionVersion = clerkAuth.currentSessionVersion()
+  if (trade.confirmed)
+    return (
+      <p role="status">
+        You confirmed the handover. Waiting on the other side.
+      </p>
+    )
+  return (
+    <div className="flex flex-col items-start gap-2">
+      {trade.otherConfirmed && (
+        <p role="status">
+          The other side confirmed the handover. Confirm to complete the
+          exchange.
+        </p>
+      )}
+      {mutation.data?.status && mutation.data.status !== 200 && (
+        <p role="alert" className="text-sm text-destructive">
+          {mutation.data.data.detail ?? "Could not confirm the handover."}
+        </p>
+      )}
+      <Button
+        disabled={mutation.isPending}
+        onClick={() =>
+          mutation.mutate(
+            { slug: trade.slug },
+            {
+              onSuccess: (response) => {
+                if (clerkAuth.currentSessionVersion() !== sessionVersion) return
+                if (response.status !== 200)
+                  toast.error(
+                    response.data.detail ?? "Could not confirm the handover."
+                  )
+                void router.invalidate()
+              },
+              onError: () => {
+                if (clerkAuth.currentSessionVersion() === sessionVersion)
+                  toast.error(NETWORK_ERROR)
+              },
+            }
+          )
+        }
+      >
+        {mutation.isPending ? "Confirming..." : "Confirm handover"}
+      </Button>
+      <p className="text-sm">The exchange happens after both sides confirm.</p>
     </div>
   )
 }

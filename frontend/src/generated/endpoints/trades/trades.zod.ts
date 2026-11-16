@@ -27,9 +27,12 @@ export const GetTradeParams = zod.object({
 export const GetTradeResponse = zod.object({
   "data": zod.object({
   "accepted": zod.boolean().describe('Whether the caller\'s own side has accepted the deal as it stands.'),
+  "confirmed": zod.boolean(),
+  "inboxId": zod.string().optional().describe('The caller\'s own Trade Inbox, when this Trade gave them cards.'),
   "isOwner": zod.boolean().describe('Whether the caller holds the owner seat.'),
   "isParticipant": zod.boolean().describe('Whether the caller holds either seat.'),
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
+  "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
   "card": zod.object({
   "category": zod.string(),
@@ -93,7 +96,7 @@ export const GetTradeResponse = zod.object({
 })
 
 /**
- * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing
+ * @summary Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade
  */
 export const AcceptTradeParams = zod.object({
   "slug": zod.string().describe('The Trade\'s Slug.')
@@ -106,9 +109,90 @@ export const AcceptTradeBody = zod.object({
 export const AcceptTradeResponse = zod.object({
   "data": zod.object({
   "accepted": zod.boolean().describe('Whether the caller\'s own side has accepted the deal as it stands.'),
+  "confirmed": zod.boolean(),
+  "inboxId": zod.string().optional().describe('The caller\'s own Trade Inbox, when this Trade gave them cards.'),
   "isOwner": zod.boolean().describe('Whether the caller holds the owner seat.'),
   "isParticipant": zod.boolean().describe('Whether the caller holds either seat.'),
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
+  "otherConfirmed": zod.boolean(),
+  "otherItems": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}),
+  "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
+  "id": zod.string(),
+  "quantity": zod.int()
+})).nullable(),
+  "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
+  "ownerItems": zod.array(zod.object({
+  "card": zod.object({
+  "category": zod.string(),
+  "expansionSet": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "name": zod.string(),
+  "releaseDate": zod.iso.datetime({"offset":true}).optional()
+}),
+  "id": zod.string(),
+  "illustrator": zod.string(),
+  "imageUrl": zod.string(),
+  "localId": zod.string(),
+  "name": zod.string(),
+  "rarity": zod.object({
+  "code": zod.string(),
+  "id": zod.string(),
+  "name": zod.string()
+}),
+  "tags": zod.array(zod.string()).nullable()
+}),
+  "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
+  "id": zod.string(),
+  "quantity": zod.int()
+})).nullable(),
+  "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
+  "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
+  "slug": zod.string(),
+  "status": zod.string().describe('open, negotiating, locked, executed or cancelled.'),
+  "waitingOnMe": zod.boolean().describe('Whether the Trade is negotiating and the caller\'s side has not accepted yet — it is waiting on them.'),
+  "waitingOnOther": zod.boolean().describe('Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them.')
+})
+})
+
+/**
+ * @summary Confirm handover; the second confirmation executes the Trade
+ */
+export const ConfirmTradeParams = zod.object({
+  "slug": zod.string().describe('The Trade\'s Slug.')
+})
+
+export const ConfirmTradeResponse = zod.object({
+  "data": zod.object({
+  "accepted": zod.boolean().describe('Whether the caller\'s own side has accepted the deal as it stands.'),
+  "confirmed": zod.boolean(),
+  "inboxId": zod.string().optional().describe('The caller\'s own Trade Inbox, when this Trade gave them cards.'),
+  "isOwner": zod.boolean().describe('Whether the caller holds the owner seat.'),
+  "isParticipant": zod.boolean().describe('Whether the caller holds either seat.'),
+  "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
+  "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
   "card": zod.object({
   "category": zod.string(),
@@ -187,9 +271,12 @@ export const AddTradeItemBody = zod.object({
 export const AddTradeItemResponse = zod.object({
   "data": zod.object({
   "accepted": zod.boolean().describe('Whether the caller\'s own side has accepted the deal as it stands.'),
+  "confirmed": zod.boolean(),
+  "inboxId": zod.string().optional().describe('The caller\'s own Trade Inbox, when this Trade gave them cards.'),
   "isOwner": zod.boolean().describe('Whether the caller holds the owner seat.'),
   "isParticipant": zod.boolean().describe('Whether the caller holds either seat.'),
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
+  "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
   "card": zod.object({
   "category": zod.string(),
@@ -263,9 +350,12 @@ export const RemoveTradeItemParams = zod.object({
 export const RemoveTradeItemResponse = zod.object({
   "data": zod.object({
   "accepted": zod.boolean().describe('Whether the caller\'s own side has accepted the deal as it stands.'),
+  "confirmed": zod.boolean(),
+  "inboxId": zod.string().optional().describe('The caller\'s own Trade Inbox, when this Trade gave them cards.'),
   "isOwner": zod.boolean().describe('Whether the caller holds the owner seat.'),
   "isParticipant": zod.boolean().describe('Whether the caller holds either seat.'),
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
+  "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
   "card": zod.object({
   "category": zod.string(),
@@ -338,9 +428,12 @@ export const JoinTradeParams = zod.object({
 export const JoinTradeResponse = zod.object({
   "data": zod.object({
   "accepted": zod.boolean().describe('Whether the caller\'s own side has accepted the deal as it stands.'),
+  "confirmed": zod.boolean(),
+  "inboxId": zod.string().optional().describe('The caller\'s own Trade Inbox, when this Trade gave them cards.'),
   "isOwner": zod.boolean().describe('Whether the caller holds the owner seat.'),
   "isParticipant": zod.boolean().describe('Whether the caller holds either seat.'),
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
+  "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
   "card": zod.object({
   "category": zod.string(),
