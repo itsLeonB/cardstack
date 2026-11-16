@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
 import { clerkAuth } from "@/lib/clerk-auth"
+import { tradeStatusLabel } from "@/lib/trade-status"
 import { useIsGuest } from "@/lib/session"
 import {
   getTrade,
@@ -74,14 +75,6 @@ export const Route = createFileRoute("/trades/$slug")({
   }),
   component: TradePage,
 })
-
-const STATUS_LABELS = {
-  open: "Open",
-  negotiating: "Negotiating",
-  locked: "Locked",
-  executed: "Executed",
-  cancelled: "Cancelled",
-} satisfies Record<string, string>
 
 function TradePage() {
   const { trade, sessionVersion } = Route.useLoaderData()
@@ -174,14 +167,7 @@ function TradePage() {
   }
   return (
     <PageContainer>
-      <PageHeader
-        title="Trade"
-        // SAFETY: a status outside the map (a newer state) reads as itself.
-        description={
-          STATUS_LABELS[trade.status as keyof typeof STATUS_LABELS] ??
-          trade.status
-        }
-      />
+      <PageHeader title="Trade" description={tradeStatusLabel(trade.status)} />
       <TradeSide
         key={`${sessionVersion}:${trade.slug}:owner`}
         name={trade.ownerName}

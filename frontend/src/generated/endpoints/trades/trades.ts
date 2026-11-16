@@ -25,6 +25,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  EnvelopeListTradeSummary,
   EnvelopeTradeSlug,
   EnvelopeTradeView,
   ErrorModel,
@@ -60,6 +61,130 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export type listTradesResponse200 = {
+  data: EnvelopeListTradeSummary
+  status: 200
+}
+
+export type listTradesResponse503 = {
+  data: ErrorModel
+  status: 503
+}
+
+export type listTradesResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 200 | 503>
+}
+
+export type listTradesResponseSuccess = (listTradesResponse200) & {
+  headers: Headers;
+};
+export type listTradesResponseError = (listTradesResponse503 | listTradesResponseDefault) & {
+  headers: Headers;
+};
+
+export type listTradesResponse = (listTradesResponseSuccess | listTradesResponseError)
+
+export const getListTradesUrl = () => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/trades`
+}
+
+/**
+ * @summary List the Trades the caller participates in, newest first, including executed and cancelled history; each row carries its state and age
+ */
+export const listTrades = async ( options?: Parameters<typeof customFetch>[1]): Promise<listTradesResponse> => {
+
+  return customFetch<listTradesResponse>(getListTradesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTradesQueryKey = () => {
+    return [
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/trades`
+    ] as const;
+    }
+
+
+export const getListTradesQueryOptions = <TData = Awaited<ReturnType<typeof listTrades>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrades>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTradesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrades>>> = ({ signal }) => listTrades({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTrades>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTradesQueryResult = NonNullable<Awaited<ReturnType<typeof listTrades>>>
+export type ListTradesQueryError = ErrorModel
+
+
+export function useListTrades<TData = Awaited<ReturnType<typeof listTrades>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrades>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTrades>>,
+          TError,
+          Awaited<ReturnType<typeof listTrades>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTrades<TData = Awaited<ReturnType<typeof listTrades>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrades>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTrades>>,
+          TError,
+          Awaited<ReturnType<typeof listTrades>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTrades<TData = Awaited<ReturnType<typeof listTrades>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrades>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List the Trades the caller participates in, newest first, including executed and cancelled history; each row carries its state and age
+ */
+
+export function useListTrades<TData = Awaited<ReturnType<typeof listTrades>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTrades>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTradesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
 
 export type createTradeResponse201 = {
   data: EnvelopeTradeSlug
@@ -393,6 +518,103 @@ export const useAcceptTrade = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getAcceptTradeMutationOptions(options), queryClient);
+    }
+    export type cancelTradeResponse204 = {
+  data: void
+  status: 204
+}
+
+export type cancelTradeResponse503 = {
+  data: ErrorModel
+  status: 503
+}
+
+export type cancelTradeResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204 | 503>
+}
+
+export type cancelTradeResponseSuccess = (cancelTradeResponse204) & {
+  headers: Headers;
+};
+export type cancelTradeResponseError = (cancelTradeResponse503 | cancelTradeResponseDefault) & {
+  headers: Headers;
+};
+
+export type cancelTradeResponse = (cancelTradeResponseSuccess | cancelTradeResponseError)
+
+export const getCancelTradeUrl = (slug: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/trades/${slug}/cancel`
+}
+
+/**
+ * @summary Cancel a Trade the caller participates in while it is open, negotiating or locked; the slug dies with it and an executed Trade refuses with trade_executed
+ */
+export const cancelTrade = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<cancelTradeResponse> => {
+
+  return customFetch<cancelTradeResponse>(getCancelTradeUrl(slug),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelTradeMutationKey = () => ['cancelTrade'] as const;
+
+export const getCancelTradeMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelTrade>>, TError,CancelTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelTrade>>, TError,CancelTradeMutationVariables, TContext> => {
+
+const mutationKey = getCancelTradeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelTrade>>, CancelTradeMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  cancelTrade(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelTradeMutationResult = NonNullable<Awaited<ReturnType<typeof cancelTrade>>>
+
+    export type CancelTradeMutationError = ErrorModel
+    export type CancelTradeMutationVariables = {slug: string}
+
+    /**
+ * @summary Cancel a Trade the caller participates in while it is open, negotiating or locked; the slug dies with it and an executed Trade refuses with trade_executed
+ */
+export const useCancelTrade = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelTrade>>, TError,CancelTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelTrade>>,
+        TError,
+        CancelTradeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelTradeMutationOptions(options), queryClient);
     }
     export type confirmTradeResponse200 = {
   data: EnvelopeTradeView

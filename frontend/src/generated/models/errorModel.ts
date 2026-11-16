@@ -8,7 +8,7 @@
 import type { ErrorDetail } from './errorDetail.ts';
 
 export interface ErrorModel {
-  /** A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed. */
+  /** A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed (confirm or cancel on an executed Trade). */
   code?: string;
   /** A human-readable explanation specific to this occurrence of the problem. */
   detail?: string;
