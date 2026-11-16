@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { pageHead, NOINDEX_META } from "@/lib/site"
 import { NETWORK_ERROR } from "@/lib/collections"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -339,6 +340,17 @@ function TradeSide({
                       ? `From ${item.collection}`
                       : "From a deleted Collection"}
                   </p>
+                  {item.short && (
+                    <p role="status" className="mt-1">
+                      <Badge variant="destructive">
+                        Short: {item.card.name} × {item.quantity},{" "}
+                        {item.available === 0
+                          ? "none"
+                          : `only ${item.available}`}{" "}
+                        available
+                      </Badge>
+                    </p>
+                  )}
                 </div>
                 {editable && (
                   <Button
