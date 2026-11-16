@@ -2526,7 +2526,7 @@
         "additionalProperties": false,
         "properties": {
           "available": {
-            "description": "How many of the Card the offering participant currently holds across all their Collections.",
+            "description": "Copies available for this item after earlier offers of the same Card, capped at its offered quantity.",
             "format": "int64",
             "type": "integer"
           },
@@ -2545,7 +2545,7 @@
             "type": "integer"
           },
           "short": {
-            "description": "True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.",
+            "description": "True when Available is below this item's offered quantity.",
             "type": "boolean"
           }
         },
