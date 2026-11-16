@@ -176,25 +176,24 @@ func (s *tradeService) List(ctx context.Context, req dto.TradeListRequest) ([]dt
 		return nil, err
 	}
 
-	names := make(map[uuid.UUID]string, len(trades))
+	// Only the other seat's display name is shown, so only those ids are
+	// worth a profile lookup; the caller's own name is never rendered.
+	otherIDs := make(map[uuid.UUID]struct{})
 	for _, t := range trades {
-		ids := []uuid.UUID{t.OwnerProfileID}
-		if t.ParticipantProfileID != nil && *t.ParticipantProfileID != t.OwnerProfileID {
-			ids = append(ids, *t.ParticipantProfileID)
+		if id := otherSeatProfileID(t, req.ProfileID); id != nil {
+			otherIDs[*id] = struct{}{}
 		}
-		for _, id := range ids {
-			if _, ok := names[id]; ok {
-				continue
-			}
-			profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
-				Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}},
-			})
-			if err != nil {
-				return nil, err
-			}
-			if !profile.IsZero() {
-				names[id] = profile.Name
-			}
+	}
+	names := make(map[uuid.UUID]string, len(otherIDs))
+	for id := range otherIDs {
+		profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
+			Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: id}},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !profile.IsZero() {
+			names[id] = profile.Name
 		}
 	}
 
