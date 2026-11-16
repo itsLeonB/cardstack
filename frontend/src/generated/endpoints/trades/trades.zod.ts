@@ -9,6 +9,20 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List the Trades the caller participates in, newest first, including executed and cancelled history; each row carries its state and age
+ */
+export const ListTradesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).describe('When the Trade was made; the list shows its age from this.'),
+  "id": zod.string(),
+  "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
+  "slug": zod.string().optional().describe('The Trade\'s link address while it is live; absent once cancelled, when the link is dead.'),
+  "status": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}).describe('When the Trade last changed state or offer.')
+})).nullable()
+})
+
+/**
  * @summary Start a Trade and get its link Slug; the caller takes the owner seat in state open
  */
 export const CreateTradeResponse = zod.object({
@@ -176,6 +190,15 @@ export const AcceptTradeResponse = zod.object({
   "waitingOnOther": zod.boolean().describe('Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them.')
 })
 })
+
+/**
+ * @summary Cancel a Trade the caller participates in while it is open, negotiating or locked; the slug dies with it and an executed Trade refuses with trade_executed
+ */
+export const CancelTradeParams = zod.object({
+  "slug": zod.string().describe('The Trade\'s Slug.')
+})
+
+export const CancelTradeResponse = zod.void()
 
 /**
  * @summary Confirm handover; the second confirmation executes the Trade
