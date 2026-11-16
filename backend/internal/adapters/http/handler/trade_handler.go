@@ -24,9 +24,17 @@ func NewTradeHandler(tradeSvc service.TradeService) *TradeHandler {
 // owner seat.
 type tradeSlugInput struct{}
 
+// tradeListInput is GET /trades: the caller's own Trades, no parameters.
+type tradeListInput struct{}
+
 // tradeLookupInput is GET /trades/{slug}: read the room by its link.
 type tradeLookupInput struct {
 	Slug string `path:"slug" doc:"The Trade's Slug, the last segment of its link."`
+}
+
+// tradeCancelInput is DELETE /trades/{slug}/cancel.
+type tradeCancelInput struct {
+	Slug string `path:"slug" doc:"The Trade's Slug."`
 }
 
 type tradeAcceptInput struct {
@@ -74,6 +82,24 @@ func (h *TradeHandler) get(ctx context.Context, in tradeLookupInput) (dto.TradeV
 	caller := authpkg.CallerFrom(ctx)
 
 	return h.tradeSvc.Get(ctx, dto.TradeLookup{Slug: in.Slug, ProfileID: caller.ProfileID})
+}
+
+func (h *TradeHandler) list(ctx context.Context, _ tradeListInput) ([]dto.TradeSummary, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.tradeSvc.List(ctx, dto.TradeListRequest{ProfileID: profileID})
+}
+
+func (h *TradeHandler) cancel(ctx context.Context, in tradeCancelInput) error {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return err
+	}
+
+	return h.tradeSvc.Cancel(ctx, dto.TradeCancelRequest{Slug: in.Slug, ProfileID: profileID})
 }
 
 func (h *TradeHandler) join(ctx context.Context, in tradeJoinInput) (dto.TradeView, error) {
@@ -126,12 +152,14 @@ func (h *TradeHandler) removeItem(ctx context.Context, in tradeItemRemovalInput)
 	})
 }
 
-// Routes are private: create and join need the Auth Identity, so a Guest gets
-// 401 (ADR-0028). The slug is the whole address; there is no list or
-// owner-scoped read here.
+// Routes are private: create, join, list and cancel need the Auth Identity,
+// so a Guest gets 401 (ADR-0028). The slug is the whole address; the list is
+// the only caller-scoped read.
 func (h *TradeHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
 		endpoint.New(endpoint.Endpoint[tradeSlugInput, dto.TradeSlug]{OperationID: "create-trade", Method: http.MethodPost, Path: "/trades", Summary: "Start a Trade and get its link Slug; the caller takes the owner seat in state open", Tags: []string{"trades"}, SuccessCode: http.StatusCreated, Secured: true, HandlerFunc: h.create}),
+		endpoint.NewList(endpoint.ListEndpoint[tradeListInput, dto.TradeSummary]{OperationID: "list-trades", Method: http.MethodGet, Path: "/trades", Summary: "List the Trades the caller participates in, newest first, including executed and cancelled history; each row carries its state and age", Tags: []string{"trades"}, Secured: true, HandlerFunc: h.list}),
+		endpoint.NewNoBody(endpoint.NoBodyEndpoint[tradeCancelInput]{OperationID: "cancel-trade", Method: http.MethodDelete, Path: "/trades/{slug}/cancel", Summary: "Cancel a Trade the caller participates in while it is open, negotiating or locked; the slug dies with it and an executed Trade refuses with trade_executed", Tags: []string{"trades"}, Secured: true, HandlerFunc: h.cancel}),
 		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{OperationID: "join-trade", Method: http.MethodPost, Path: "/trades/{slug}/join", Summary: "Take the Trade's second seat once, moving it to negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.join}),
 		endpoint.New(endpoint.Endpoint[tradeItemInput, dto.TradeView]{OperationID: "add-trade-item", Method: http.MethodPost, Path: "/trades/{slug}/items", Summary: "Add a Card and source Collection to the caller's side while negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem}),
 		endpoint.New(endpoint.Endpoint[tradeAcceptInput, dto.TradeView]{OperationID: "accept-trade", Method: http.MethodPost, Path: "/trades/{slug}/accept", Summary: "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.accept}),

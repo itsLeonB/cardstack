@@ -1007,3 +1007,196 @@ func TestTradeConfirmBinderFallsBackToOtherCollection(t *testing.T) {
 		})
 	}
 }
+
+// tradeListEnvelope decodes GET /trades: the caller's Trades, newest first.
+// Slug is absent on a cancelled row: its link is dead.
+type tradeListEnvelope struct {
+	Data []struct {
+		Slug      *string   `json:"slug"`
+		Status    string    `json:"status"`
+		OtherName *string   `json:"otherName"`
+		CreatedAt time.Time `json:"createdAt"`
+		UpdatedAt time.Time `json:"updatedAt"`
+	} `json:"data"`
+}
+
+func listTrades(api testAPI, token string) *httptest.ResponseRecorder {
+	return api.Get("/trades", bearer(token))
+}
+
+func cancelTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
+	return api.Delete("/trades/"+slug+"/cancel", bearer(token))
+}
+
+func decodeTradeList(t *testing.T, resp *httptest.ResponseRecorder) tradeListEnvelope {
+	t.Helper()
+	var out tradeListEnvelope
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &out))
+	return out
+}
+
+// TestTradeListScopingAndHistory: the list shows only Trades the caller sits
+// in — owner or participant — each with its state and age, and a cancelled
+// Trade stays as history.
+func TestTradeListScopingAndHistory(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	joiner := api.newUserToken(t)
+	outsider := api.newUserToken(t)
+
+	openSlug := createTrade(t, api, owner)
+	liveSlug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, liveSlug).Code)
+
+	// An outsider participates in nothing: the list is empty.
+	resp := listTrades(api, outsider)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Empty(t, decodeTradeList(t, resp).Data)
+
+	// The owner sees both Trades, newest first, each with state and age. The
+	// open one has no second seat, so its otherName is absent.
+	resp = listTrades(api, owner)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	rows := decodeTradeList(t, resp).Data
+	require.Len(t, rows, 2)
+	statuses := map[string]string{}
+	otherNames := map[string]*string{}
+	for _, row := range rows {
+		require.NotNil(t, row.Slug)
+		statuses[*row.Slug] = row.Status
+		otherNames[*row.Slug] = row.OtherName
+		assert.False(t, row.CreatedAt.IsZero())
+		assert.False(t, row.UpdatedAt.IsZero())
+	}
+	// The open one has no second seat, so its otherName is absent.
+	assert.Equal(t, "negotiating", statuses[liveSlug])
+	assert.NotNil(t, otherNames[liveSlug])
+	assert.Equal(t, "open", statuses[openSlug])
+	assert.Nil(t, otherNames[openSlug])
+
+	// The joiner sees only the Trade they sit in.
+	resp = listTrades(api, joiner)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	rows = decodeTradeList(t, resp).Data
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].Slug)
+	assert.Equal(t, liveSlug, *rows[0].Slug)
+	assert.Equal(t, "negotiating", rows[0].Status)
+	assert.NotNil(t, rows[0].OtherName)
+
+	// Cancelling keeps the Trade in the list as cancelled history, and its
+	// row hands out no slug: the link is dead.
+	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, openSlug).Code)
+	resp = listTrades(api, owner)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	rows = decodeTradeList(t, resp).Data
+	require.Len(t, rows, 2)
+	statusCounts := map[string]int{}
+	slugs := map[string]bool{}
+	for _, row := range rows {
+		statusCounts[row.Status]++
+		if row.Slug != nil {
+			slugs[*row.Slug] = true
+		}
+	}
+	assert.Equal(t, 1, statusCounts["cancelled"])
+	assert.Equal(t, 1, statusCounts["negotiating"])
+	assert.False(t, slugs[openSlug])
+	assert.True(t, slugs[liveSlug])
+}
+
+// TestTradeCancelFromEachState: either participant cancels from open,
+// negotiating and locked; a non-participant gets the same 404 as an unknown
+// slug and changes nothing.
+func TestTradeCancelFromEachState(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	joiner := api.newUserToken(t)
+	outsider := api.newUserToken(t)
+
+	// open: the owner cancels.
+	openSlug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, openSlug).Code)
+	assert.Equal(t, http.StatusNotFound, getTrade(api, owner, openSlug).Code)
+	assert.Equal(t, http.StatusNotFound, joinTrade(api, joiner, openSlug).Code)
+
+	// negotiating: the participant cancels.
+	negSlug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, negSlug).Code)
+	require.Equal(t, http.StatusNoContent, cancelTrade(api, joiner, negSlug).Code)
+	assert.Equal(t, http.StatusNotFound, getTrade(api, owner, negSlug).Code)
+
+	// locked: either participant cancels.
+	lockSlug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, lockSlug).Code)
+	lockTrade(t, api, owner, joiner, lockSlug)
+	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, lockSlug).Code)
+	assert.Equal(t, http.StatusNotFound, getTrade(api, joiner, lockSlug).Code)
+
+	// All three stay in the owner's list as cancelled history.
+	resp := listTrades(api, owner)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	rows := decodeTradeList(t, resp).Data
+	require.Len(t, rows, 3)
+	for _, row := range rows {
+		assert.Equal(t, "cancelled", row.Status)
+	}
+
+	// A signed-in non-participant cannot cancel, and the Trade is untouched.
+	liveSlug := createTrade(t, api, owner)
+	resp = cancelTrade(api, outsider, liveSlug)
+	require.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
+	assert.Equal(t, getTrade(api, outsider, "no-such-trade").Body.String(), resp.Body.String())
+	assert.Equal(t, http.StatusOK, getTrade(api, owner, liveSlug).Code)
+}
+
+// TestTradeCancelExecutedRefusedAndSlugDies: an executed Trade refuses
+// cancel with the stable trade_executed code and stays in the list; a
+// cancelled Trade's slug answers the same 404 as an unknown one forever, and
+// a new Trade draws a new slug so the old link never comes back.
+func TestTradeCancelExecutedRefusedAndSlugDies(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSource := tradeCollection(t, api, owner, "Owner source")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSource, cards[0].String(), 1)
+	addTradeCard(t, api, joiner, joinerSource, cards[1].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSource, cards[0].String(), 1)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+	require.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	require.Equal(t, http.StatusOK, confirmTrade(api, joiner, slug).Code)
+
+	// Executed refuses with the stable code, for either participant.
+	for _, token := range []string{owner, joiner} {
+		resp := cancelTrade(api, token, slug)
+		require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+		assert.Equal(t, "trade_executed", errorCode(t, resp))
+	}
+
+	// It stays in the list as executed history.
+	resp := listTrades(api, owner)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	rows := decodeTradeList(t, resp).Data
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].Slug)
+	assert.Equal(t, slug, *rows[0].Slug)
+	assert.Equal(t, "executed", rows[0].Status)
+
+	// A live Trade cancels: its slug dies with the same 404 as an unknown
+	// slug, to its participants and to a join attempt.
+	liveSlug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, liveSlug).Code)
+	dead := getTrade(api, owner, liveSlug)
+	assert.Equal(t, http.StatusNotFound, dead.Code)
+	assert.Equal(t, getTrade(api, owner, "no-such-trade").Body.String(), dead.Body.String())
+	assert.Equal(t, http.StatusNotFound, joinTrade(api, joiner, liveSlug).Code)
+
+	// A new Trade draws a new slug: the old link never comes back.
+	newSlug := createTrade(t, api, owner)
+	assert.NotEqual(t, liveSlug, newSlug)
+	assert.Equal(t, http.StatusOK, getTrade(api, owner, newSlug).Code)
+}
