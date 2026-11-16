@@ -11,6 +11,7 @@ import (
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/mapper"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/repository"
+	"github.com/itsLeonB/ezutil/v2"
 	crud "github.com/itsLeonB/go-crud"
 	"github.com/itsLeonB/ungerr"
 )
@@ -51,11 +52,13 @@ const tradeStaleRevisionMsg = "the trade changed since you read it; read it agai
 type TradeService interface {
 	Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error)
 	Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error)
+	List(ctx context.Context, req dto.TradeListRequest) ([]dto.TradeSummary, error)
 	Join(ctx context.Context, req dto.TradeJoinRequest) (dto.TradeView, error)
 	AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error)
 	RemoveItem(ctx context.Context, req dto.TradeItemRemovalRequest) (dto.TradeView, error)
 	Accept(ctx context.Context, req dto.TradeAcceptRequest) (dto.TradeView, error)
 	Confirm(ctx context.Context, req dto.TradeConfirmRequest) (dto.TradeView, error)
+	Cancel(ctx context.Context, req dto.TradeCancelRequest) error
 }
 
 type inventoryTransfer interface {
@@ -162,6 +165,67 @@ func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeV
 	}
 
 	return s.view(ctx, t, req.ProfileID)
+}
+
+// List answers the account area's Trades page: every Trade the caller holds a
+// seat in, newest first, executed and cancelled included as history. Only the
+// other seat's display name is resolved — never an email (ADR-0028).
+func (s *tradeService) List(ctx context.Context, req dto.TradeListRequest) ([]dto.TradeSummary, error) {
+	trades, err := s.trades.FindForProfile(ctx, req.ProfileID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Only the other seat's display name is shown, so only those ids are
+	// worth a profile lookup; the caller's own name is never rendered.
+	otherIDs := make(map[uuid.UUID]struct{})
+	for _, t := range trades {
+		if id := otherSeatProfileID(t, req.ProfileID); id != nil {
+			otherIDs[*id] = struct{}{}
+		}
+	}
+	names := make(map[uuid.UUID]string, len(otherIDs))
+	if len(otherIDs) > 0 {
+		ids := make([]uuid.UUID, 0, len(otherIDs))
+		for id := range otherIDs {
+			ids = append(ids, id)
+		}
+		db, err := s.profiles.GetGormInstance(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var profiles []entity.UserProfile
+		if err := db.Where("id IN ?", ids).Find(&profiles).Error; err != nil {
+			return nil, ungerr.Wrap(err, "listing trade counterpart profiles")
+		}
+		for _, profile := range profiles {
+			names[profile.ID] = profile.Name
+		}
+	}
+
+	return ezutil.MapSlice(trades, func(t entity.Trade) dto.TradeSummary {
+		var other *string
+		if otherID := otherSeatProfileID(t, req.ProfileID); otherID != nil {
+			if name, ok := names[*otherID]; ok {
+				other = &name
+			}
+		}
+		var slug *string
+		if t.Status != entity.TradeStatusCancelled {
+			// A cancelled Trade's slug is retired: the row is history, so the
+			// list hands out no link that would 404.
+			s := t.Slug
+			slug = &s
+		}
+		return dto.TradeSummary{
+			ID:        t.ID,
+			Slug:      slug,
+			Status:    t.Status,
+			OtherName: other,
+			CreatedAt: t.CreatedAt,
+			UpdatedAt: t.UpdatedAt,
+		}
+	}), nil
 }
 
 func (s *tradeService) isParticipant(t entity.Trade, profileID uuid.UUID) bool {
@@ -474,6 +538,20 @@ func tradeSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
 	return 0, false
 }
 
+// otherSeatProfileID names the profile across the table from the caller's:
+// the participant for the owner, the owner for the participant, nil while the
+// second seat is empty or the caller holds none.
+func otherSeatProfileID(trade entity.Trade, profileID uuid.UUID) *uuid.UUID {
+	if trade.OwnerProfileID == profileID {
+		return trade.ParticipantProfileID
+	}
+	if trade.ParticipantProfileID != nil && *trade.ParticipantProfileID == profileID {
+		id := trade.OwnerProfileID
+		return &id
+	}
+	return nil
+}
+
 // Accept records the caller's side as accepting the deal as it stood when
 // they read it. The Trade row is locked FOR UPDATE for the whole check and
 // write, so a concurrent item edit either lands first — and the revision
@@ -523,4 +601,28 @@ func (s *tradeService) Accept(ctx context.Context, req dto.TradeAcceptRequest) (
 		return dto.TradeView{}, err
 	}
 	return s.Get(ctx, dto.TradeLookup{Slug: req.Slug, ProfileID: req.ProfileID})
+}
+
+// Cancel ends a live Trade from open, negotiating or locked, by either
+// participant. An executed Trade is done — it refuses with
+// apperr.CodeTradeExecuted. The repository's Cancel also retires the slug, so
+// the link answers the same not-found as an unknown one from then on, and a
+// new Trade draws a fresh slug so the old link never comes back.
+func (s *tradeService) Cancel(ctx context.Context, req dto.TradeCancelRequest) error {
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		trade, err := s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		if err != nil {
+			return err
+		}
+		if trade.IsZero() || trade.Status == entity.TradeStatusCancelled {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		if !s.isParticipant(trade, req.ProfileID) {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		if trade.Status == entity.TradeStatusExecuted {
+			return apperr.WithCode(ungerr.ConflictError("a Trade that executed cannot be cancelled"), apperr.CodeTradeExecuted)
+		}
+		return s.trades.Cancel(ctx, trade)
+	})
 }

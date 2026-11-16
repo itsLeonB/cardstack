@@ -4,11 +4,11 @@
 
 **Blocked by:** 03.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The Trades list shows only Trades the caller is a participant in, each with its state and its age.
-- [ ] Executed and cancelled Trades stay in the list as history.
-- [ ] Cancelling is allowed from `open`, `negotiating` and `locked`, by either participant.
-- [ ] Cancelling from `executed` is refused with a stable code.
-- [ ] After cancelling, the Trade's slug answers not found, and a new Trade draws a new slug so the old link never comes back.
-- [ ] Routes tests cover the list's scoping, cancel from each state, the refusal from `executed`, and the dead slug. The account area shows the list with each Trade's state.
+- [x] The Trades list shows only Trades the caller is a participant in, each with its state and its age.
+- [x] Executed and cancelled Trades stay in the list as history.
+- [x] Cancelling is allowed from `open`, `negotiating` and `locked`, by either participant.
+- [x] Cancelling from `executed` is refused with a stable code.
+- [x] After cancelling, the Trade's slug answers not found, and a new Trade draws a new slug so the old link never comes back.
+- [x] Routes tests cover the list's scoping, cancel from each state, the refusal from `executed`, and the dead slug. The account area shows the list with each Trade's state.

@@ -26,7 +26,7 @@ var logRedacted = func(err error) {
 // OpenAPI schema of every error response.
 type ErrorModel struct {
 	huma.ErrorModel
-	Code string `json:"code,omitempty" example:"login_required" doc:"A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed."`
+	Code string `json:"code,omitempty" example:"login_required" doc:"A stable machine-readable code for client decisions: login_required, binder_quantity_locked, collection_not_empty, binder_layout_locked, binder_leaf_in_use, binder_max_card_count, move_to_binder, photo_storage_not_configured, trade_seat_taken, trade_owner_join, trade_not_negotiating, trade_stale_revision, trade_item_short, trade_empty, or trade_executed (confirm or cancel on an executed Trade)."`
 }
 
 // installErrorClassifier routes Huma's construction hooks through the shared policy: AppErrors

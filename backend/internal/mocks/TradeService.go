@@ -136,6 +136,53 @@ func (_c *MockTradeService_AddItem_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// Cancel provides a mock function with given fields: ctx, req
+func (_m *MockTradeService) Cancel(ctx context.Context, req dto.TradeCancelRequest) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Cancel")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeCancelRequest) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockTradeService_Cancel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Cancel'
+type MockTradeService_Cancel_Call struct {
+	*mock.Call
+}
+
+// Cancel is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.TradeCancelRequest
+func (_e *MockTradeService_Expecter) Cancel(ctx interface{}, req interface{}) *MockTradeService_Cancel_Call {
+	return &MockTradeService_Cancel_Call{Call: _e.mock.On("Cancel", ctx, req)}
+}
+
+func (_c *MockTradeService_Cancel_Call) Run(run func(ctx context.Context, req dto.TradeCancelRequest)) *MockTradeService_Cancel_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.TradeCancelRequest))
+	})
+	return _c
+}
+
+func (_c *MockTradeService_Cancel_Call) Return(_a0 error) *MockTradeService_Cancel_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockTradeService_Cancel_Call) RunAndReturn(run func(context.Context, dto.TradeCancelRequest) error) *MockTradeService_Cancel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Confirm provides a mock function with given fields: ctx, req
 func (_m *MockTradeService) Confirm(ctx context.Context, req dto.TradeConfirmRequest) (dto.TradeView, error) {
 	ret := _m.Called(ctx, req)
@@ -360,6 +407,65 @@ func (_c *MockTradeService_Join_Call) Return(_a0 dto.TradeView, _a1 error) *Mock
 }
 
 func (_c *MockTradeService_Join_Call) RunAndReturn(run func(context.Context, dto.TradeJoinRequest) (dto.TradeView, error)) *MockTradeService_Join_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// List provides a mock function with given fields: ctx, req
+func (_m *MockTradeService) List(ctx context.Context, req dto.TradeListRequest) ([]dto.TradeSummary, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for List")
+	}
+
+	var r0 []dto.TradeSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeListRequest) ([]dto.TradeSummary, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeListRequest) []dto.TradeSummary); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.TradeSummary)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.TradeListRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeService_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
+type MockTradeService_List_Call struct {
+	*mock.Call
+}
+
+// List is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.TradeListRequest
+func (_e *MockTradeService_Expecter) List(ctx interface{}, req interface{}) *MockTradeService_List_Call {
+	return &MockTradeService_List_Call{Call: _e.mock.On("List", ctx, req)}
+}
+
+func (_c *MockTradeService_List_Call) Run(run func(ctx context.Context, req dto.TradeListRequest)) *MockTradeService_List_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.TradeListRequest))
+	})
+	return _c
+}
+
+func (_c *MockTradeService_List_Call) Return(_a0 []dto.TradeSummary, _a1 error) *MockTradeService_List_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeService_List_Call) RunAndReturn(run func(context.Context, dto.TradeListRequest) ([]dto.TradeSummary, error)) *MockTradeService_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

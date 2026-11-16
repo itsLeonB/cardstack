@@ -123,6 +123,53 @@ func (_c *MockTradeRepository_AddItem_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// Cancel provides a mock function with given fields: ctx, trade
+func (_m *MockTradeRepository) Cancel(ctx context.Context, trade entity.Trade) error {
+	ret := _m.Called(ctx, trade)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Cancel")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, entity.Trade) error); ok {
+		r0 = rf(ctx, trade)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockTradeRepository_Cancel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Cancel'
+type MockTradeRepository_Cancel_Call struct {
+	*mock.Call
+}
+
+// Cancel is a helper method to define mock.On call
+//   - ctx context.Context
+//   - trade entity.Trade
+func (_e *MockTradeRepository_Expecter) Cancel(ctx interface{}, trade interface{}) *MockTradeRepository_Cancel_Call {
+	return &MockTradeRepository_Cancel_Call{Call: _e.mock.On("Cancel", ctx, trade)}
+}
+
+func (_c *MockTradeRepository_Cancel_Call) Run(run func(ctx context.Context, trade entity.Trade)) *MockTradeRepository_Cancel_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(entity.Trade))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_Cancel_Call) Return(_a0 error) *MockTradeRepository_Cancel_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockTradeRepository_Cancel_Call) RunAndReturn(run func(context.Context, entity.Trade) error) *MockTradeRepository_Cancel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function with given fields: ctx, model
 func (_m *MockTradeRepository) Delete(ctx context.Context, model entity.Trade) error {
 	ret := _m.Called(ctx, model)
@@ -443,6 +490,65 @@ func (_c *MockTradeRepository_FindFirst_Call) Return(_a0 entity.Trade, _a1 error
 }
 
 func (_c *MockTradeRepository_FindFirst_Call) RunAndReturn(run func(context.Context, crud.Specification[entity.Trade]) (entity.Trade, error)) *MockTradeRepository_FindFirst_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindForProfile provides a mock function with given fields: ctx, profileID
+func (_m *MockTradeRepository) FindForProfile(ctx context.Context, profileID uuid.UUID) ([]entity.Trade, error) {
+	ret := _m.Called(ctx, profileID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindForProfile")
+	}
+
+	var r0 []entity.Trade
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]entity.Trade, error)); ok {
+		return rf(ctx, profileID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []entity.Trade); ok {
+		r0 = rf(ctx, profileID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.Trade)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, profileID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeRepository_FindForProfile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindForProfile'
+type MockTradeRepository_FindForProfile_Call struct {
+	*mock.Call
+}
+
+// FindForProfile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileID uuid.UUID
+func (_e *MockTradeRepository_Expecter) FindForProfile(ctx interface{}, profileID interface{}) *MockTradeRepository_FindForProfile_Call {
+	return &MockTradeRepository_FindForProfile_Call{Call: _e.mock.On("FindForProfile", ctx, profileID)}
+}
+
+func (_c *MockTradeRepository_FindForProfile_Call) Run(run func(ctx context.Context, profileID uuid.UUID)) *MockTradeRepository_FindForProfile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockTradeRepository_FindForProfile_Call) Return(_a0 []entity.Trade, _a1 error) *MockTradeRepository_FindForProfile_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeRepository_FindForProfile_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]entity.Trade, error)) *MockTradeRepository_FindForProfile_Call {
 	_c.Call.Return(run)
 	return _c
 }
