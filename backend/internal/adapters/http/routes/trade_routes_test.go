@@ -844,3 +844,121 @@ func TestTradeConfirmFallsBackToOtherOwnedCollections(t *testing.T) {
 	assert.Empty(t, tradeEntryQuantities(t, api, owner, fallbackSource))
 	assert.Equal(t, map[string]int{cards[0].String(): 2}, tradeEntryQuantities(t, api, joiner, inbox.String()))
 }
+
+func TestTradeConfirmDrawsPartOfBinder(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 2)
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 1, 1, 1, cards[0]))
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 2, 1, 1, cards[0]))
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 3, 1, 1, cards[1]))
+	decodeBinderPage(t, markUnidentifiedAt(api, owner, binder, 3, 1, 2))
+	before := []binderPageEnvelope{}
+	for page := 1; page <= 4; page++ {
+		before = append(before, getPage(t, api, owner, binder, page))
+	}
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	offerTradeCard(t, api, owner, slug, binder, cards[0].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+	require.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	inbox := decodeTradeView(t, resp).Data.InboxID
+	require.NotNil(t, inbox)
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, inbox.String()))
+	assert.Equal(t, map[string]int{cards[0].String(): 1, cards[1].String(): 1}, tradeEntryQuantities(t, api, owner, binder))
+	assert.Equal(t, 1, masterQuantity(t, api, owner, cards[0]))
+	assert.Equal(t, 1, masterQuantity(t, api, joiner, cards[0]))
+	remaining := 0
+	for page := 1; page <= 4; page++ {
+		after := getPage(t, api, owner, binder, page)
+		assert.Equal(t, before[page-1].Data.Layout, after.Data.Layout)
+		assert.Equal(t, before[page-1].Data.Leaf, after.Data.Leaf)
+		assert.Equal(t, before[page-1].Data.Side, after.Data.Side)
+		for i, slot := range after.Data.Slots {
+			old := before[page-1].Data.Slots[i]
+			if old.Card != nil && old.Card.ID == cards[0].String() {
+				if slot.State == "card" {
+					assert.Equal(t, old, slot)
+					remaining++
+				} else {
+					assert.Equal(t, "empty", slot.State)
+					assert.Nil(t, slot.Card)
+				}
+			} else {
+				assert.Equal(t, old, slot)
+			}
+		}
+	}
+	assert.Equal(t, 1, remaining)
+}
+
+func TestTradeConfirmDrawsAllBinderCopies(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 1)
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 1, 1, 1, cards[0]))
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 2, 1, 1, cards[0]))
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 1, 2, 1, cards[1]))
+	decodeBinderPage(t, markUnidentifiedAt(api, owner, binder, 1, 2, 2))
+	before := getPage(t, api, owner, binder, 1)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	offerTradeCard(t, api, owner, slug, binder, cards[0].String(), 2)
+	lockTrade(t, api, owner, joiner, slug)
+	require.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	inbox := decodeTradeView(t, resp).Data.InboxID
+	require.NotNil(t, inbox)
+	assert.Equal(t, map[string]int{cards[0].String(): 2}, tradeEntryQuantities(t, api, joiner, inbox.String()))
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, owner, binder))
+	assert.Zero(t, masterQuantity(t, api, owner, cards[0]))
+	assert.Equal(t, 2, masterQuantity(t, api, joiner, cards[0]))
+	after := getPage(t, api, owner, binder, 1)
+	assert.Equal(t, before.Data.Layout, after.Data.Layout)
+	assert.Equal(t, before.Data.Leaf, after.Data.Leaf)
+	assert.Equal(t, before.Data.Side, after.Data.Side)
+	assert.Equal(t, "empty", after.Data.Slots[0].State)
+	assert.Nil(t, after.Data.Slots[0].Card)
+	assert.Equal(t, before.Data.Slots[1:], after.Data.Slots[1:])
+	assert.Equal(t, "empty", getPage(t, api, owner, binder, 2).Data.Slots[0].State)
+}
+
+func TestTradeConfirmEmptyBinderShortMovesNothing(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	binder := newBinderCollection(t, api, owner)
+	createBinder(t, api, owner, binder, 2, 2, 1)
+	decodeBinderPage(t, placeCardAt(api, owner, binder, 1, 1, 1, cards[0]))
+	decodeBinderPage(t, markUnidentifiedAt(api, owner, binder, 1, 2, 1))
+	other := tradeCollection(t, api, joiner, "Other source")
+	addTradeCard(t, api, joiner, other, cards[1].String(), 1)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	offerTradeCard(t, api, owner, slug, binder, cards[0].String(), 1)
+	offerTradeCard(t, api, joiner, slug, other, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+	decodeBinderPage(t, clearSlotAt(api, owner, binder, 1, 1, 1))
+	before := getPage(t, api, owner, binder, 1)
+	require.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_item_short", errorCode(t, resp))
+	assert.Equal(t, before, getPage(t, api, owner, binder, 1))
+	assert.Empty(t, tradeEntryQuantities(t, api, owner, binder))
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, joiner, other))
+	assert.Zero(t, masterQuantity(t, api, owner, cards[0]))
+	assert.Equal(t, 1, masterQuantity(t, api, joiner, cards[1]))
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.Equal(t, "locked", ownerView.Data.Status)
+	assert.Nil(t, ownerView.Data.InboxID)
+	assert.Nil(t, joinerView.Data.InboxID)
+}
