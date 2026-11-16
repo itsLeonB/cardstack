@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/dto"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
@@ -66,22 +68,14 @@ func ToTradeView(host ImageHost, t entity.Trade, ownerName string, otherName *st
 		IsParticipant: t.OwnerProfileID == profileID ||
 			(t.ParticipantProfileID != nil && *t.ParticipantProfileID == profileID),
 	}
-
-	side := tradeSide(t, profileID)
-	if side >= 0 {
+	if side := tradeSide(t, profileID); side >= 0 {
 		out.Accepted = t.AcceptedAt(side) != nil
 		out.WaitingOnMe = !out.Accepted && t.Status == entity.TradeStatusNegotiating
-	}
-	if t.ParticipantProfileID != nil {
-		other := otherAcceptedSeat(side)
-		out.OtherAccepted = t.AcceptedAt(other) != nil
-		// waitingOnOther is the mirror of waitingOnMe: my side accepted and
-		// the Trade still waits on the other seat.
+		out.Confirmed = confirmedAt(t, side) != nil
+		out.OtherConfirmed = confirmedAt(t, otherAcceptedSeat(side)) != nil
+		out.OtherAccepted = t.AcceptedAt(otherAcceptedSeat(side)) != nil
 		out.WaitingOnOther = out.Accepted && !out.OtherAccepted && t.Status == entity.TradeStatusNegotiating
 	}
-
-	// Side is the seat whose Collection the item leaves: SideOwner's offer,
-	// SideParticipant's.
 	for _, item := range t.TradeItems {
 		v := ToTradeItemView(host, item)
 		if item.Side == entity.SideOwner {
@@ -90,6 +84,12 @@ func ToTradeView(host ImageHost, t entity.Trade, ownerName string, otherName *st
 			out.OtherItems = append(out.OtherItems, v)
 		}
 	}
-
 	return out
+}
+
+func confirmedAt(t entity.Trade, side int) *time.Time {
+	if side == entity.SideOwner {
+		return t.OwnerConfirmedAt
+	}
+	return t.ParticipantConfirmedAt
 }

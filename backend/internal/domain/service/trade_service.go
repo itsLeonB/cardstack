@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/core/apperr"
@@ -53,12 +55,19 @@ type TradeService interface {
 	AddItem(ctx context.Context, req dto.TradeItemRequest) (dto.TradeView, error)
 	RemoveItem(ctx context.Context, req dto.TradeItemRemovalRequest) (dto.TradeView, error)
 	Accept(ctx context.Context, req dto.TradeAcceptRequest) (dto.TradeView, error)
+	Confirm(ctx context.Context, req dto.TradeConfirmRequest) (dto.TradeView, error)
+}
+
+type inventoryTransfer interface {
+	TransferQuantity(context.Context, dto.InventoryTransferRequest) error
 }
 
 type tradeService struct {
 	transactor  crud.Transactor
 	trades      repository.TradeRepository
 	collections repository.CollectionRepository
+	inventory   repository.InventoryRepository
+	transfers   inventoryTransfer
 	cards       crud.Repository[entity.Card]
 	profiles    crud.Repository[entity.UserProfile]
 	images      mapper.ImageHost
@@ -68,11 +77,13 @@ func NewTradeService(
 	transactor crud.Transactor,
 	trades repository.TradeRepository,
 	collections repository.CollectionRepository,
+	inventory repository.InventoryRepository,
+	transfers inventoryTransfer,
 	cards crud.Repository[entity.Card],
 	profiles crud.Repository[entity.UserProfile],
 	images mapper.ImageHost,
 ) TradeService {
-	return &tradeService{transactor: transactor, trades: trades, collections: collections, cards: cards, profiles: profiles, images: images}
+	return &tradeService{transactor: transactor, trades: trades, collections: collections, inventory: inventory, transfers: transfers, cards: cards, profiles: profiles, images: images}
 }
 
 func (s *tradeService) Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error) {
@@ -106,12 +117,9 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 	if owner.IsZero() {
 		return dto.TradeView{}, ungerr.NotFoundError(tradeNotFoundMsg)
 	}
-
 	var otherName *string
 	if t.ParticipantProfileID != nil {
-		other, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{
-			Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: *t.ParticipantProfileID}},
-		})
+		other, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: *t.ParticipantProfileID}}})
 		if err != nil {
 			return dto.TradeView{}, err
 		}
@@ -120,8 +128,17 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		}
 		otherName = &other.Name
 	}
-
-	return mapper.ToTradeView(s.images, t, owner.Name, otherName, profileID), nil
+	view := mapper.ToTradeView(s.images, t, owner.Name, otherName, profileID)
+	if view.IsParticipant && t.Status == entity.TradeStatusExecuted {
+		inbox, err := s.collections.FindFirst(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: profileID, TradeID: &t.ID}})
+		if err != nil {
+			return dto.TradeView{}, err
+		}
+		if !inbox.IsZero() {
+			view.InboxID = &inbox.ID
+		}
+	}
+	return view, nil
 }
 
 func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
@@ -198,11 +215,8 @@ func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (d
 	if req.Quantity <= 0 {
 		return dto.TradeView{}, ungerr.BadRequestError("trade item quantity must be positive")
 	}
-
-	var trade entity.Trade
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		var err error
-		trade, err = s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		trade, err := s.trades.FindBySlugForUpdate(ctx, req.Slug)
 		if err != nil {
 			return err
 		}
@@ -218,12 +232,14 @@ func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (d
 				return ungerr.ConflictError("trade item already exists")
 			}
 		}
-		if _, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.SourceCollectionID, false); err != nil {
+		source, err := s.collections.GetOwnedCollection(ctx, req.ProfileID, req.SourceCollectionID, false)
+		if err != nil {
 			return err
 		}
-		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{
-			Model: entity.Card{BaseEntity: crud.BaseEntity{ID: req.CardID}},
-		})
+		if source.TradeID != nil {
+			return ungerr.ConflictError("trade inbox cannot be offered")
+		}
+		card, err := s.cards.FindFirst(ctx, crud.Specification[entity.Card]{Model: entity.Card{BaseEntity: crud.BaseEntity{ID: req.CardID}}})
 		if err != nil {
 			return err
 		}
@@ -231,10 +247,7 @@ func (s *tradeService) AddItem(ctx context.Context, req dto.TradeItemRequest) (d
 			return ungerr.NotFoundError("card not found")
 		}
 		collectionID := req.SourceCollectionID
-		return s.trades.AddItem(ctx, entity.TradeItem{
-			TradeID: trade.ID, Side: side, CardID: req.CardID,
-			SourceCollectionID: &collectionID, Quantity: req.Quantity,
-		})
+		return s.trades.AddItem(ctx, entity.TradeItem{TradeID: trade.ID, Side: side, CardID: req.CardID, SourceCollectionID: &collectionID, Quantity: req.Quantity})
 	})
 	if err != nil {
 		return dto.TradeView{}, err
@@ -273,6 +286,184 @@ func (s *tradeService) RemoveItem(ctx context.Context, req dto.TradeItemRemovalR
 // tradeSide names the seat the caller holds, or false when they hold none.
 // It answers the owner seat even while the Trade is open, so the owner can
 // be told their accept is refused rather than that the Trade does not exist.
+func (s *tradeService) Confirm(ctx context.Context, req dto.TradeConfirmRequest) (dto.TradeView, error) {
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		trade, err := s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		if err != nil {
+			return err
+		}
+		if trade.IsZero() || trade.Status == entity.TradeStatusCancelled {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		side, ok := tradeSide(trade, req.ProfileID)
+		if !ok {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		if trade.Status == entity.TradeStatusExecuted {
+			return apperr.WithCode(ungerr.ConflictError("trade is already executed"), apperr.CodeTradeExecuted)
+		}
+		if trade.Status != entity.TradeStatusLocked {
+			return apperr.WithCode(ungerr.ConflictError("trade must be locked before confirmation"), apperr.CodeTradeNotNegotiating)
+		}
+		if side == entity.SideOwner {
+			if trade.OwnerConfirmedAt != nil {
+				return nil
+			}
+			confirmed := time.Now()
+			trade.OwnerConfirmedAt = &confirmed
+		} else {
+			if trade.ParticipantConfirmedAt != nil {
+				return nil
+			}
+			confirmed := time.Now()
+			trade.ParticipantConfirmedAt = &confirmed
+		}
+		if trade.OwnerConfirmedAt == nil || trade.ParticipantConfirmedAt == nil {
+			_, err := s.trades.Update(ctx, trade)
+			return err
+		}
+		if len(trade.TradeItems) == 0 {
+			return apperr.WithCode(ungerr.ConflictError("an empty trade cannot be executed"), apperr.CodeTradeEmpty)
+		}
+		return s.execute(ctx, &trade)
+	})
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return s.Get(ctx, dto.TradeLookup(req))
+}
+
+type tradeTransfer struct {
+	profileID            uuid.UUID
+	destinationProfileID uuid.UUID
+	cardID               uuid.UUID
+	sourceID             uuid.UUID
+	destID               uuid.UUID
+	quantity             int
+}
+
+func (s *tradeService) execute(ctx context.Context, trade *entity.Trade) error {
+	type holdingKey struct{ profileID, cardID, collectionID uuid.UUID }
+	type cardKey struct{ profileID, cardID uuid.UUID }
+	holdings := make(map[cardKey][]repository.CardHolding)
+	available := make(map[holdingKey]int)
+	required := make(map[cardKey]int)
+	for _, item := range trade.TradeItems {
+		profileID := trade.OwnerProfileID
+		if item.Side == entity.SideParticipant && trade.ParticipantProfileID != nil {
+			profileID = *trade.ParticipantProfileID
+		}
+		key := cardKey{profileID, item.CardID}
+		if _, ok := holdings[key]; !ok {
+			rows, err := s.inventory.ListHoldings(ctx, profileID, item.CardID)
+			if err != nil {
+				return err
+			}
+			holdings[key] = rows
+			for _, row := range rows {
+				available[holdingKey{profileID, item.CardID, row.CollectionID}] = row.Quantity
+				required[key] += 0
+			}
+		}
+		required[key] += item.Quantity
+		owned := 0
+		for _, row := range holdings[key] {
+			owned += row.Quantity
+		}
+		if owned < required[key] {
+			return apperr.WithCode(ungerr.ConflictError(fmt.Sprintf("not enough %s to execute the trade", item.Card.Name)), apperr.CodeTradeItemShort)
+		}
+	}
+
+	ownerReceives := false
+	participantReceives := false
+	for _, item := range trade.TradeItems {
+		if item.Side == entity.SideOwner {
+			participantReceives = true
+		} else {
+			ownerReceives = true
+		}
+	}
+	inboxes := make(map[uuid.UUID]uuid.UUID, 2)
+	if ownerReceives {
+		name, err := s.profileName(ctx, *trade.ParticipantProfileID)
+		if err != nil {
+			return err
+		}
+		inbox, err := s.collections.Insert(ctx, entity.Collection{ProfileID: trade.OwnerProfileID, Title: name, TradeID: &trade.ID})
+		if err != nil {
+			return err
+		}
+		inboxes[trade.OwnerProfileID] = inbox.ID
+	}
+	if participantReceives {
+		name, err := s.profileName(ctx, trade.OwnerProfileID)
+		if err != nil {
+			return err
+		}
+		inbox, err := s.collections.Insert(ctx, entity.Collection{ProfileID: *trade.ParticipantProfileID, Title: name, TradeID: &trade.ID})
+		if err != nil {
+			return err
+		}
+		inboxes[*trade.ParticipantProfileID] = inbox.ID
+	}
+
+	plans := make([]tradeTransfer, 0, len(trade.TradeItems))
+	for _, item := range trade.TradeItems {
+		profileID := trade.OwnerProfileID
+		receiverID := *trade.ParticipantProfileID
+		if item.Side == entity.SideParticipant {
+			profileID, receiverID = receiverID, trade.OwnerProfileID
+		}
+		key := cardKey{profileID, item.CardID}
+		left := item.Quantity
+		if item.SourceCollectionID != nil {
+			sourceKey := holdingKey{profileID, item.CardID, *item.SourceCollectionID}
+			quantity := min(left, available[sourceKey])
+			if quantity > 0 {
+				plans = append(plans, tradeTransfer{profileID: profileID, destinationProfileID: receiverID, cardID: item.CardID, sourceID: *item.SourceCollectionID, destID: inboxes[receiverID], quantity: quantity})
+				available[sourceKey] -= quantity
+				left -= quantity
+			}
+		}
+		for _, row := range holdings[key] {
+			if left == 0 {
+				break
+			}
+			sourceKey := holdingKey{profileID, item.CardID, row.CollectionID}
+			quantity := min(left, available[sourceKey])
+			if quantity == 0 {
+				continue
+			}
+			plans = append(plans, tradeTransfer{profileID: profileID, destinationProfileID: receiverID, cardID: item.CardID, sourceID: row.CollectionID, destID: inboxes[receiverID], quantity: quantity})
+			available[sourceKey] -= quantity
+			left -= quantity
+		}
+		if left != 0 {
+			return apperr.WithCode(ungerr.ConflictError(fmt.Sprintf("not enough %s to execute the trade", item.Card.Name)), apperr.CodeTradeItemShort)
+		}
+	}
+	for _, plan := range plans {
+		if err := s.transfers.TransferQuantity(ctx, dto.InventoryTransferRequest{ProfileID: plan.profileID, DestinationProfileID: plan.destinationProfileID, SourceID: plan.sourceID, DestinationID: plan.destID, CardID: plan.cardID, Quantity: plan.quantity}); err != nil {
+			return err
+		}
+	}
+	trade.Status = entity.TradeStatusExecuted
+	_, err := s.trades.Update(ctx, *trade)
+	return err
+}
+
+func (s *tradeService) profileName(ctx context.Context, profileID uuid.UUID) (string, error) {
+	profile, err := s.profiles.FindFirst(ctx, crud.Specification[entity.UserProfile]{Model: entity.UserProfile{BaseEntity: crud.BaseEntity{ID: profileID}}})
+	if err != nil {
+		return "", err
+	}
+	if profile.IsZero() {
+		return "", ungerr.NotFoundError(tradeNotFoundMsg)
+	}
+	return profile.Name, nil
+}
+
 func tradeSide(trade entity.Trade, profileID uuid.UUID) (int, bool) {
 	if trade.OwnerProfileID == profileID {
 		return entity.SideOwner, true

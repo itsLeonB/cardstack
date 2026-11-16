@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/itsLeonB/cardstack/backend/internal/domain/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,17 +22,20 @@ type tradeSlugEnvelope struct {
 
 type tradeViewEnvelope struct {
 	Data struct {
-		Slug           string    `json:"slug"`
-		Status         string    `json:"status"`
-		OwnerName      string    `json:"ownerName"`
-		OtherName      *string   `json:"otherName"`
-		Accepted       bool      `json:"accepted"`
-		WaitingOnMe    bool      `json:"waitingOnMe"`
-		Revision       time.Time `json:"revision"`
-		OtherAccepted  bool      `json:"otherAccepted"`
-		WaitingOnOther bool      `json:"waitingOnOther"`
-		IsOwner        bool      `json:"isOwner"`
-		IsParticipant  bool      `json:"isParticipant"`
+		Slug           string     `json:"slug"`
+		Status         string     `json:"status"`
+		OwnerName      string     `json:"ownerName"`
+		OtherName      *string    `json:"otherName"`
+		Accepted       bool       `json:"accepted"`
+		WaitingOnMe    bool       `json:"waitingOnMe"`
+		Revision       time.Time  `json:"revision"`
+		OtherAccepted  bool       `json:"otherAccepted"`
+		Confirmed      bool       `json:"confirmed"`
+		OtherConfirmed bool       `json:"otherConfirmed"`
+		InboxID        *uuid.UUID `json:"inboxId"`
+		WaitingOnOther bool       `json:"waitingOnOther"`
+		IsOwner        bool       `json:"isOwner"`
+		IsParticipant  bool       `json:"isParticipant"`
 		OwnerItems     []struct {
 			ID   string `json:"id"`
 			Card struct {
@@ -89,6 +93,65 @@ func joinTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
 // read showed — the revision field of the TradeView the test decoded.
 func acceptTrade(api testAPI, token, slug string, revision time.Time) *httptest.ResponseRecorder {
 	return api.Post("/trades/"+slug+"/accept", bearer(token), map[string]any{"revision": revision})
+}
+
+func confirmTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
+	return api.Post("/trades/"+slug+"/confirm", bearer(token), map[string]any{})
+}
+
+func tradeCollection(t *testing.T, api testAPI, token, title string) string {
+	t.Helper()
+	resp := api.Post("/collections", bearer(token), map[string]any{"title": title})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	var created struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &created))
+	return created.Data.ID
+}
+
+func tradeEntryQuantities(t *testing.T, api testAPI, token, collectionID string) map[string]int {
+	t.Helper()
+	resp := api.Get("/collections/"+collectionID+"/entries", bearer(token))
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	var result struct {
+		Data []struct {
+			Card struct {
+				ID string `json:"id"`
+			} `json:"card"`
+			Quantity int `json:"quantity"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
+	quantities := map[string]int{}
+	for _, entry := range result.Data {
+		quantities[entry.Card.ID] = entry.Quantity
+	}
+	return quantities
+}
+
+func addTradeCard(t *testing.T, api testAPI, token, collectionID, cardID string, quantity int) {
+	t.Helper()
+	resp := api.Post("/collections/"+collectionID+"/entries", bearer(token), map[string]any{"cardId": cardID, "quantity": quantity})
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+}
+
+func offerTradeCard(t *testing.T, api testAPI, token, slug, collectionID, cardID string, quantity int) {
+	t.Helper()
+	resp := api.Post("/trades/"+slug+"/items", bearer(token), map[string]any{"cardId": cardID, "sourceCollectionId": collectionID, "quantity": quantity})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+}
+
+func lockTrade(t *testing.T, api testAPI, owner, joiner, slug string) {
+	t.Helper()
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	require.Equal(t, http.StatusOK, acceptTrade(api, owner, slug, ownerView.Data.Revision).Code)
+	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
+	resp := acceptTrade(api, joiner, slug, joinerView.Data.Revision)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
 }
 
 func decodeTradeView(t *testing.T, resp *httptest.ResponseRecorder) tradeViewEnvelope {
@@ -275,13 +338,13 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	second := createCollection(owner, "Second source")
 	foreign := createCollection(outsider, "Foreign source")
 	firstEntries := "/collections/" + first + "/entries"
-	resp := api.Post(firstEntries, bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	resp := api.Post(firstEntries, bearer(owner), map[string]any{"cardId": cards[0].String(), "quantity": 1})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 
 	add := func(collectionID string, quantity int) *httptest.ResponseRecorder {
 		t.Helper()
 		return api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
-			"cardId": cards[0], "sourceCollectionId": collectionID, "quantity": quantity,
+			"cardId": cards[0].String(), "sourceCollectionId": collectionID, "quantity": quantity,
 		})
 	}
 	assert.Equal(t, http.StatusConflict, add(first, 1).Code)
@@ -326,7 +389,7 @@ func TestTradeItemsAddReadRemoveAndLock(t *testing.T) {
 	require.Len(t, view.Data.OwnerItems, 2)
 	joinerSource := createCollection(joiner, "Joiner source")
 	resp = api.Post("/trades/"+slug+"/items", bearer(joiner), map[string]any{
-		"cardId": cards[0], "sourceCollectionId": joinerSource, "quantity": 1,
+		"cardId": cards[0].String(), "sourceCollectionId": joinerSource, "quantity": 1,
 	})
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	view = decodeTradeView(t, resp)
@@ -380,10 +443,10 @@ func TestTradeAcceptAndLock(t *testing.T) {
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(col.Body.Bytes(), &created))
-	resp = api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	resp = api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0].String(), "quantity": 1})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
-		"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+		"cardId": cards[0].String(), "sourceCollectionId": created.Data.ID, "quantity": 1,
 	})
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 
@@ -431,7 +494,7 @@ func TestTradeAcceptAndLock(t *testing.T) {
 	// The freeze: adding and removing a Trade Item are refused with the
 	// stable code on both sides.
 	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
-		"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+		"cardId": cards[0].String(), "sourceCollectionId": created.Data.ID, "quantity": 1,
 	})
 	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
 	assert.Equal(t, "trade_not_negotiating", errorCode(t, resp))
@@ -480,11 +543,11 @@ func TestTradeAcceptStaleRevision(t *testing.T) {
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(col.Body.Bytes(), &created))
-	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0].String(), "quantity": 1})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 	addItem := func() *httptest.ResponseRecorder {
 		return api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
-			"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+			"cardId": cards[0].String(), "sourceCollectionId": created.Data.ID, "quantity": 1,
 		})
 	}
 	require.Equal(t, http.StatusOK, addItem().Code)
@@ -549,10 +612,10 @@ func TestTradeAcceptSharedRevision(t *testing.T) {
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(col.Body.Bytes(), &created))
-	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0], "quantity": 1})
+	resp := api.Post("/collections/"+created.Data.ID+"/entries", bearer(owner), map[string]any{"cardId": cards[0].String(), "quantity": 1})
 	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
 	resp = api.Post("/trades/"+slug+"/items", bearer(owner), map[string]any{
-		"cardId": cards[0], "sourceCollectionId": created.Data.ID, "quantity": 1,
+		"cardId": cards[0].String(), "sourceCollectionId": created.Data.ID, "quantity": 1,
 	})
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 
@@ -587,4 +650,163 @@ func TestTradeAcceptSharedRevision(t *testing.T) {
 	resp = acceptTrade(api, owner, slug, ownerView.Data.Revision)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	assert.Equal(t, "locked", decodeTradeView(t, resp).Data.Status)
+}
+
+func TestTradeConfirmExecutesExchangeIntoTradeInboxes(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSource := tradeCollection(t, api, owner, "Owner source")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSource, cards[0].String(), 2)
+	addTradeCard(t, api, joiner, joinerSource, cards[1].String(), 2)
+	offerTradeCard(t, api, owner, slug, ownerSource, cards[0].String(), 1)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+
+	first := confirmTrade(api, owner, slug)
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	firstView := decodeTradeView(t, first)
+	assert.Equal(t, "locked", firstView.Data.Status)
+	assert.True(t, firstView.Data.Confirmed)
+	assert.False(t, firstView.Data.OtherConfirmed)
+	assert.Nil(t, firstView.Data.InboxID)
+	assert.Equal(t, 2, tradeEntryQuantities(t, api, owner, ownerSource)[cards[0].String()])
+	assert.Equal(t, 2, tradeEntryQuantities(t, api, joiner, joinerSource)[cards[1].String()])
+
+	second := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	view := decodeTradeView(t, second)
+	assert.Equal(t, "executed", view.Data.Status)
+	assert.True(t, view.Data.Confirmed)
+	assert.True(t, view.Data.OtherConfirmed)
+	require.NotNil(t, view.Data.InboxID)
+	joinerInbox := view.Data.InboxID.String()
+	assert.Equal(t, 1, tradeEntryQuantities(t, api, owner, ownerSource)[cards[0].String()])
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, joinerInbox))
+	assert.Equal(t, http.StatusNotFound, api.Get("/collections/"+joinerInbox, bearer(owner)).Code)
+
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	require.NotNil(t, ownerView.Data.InboxID)
+	ownerInbox := ownerView.Data.InboxID.String()
+	assert.NotEqual(t, joinerInbox, ownerInbox)
+	assert.Equal(t, 1, tradeEntryQuantities(t, api, joiner, joinerSource)[cards[1].String()])
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, owner, ownerInbox))
+	assert.Equal(t, http.StatusOK, api.Get("/collections/"+ownerInbox, bearer(owner)).Code)
+	assert.Equal(t, http.StatusNotFound, api.Get("/collections/"+ownerInbox, bearer(joiner)).Code)
+	assert.NotContains(t, api.Get("/collections", bearer(owner)).Body.String(), ownerInbox)
+	assert.NotContains(t, api.Get("/collections", bearer(joiner)).Body.String(), joinerInbox)
+}
+
+func TestTradeConfirmShortRefusesTheWholeExchange(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSource := tradeCollection(t, api, owner, "Owner source")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSource, cards[0].String(), 1)
+	addTradeCard(t, api, joiner, joinerSource, cards[1].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSource, cards[0].String(), 2)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_item_short", errorCode(t, resp))
+	assert.Contains(t, resp.Body.String(), decodeTradeView(t, getTrade(api, owner, slug)).Data.OwnerItems[0].Card.Name)
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, owner, ownerSource))
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, joiner, joinerSource))
+	assert.Equal(t, "locked", decodeTradeView(t, getTrade(api, owner, slug)).Data.Status)
+}
+
+func TestTradeConfirmEmptyTradeRefusesExecution(t *testing.T) {
+	api := newTestAPI(t)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	lockTrade(t, api, owner, joiner, slug)
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_empty", errorCode(t, resp))
+	view := decodeTradeView(t, getTrade(api, owner, slug))
+	assert.Equal(t, "locked", view.Data.Status)
+	assert.True(t, view.Data.Confirmed)
+	assert.False(t, view.Data.OtherConfirmed)
+	assert.Nil(t, view.Data.InboxID)
+}
+
+func TestTradeConfirmOneSidedTradeCreatesOnlyReceiverInbox(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSource := tradeCollection(t, api, owner, "Owner source")
+	addTradeCard(t, api, owner, ownerSource, cards[0].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSource, cards[0].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	joinerInbox := decodeTradeView(t, resp).Data.InboxID
+	require.NotNil(t, joinerInbox)
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, joinerInbox.String()))
+	assert.Nil(t, decodeTradeView(t, getTrade(api, owner, slug)).Data.InboxID)
+	filed := tradeCollection(t, api, joiner, "Filed")
+	move := api.Post("/collections/"+joinerInbox.String()+"/entries/move", bearer(joiner), map[string]any{"cardIds": []string{cards[0].String()}, "destinationId": filed})
+	assert.Equal(t, http.StatusOK, move.Code, move.Body.String())
+	assert.Empty(t, tradeEntryQuantities(t, api, joiner, joinerInbox.String()))
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, filed))
+}
+
+func TestTradeConfirmSameCardOnBothSidesPreservesEachMasterQuantity(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSource := tradeCollection(t, api, owner, "Owner source")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSource, cards[0].String(), 2)
+	addTradeCard(t, api, joiner, joinerSource, cards[0].String(), 2)
+	offerTradeCard(t, api, owner, slug, ownerSource, cards[0].String(), 1)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[0].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	view := decodeTradeView(t, resp)
+	assert.Equal(t, "executed", view.Data.Status)
+	assert.Equal(t, 1, tradeEntryQuantities(t, api, owner, ownerSource)[cards[0].String()])
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, joiner, view.Data.InboxID.String()))
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	assert.Equal(t, 1, tradeEntryQuantities(t, api, joiner, joinerSource)[cards[0].String()])
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, owner, ownerView.Data.InboxID.String()))
+}
+
+func TestTradeConfirmFallsBackToOtherOwnedCollections(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 1)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	namedSource := tradeCollection(t, api, owner, "Named source")
+	fallbackSource := tradeCollection(t, api, owner, "Fallback source")
+	addTradeCard(t, api, owner, namedSource, cards[0].String(), 1)
+	addTradeCard(t, api, owner, fallbackSource, cards[0].String(), 1)
+	offerTradeCard(t, api, owner, slug, namedSource, cards[0].String(), 2)
+	lockTrade(t, api, owner, joiner, slug)
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp := confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	inbox := decodeTradeView(t, resp).Data.InboxID
+	require.NotNil(t, inbox)
+	assert.Empty(t, tradeEntryQuantities(t, api, owner, namedSource))
+	assert.Empty(t, tradeEntryQuantities(t, api, owner, fallbackSource))
+	assert.Equal(t, map[string]int{cards[0].String(): 2}, tradeEntryQuantities(t, api, joiner, inbox.String()))
 }

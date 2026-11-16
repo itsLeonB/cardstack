@@ -62,19 +62,20 @@ func (s *collectionService) Create(ctx context.Context, req dto.CollectionReques
 
 // List returns most recently created first (crud.Repository's DefaultOrder).
 func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequest) ([]dto.CollectionSummary, error) {
-	// A nil ProfileID would drop the owner condition and list everyone's.
 	if req.ProfileID == uuid.Nil {
 		return []dto.CollectionSummary{}, nil
 	}
-
-	collections, err := s.repo.FindAll(ctx, crud.Specification[entity.Collection]{
-		Model:            entity.Collection{ProfileID: req.ProfileID},
-		PreloadRelations: []string{"Layout"},
-	})
+	collections, err := s.repo.FindAll(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: req.ProfileID}, PreloadRelations: []string{"Layout"}})
 	if err != nil {
 		return nil, err
 	}
-
+	visible := collections[:0]
+	for _, collection := range collections {
+		if collection.TradeID == nil {
+			visible = append(visible, collection)
+		}
+	}
+	collections = visible
 	ids := ezutil.MapSlice(collections, func(c entity.Collection) uuid.UUID { return c.ID })
 	counts, err := s.repo.SumQuantities(ctx, ids)
 	if err != nil {
@@ -84,7 +85,6 @@ func (s *collectionService) List(ctx context.Context, req dto.CollectionListRequ
 	if err != nil {
 		return nil, err
 	}
-
 	return ezutil.MapSlice(collections, func(c entity.Collection) dto.CollectionSummary {
 		var layout entity.CollectionLayout
 		if c.Layout != nil {
@@ -112,7 +112,9 @@ func (s *collectionService) Update(ctx context.Context, req dto.CollectionReques
 		if err != nil {
 			return err
 		}
-
+		if c.TradeID != nil {
+			return ungerr.ConflictError("trade inbox cannot be edited")
+		}
 		if req.MaxCardCount != 0 {
 			isBinder, err := s.layouts.IsBinder(ctx, c.ID)
 			if err != nil {
@@ -122,18 +124,13 @@ func (s *collectionService) Update(ctx context.Context, req dto.CollectionReques
 				return apperr.WithCode(ungerr.ConflictError(binderMaxCardCountMsg), apperr.CodeBinderMaxCardCount)
 			}
 		}
-
-		c.Title = req.Title
-		c.Description = req.Description
-		c.MaxCardCount = req.MaxCardCount
-
+		c.Title, c.Description, c.MaxCardCount = req.Title, req.Description, req.MaxCardCount
 		updated, err = s.repo.Update(ctx, c)
 		return err
 	})
 	if err != nil {
 		return dto.CollectionSummary{}, err
 	}
-
 	return s.summarize(ctx, updated)
 }
 
@@ -142,7 +139,9 @@ func (s *collectionService) Delete(ctx context.Context, req dto.CollectionLookup
 	if err != nil {
 		return err
 	}
-
+	if c.TradeID != nil {
+		return ungerr.ConflictError("trade inbox cannot be deleted")
+	}
 	return s.repo.Delete(ctx, c)
 }
 

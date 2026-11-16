@@ -36,6 +36,10 @@ type tradeAcceptInput struct {
 	}
 }
 
+type tradeConfirmInput struct {
+	Slug string `path:"slug" doc:"The Trade's Slug."`
+}
+
 // tradeJoinInput is POST /trades/{slug}/join: claim the second seat.
 type tradeJoinInput struct {
 	Slug string `path:"slug" doc:"The Trade's Slug, the last segment of its link."`
@@ -104,6 +108,14 @@ func (h *TradeHandler) accept(ctx context.Context, in tradeAcceptInput) (dto.Tra
 	})
 }
 
+func (h *TradeHandler) confirm(ctx context.Context, in tradeConfirmInput) (dto.TradeView, error) {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return dto.TradeView{}, err
+	}
+	return h.tradeSvc.Confirm(ctx, dto.TradeConfirmRequest{Slug: in.Slug, ProfileID: profileID})
+}
+
 func (h *TradeHandler) removeItem(ctx context.Context, in tradeItemRemovalInput) (dto.TradeView, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -119,31 +131,12 @@ func (h *TradeHandler) removeItem(ctx context.Context, in tradeItemRemovalInput)
 // owner-scoped read here.
 func (h *TradeHandler) Routes() []endpoint.Registrable {
 	return []endpoint.Registrable{
-		endpoint.New(endpoint.Endpoint[tradeSlugInput, dto.TradeSlug]{
-			OperationID: "create-trade", Method: http.MethodPost, Path: "/trades",
-			Summary: "Start a Trade and get its link Slug; the caller takes the owner seat in state open",
-			Tags:    []string{"trades"}, SuccessCode: http.StatusCreated, Secured: true, HandlerFunc: h.create,
-		}),
-		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{
-			OperationID: "join-trade", Method: http.MethodPost, Path: "/trades/{slug}/join",
-			Summary: "Take the Trade's second seat once, moving it to negotiating",
-			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.join,
-		}),
-		endpoint.New(endpoint.Endpoint[tradeItemInput, dto.TradeView]{
-			OperationID: "add-trade-item", Method: http.MethodPost, Path: "/trades/{slug}/items",
-			Summary: "Add a Card and source Collection to the caller's side while negotiating",
-			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem,
-		}),
-		endpoint.New(endpoint.Endpoint[tradeAcceptInput, dto.TradeView]{
-			OperationID: "accept-trade", Method: http.MethodPost, Path: "/trades/{slug}/accept",
-			Summary: "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade. A stale revision or a repeat accept changes nothing",
-			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.accept,
-		}),
-		endpoint.New(endpoint.Endpoint[tradeItemRemovalInput, dto.TradeView]{
-			OperationID: "remove-trade-item", Method: http.MethodDelete, Path: "/trades/{slug}/items/{itemId}",
-			Summary: "Remove a Trade Item from the caller's side while negotiating",
-			Tags:    []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.removeItem,
-		}),
+		endpoint.New(endpoint.Endpoint[tradeSlugInput, dto.TradeSlug]{OperationID: "create-trade", Method: http.MethodPost, Path: "/trades", Summary: "Start a Trade and get its link Slug; the caller takes the owner seat in state open", Tags: []string{"trades"}, SuccessCode: http.StatusCreated, Secured: true, HandlerFunc: h.create}),
+		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{OperationID: "join-trade", Method: http.MethodPost, Path: "/trades/{slug}/join", Summary: "Take the Trade's second seat once, moving it to negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.join}),
+		endpoint.New(endpoint.Endpoint[tradeItemInput, dto.TradeView]{OperationID: "add-trade-item", Method: http.MethodPost, Path: "/trades/{slug}/items", Summary: "Add a Card and source Collection to the caller's side while negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem}),
+		endpoint.New(endpoint.Endpoint[tradeAcceptInput, dto.TradeView]{OperationID: "accept-trade", Method: http.MethodPost, Path: "/trades/{slug}/accept", Summary: "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.accept}),
+		endpoint.New(endpoint.Endpoint[tradeConfirmInput, dto.TradeView]{OperationID: "confirm-trade", Method: http.MethodPost, Path: "/trades/{slug}/confirm", Summary: "Confirm handover; the second confirmation executes the Trade", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.confirm}),
+		endpoint.New(endpoint.Endpoint[tradeItemRemovalInput, dto.TradeView]{OperationID: "remove-trade-item", Method: http.MethodDelete, Path: "/trades/{slug}/items/{itemId}", Summary: "Remove a Trade Item from the caller's side while negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.removeItem}),
 	}
 }
 

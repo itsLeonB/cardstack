@@ -136,6 +136,63 @@ func (_c *MockTradeService_AddItem_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// Confirm provides a mock function with given fields: ctx, req
+func (_m *MockTradeService) Confirm(ctx context.Context, req dto.TradeConfirmRequest) (dto.TradeView, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Confirm")
+	}
+
+	var r0 dto.TradeView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeConfirmRequest) (dto.TradeView, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeConfirmRequest) dto.TradeView); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Get(0).(dto.TradeView)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, dto.TradeConfirmRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockTradeService_Confirm_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Confirm'
+type MockTradeService_Confirm_Call struct {
+	*mock.Call
+}
+
+// Confirm is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.TradeConfirmRequest
+func (_e *MockTradeService_Expecter) Confirm(ctx interface{}, req interface{}) *MockTradeService_Confirm_Call {
+	return &MockTradeService_Confirm_Call{Call: _e.mock.On("Confirm", ctx, req)}
+}
+
+func (_c *MockTradeService_Confirm_Call) Run(run func(ctx context.Context, req dto.TradeConfirmRequest)) *MockTradeService_Confirm_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.TradeConfirmRequest))
+	})
+	return _c
+}
+
+func (_c *MockTradeService_Confirm_Call) Return(_a0 dto.TradeView, _a1 error) *MockTradeService_Confirm_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockTradeService_Confirm_Call) RunAndReturn(run func(context.Context, dto.TradeConfirmRequest) (dto.TradeView, error)) *MockTradeService_Confirm_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function with given fields: ctx, req
 func (_m *MockTradeService) Create(ctx context.Context, req dto.TradeCreateRequest) (dto.TradeSlug, error) {
 	ret := _m.Called(ctx, req)
