@@ -107,10 +107,15 @@ type TradeView struct {
 }
 
 // TradeItemView is one Trade Item as the room shows it: the Card, the
-// quantity, and the source Collection it is meant to leave.
+// quantity, and the source Collection it is meant to leave. Available is the
+// quantity left for this item after earlier offers of the same Card, capped
+// at its offered quantity. Short marks an item that cannot be satisfied.
+// Execution still refuses it with apperr.CodeTradeItemShort.
 type TradeItemView struct {
 	ID         uuid.UUID   `json:"id"`
 	Card       CardSummary `json:"card"`
 	Quantity   int         `json:"quantity"`
 	Collection *string     `json:"collection,omitempty" doc:"The title of the Collection the Card is meant to leave; absent when that Collection was deleted."`
+	Available  int         `json:"available" doc:"Copies available for this item after earlier offers of the same Card, capped at its offered quantity."`
+	Short      bool        `json:"short" doc:"True when Available is below this item's offered quantity."`
 }

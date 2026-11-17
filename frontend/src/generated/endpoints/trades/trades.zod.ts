@@ -48,6 +48,7 @@ export const GetTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -71,10 +72,12 @@ export const GetTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -98,7 +101,8 @@ export const GetTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -130,6 +134,7 @@ export const AcceptTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -153,10 +158,12 @@ export const AcceptTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -180,7 +187,8 @@ export const AcceptTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -217,6 +225,7 @@ export const ConfirmTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -240,10 +249,12 @@ export const ConfirmTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -267,7 +278,8 @@ export const ConfirmTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -301,6 +313,7 @@ export const AddTradeItemResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -324,10 +337,12 @@ export const AddTradeItemResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -351,7 +366,8 @@ export const AddTradeItemResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -380,6 +396,7 @@ export const RemoveTradeItemResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -403,10 +420,12 @@ export const RemoveTradeItemResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -430,7 +449,8 @@ export const RemoveTradeItemResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -458,6 +478,7 @@ export const JoinTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -481,10 +502,12 @@ export const JoinTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
+  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -508,7 +531,8 @@ export const JoinTradeResponse = zod.object({
 }),
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
-  "quantity": zod.int()
+  "quantity": zod.int(),
+  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),

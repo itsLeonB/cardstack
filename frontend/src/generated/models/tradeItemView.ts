@@ -8,9 +8,13 @@
 import type { CardSummary } from './cardSummary.ts';
 
 export interface TradeItemView {
+  /** How many of the Card the offering participant currently holds across all their Collections. */
+  available: number;
   card: CardSummary;
   /** The title of the Collection the Card is meant to leave; absent when that Collection was deleted. */
   collection?: string;
   id: string;
   quantity: number;
+  /** True when Available is below the offered Quantity: the Trade Item can no longer be satisfied. */
+  short: boolean;
 }

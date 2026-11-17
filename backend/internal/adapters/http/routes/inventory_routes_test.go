@@ -36,6 +36,14 @@ func newTestCardsInSet(t *testing.T, n int, releaseDate *time.Time) []uuid.UUID 
 		" sslmode=disable"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
 	require.NoError(t, err)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	// Unclosed per-test pools exhaust Postgres's connection limit.
+	t.Cleanup(func() {
+		if err := sqlDB.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
 
 	s := uuid.NewString()
 	game := entity.Game{Slug: "inv-" + s, Name: "Inv " + s}

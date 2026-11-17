@@ -4,11 +4,11 @@
 
 **Blocked by:** 05.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Reading a Trade re-checks every Trade Item against the current quantities the offering participant holds.
-- [ ] A Trade Item that can no longer be satisfied is marked short, naming the Card and the offered quantity beside what is actually available.
-- [ ] The check changes no state and no quantity.
-- [ ] The marker appears on the same read that a participant uses before confirming, alongside the state and both sides' Trade Items.
-- [ ] Execution still refuses the whole Trade when a marked Trade Item is confirmed, with the existing short-item failure.
-- [ ] Routes tests cover a Trade that goes short after locking, and that the read leaves quantities and state untouched. The Trade page shows the marker on the affected Trade Item.
+- [x] Reading a Trade re-checks every Trade Item against the current quantities the offering participant holds.
+- [x] A Trade Item that can no longer be satisfied is marked short, naming the Card and the offered quantity beside what is actually available.
+- [x] The check changes no state and no quantity.
+- [x] The marker appears on the same read that a participant uses before confirming, alongside the state and both sides' Trade Items.
+- [x] Execution still refuses the whole Trade when a marked Trade Item is confirmed, with the existing short-item failure.
+- [x] Routes tests cover a Trade that goes short after locking, and that the read leaves quantities and state untouched. The Trade page shows the marker on the affected Trade Item.

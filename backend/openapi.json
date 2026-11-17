@@ -2525,6 +2525,11 @@
       "TradeItemView": {
         "additionalProperties": false,
         "properties": {
+          "available": {
+            "description": "Copies available for this item after earlier offers of the same Card, capped at its offered quantity.",
+            "format": "int64",
+            "type": "integer"
+          },
           "card": {
             "$ref": "#/components/schemas/CardSummary"
           },
@@ -2538,12 +2543,18 @@
           "quantity": {
             "format": "int64",
             "type": "integer"
+          },
+          "short": {
+            "description": "True when Available is below this item's offered quantity.",
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "card",
-          "quantity"
+          "quantity",
+          "available",
+          "short"
         ],
         "type": "object"
       },

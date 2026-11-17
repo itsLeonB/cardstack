@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { pageHead, NOINDEX_META } from "@/lib/site"
 import { NETWORK_ERROR } from "@/lib/collections"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -110,7 +111,9 @@ function TradePage() {
       polled.accepted !== trade.accepted ||
       polled.otherAccepted !== trade.otherAccepted ||
       polled.confirmed !== trade.confirmed ||
-      polled.otherConfirmed !== trade.otherConfirmed
+      polled.otherConfirmed !== trade.otherConfirmed ||
+      JSON.stringify(polled.ownerItems) !== JSON.stringify(trade.ownerItems) ||
+      JSON.stringify(polled.otherItems) !== JSON.stringify(trade.otherItems)
     ) {
       void queryClient
         .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
@@ -339,6 +342,17 @@ function TradeSide({
                       ? `From ${item.collection}`
                       : "From a deleted Collection"}
                   </p>
+                  {item.short && (
+                    <p className="mt-1">
+                      <Badge variant="destructive">
+                        <span className="sr-only">Short: </span>
+                        {item.available === 0
+                          ? "none"
+                          : `only ${item.available}`}{" "}
+                        of {item.quantity} available
+                      </Badge>
+                    </p>
+                  )}
                 </div>
                 {editable && (
                   <Button

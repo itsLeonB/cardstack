@@ -51,6 +51,8 @@ type tradeViewEnvelope struct {
 			} `json:"card"`
 			Quantity   int    `json:"quantity"`
 			Collection string `json:"collection"`
+			Available  int    `json:"available"`
+			Short      bool   `json:"short"`
 		} `json:"ownerItems"`
 		OtherItems []struct {
 			ID   string `json:"id"`
@@ -65,7 +67,9 @@ type tradeViewEnvelope struct {
 					Name string `json:"name"`
 				} `json:"rarity"`
 			} `json:"card"`
-			Quantity int `json:"quantity"`
+			Quantity  int  `json:"quantity"`
+			Available int  `json:"available"`
+			Short     bool `json:"short"`
 		} `json:"otherItems"`
 	} `json:"data"`
 }
@@ -1199,4 +1203,126 @@ func TestTradeCancelExecutedRefusedAndSlugDies(t *testing.T) {
 	newSlug := createTrade(t, api, owner)
 	assert.NotEqual(t, liveSlug, newSlug)
 	assert.Equal(t, http.StatusOK, getTrade(api, owner, newSlug).Code)
+}
+
+// TestTradeReadMarksShortItem: a locked Trade can go stale while the two
+// sides arrange to meet — nothing reserves the offered quantities. Reading
+// the Trade re-checks every Trade Item against what each participant now
+// holds and marks the ones that no longer match, naming the offered quantity
+// beside what is actually available. The read changes nothing: quantities
+// and state stay as they were, and execution still refuses the whole Trade
+// with the existing short-item failure.
+func TestTradeReadMarksShortItem(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSource := tradeCollection(t, api, owner, "Owner source")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSource, cards[0].String(), 2)
+	addTradeCard(t, api, joiner, joinerSource, cards[1].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSource, cards[0].String(), 2)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+
+	// Before the shortfall every item reads satisfied.
+	view := decodeTradeView(t, getTrade(api, owner, slug))
+	require.Len(t, view.Data.OwnerItems, 1)
+	require.Len(t, view.Data.OtherItems, 1)
+	assert.Equal(t, 2, view.Data.OwnerItems[0].Available)
+	assert.False(t, view.Data.OwnerItems[0].Short)
+	assert.Equal(t, 1, view.Data.OtherItems[0].Available)
+	assert.False(t, view.Data.OtherItems[0].Short)
+
+	// The owner moves one offered copy out of reach after locking.
+	resp := api.Put("/collections/"+ownerSource+"/entries/"+cards[0].String(), bearer(owner), map[string]any{"quantity": 1})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+
+	// The same read the participant makes before confirming now marks the
+	// short item on both sides' views: the owner's own offer sits in
+	// OwnerItems for the owner and in OtherItems for the joiner.
+	ownerView := decodeTradeView(t, getTrade(api, owner, slug))
+	assert.Equal(t, "locked", ownerView.Data.Status)
+	assert.Equal(t, 1, ownerView.Data.OwnerItems[0].Available)
+	assert.True(t, ownerView.Data.OwnerItems[0].Short)
+	assert.Equal(t, 2, ownerView.Data.OwnerItems[0].Quantity)
+	assert.False(t, ownerView.Data.OtherItems[0].Short)
+
+	// Item lists are named by seat, not by viewer: the joiner reads the
+	// owner's short offer in OwnerItems too.
+	joinerView := decodeTradeView(t, getTrade(api, joiner, slug))
+	assert.True(t, joinerView.Data.OwnerItems[0].Short)
+	assert.Equal(t, 1, joinerView.Data.OwnerItems[0].Available)
+	assert.False(t, joinerView.Data.OtherItems[0].Short)
+
+	// The read left everything untouched: state locked, quantities as left.
+	assert.Equal(t, "locked", ownerView.Data.Status)
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, owner, ownerSource))
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, joiner, joinerSource))
+
+	// Execution still refuses the whole Trade with the existing short-item
+	// failure, and nothing moves.
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp = confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_item_short", errorCode(t, resp))
+	assert.Equal(t, map[string]int{cards[0].String(): 1}, tradeEntryQuantities(t, api, owner, ownerSource))
+	assert.Equal(t, map[string]int{cards[1].String(): 1}, tradeEntryQuantities(t, api, joiner, joinerSource))
+	assert.Equal(t, "locked", decodeTradeView(t, getTrade(api, owner, slug)).Data.Status)
+}
+
+// TestTradeReadMarksSplitOfferShort: execution sums a participant's offers
+// of the same Card across their whole holding, so a Trade can offer one Card
+// from two Collections. When that combined offer outgrows the holding, the
+// read marks only the item whose cumulative demand passes what is
+// available — each item shows only the copies left for it — and execution
+// still refuses the Trade.
+func TestTradeReadMarksSplitOfferShort(t *testing.T) {
+	api := newTestAPI(t)
+	cards := newTestCards(t, 2)
+	owner, joiner := api.newUserToken(t), api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+	require.Equal(t, http.StatusOK, joinTrade(api, joiner, slug).Code)
+	ownerSourceA := tradeCollection(t, api, owner, "Owner source A")
+	ownerSourceB := tradeCollection(t, api, owner, "Owner source B")
+	joinerSource := tradeCollection(t, api, joiner, "Joiner source")
+	addTradeCard(t, api, owner, ownerSourceA, cards[0].String(), 5)
+	addTradeCard(t, api, owner, ownerSourceB, cards[0].String(), 1)
+	addTradeCard(t, api, joiner, joinerSource, cards[1].String(), 4)
+	offerTradeCard(t, api, owner, slug, ownerSourceA, cards[0].String(), 1)
+	offerTradeCard(t, api, owner, slug, ownerSourceB, cards[0].String(), 1)
+	offerTradeCard(t, api, joiner, slug, joinerSource, cards[1].String(), 1)
+	lockTrade(t, api, owner, joiner, slug)
+
+	// Neither side sees the other's excess inventory, including split offers.
+	for _, token := range []string{owner, joiner} {
+		view := decodeTradeView(t, getTrade(api, token, slug))
+		require.Len(t, view.Data.OwnerItems, 2)
+		require.Len(t, view.Data.OtherItems, 1)
+		assert.Equal(t, 1, view.Data.OwnerItems[0].Available)
+		assert.Equal(t, 1, view.Data.OwnerItems[1].Available)
+		assert.Equal(t, 1, view.Data.OtherItems[0].Available)
+	}
+
+	// Reduce the combined holding to one copy after locking.
+	resp := api.Put("/collections/"+ownerSourceA+"/entries/"+cards[0].String(), bearer(owner), map[string]any{"quantity": 1})
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	resp = api.Delete("/collections/"+ownerSourceB+"/entries/"+cards[0].String(), bearer(owner))
+	require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
+
+	// The second offer has no copies left after the first offer.
+	view := decodeTradeView(t, getTrade(api, owner, slug))
+	require.Len(t, view.Data.OwnerItems, 2)
+	assert.Equal(t, 1, view.Data.OwnerItems[0].Available)
+	assert.False(t, view.Data.OwnerItems[0].Short)
+	assert.Equal(t, 0, view.Data.OwnerItems[1].Available)
+	assert.True(t, view.Data.OwnerItems[1].Short)
+	assert.False(t, view.Data.OtherItems[0].Short)
+
+	// Execution refuses the whole Trade, as before.
+	assert.Equal(t, http.StatusOK, confirmTrade(api, owner, slug).Code)
+	resp = confirmTrade(api, joiner, slug)
+	require.Equal(t, http.StatusConflict, resp.Code, resp.Body.String())
+	assert.Equal(t, "trade_item_short", errorCode(t, resp))
 }

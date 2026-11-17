@@ -132,6 +132,9 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		otherName = &other.Name
 	}
 	view := mapper.ToTradeView(s.images, t, owner.Name, otherName, profileID)
+	if err := s.markShort(ctx, t, &view); err != nil {
+		return dto.TradeView{}, err
+	}
 	if view.IsParticipant && t.Status == entity.TradeStatusExecuted {
 		inbox, err := s.collections.FindFirst(ctx, crud.Specification[entity.Collection]{Model: entity.Collection{ProfileID: profileID, TradeID: &t.ID}})
 		if err != nil {
@@ -142,6 +145,62 @@ func (s *tradeService) view(ctx context.Context, t entity.Trade, profileID uuid.
 		}
 	}
 	return view, nil
+}
+
+// markShort re-checks every Trade Item against what its offering
+// participant currently holds and marks the ones that can no longer be
+// satisfied: a locked Trade can go stale while the two sides arrange to
+// meet, because nothing reserves the offered quantities. It mirrors
+// execute's check — the Trade's items are summed per offering participant
+// and Card in order, so split offers share one holding — and an item is
+// short once the cumulative demand it adds passes the total holding, the
+// same item execution would fail on. Available is the quantity left for
+// that item, capped at its offered quantity to keep excess holdings private.
+// It reads only: no state and no quantity changes. An executed Trade's
+// items already moved, so its holdings say nothing about the deal.
+func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.TradeView) error {
+	if t.Status == entity.TradeStatusExecuted {
+		return nil
+	}
+	type holdingKey struct{ profileID, cardID uuid.UUID }
+	available := make(map[holdingKey]int)
+	required := make(map[holdingKey]int)
+	items := make(map[uuid.UUID]*dto.TradeItemView, len(view.OwnerItems)+len(view.OtherItems))
+	for i := range view.OwnerItems {
+		items[view.OwnerItems[i].ID] = &view.OwnerItems[i]
+	}
+	for i := range view.OtherItems {
+		items[view.OtherItems[i].ID] = &view.OtherItems[i]
+	}
+	for _, item := range t.TradeItems {
+		profileID := t.OwnerProfileID
+		if item.Side == entity.SideParticipant {
+			if t.ParticipantProfileID == nil {
+				continue
+			}
+			profileID = *t.ParticipantProfileID
+		}
+		key := holdingKey{profileID, item.CardID}
+		if _, ok := available[key]; !ok {
+			rows, err := s.inventory.ListHoldings(ctx, profileID, item.CardID)
+			if err != nil {
+				return err
+			}
+			available[key] = 0
+			for _, row := range rows {
+				available[key] += row.Quantity
+			}
+		}
+		remaining := max(0, available[key]-required[key])
+		required[key] += item.Quantity
+		v := items[item.ID]
+		if v == nil {
+			continue
+		}
+		v.Available = min(item.Quantity, remaining)
+		v.Short = v.Available < item.Quantity
+	}
+	return nil
 }
 
 func (s *tradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {

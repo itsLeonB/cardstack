@@ -45,6 +45,17 @@ const PAGE = "/trades/trade-1"
 
 const pikachu = catalogCard("pikachu", "Pikachu", "025")
 
+function tradeItem(
+  id: string,
+  quantity: number,
+  {
+    available = quantity,
+    short = false,
+  }: { available?: number; short?: boolean } = {}
+) {
+  return { id, card: pikachu, quantity, available, short }
+}
+
 function tradeView(overrides: Partial<TradeView> = {}) {
   return {
     slug: "trade-1",
@@ -240,7 +251,7 @@ describe("Trade page", () => {
           return new Response(
             JSON.stringify({
               data: tradeView({
-                ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+                ownerItems: [tradeItem("item-1", 2)],
               }),
             }),
             {
@@ -634,7 +645,7 @@ describe("Trade page", () => {
             status: "negotiating",
             isParticipant: true,
             isOwner: true,
-            ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+            ownerItems: [tradeItem("item-1", 2)],
           }),
         },
       },
@@ -659,13 +670,8 @@ describe("Trade page", () => {
           data: tradeView({
             isParticipant: true,
             ownerItems: [
-              { id: "item-1", card: pikachu, quantity: 2 },
-              {
-                id: "item-2",
-                card: pikachu,
-                quantity: 1,
-                collection: "Binder",
-              },
+              tradeItem("item-1", 2),
+              { ...tradeItem("item-2", 1), collection: "Binder" },
             ],
           }),
         },
@@ -762,7 +768,7 @@ describe("Trade page", () => {
       isParticipant: true,
       isOwner: true,
       revision: "2026-03-03T00:00:00Z",
-      ownerItems: [{ id: "item-9", card: pikachu, quantity: 5 }],
+      ownerItems: [tradeItem("item-9", 5)],
     })
     const locked = tradeView({
       ...changed,
@@ -1017,6 +1023,54 @@ describe("Trade page", () => {
     ).toBeNull()
   })
 
+  it("updates short items when availability changes without a new revision", async () => {
+    clerkState("signed-in")
+    let available = 2
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: tradeView({
+                status: "locked",
+                isParticipant: true,
+                isOwner: true,
+                otherName: "Misty",
+                ownerItems: [
+                  tradeItem("item-1", 2, { available, short: available < 2 }),
+                ],
+              }),
+            }),
+            { headers: { "content-type": "application/json" } }
+          )
+      )
+    )
+    const { queryClient } = await renderTradePage()
+    expect(
+      await screen.findByRole("button", { name: "Confirm handover" })
+    ).toBeTruthy()
+    expect(screen.queryByText("only 1 of 2 available")).toBeNull()
+
+    available = 1
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+    expect(await screen.findByText("only 1 of 2 available")).toBeTruthy()
+
+    available = 2
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: getGetTradeQueryKey("trade-1"),
+      })
+    })
+    await waitFor(() =>
+      expect(screen.queryByText("only 1 of 2 available")).toBeNull()
+    )
+  })
+
   it("does not poll a Trade the viewer is not part of", async () => {
     clerkState("guest")
     let gets = 0
@@ -1106,7 +1160,8 @@ describe("Trade page", () => {
             otherName: "Misty",
             accepted: true,
             otherAccepted: true,
-            ownerItems: [{ id: "item-1", card: pikachu, quantity: 2 }],
+            ownerItems: [tradeItem("item-1", 2, { available: 1, short: true })],
+            otherItems: [tradeItem("item-2", 3)],
           }),
         },
       },
@@ -1120,6 +1175,36 @@ describe("Trade page", () => {
     ).toBeNull()
     expect(screen.queryByRole("button", { name: "Add Card" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Remove Pikachu" })).toBeNull()
+  })
+
+  it("marks a Trade Item that went short with what is actually available", async () => {
+    clerkState("signed-in")
+    stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "locked",
+            isParticipant: true,
+            isOwner: true,
+            otherName: "Misty",
+            ownerItems: [
+              tradeItem("item-1", 2, { available: 1, short: true }),
+              tradeItem("item-2", 3, { available: 3, short: false }),
+            ],
+            otherItems: [tradeItem("item-3", 1, { available: 0, short: true })],
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+
+    // Each side's marker names the offered quantity beside what remains;
+    // a satisfied item carries none.
+    expect(await screen.findByText("only 1 of 2 available")).toBeTruthy()
+    expect(screen.getByText("none of 1 available")).toBeTruthy()
+    expect(screen.getAllByText(/of \d+ available/)).toHaveLength(2)
+    expect(screen.getAllByText("Pikachu × 3")).toHaveLength(1)
   })
 
   it("offers a Guest sign-in that returns to the Trade when the read is missing", async () => {
