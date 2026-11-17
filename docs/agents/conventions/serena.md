@@ -6,9 +6,9 @@ Serena is an MCP server that exposes semantic, symbol-aware tools for reading, s
 
 Everyone uses Serena: the orchestrator, the component agents and the advisor. Read this file before your first tool call on a code file.
 
-- The orchestrator's Serena is rooted at its own checkout.
-- A component agent works in its own worktree, and its Serena is rooted at that worktree, so a symbol read or edit lands in that worktree and not in the orchestrator's checkout.
-- The advisor uses Serena for reads in its own checkout, and reads another worktree by absolute path with the built-in tools, because its Serena is rooted at its own checkout.
+- Before using Serena on code, compare the active project path in `initial_instructions` with `git rev-parse --show-toplevel` in the target checkout. A shell `cd` does not change Serena's project.
+- If the paths differ, activate the target project when `activate_project` is available. Otherwise use built-in tools with absolute paths in the target checkout and report the fallback. Do not use Serena to read or edit that checkout until its active project matches.
+- The advisor uses Serena for reads in its own checkout, and reads another worktree by absolute path with the built-in tools.
 
 Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subagents.md`.
 
@@ -38,7 +38,7 @@ In Go, a method is a top-level symbol, not a child of its receiver type: `find_s
 
 Built-in read/edit/glob/grep are permitted on code files ONLY when:
 
-- Serena has been tried on the target and failed.
+- Serena has been tried on the target and failed, or its active project does not match the target checkout.
 - The file is not parseable as code.
 - You need a regex search across many files that the symbolic tools cannot express. Grep is acceptable as a discovery step, but follow-up reads and edits on matched code files still go through Serena.
 - You need a few lines and a symbolic read would be overkill.
