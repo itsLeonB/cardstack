@@ -37,7 +37,11 @@ func TestCatalogImageURLs(t *testing.T) {
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	// Unclosed per-test pools exhaust Postgres's connection limit.
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() {
+		if err := sqlDB.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
 
 	s := uuid.NewString()
 	game := entity.Game{Slug: "img-" + s, Name: "Img " + s}

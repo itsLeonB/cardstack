@@ -186,6 +186,7 @@ func (s *tradeService) markShort(ctx context.Context, t entity.Trade, view *dto.
 			if err != nil {
 				return err
 			}
+			available[key] = 0
 			for _, row := range rows {
 				available[key] += row.Quantity
 			}

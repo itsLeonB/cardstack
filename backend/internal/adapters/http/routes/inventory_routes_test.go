@@ -39,7 +39,11 @@ func newTestCardsInSet(t *testing.T, n int, releaseDate *time.Time) []uuid.UUID 
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	// Unclosed per-test pools exhaust Postgres's connection limit.
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() {
+		if err := sqlDB.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
 
 	s := uuid.NewString()
 	game := entity.Game{Slug: "inv-" + s, Name: "Inv " + s}
