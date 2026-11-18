@@ -295,6 +295,10 @@ test.describe("Page scan", { tag: SIGNED_IN_TAG }, () => {
       } else {
         await expect(page.locator("html")).not.toHaveClass(/dark/)
       }
+      await page.keyboard.press("Escape")
+      await expect(
+        page.getByRole("menuitemradio", { name: theme })
+      ).toBeHidden()
 
       await setupTrigger.click()
       await expect(setupDialog).toBeVisible()
