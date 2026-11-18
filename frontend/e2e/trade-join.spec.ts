@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Route } from "playwright/test"
 
@@ -91,16 +92,26 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
     // Sharing delivers the link without exposing a publication switch.
     const origin = new URL(page.url()).origin
     const share = page.getByRole("button", { name: "Share" })
-    await share.click()
-    const dialog = page.getByRole("dialog", { name: "Share Trade link" })
-    await expect(
-      dialog.getByRole("textbox", { name: "Trade link" })
-    ).toHaveValue(`${origin}/trades/${SLUG}`)
-    await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible()
-    await expect(dialog.getByRole("switch")).toHaveCount(0)
-    await page.keyboard.press("Escape")
-    await expect(dialog).toBeHidden()
-    await expect(share).toBeFocused()
+    for (const theme of ["Light", "Dark"]) {
+      await page
+        .getByRole("banner")
+        .getByRole("button", { name: "Theme" })
+        .click()
+      await page.getByRole("menuitemradio", { name: theme }).click()
+      await page.keyboard.press("Escape")
+      await share.click()
+      const dialog = page.getByRole("dialog", { name: "Share Trade link" })
+      await expect(
+        dialog.getByRole("textbox", { name: "Trade link" })
+      ).toHaveValue(`${origin}/trades/${SLUG}`)
+      await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible()
+      await expect(dialog.getByRole("switch")).toHaveCount(0)
+      const { violations } = await new AxeBuilder({ page }).analyze()
+      expect(violations).toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(dialog).toBeHidden()
+      await expect(share).toBeFocused()
+    }
     // Trade pages stay unindexed.
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       "content",
