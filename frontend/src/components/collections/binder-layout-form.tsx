@@ -154,11 +154,16 @@ export function BinderLayoutForm({
           <FieldError>{validationError ?? errorMessage}</FieldError>
         )}
         <Field orientation="horizontal">
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="min-h-11">
             {isPending ? pendingLabel : submitLabel}
           </Button>
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="min-h-11"
+            >
               Cancel
             </Button>
           )}
