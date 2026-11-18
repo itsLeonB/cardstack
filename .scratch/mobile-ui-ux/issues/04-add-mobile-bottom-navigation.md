@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 — Give Trades its own page.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 **Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 

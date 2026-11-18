@@ -110,7 +110,7 @@ describe("SiteHeader", () => {
     ).toBeNull()
   })
 
-  it("shows Catalog, Collections, Wishlist and Master Inventory plus a user menu when signed in", async () => {
+  it("shows Trades with the signed-in destinations", async () => {
     mockSession("signed-in")
     const header = await renderShell()
 
@@ -118,6 +118,7 @@ describe("SiteHeader", () => {
       "Catalog",
       "Collections",
       "Wishlist",
+      "Trades",
       "Master Inventory",
     ])
     expect(
