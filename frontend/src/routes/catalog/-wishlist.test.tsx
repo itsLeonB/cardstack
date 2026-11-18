@@ -48,6 +48,7 @@ describe("Add to Wishlist from the catalog", () => {
       screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
     )
     expect(writes).toEqual([])
+    screen.getByRole("heading", { name: "Wishlist for Card 1", level: 2 })
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await screen.findByText("Want 2 of Card 1.")
@@ -175,6 +176,7 @@ describe("Add to Wishlist from the catalog", () => {
         name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/,
       })
     )
+    screen.getByRole("heading", { name: "Wishlist for Card 1", level: 2 })
     expect(screen.getByText("Wanted quantity: 1")).toBeTruthy()
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
 

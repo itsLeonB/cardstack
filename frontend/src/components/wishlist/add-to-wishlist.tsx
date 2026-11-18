@@ -89,7 +89,7 @@ export function AddToWishlist({
         className="motion-reduce:duration-0 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none"
       >
         <div className="flex flex-col gap-3">
-          <h3 className="font-heading font-medium">Wishlist for {cardName}</h3>
+          <h2 className="font-heading font-medium">Wishlist for {cardName}</h2>
           <p className="text-sm">Wanted quantity: {quantity}</p>
           <div className="flex items-center gap-2">
             <Button
