@@ -332,6 +332,7 @@ describe("CreateBinderPanel", () => {
     const binder = fakeBinder({ exists: false })
     stubBinderApi(binder)
     renderWithClient(<CreateBinderPanel collectionId="col-1" />)
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
 
     fireEvent.change(screen.getByRole("combobox", { name: "Layout" }), {
       target: { value: "3x4" },
@@ -353,6 +354,7 @@ describe("CreateBinderPanel", () => {
     const binder = fakeBinder({ exists: false })
     stubBinderApi(binder)
     renderWithClient(<CreateBinderPanel collectionId="col-1" />)
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
 
     fireEvent.change(screen.getByRole("spinbutton", { name: "Leaves" }), {
       target: { value: "101" },
