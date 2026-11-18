@@ -210,7 +210,7 @@ function TradePage() {
           )}
         </>
       )}
-      {trade.isOwner && <OwnerLink slug={trade.slug} />}
+      {trade.isOwner && <TradeShareLink slug={trade.slug} />}
       <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
     </PageContainer>
   )
@@ -510,7 +510,7 @@ function TradeSide({
 }
 
 /** The owner's view of the link to send; the address bar carries it too. */
-function OwnerLink({ slug }: { slug: string }) {
+function TradeShareLink({ slug }: { slug: string }) {
   return <TradeShare link={`${window.location.origin}/trades/${slug}`} />
 }
 
