@@ -2,7 +2,7 @@
 
 Type: prototype
 
-Status: ready-for-human
+Status: resolved
 
 ## Question
 
@@ -28,4 +28,4 @@ Not run: live app integration, frontend verification scripts, Safari, real-devic
 
 ## Answer
 
-Pending the user’s selection. Keep the prototype on its own branch. Implement the selected design only after the design interview confirms the final brief.
+The user chose bottom navigation for signed-in users and a three-destination guest bottom bar (Catalog, Log in, Register), with clear home-page calls to action and no guest menu. The guest choice differs from the prototype. The user also chose a labeled Wishlist button with a wanted-quantity popup and explicitly said not to implement yet. Keep the original prototype on its own branch. Production work needs separate approval after the design interview.

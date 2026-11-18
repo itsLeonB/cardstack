@@ -10,7 +10,10 @@ Improve the eight annotated areas: mobile navigation; a dedicated Trades page; T
 
 - Open “Make this a binder” only when the user selects it. Do not open the setup dialog automatically on an empty Collection.
 - Keep the current visual brand. Change layout, spacing, hierarchy, action placement, icons, and artwork framing only.
-- Prototype mobile navigation before choosing its layout. The user has not approved a navigation variant or production implementation.
+- Use bottom navigation for signed-in users. Retain the prototype’s four visible destinations (Catalog, Collections, Wishlist, Trades) plus More for Master Inventory and Account, subject to final brief confirmation.
+- Guests also get a bottom bar: Catalog, Log in, Register. Remove the guest menu button and keep clear home-page calls to action.
+- Use a separate labeled Wishlist button on catalog Cards. It opens a wanted-quantity popup with an explicit Save action; keep existing wanted totals and save rules.
+- The user explicitly said not to implement yet. Record design choices only until they give separate implementation approval.
 
 ## Navigation prototype
 
@@ -22,7 +25,7 @@ Open the HTML file directly. `?variant=A`, `?variant=B`, and `?variant=C` choose
 
 This is a standalone visual sketch, not an app route. It uses sample Collections, no live auth, no API calls, no persistent data, and no mutations. Do not promote this file into production. A production choice must use the existing router, house UI Modules, Remix icons, and session rules. Keep this branch as the prototype source and implement the selected design separately after the interview confirms the scope.
 
-Verdict: pending user selection.
+Verdict: the user selected bottom navigation. They changed the guest design to a three-destination bottom bar, not the Menu shown in the original prototype. Keep the original artifact as a record; it does not show the final guest decision.
 
 ## Code facts
 
@@ -33,13 +36,22 @@ Verdict: pending user selection.
 - Wishlist saves a positive wanted total, not an owned quantity. A boolean toggle loses a prior wanted total when an item is removed and re-added. Retain arbitrary wanted quantities unless the user explicitly chooses a different model.
 - `CardTile` controls artwork framing across many screens. Change it instead of global `ui/Card` rounding, and keep owner-only actions out of it.
 
+## Proposed final brief
+
+1. Mobile navigation: signed-in Catalog, Collections, Wishlist, Trades, More; More keeps Master Inventory and Account. Guests get Catalog, Log in, Register with no menu. Keep home-page auth calls to action. Keep desktop layout, add a Trades destination, and preserve the full-screen scanning flow.
+2. Trades: move creation, list, cancellation, and full history out of Account into authenticated `/trades`. Keep `/trades/$slug` access rules. Replace the owner’s raw URL with Share and a popup. Reuse link delivery across Collection, Wishlist, and Trade; keep publication controls out of the Trade popup. Keep Copy and manual-copy fallback; offer native share when available, only on a user click. Treat native cancellation as a non-error.
+3. Collections: use a secondary “Make this a binder” action on eligible empty Collections to open the existing form in a Dialog. Never auto-open it. Preserve limits, errors, pending behavior, and cancellation. Add decorative camera and plus/Card icons to Scan cards and Add Cards without changing destinations.
+4. Catalog: separate Wishlist from owned quantity. Open the wanted-quantity popup from a labeled button and keep explicit Save. Preserve arbitrary wanted totals and all inventory behavior. Fix artwork framing in CardTile so the full image and its own corners remain visible, without changing global Card rounding.
+5. Accessibility and checks: retain house UI Modules, existing tokens, Figtree, Instrument Sans, and both themes. Use labeled controls and decorative icons, 44 CSS-pixel mobile targets, visible focus, correct popup focus behavior, reduced-motion support, and safe-area/content clearance. Test the changed flows with the compose verification scripts and rendered checks; report any untested browser or assistive technology.
+
+## Architecture finding
+
+Read-only exploration found one justified shared Module: link delivery, separate from publication. Collection, Wishlist, and Trade are real callers. Keep the other changes inside existing Modules; no new backend Adapter, navigation framework, quantity abstraction, or theme system. This respects ADR-0025 and ADR-0028. The temporary visual report is `/tmp/architecture-review-20261118-122239.html`; the facts above remain the durable record.
+
 ## Open decisions
 
-- Pick a mobile navigation layout, then settle its visible destinations and overflow placement.
-- Choose the catalog Wishlist action and wanted-quantity editing flow.
-- Confirm Trade history presentation and link-delivery behavior without publication controls.
-- Confirm artwork framing, binder entry point, and accessibility acceptance checks.
-- Review the scoped architecture candidates, then confirm the final implementation brief before production edits.
+- Confirm the proposed final brief as the shared understanding. This confirms design only; it does not authorize implementation.
+- Obtain separate permission before production edits.
 
 ## Verification
 
