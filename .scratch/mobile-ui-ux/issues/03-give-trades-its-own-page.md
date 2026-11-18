@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately after implementation approval).
 
-**Status:** claimed
+**Status:** resolved
 
 **Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
@@ -35,6 +35,10 @@
 ## Comments
 
 Implementation commit: `b2a0f8a` on `t3/trades-own-page`. Both apps passed lint, format, typecheck, unit tests, and builds. Focused Trade list and exchange checks passed. Full E2E reported 72 passed and 21 failed; a separate test worker is checking the failures in the same worktree. Merge and dependent ticket 04 wait for a passing final gate.
+
+## Answer
+
+Merged in `a72f7838`, including implementation `b2a0f8ad` and E2E readiness fix `ee1c4061`. The authenticated Trades page now owns creation and history; Account no longer embeds them. Both apps passed all verification steps, including 876 frontend unit tests, 108 Admin unit tests, and 93 E2E tests. The worker fixed an ambiguous Trade heading match and added bounded Clerk readiness waits without raising global assertion timeouts. Reviews found no remaining issues. Worker worktree and branch were removed safely.
 
 ## Scope limits
 

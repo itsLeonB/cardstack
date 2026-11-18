@@ -32,6 +32,10 @@
 - [ ] Extend Card tile image/fallback tests only where observable rendering behavior changes. Verify clipping and the full image in rendered checks rather than asserting CSS class strings.
 - [ ] Exercise a browse-and-edit flow with keyboard, both themes, narrow widths, and rendered accessibility checks. Sample other Card tile callers for unwanted clipping or new owner-only actions, then run relevant compose frontend verification checks.
 
+## Comments
+
+Implementation commits: `df250a0e`, `c157ee83` on `t3/clarify-catalog-card-actions-artwork`; merge `ea358c8a` includes integration notes. Both apps passed static checks, unit tests, and builds. Full E2E reported 83 passed and 9 failed; focused catalog browsing also failed to load page content. A 375px rendered artwork check and Wishlist route tests passed. The popup still needs browser checks in both themes and a rendered accessibility audit. Merge waits for a passing final gate.
+
 ## Scope limits
 
 No new Wishlist semantics, ownership model, removal behavior, backend/schema changes, global Card radius, image-hosting contract, or dependency on sharing, binder setup, or bottom navigation. Read the feature’s approved design spec before implementation.

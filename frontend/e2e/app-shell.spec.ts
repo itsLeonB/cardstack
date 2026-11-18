@@ -8,6 +8,7 @@ import {
   signInAsTestUser,
   SIGNED_IN_TAG,
   useSignedInSuite,
+  waitForClerkReady,
 } from "./support/clerk-auth"
 
 // Shell-level checks. Guest tests need no setup: Clerk loads, finds no session
@@ -199,8 +200,7 @@ test.describe("App shell: mobile", () => {
   for (const path of ["/", "/auth/login", "/auth/register"]) {
     test(`no horizontal scroll on ${path}`, async ({ page }) => {
       await page.goto(path)
-      // clerk-js mounts the auth form after the page loads; a slow Clerk
-      // request measured 4.6 s against this file's 5 s default.
+      await waitForClerkReady(page)
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
         timeout: 15_000,
       })
