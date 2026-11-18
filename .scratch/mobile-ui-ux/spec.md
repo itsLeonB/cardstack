@@ -1,6 +1,6 @@
 # Mobile UI and UX improvements
 
-Status: needs-info
+Status: ready-for-human
 
 ## Scope
 
@@ -36,7 +36,7 @@ Verdict: the user selected bottom navigation. They changed the guest design to a
 - Wishlist saves a positive wanted total, not an owned quantity. A boolean toggle loses a prior wanted total when an item is removed and re-added. Retain arbitrary wanted quantities unless the user explicitly chooses a different model.
 - `CardTile` controls artwork framing across many screens. Change it instead of global `ui/Card` rounding, and keep owner-only actions out of it.
 
-## Proposed final brief
+## Confirmed design brief
 
 1. Mobile navigation: signed-in Catalog, Collections, Wishlist, Trades, More; More keeps Master Inventory and Account. Guests get Catalog, Log in, Register with no menu. Keep home-page auth calls to action. Keep desktop layout, add a Trades destination, and preserve the full-screen scanning flow.
 2. Trades: move creation, list, cancellation, and full history out of Account into authenticated `/trades`. Keep `/trades/$slug` access rules. Replace the owner’s raw URL with Share and a popup. Reuse link delivery across Collection, Wishlist, and Trade; keep publication controls out of the Trade popup. Keep Copy and manual-copy fallback; offer native share when available, only on a user click. Treat native cancellation as a non-error.
@@ -48,10 +48,11 @@ Verdict: the user selected bottom navigation. They changed the guest design to a
 
 Read-only exploration found one justified shared Module: link delivery, separate from publication. Collection, Wishlist, and Trade are real callers. Keep the other changes inside existing Modules; no new backend Adapter, navigation framework, quantity abstraction, or theme system. This respects ADR-0025 and ADR-0028. The temporary visual report is `/tmp/architecture-review-20261118-122239.html`; the facts above remain the durable record.
 
-## Open decisions
+## Approval
 
-- Confirm the proposed final brief as the shared understanding. This confirms design only; it does not authorize implementation.
-- Obtain separate permission before production edits.
+The user confirmed this design brief as the shared understanding. Implementation remains paused. This approval covers design only, not production edits.
+
+Next action: wait for the user’s explicit instruction to start implementation.
 
 ## Verification
 
