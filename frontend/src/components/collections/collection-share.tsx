@@ -37,7 +37,11 @@ export function CollectionShare({ collectionId }: { collectionId: string }) {
   if (!profileSlug)
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" disabled>
+        <Button
+          variant="outline"
+          className="h-auto min-h-11 whitespace-normal"
+          disabled
+        >
           <RiShareLine data-icon="inline-start" />
           {collection.slug ? "Shared" : "Share"}
         </Button>
