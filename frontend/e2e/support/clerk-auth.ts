@@ -18,6 +18,12 @@ import { decideClerkE2e, readClerkE2eCredentials } from "./clerk-credentials"
 
 export const SIGNED_IN_TAG = "@signed-in"
 
+export async function waitForClerkReady(page: Page) {
+  await page.waitForFunction(() => window.Clerk?.loaded === true, null, {
+    timeout: 20_000,
+  })
+}
+
 const credentials = readClerkE2eCredentials(process.env)
 
 function requireCredentials() {

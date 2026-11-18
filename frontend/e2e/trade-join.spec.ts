@@ -79,7 +79,7 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
     )
 
     await signInAsTestUser(page)
-    await page.goto("/account")
+    await page.goto("/trades")
     await page.getByRole("button", { name: "Start a Trade" }).click()
 
     await expect(

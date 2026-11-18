@@ -5,6 +5,7 @@ export type NavLink = {
     | "/catalog"
     | "/collections"
     | "/inventory"
+    | "/trades"
     | "/wishlist"
     | "/auth/login"
     | "/auth/register"
@@ -27,6 +28,7 @@ export function useNavLinks(): NavLink[] {
       catalog,
       { to: "/collections", label: "Collections" },
       { to: "/wishlist", label: "Wishlist" },
+      { to: "/trades", label: "Trades" },
       { to: "/inventory", label: "Master Inventory" },
     ]
   }

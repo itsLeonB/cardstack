@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
+import { Route as AuthenticatedTradesRouteImport } from './routes/_authenticated/trades'
 import { Route as AuthenticatedWishlistRouteImport } from './routes/_authenticated/wishlist'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
@@ -56,6 +57,11 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
 const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTradesRoute = AuthenticatedTradesRouteImport.update({
+  id: '/trades',
+  path: '/trades',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedWishlistRoute = AuthenticatedWishlistRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteRouteWithChildren
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
+  '/trades': typeof AuthenticatedTradesRoute
   '/wishlist': typeof AuthenticatedWishlistRoute
   '/catalog/search': typeof CatalogSearchRoute
   '/trades/$slug': typeof TradesSlugRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AuthenticatedAccountRoute
   '/inventory': typeof AuthenticatedInventoryRoute
+  '/trades': typeof AuthenticatedTradesRoute
   '/wishlist': typeof AuthenticatedWishlistRoute
   '/catalog/search': typeof CatalogSearchRoute
   '/trades/$slug': typeof TradesSlugRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
+  '/_authenticated/trades': typeof AuthenticatedTradesRoute
   '/_authenticated/wishlist': typeof AuthenticatedWishlistRoute
   '/catalog/search': typeof CatalogSearchRoute
   '/trades/$slug': typeof TradesSlugRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/account'
     | '/inventory'
+    | '/trades'
     | '/wishlist'
     | '/catalog/search'
     | '/trades/$slug'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/inventory'
+    | '/trades'
     | '/wishlist'
     | '/catalog/search'
     | '/trades/$slug'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_authenticated/account'
     | '/_authenticated/inventory'
+    | '/_authenticated/trades'
     | '/_authenticated/wishlist'
     | '/catalog/search'
     | '/trades/$slug'
@@ -365,6 +377,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof AuthenticatedInventoryRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/trades': {
+      id: '/_authenticated/trades'
+      path: '/trades'
+      fullPath: '/trades'
+      preLoaderRoute: typeof AuthenticatedTradesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/wishlist': {
@@ -526,6 +545,7 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
 interface AuthenticatedRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
+  AuthenticatedTradesRoute: typeof AuthenticatedTradesRoute
   AuthenticatedWishlistRoute: typeof AuthenticatedWishlistRoute
   AuthenticatedCollectionsNewRoute: typeof AuthenticatedCollectionsNewRoute
   AuthenticatedTradeInboxesCollectionIdRoute: typeof AuthenticatedTradeInboxesCollectionIdRoute
@@ -538,6 +558,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
+  AuthenticatedTradesRoute: AuthenticatedTradesRoute,
   AuthenticatedWishlistRoute: AuthenticatedWishlistRoute,
   AuthenticatedCollectionsNewRoute: AuthenticatedCollectionsNewRoute,
   AuthenticatedTradeInboxesCollectionIdRoute:
