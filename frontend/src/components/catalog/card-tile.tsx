@@ -28,20 +28,22 @@ export function CardTile({
   const tags = card.tags ?? []
 
   return (
-    <Card size="sm" className="h-full">
+    <Card size="sm" className="h-full rounded-md pt-0">
       {card.imageUrl && !imageFailed ? (
-        <img
-          src={src}
-          srcSet={srcSet}
-          width={width}
-          height={height}
-          alt={card.name}
-          loading="lazy"
-          className="aspect-[5/7] w-full object-cover"
-          onError={() => setImageFailed(true)}
-        />
+        <div className="aspect-[5/7] w-full">
+          <img
+            src={src}
+            srcSet={srcSet}
+            width={width}
+            height={height}
+            alt={card.name}
+            loading="lazy"
+            className="h-full w-full object-contain"
+            onError={() => setImageFailed(true)}
+          />
+        </div>
       ) : (
-        <div className="flex aspect-[5/7] w-full items-center justify-center rounded-t-4xl bg-muted p-3 text-center text-sm text-muted-foreground">
+        <div className="flex aspect-[5/7] w-full items-center justify-center rounded-t-md bg-muted p-3 text-center text-sm text-muted-foreground">
           {card.name}
         </div>
       )}
