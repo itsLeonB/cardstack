@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright"
 import { deflateSync, crc32 } from "node:zlib"
 import { test, expect } from "playwright/test"
 import type { Page, Route } from "playwright/test"
@@ -282,6 +283,31 @@ test.describe("Page scan", { tag: SIGNED_IN_TAG }, () => {
     }).toPass()
     await page.getByRole("link", { name: "Binder" }).click()
 
+    const setupTrigger = page.getByRole("button", {
+      name: "Make this a binder",
+    })
+    const setupDialog = page.getByRole("dialog", { name: "Make this a binder" })
+    for (const theme of ["Light", "Dark"]) {
+      await page.getByRole("button", { name: "Theme" }).click()
+      await page.getByRole("menuitemradio", { name: theme }).click()
+      if (theme === "Dark") {
+        await expect(page.locator("html")).toHaveClass(/dark/)
+      } else {
+        await expect(page.locator("html")).not.toHaveClass(/dark/)
+      }
+
+      await setupTrigger.click()
+      await expect(setupDialog).toBeVisible()
+      const { violations } = await new AxeBuilder({ page })
+        .include('[role="dialog"]')
+        .analyze()
+      expect(violations).toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(setupDialog).toBeHidden()
+      await expect(setupTrigger).toBeFocused()
+    }
+
+    await setupTrigger.click()
     await page.getByLabel("Layout").selectOption("2x2")
     await page.getByRole("button", { name: "Create binder" }).click()
     await expect(page.getByText("Page 1 of 2")).toBeVisible()
