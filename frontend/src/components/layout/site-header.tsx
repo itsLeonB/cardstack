@@ -1,7 +1,23 @@
-import { useEffect, useRef, useState } from "react"
-import { Link, useHydrated } from "@tanstack/react-router"
-import { RiCloseLine, RiMenuLine } from "@remixicon/react"
+import { useEffect, useState } from "react"
+import type { ReactNode } from "react"
+import { Link, useHydrated, useRouterState } from "@tanstack/react-router"
+import {
+  RiBookOpenLine,
+  RiExchangeLine,
+  RiHeartLine,
+  RiLoginBoxLine,
+  RiMoreLine,
+  RiStackLine,
+  RiUserAddLine,
+  RiUserLine,
+} from "@remixicon/react"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useSession } from "@/lib/session"
 import { cn } from "cn"
 import { useNavLinks } from "./nav-links"
@@ -11,35 +27,12 @@ import { UserMenu } from "./user-menu"
 import { Wordmark } from "./wordmark"
 
 export function SiteHeader() {
-  const links = useNavLinks()
+  const links = useNavLinks().filter((link) => link.to !== "/account")
   const { isAuthenticated } = useSession()
   const hydrated = useHydrated()
-  const [open, setOpen] = useState(false)
-  const toggleRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 768px)")
-    const onChange = () => {
-      if (media.matches) setOpen(false)
-    }
-    media.addEventListener("change", onChange)
-    return () => media.removeEventListener("change", onChange)
-  }, [])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false)
-        toggleRef.current?.focus()
-      }
-    }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [open])
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur">
       {/* The SPA shell is prerendered at "/" and React keeps the attributes it
           hydrates, so the links' aria-current would stay that of "/". Remount
           once hydrated to render them for the real location. */}
@@ -59,37 +52,95 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
           {isAuthenticated && <UserMenu />}
-          <Button
-            ref={toggleRef}
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label="Menu"
-            aria-expanded={open}
-            aria-controls="mobile-nav"
-            onClick={() => setOpen((value) => !value)}
-          >
-            {open ? <RiCloseLine /> : <RiMenuLine />}
-          </Button>
         </div>
       </div>
-      {open && (
-        <nav
-          id="mobile-nav"
-          aria-label="Mobile"
-          className="flex flex-col gap-1 border-t px-4 py-3 md:hidden"
-        >
-          {links.map((link) => (
-            <NavLinkItem
-              key={link.to}
-              link={link}
-              onNavigate={() => setOpen(false)}
-              className={link.primary ? "w-fit" : undefined}
-            />
-          ))}
-        </nav>
-      )}
     </header>
+  )
+}
+
+const mobileIcons = {
+  "/catalog": <RiBookOpenLine aria-hidden="true" className="size-5" />,
+  "/collections": <RiStackLine aria-hidden="true" className="size-5" />,
+  "/wishlist": <RiHeartLine aria-hidden="true" className="size-5" />,
+  "/trades": <RiExchangeLine aria-hidden="true" className="size-5" />,
+  "/auth/login": <RiLoginBoxLine aria-hidden="true" className="size-5" />,
+  "/auth/register": <RiUserAddLine aria-hidden="true" className="size-5" />,
+  "/inventory": <RiStackLine aria-hidden="true" className="size-5" />,
+  "/account": <RiUserLine aria-hidden="true" className="size-5" />,
+} satisfies Record<NavLink["to"], ReactNode>
+
+export function MobileNavigation() {
+  const links = useNavLinks()
+  const hydrated = useHydrated()
+  const primaryLinks = links.filter((link) => !link.more)
+  const moreLinks = links.filter((link) => link.more)
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const [open, setOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)")
+    const syncViewport = () => {
+      setIsDesktop(media.matches)
+      if (media.matches) setOpen(false)
+    }
+    syncViewport()
+    media.addEventListener("change", syncViewport)
+    return () => media.removeEventListener("change", syncViewport)
+  }, [])
+
+  const moreIsCurrent =
+    pathname === "/account" || pathname.startsWith("/inventory")
+
+  return (
+    <nav
+      aria-label="Bottom navigation"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pr-[max(0.25rem,env(safe-area-inset-right,0px))] pb-[env(safe-area-inset-bottom,0px)] pl-[max(0.25rem,env(safe-area-inset-left,0px))] backdrop-blur md:hidden"
+    >
+      <div
+        key={String(hydrated)}
+        className="mx-auto grid max-w-5xl auto-cols-fr grid-flow-col"
+      >
+        {primaryLinks.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className="relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 text-foreground outline-none after:absolute after:inset-x-1/3 after:bottom-1 after:h-0.5 after:rounded-full after:bg-foreground after:opacity-0 focus-visible:ring-3 focus-visible:ring-ring/50 [&[aria-current=page]]:after:opacity-100"
+          >
+            {mobileIcons[link.to]}
+            <span className="text-center text-xs leading-tight break-words">
+              {link.label}
+            </span>
+          </Link>
+        ))}
+        {moreLinks.length > 0 && (
+          <DropdownMenu open={open && !isDesktop} onOpenChange={setOpen}>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  aria-label="More"
+                  aria-current={moreIsCurrent ? "page" : undefined}
+                  className="relative flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-none px-1 text-foreground after:absolute after:inset-x-1/3 after:bottom-1 after:h-0.5 after:rounded-full after:bg-foreground after:opacity-0 [&[aria-current=page]]:after:opacity-100"
+                />
+              }
+            >
+              <RiMoreLine aria-hidden="true" className="size-5" />
+              <span className="text-xs leading-tight">More</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="mb-2">
+              {moreLinks.map((link) => (
+                <DropdownMenuItem key={link.to} render={<Link to={link.to} />}>
+                  {link.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </nav>
   )
 }
 

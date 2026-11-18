@@ -146,6 +146,35 @@ test.describe("App shell: signed in", { tag: SIGNED_IN_TAG }, () => {
 
     await header.getByRole("link", { name: "Master Inventory" }).click()
     await expect(page).toHaveURL(/\/inventory/)
+
+    await page.setViewportSize({ width: 375, height: 700 })
+    const nav = page.getByRole("navigation", { name: "Bottom navigation" })
+    const more = nav.getByRole("button", { name: "More" })
+    await more.click()
+    await expect(page.getByRole("menuitem", { name: "Account" })).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(page.getByRole("menuitem", { name: "Account" })).toHaveCount(0)
+    await expect(more).toBeFocused()
+
+    await more.click()
+    await page.getByRole("menuitem", { name: "Account" }).click()
+    await expect(page).toHaveURL(/\/account$/)
+    await expect(more).toHaveAttribute("aria-current", "page")
+
+    await more.click()
+    await page.getByRole("menuitem", { name: "Master Inventory" }).click()
+    await expect(page).toHaveURL(/\/inventory/)
+    await more.click()
+    await expect(page.getByRole("menuitem", { name: "Account" })).toBeVisible()
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await expect(page.getByRole("menuitem", { name: "Account" })).toHaveCount(0)
+
+    await page.setViewportSize({ width: 375, height: 700 })
+    await nav.getByRole("link", { name: "Trades" }).click()
+    await expect(page).toHaveURL(/\/trades$/)
+    await expect(
+      page.getByRole("heading", { name: "Your Trades" })
+    ).toBeVisible()
   })
 })
 
@@ -175,26 +204,60 @@ test.describe("App shell: theme", () => {
 test.describe("App shell: mobile", () => {
   test.use({ viewport: { width: 375, height: 700 } })
 
-  test("collapses navigation into a menu that opens and closes", async ({
+  test("keeps guest destinations visible and content clear at mobile sizes", async ({
     page,
   }) => {
     await page.goto("/")
-    const header = page.getByRole("banner")
-    const toggle = header.getByRole("button", { name: "Menu" })
+    await waitForClerkReady(page)
+    const nav = page.getByRole("navigation", { name: "Bottom navigation" })
 
-    await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
-    await expect(async () => {
-      await toggle.click()
-      await expect(toggle).toHaveAttribute("aria-expanded", "true", {
-        timeout: 1000,
-      })
-    }).toPass()
-    await expect(header.getByRole("link", { name: "Log in" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Catalog" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Log in" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Register" })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Menu" })).toHaveCount(0)
 
-    await page.keyboard.press("Escape")
-    await expect(toggle).toHaveAttribute("aria-expanded", "false")
-    await expect(toggle).toBeFocused()
-    await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
+    await openMenu(page, "Theme", "Light")
+    await page.getByRole("menuitemradio", { name: "Light" }).click()
+    await page.reload()
+    await waitForClerkReady(page)
+    await expect(page.locator("html")).not.toHaveClass(/dark/)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+    await openMenu(page, "Theme", "Dark")
+    await page.getByRole("menuitemradio", { name: "Dark" }).click()
+    await page.reload()
+    await waitForClerkReady(page)
+    await expect(page.locator("html")).toHaveClass(/dark/)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+    for (const viewport of [
+      { width: 320, height: 640 },
+      { width: 375, height: 700 },
+      { width: 700, height: 375 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await expect(nav).toBeVisible()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth
+      )
+      expect(overflow).toBeLessThanOrEqual(0)
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%"
+    })
+    const zoomOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    )
+    expect(zoomOverflow).toBeLessThanOrEqual(0)
+
+    const lastAction = page.getByRole("link", { name: "Create account" }).last()
+    await lastAction.scrollIntoViewIfNeeded()
+    const actionBox = await lastAction.boundingBox()
+    const navBox = await nav.boundingBox()
+    expect(actionBox).not.toBeNull()
+    expect(navBox).not.toBeNull()
+    expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(navBox!.y)
   })
 
   for (const path of ["/", "/auth/login", "/auth/register"]) {

@@ -177,6 +177,9 @@ test.describe("Card scanning", { tag: SIGNED_IN_TAG }, () => {
     }).toPass()
     await page.getByRole("link", { name: "Binder" }).click()
     await page.getByRole("link", { name: "Scan cards" }).click()
+    await expect(
+      page.getByRole("navigation", { name: "Bottom navigation" })
+    ).toHaveCount(0)
 
     await page.locator('input[type="file"]').setInputFiles({
       name: "card.png",

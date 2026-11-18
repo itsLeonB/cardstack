@@ -129,6 +129,7 @@
     cursor: pointer;
     }
   html {
+    scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
     @apply font-sans;
     }
 }

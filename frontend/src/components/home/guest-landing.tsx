@@ -1,8 +1,10 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
+import { SignInLink } from "@/components/auth/sign-in-link"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "cn"
 
 const steps = [
   {
@@ -21,6 +23,10 @@ const steps = [
 
 /** Marketing page shown at `/` to anyone without a session; no screenshots or testimonials on purpose. */
 export function GuestLanding() {
+  const redirect = useRouterState({
+    select: (state) => state.location.pathname + state.location.searchStr,
+  })
+
   return (
     <PageContainer className="gap-12 sm:gap-16">
       <div className="flex flex-col gap-6">
@@ -39,6 +45,15 @@ export function GuestLanding() {
           <Button size="lg" variant="outline" render={<Link to="/catalog" />}>
             Browse the catalog
           </Button>
+          <SignInLink
+            redirect={redirect}
+            className={cn(
+              buttonVariants({ size: "lg", variant: "outline" }),
+              "no-underline"
+            )}
+          >
+            Log in
+          </SignInLink>
         </div>
       </div>
 
