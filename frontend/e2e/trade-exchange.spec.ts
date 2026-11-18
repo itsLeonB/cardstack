@@ -158,7 +158,7 @@ async function addOffer(
 }
 
 async function startTrade(page: Page): Promise<string> {
-  await page.goto("/account")
+  await page.goto("/trades")
   await page.getByRole("button", { name: "Start a Trade" }).click()
   await expect(
     page.getByRole("heading", { name: "Trade", level: 1 })
