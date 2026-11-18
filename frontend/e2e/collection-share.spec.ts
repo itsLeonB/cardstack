@@ -104,6 +104,111 @@ test.describe("Collection sharing", { tag: SIGNED_IN_TAG }, () => {
       page.getByRole("heading", { name: "Holiday Binder", level: 1 })
     ).toBeVisible()
 
+    const actions = [
+      page.getByRole("link", { name: "Scan cards" }),
+      page.getByRole("button", { name: "Shared" }),
+      page.getByRole("link", { name: "Add Cards" }),
+    ]
+    for (const viewport of [
+      { width: 375, height: 812 },
+      { width: 1280, height: 800 },
+    ]) {
+      await page.setViewportSize(viewport)
+      for (const theme of ["Light", "Dark"]) {
+        await page
+          .getByRole("banner")
+          .getByRole("button", { name: "Theme" })
+          .click()
+        await page.getByRole("menuitemradio", { name: theme }).click()
+        await page.keyboard.press("Escape")
+        for (const action of actions) {
+          await action.evaluate(async (element) => {
+            await Promise.all(
+              element
+                .getAnimations()
+                .map((animation) => animation.finished.catch(() => undefined))
+            )
+          })
+        }
+
+        const restingStyles = await Promise.all(
+          actions.map((action) =>
+            action.evaluate((element) => {
+              const style = getComputedStyle(element)
+              return {
+                height: element.getBoundingClientRect().height,
+                background: style.backgroundColor,
+                border: style.borderColor,
+                color: style.color,
+              }
+            })
+          )
+        )
+        expect(new Set(restingStyles.map(({ height }) => height)).size).toBe(1)
+        expect(restingStyles[0].height).toBeGreaterThanOrEqual(44)
+        for (const property of ["background", "border", "color"] as const) {
+          expect(restingStyles[1][property]).toBe(restingStyles[0][property])
+          expect(restingStyles[2][property]).toBe(restingStyles[0][property])
+        }
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth)
+        ).toBeLessThanOrEqual(viewport.width)
+
+        const hoverStyles = []
+        const focusStyles = []
+        for (const action of actions) {
+          await action.hover()
+          await action.evaluate(async (element) => {
+            await Promise.all(
+              element
+                .getAnimations()
+                .map((animation) => animation.finished.catch(() => undefined))
+            )
+          })
+          hoverStyles.push(
+            await action.evaluate((element) => {
+              const style = getComputedStyle(element)
+              return `${style.backgroundColor}|${style.borderColor}|${style.color}`
+            })
+          )
+
+          await page.evaluate(() => {
+            if (document.activeElement instanceof HTMLElement)
+              document.activeElement.blur()
+          })
+          let focused = false
+          for (let attempt = 0; attempt < 30; attempt++) {
+            await page.keyboard.press("Tab")
+            focused = await action.evaluate(
+              (element) => element === document.activeElement
+            )
+            if (focused) break
+          }
+          expect(focused).toBe(true)
+          await action.evaluate(async (element) => {
+            await Promise.all(
+              element
+                .getAnimations()
+                .map((animation) => animation.finished.catch(() => undefined))
+            )
+          })
+          focusStyles.push(
+            await action.evaluate((element) => {
+              const style = getComputedStyle(element)
+              return `${element.matches(":focus-visible")}|${style.boxShadow}|${style.borderColor}`
+            })
+          )
+        }
+        expect(hoverStyles[1]).toBe(hoverStyles[0])
+        expect(hoverStyles[2]).toBe(hoverStyles[0])
+        expect(focusStyles[1]).toBe(focusStyles[0])
+        expect(focusStyles[2]).toBe(focusStyles[0])
+        expect(focusStyles.every((style) => style.startsWith("true|"))).toBe(
+          true
+        )
+      }
+    }
+
     const trigger = page.getByRole("button", { name: "Shared" })
     for (const theme of ["Light", "Dark"]) {
       await page

@@ -58,7 +58,10 @@ export function ShareDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            className="h-auto min-h-11 whitespace-normal"
+          >
             <RiShareLine data-icon="inline-start" />
             {shared ? "Shared" : "Share"}
           </Button>
