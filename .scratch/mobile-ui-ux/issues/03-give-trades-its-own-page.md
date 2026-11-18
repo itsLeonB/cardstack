@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately after implementation approval).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-**Execution:** paused. The user approved the ticket breakdown, not implementation. Wait for a separate instruction to start.
+**Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
 ## Acceptance criteria
 

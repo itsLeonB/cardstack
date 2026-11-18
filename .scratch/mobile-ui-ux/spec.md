@@ -2,7 +2,7 @@
 
 Status: ready-for-agent
 
-Execution: paused. The user approved the design, not implementation. This spec does not authorize production edits.
+Execution: approved. The user invoked implement-spec for this spec. Implementation runs on `feat/mobile-ui-ux`.
 
 ## Problem Statement
 

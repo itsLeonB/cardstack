@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-**Execution:** paused. The user approved the ticket breakdown, not implementation. Wait for a separate instruction to start.
+**Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
 ## Acceptance criteria
 
