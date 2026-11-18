@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { RiAddLine, RiSubtractLine } from "@remixicon/react"
 import { SignInLink } from "@/components/auth/sign-in-link"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSetWishlistItem } from "@/generated/endpoints/wishlist/wishlist"
 import type { CardSummary } from "@/generated/models"
@@ -33,14 +38,18 @@ export function AddToWishlist({
   const save = useSetWishlistItem()
   const [quantity, setQuantity] = useState(wanted ?? 1)
   const [error, setError] = useState("")
+  const [open, setOpen] = useState(false)
 
-  // An answer from the server wins over a quantity picked before it arrived.
-  useEffect(() => {
-    setQuantity(wanted ?? 1)
-  }, [wanted])
+  function changeOpen(nextOpen: boolean) {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      setQuantity(wanted ?? 1)
+      setError("")
+    }
+  }
 
-  function addItem() {
-    if (save.isPending) return
+  function saveItem() {
+    if (save.isPending || quantity < 1) return
     setError("")
     save.mutate(
       { cardId, data: { quantity } },
@@ -55,63 +64,84 @@ export function AddToWishlist({
           }
           onAnnounce(`Want ${quantity} of ${cardName}.`)
           invalidateWishlist(queryClient)
+          setOpen(false)
         },
         onError: () => setError(NETWORK_ERROR),
       }
     )
   }
 
-  const onWishlist = wanted !== undefined
-
   return (
-    <div className="flex flex-col gap-1.5">
-      {onWishlist && <p className="text-xs font-medium">Wanted ×{wanted}</p>}
-      <div className="flex flex-wrap items-center gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label={`Decrease wanted quantity of ${cardName}`}
-          disabled={quantity <= 1 || save.isPending}
-          onClick={() => setQuantity(quantity - 1)}
-        >
-          <RiSubtractLine />
-        </Button>
-        <span className="min-w-6 text-center text-sm">
-          <span className="sr-only">Wanted quantity </span>
-          {quantity}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label={`Increase wanted quantity of ${cardName}`}
-          disabled={quantity >= MAX_WANTED || save.isPending}
-          onClick={() => setQuantity(quantity + 1)}
-        >
-          <RiAddLine />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-label={
-            onWishlist
-              ? `Update the wanted quantity of ${cardName}`
-              : `Add ${cardName} to your Wishlist`
-          }
-          disabled={save.isPending}
-          onClick={addItem}
-        >
-          {onWishlist ? "Update" : "Add to Wishlist"}
-        </Button>
-      </div>
-      {error && (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
+    <Popover open={open} onOpenChange={changeOpen}>
+      <PopoverTrigger
+        render={
+          <Button variant="outline" size="sm" className="min-h-11 gap-2" />
+        }
+        aria-label={`Edit Wishlist quantity for ${cardName}${wanted === undefined ? "" : `, wanted ${wanted}`}`}
+      >
+        Wishlist
+        {wanted !== undefined && (
+          <span className="text-muted-foreground">Wanted ×{wanted}</span>
+        )}
+      </PopoverTrigger>
+      <PopoverContent
+        aria-label={`Wishlist for ${cardName}`}
+        className="motion-reduce:duration-0 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none"
+      >
+        <div className="flex flex-col gap-3">
+          <h3 className="font-heading font-medium">Wishlist for {cardName}</h3>
+          <p className="text-sm">Wanted quantity: {quantity}</p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-11"
+              aria-label={`Decrease wanted quantity of ${cardName}`}
+              disabled={quantity <= 1 || save.isPending}
+              onClick={() => setQuantity(quantity - 1)}
+            >
+              <RiSubtractLine aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-11"
+              aria-label={`Increase wanted quantity of ${cardName}`}
+              disabled={quantity >= MAX_WANTED || save.isPending}
+              onClick={() => setQuantity(quantity + 1)}
+            >
+              <RiAddLine aria-hidden="true" />
+            </Button>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={save.isPending}
+              onClick={() => changeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={save.isPending || quantity < 1}
+              onClick={saveItem}
+            >
+              {save.isPending ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -166,7 +196,6 @@ export function CardWishlistAction({
 
   return (
     <section aria-label="Wishlist" className="flex flex-col gap-3">
-      <h2 className="font-heading text-lg font-medium">Wishlist</h2>
       {body}
       {/* Always mounted: a live region that appears together with its text is often not announced. */}
       <p role="status" className="text-sm empty:sr-only">
