@@ -1,5 +1,14 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useCreateBinder } from "@/generated/endpoints/binder/binder"
 import { BinderLayoutForm } from "@/components/collections/binder-layout-form"
 import type { BinderLayoutValues } from "@/components/collections/binder-layout-form"
@@ -9,6 +18,7 @@ import { errorDetail, NETWORK_ERROR } from "@/lib/collections"
 /** Turns a plain, empty Collection into a binder. */
 export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
   const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const createMutation = useCreateBinder()
 
@@ -32,6 +42,7 @@ export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
             return
           }
           invalidateBinder(queryClient, collectionId)
+          setOpen(false)
         },
         onError: () => setErrorMessage(NETWORK_ERROR),
       }
@@ -39,22 +50,33 @@ export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
   }
 
   return (
-    <section aria-label="Make a binder" className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium">Make this a binder</h2>
-      <p className="text-sm">
-        Choose the Layout of each Page and how many Leaves the binder starts
-        with. Its Slots then hold the cards.
-      </p>
-      <div className="max-w-lg">
-        <BinderLayoutForm
-          withLeafCount
-          submitLabel="Create binder"
-          pendingLabel="Creating..."
-          isPending={createMutation.isPending}
-          errorMessage={errorMessage}
-          onSubmit={createBinder}
-        />
-      </div>
-    </section>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="outline" className="min-h-11" />}>
+        Make this a binder
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+      >
+        <DialogHeader>
+          <DialogTitle>Make this a binder</DialogTitle>
+          <DialogDescription>
+            Choose the Layout of each Page and how many Leaves the binder starts
+            with. Its Slots then hold the cards.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-w-lg">
+          <BinderLayoutForm
+            withLeafCount
+            submitLabel="Create binder"
+            pendingLabel="Creating..."
+            isPending={createMutation.isPending}
+            errorMessage={errorMessage}
+            onCancel={() => setOpen(false)}
+            onSubmit={createBinder}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
