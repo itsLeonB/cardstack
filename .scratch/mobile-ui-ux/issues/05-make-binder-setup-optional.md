@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately after implementation approval).
 
-**Status:** claimed
+**Status:** resolved
 
 **Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
@@ -35,6 +35,10 @@
 ## Comments
 
 Implementation commits: `2cc359b`, `123e994`, `05495fc`, `b1d886c` on `t3/mobile-ui-ux-binder-setup-optional`; merge `61524d2` includes integration notes. Both apps passed static checks, unit tests, and builds. Focused binder E2E passed Escape, focus return, and accessibility in both themes. Full E2E reported 65 passed and 27 failed. Merge waits for a passing final gate. Real-device, screen-reader, landscape, and text-zoom checks did not run.
+
+## Answer
+
+Merged in `e97fd549`, including verified worker tip `3d5c04e9`. Binder setup now opens only from the eligible empty Collection’s secondary action; Scan cards and Add Cards retain their rules and gain icons. Both apps passed all verification steps: 882 frontend unit tests, 108 Admin unit tests, and 93 E2E tests. Earlier focused binder checks passed keyboard dismissal, focus return, and accessibility in both themes. Final log: `/tmp/mobile-ui-binder-final-20261118-224734.log`. Worker worktree and branch were removed safely. Real-device, Safari, and screen-reader checks did not run.
 
 ## Scope limits
 
