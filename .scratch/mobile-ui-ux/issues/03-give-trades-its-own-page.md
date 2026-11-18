@@ -32,6 +32,10 @@
 - [ ] Update the existing Trade join/exchange and navigation flows that start from Account. Keep their existing proof of access, cancellation, and execution instead of adding a second test framework.
 - [ ] Run relevant compose frontend verification checks and a rendered keyboard/accessibility check of the page. Report any authenticated checks that cannot run with the available Clerk setup.
 
+## Comments
+
+Implementation commit: `b2a0f8a` on `t3/trades-own-page`. Both apps passed lint, format, typecheck, unit tests, and builds. Focused Trade list and exchange checks passed. Full E2E reported 72 passed and 21 failed; a separate test worker is checking the failures in the same worktree. Merge and dependent ticket 04 wait for a passing final gate.
+
 ## Scope limits
 
 No new Trade states, filtering, pagination, notifications, database/API changes, or dependency on the Share popup. Read the feature’s approved design spec before implementation.

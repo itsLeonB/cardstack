@@ -32,6 +32,10 @@
 - [ ] At the caller Seam, verify that Collection/Wishlist keep publication controls while Trade never gains them. Keep existing backend access tests rather than duplicating them for this frontend change.
 - [ ] Exercise the real popup flow with keyboard and rendered accessibility checks, and run the relevant compose frontend verification checks. Report real native-share or secure-context checks that cannot run; the compose web origin is not secure by default.
 
+## Comments
+
+Implementation commits: `985c12bf`, `930fd3c7` on `t3/1631c7aa`. Both apps passed lint, format, typecheck, unit tests, and builds. Full E2E reported 74 passed and 18 failed; the Trade owner popup flow passed. Merge waits for failed-check diagnosis and a passing final gate. Real-device, Safari, screen-reader, and secure-origin native-share checks did not run.
+
 ## Scope limits
 
 No backend/schema change, new share permissions, new overlay library, Trade notifications, or change to which Trade links work. Read the feature’s approved design spec before implementation.
