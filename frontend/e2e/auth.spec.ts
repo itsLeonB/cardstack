@@ -8,6 +8,7 @@ import {
   signInThroughForm,
   SIGNED_IN_TAG,
   useSignedInSuite,
+  waitForClerkReady,
 } from "./support/clerk-auth"
 
 // Sign-in and sign-up are Clerk's prebuilt components (ADR-0015). Guest checks
@@ -88,6 +89,7 @@ test.describe("Auth redirects", () => {
       page,
     }) => {
       await page.goto(path)
+      await waitForClerkReady(page)
       await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1)
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
     })
@@ -128,6 +130,7 @@ test.describe("Auth pages", () => {
   for (const path of ["/auth/login", "/auth/register"]) {
     test(`passes axe on ${path}`, async ({ page }) => {
       await page.goto(path)
+      await waitForClerkReady(page)
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
       expect(await scanForViolations(page)).toEqual([])
     })
@@ -138,6 +141,7 @@ test.describe("Auth pages", () => {
       page,
     }) => {
       await page.goto(path)
+      await waitForClerkReady(page)
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
       await expect(page.getByRole("main")).toHaveCount(1)
       await expect(page.getByRole("navigation")).toHaveCount(0)
@@ -152,6 +156,7 @@ test.describe("Auth pages", () => {
   for (const path of ["/auth/foo", "/auth"]) {
     test(`${path} shows not-found inside the auth shell`, async ({ page }) => {
       await page.goto(path)
+      await waitForClerkReady(page)
       await expect(
         page.getByRole("heading", { level: 1, name: "Page not found" })
       ).toBeVisible()
