@@ -88,9 +88,20 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByText("Ash Ketchum")).toBeVisible()
     await expect(page.getByText("Open")).toBeVisible()
     await expect(page.getByText("Waiting for someone to join")).toBeVisible()
-    // The owner gets the link to send, and Trade pages stay unindexed.
+    // Sharing delivers the link without exposing a publication switch.
     const origin = new URL(page.url()).origin
-    await expect(page.getByText(`${origin}/trades/${SLUG}`)).toBeVisible()
+    const share = page.getByRole("button", { name: "Share" })
+    await share.click()
+    const dialog = page.getByRole("dialog", { name: "Share Trade link" })
+    await expect(
+      dialog.getByRole("textbox", { name: "Trade link" })
+    ).toHaveValue(`${origin}/trades/${SLUG}`)
+    await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible()
+    await expect(dialog.getByRole("switch")).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    await expect(dialog).toBeHidden()
+    await expect(share).toBeFocused()
+    // Trade pages stay unindexed.
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       "content",
       "noindex"
