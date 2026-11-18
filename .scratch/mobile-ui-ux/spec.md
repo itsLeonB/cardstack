@@ -1,8 +1,8 @@
 # Mobile UI and UX improvements
 
-Status: ready-for-agent
+Status: resolved
 
-Execution: approved. The user invoked implement-spec for this spec. Implementation runs on `feat/mobile-ui-ux`. The user also approved a shared E2E sign-in setup fix to reduce Clerk requests while keeping real authentication, login-form tests, and access checks.
+Execution: complete on `feat/mobile-ui-ux`. The user approved implementation and the shared E2E sign-in setup fix. All five implementation tickets are resolved; both integration reviews passed. See [implementation results](implementation.md). Work is committed locally, not pushed.
 
 ## Problem Statement
 

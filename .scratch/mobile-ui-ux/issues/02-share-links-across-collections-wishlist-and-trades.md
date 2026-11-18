@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately after implementation approval).
 
-**Status:** claimed
+**Status:** resolved
 
 **Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
@@ -35,6 +35,10 @@
 ## Comments
 
 Implementation commits: `985c12bf`, `930fd3c7` on `t3/1631c7aa`. Both apps passed lint, format, typecheck, unit tests, and builds. Full E2E reported 74 passed and 18 failed; the Trade owner popup flow passed. Merge waits for failed-check diagnosis and a passing final gate. Real-device, Safari, screen-reader, and secure-origin native-share checks did not run.
+
+## Answer
+
+Merged in `61ebad6b`, including verified worker tip `eb40d5d4`. Collection, Wishlist, and Trade now share link delivery while retaining their publication and access rules. Both apps passed all verification steps on the final combined source: 889 frontend unit tests, 108 Admin unit tests, and 94 E2E tests. Sixteen focused sharing E2E checks passed named dialogs, keyboard dismissal, focus return, and accessibility in both themes. Worker worktree and branch were removed safely. Real OS native sharing, Safari, real-device, and screen-reader checks did not run.
 
 ## Scope limits
 
