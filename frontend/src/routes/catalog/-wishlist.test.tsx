@@ -111,6 +111,7 @@ describe("Add to Wishlist from the catalog", () => {
     )
     await userEvent.keyboard("{Escape}")
 
+    expect(document.activeElement).toBe(opener)
     expect(writes).toEqual([])
     expect(screen.queryByText("Wanted quantity: 2")).toBeNull()
     await userEvent.click(opener)

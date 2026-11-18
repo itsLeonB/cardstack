@@ -81,7 +81,7 @@ export function AddToWishlist({
       >
         Wishlist
         {wanted !== undefined && (
-          <span className="text-muted-foreground">Wanted ×{wanted}</span>
+          <span className="font-medium">Wanted ×{wanted}</span>
         )}
       </PopoverTrigger>
       <PopoverContent
