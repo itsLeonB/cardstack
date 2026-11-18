@@ -2,7 +2,7 @@
 
 Status: ready-for-agent
 
-Execution: approved. The user invoked implement-spec for this spec. Implementation runs on `feat/mobile-ui-ux`.
+Execution: approved. The user invoked implement-spec for this spec. Implementation runs on `feat/mobile-ui-ux`. The user also approved a shared E2E sign-in setup fix to reduce Clerk requests while keeping real authentication, login-form tests, and access checks.
 
 ## Problem Statement
 
