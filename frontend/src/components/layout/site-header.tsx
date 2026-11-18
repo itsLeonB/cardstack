@@ -38,12 +38,12 @@ export function SiteHeader() {
           once hydrated to render them for the real location. */}
       <div
         key={String(hydrated)}
-        className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4"
+        className="mx-auto flex min-h-14 max-w-5xl flex-wrap items-center gap-2 py-2 pr-[max(1rem,env(safe-area-inset-right,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]"
       >
         <Wordmark />
         <nav
           aria-label="Main"
-          className="ml-4 hidden items-center gap-1 md:flex"
+          className="ml-4 hidden flex-wrap items-center gap-1 md:flex"
         >
           {links.map((link) => (
             <NavLinkItem key={link.to} link={link} />

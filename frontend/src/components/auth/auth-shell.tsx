@@ -7,7 +7,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col">
       <SkipLink />
-      <header className="mx-auto flex w-full max-w-sm items-center justify-between px-4 py-4 sm:px-6">
+      <header className="mx-auto flex w-full max-w-sm items-center justify-between py-4 pr-[max(1rem,env(safe-area-inset-right,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))] sm:pr-[max(1.5rem,env(safe-area-inset-right,0px))] sm:pl-[max(1.5rem,env(safe-area-inset-left,0px))]">
         <Wordmark />
         <ThemeToggle />
       </header>

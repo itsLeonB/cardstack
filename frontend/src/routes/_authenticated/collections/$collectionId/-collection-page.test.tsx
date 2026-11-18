@@ -252,6 +252,43 @@ describe("Collection page", () => {
     )
   })
 
+  it("resets binder setup when switching between empty Collections", async () => {
+    const binder = fakeBinder({ exists: false, cardCount: 0 })
+    const router = await renderCollectionPage(binder)
+
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Rows per Page" }),
+      {
+        target: { value: "2" },
+      }
+    )
+    expect(
+      screen.getByRole("spinbutton", { name: "Rows per Page" })
+    ).toHaveProperty("value", "2")
+
+    await act(async () => router.history.push("/collections/col-2/"))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    await act(async () => router.history.push("/collections/col-1/"))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Make this a binder" })
+    )
+
+    expect(
+      screen.getByRole("spinbutton", { name: "Rows per Page" })
+    ).toHaveProperty("value", "3")
+    expect(
+      screen.getByRole("spinbutton", { name: "Columns per Page" })
+    ).toHaveProperty("value", "3")
+    expect(screen.getByRole("spinbutton", { name: "Leaves" })).toHaveProperty(
+      "value",
+      "10"
+    )
+    expect(
+      binder.requests.filter((request) => request.method === "POST")
+    ).toHaveLength(0)
+  })
+
   it("offers the Layout form on a plain Collection with no Cards", async () => {
     const binder = fakeBinder({ exists: false, cardCount: 0 })
     await renderCollectionPage(binder)
@@ -286,7 +323,7 @@ describe("Collection page", () => {
     await renderCollectionPage(fakeBinder({ exists: false, cardCount: 3 }))
 
     expect(
-      screen.queryByRole("heading", { name: "Make this a binder" })
+      screen.queryByRole("button", { name: "Make this a binder" })
     ).toBeNull()
     expect(screen.getByRole("link", { name: "Scan cards" })).toBeTruthy()
     expect(screen.getByRole("link", { name: "Add Cards" })).toBeTruthy()
@@ -299,7 +336,7 @@ describe("Collection page", () => {
     expect(screen.getByRole("link", { name: "Scan cards" })).toBeTruthy()
     expect(screen.queryByRole("link", { name: "Add Cards" })).toBeNull()
     expect(
-      screen.queryByRole("heading", { name: "Make this a binder" })
+      screen.queryByRole("button", { name: "Make this a binder" })
     ).toBeNull()
   })
 

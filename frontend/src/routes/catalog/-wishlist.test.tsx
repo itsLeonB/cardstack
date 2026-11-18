@@ -95,6 +95,63 @@ describe("Add to Wishlist from the catalog", () => {
     expect(await screen.findAllByText("Wanted ×5")).toHaveLength(1)
   })
 
+  it("opens with the saved quantity while its refresh is delayed", async () => {
+    const wishlist = new Map([["card-1", 3]])
+    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+      signedIn: true,
+      wishlist,
+    })
+    const fetchMock = vi.mocked(fetch)
+    const originalFetch = fetchMock.getMockImplementation()
+    if (!originalFetch) throw new Error("Expected the catalog API stub")
+
+    let releaseRefresh!: () => void
+    let markRefreshStarted!: () => void
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve
+    })
+    let delayRefresh = false
+    fetchMock.mockImplementation(async (input, init) => {
+      const response = await originalFetch(input, init)
+      const url = new URL(String(input))
+      if (init?.method === "PUT") delayRefresh = true
+      if (url.pathname === "/wishlist" && delayRefresh) {
+        delayRefresh = false
+        markRefreshStarted()
+        await refreshGate
+      }
+      return response
+    })
+
+    const opener = (
+      await screen.findAllByRole(
+        "button",
+        { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+        { timeout: LOOKUP_TIMEOUT }
+      )
+    )[0]
+    await userEvent.click(opener)
+    await userEvent.click(
+      screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await refreshStarted
+
+    await userEvent.click(opener)
+    expect(screen.getByText("Wanted quantity: 4")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(writes).toEqual([
+      { method: "PUT", path: "/wishlist/items/card-1", body: { quantity: 4 } },
+    ])
+
+    releaseRefresh()
+    await screen.findByText("Wanted ×4")
+    expect(writes).toHaveLength(1)
+  })
+
   it("discards an unsaved quantity when the popup is dismissed", async () => {
     const { writes } = await visitCatalog("/catalog/search?name=Card", {
       signedIn: true,

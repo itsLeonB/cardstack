@@ -18,7 +18,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full min-w-0 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8",
+        "mx-auto flex w-full min-w-0 flex-col gap-6 py-6 pr-[max(1rem,env(safe-area-inset-right,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))] sm:py-8 sm:pr-[max(1.5rem,env(safe-area-inset-right,0px))] sm:pl-[max(1.5rem,env(safe-area-inset-left,0px))]",
         widths[variant],
         className
       )}

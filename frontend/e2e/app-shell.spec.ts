@@ -108,6 +108,53 @@ test.describe("App shell: signed in", { tag: SIGNED_IN_TAG }, () => {
     await openMenu(page, "User menu", "Account")
     await expect(page.getByRole("menuitem", { name: "Log out" })).toBeVisible()
     await expectShowsTestUserEmail(page.getByRole("menu"))
+    await page.keyboard.press("Escape")
+
+    await page.setViewportSize({ width: 768, height: 900 })
+    await page
+      .locator('header button[aria-label="User menu"] span')
+      .evaluate((name) => {
+        name.textContent =
+          "A very long display name that must not hide navigation"
+      })
+    const nav = header.getByRole("navigation", { name: "Main" })
+    for (const destination of [
+      "Catalog",
+      "Collections",
+      "Wishlist",
+      "Trades",
+      "Master Inventory",
+    ]) {
+      await expect(nav.getByRole("link", { name: destination })).toBeVisible()
+    }
+    const headerOverflow = await header
+      .locator(":scope > div")
+      .evaluate((inner) => inner.scrollWidth - inner.clientWidth)
+    expect(headerOverflow).toBeLessThanOrEqual(0)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - innerWidth
+      )
+    ).toBeLessThanOrEqual(0)
+
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" })
+    await expect(header.locator("a").first()).toBeVisible()
+    for (const destination of [
+      "Catalog",
+      "Collections",
+      "Wishlist",
+      "Trades",
+      "Master Inventory",
+    ]) {
+      await expect(nav.getByRole("link", { name: destination })).toBeVisible()
+    }
+    await expect(
+      header.getByRole("button", { name: "User menu" })
+    ).toBeVisible()
+    const enlargedHeaderOverflow = await header
+      .locator(":scope > div")
+      .evaluate((inner) => inner.scrollWidth - inner.clientWidth)
+    expect(enlargedHeaderOverflow).toBeLessThanOrEqual(0)
   })
 
   test("passes axe on the signed-in shell", async ({ page }) => {
@@ -180,6 +227,97 @@ test.describe("App shell: signed in", { tag: SIGNED_IN_TAG }, () => {
 })
 
 test.describe("App shell: theme", () => {
+  test("keeps content clear of simulated horizontal safe areas", async ({
+    page,
+  }) => {
+    await page.goto("/catalog")
+    const pageContainer = page
+      .locator('#main-content div[class*="py-6"]')
+      .first()
+    await expect(pageContainer).toBeVisible()
+
+    for (const [width, contentPadding] of [
+      [375, "16px"],
+      [768, "24px"],
+    ] as const) {
+      await page.setViewportSize({ width, height: 800 })
+      const zeroInsetPadding = await page.evaluate(() => {
+        const wrapper = document.querySelector<HTMLElement>(
+          '#main-content div[class*="py-6"]'
+        )
+        if (!wrapper) throw new Error("PageContainer is missing")
+        return getComputedStyle(wrapper).paddingLeft
+      })
+      expect(zeroInsetPadding).toBe(contentPadding)
+    }
+
+    for (const width of [375, 768]) {
+      await page.setViewportSize({ width, height: 800 })
+      const result = await page.evaluate(() => {
+        const changed: {
+          rule: CSSStyleRule
+          property: string
+          value: string
+          priority: string
+        }[] = []
+        function replaceInsets(rules: CSSRuleList) {
+          for (const rule of Array.from(rules)) {
+            if (rule instanceof CSSStyleRule) {
+              for (const property of Array.from(rule.style)) {
+                const value = rule.style.getPropertyValue(property)
+                const updated = value
+                  .replace(/env\(safe-area-inset-left,\s*0px\)/g, "32px")
+                  .replace(/env\(safe-area-inset-right,\s*0px\)/g, "28px")
+                if (updated !== value) {
+                  changed.push({
+                    rule,
+                    property,
+                    value,
+                    priority: rule.style.getPropertyPriority(property),
+                  })
+                  rule.style.setProperty(property, updated)
+                }
+              }
+            } else if (rule instanceof CSSGroupingRule) {
+              replaceInsets(rule.cssRules)
+            }
+          }
+        }
+        try {
+          for (const sheet of Array.from(document.styleSheets)) {
+            replaceInsets(sheet.cssRules)
+          }
+          const wrapper = document.querySelector<HTMLElement>(
+            '#main-content div[class*="py-6"]'
+          )
+          const header = document.querySelector<HTMLElement>("header > div")
+          const footer = document.querySelector<HTMLElement>("footer > div")
+          if (!wrapper || !header || !footer)
+            throw new Error("A page shell wrapper is missing")
+          return {
+            changedRules: changed.length,
+            padding: [wrapper, header, footer].map((element) => {
+              const style = getComputedStyle(element)
+              return [style.paddingLeft, style.paddingRight]
+            }),
+            overflow: document.documentElement.scrollWidth - innerWidth,
+          }
+        } finally {
+          for (const { rule, property, value, priority } of changed) {
+            rule.style.setProperty(property, value, priority)
+          }
+        }
+      })
+      expect(result.changedRules).toBeGreaterThanOrEqual(6)
+      expect(result.padding).toEqual([
+        ["32px", "28px"],
+        ["32px", "28px"],
+        ["32px", "28px"],
+      ])
+      expect(result.overflow).toBeLessThanOrEqual(0)
+    }
+  })
+
   test("persists the chosen theme across reloads", async ({ page }) => {
     await page.goto("/")
     await openMenu(page, "Theme", "Dark")
