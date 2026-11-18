@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 
 import { SignInLink } from "@/components/auth/sign-in-link"
+import { TradeShare } from "@/components/share/trade-share"
 import { NotFoundView } from "@/components/layout/not-found"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
@@ -209,7 +210,7 @@ function TradePage() {
           )}
         </>
       )}
-      {trade.isOwner && <OwnerLink slug={trade.slug} />}
+      {trade.isOwner && <TradeShareLink slug={trade.slug} />}
       <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
     </PageContainer>
   )
@@ -509,14 +510,8 @@ function TradeSide({
 }
 
 /** The owner's view of the link to send; the address bar carries it too. */
-function OwnerLink({ slug }: { slug: string }) {
-  const url = `${window.location.origin}/trades/${slug}`
-
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <p className="text-sm break-all">{url}</p>
-    </div>
-  )
+function TradeShareLink({ slug }: { slug: string }) {
+  return <TradeShare link={`${window.location.origin}/trades/${slug}`} />
 }
 
 function JoinSeat({ trade }: { trade: TradeView }) {

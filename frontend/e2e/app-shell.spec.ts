@@ -38,6 +38,7 @@ async function openMenu(page: Page, name: string, item: string) {
 test.describe("App shell: guest", () => {
   test("shows guest navigation and footer", async ({ page }) => {
     await page.goto("/")
+    await waitForClerkReady(page)
 
     const header = page.getByRole("banner")
     await expect(header.getByRole("link", { name: "Catalog" })).toBeVisible()
