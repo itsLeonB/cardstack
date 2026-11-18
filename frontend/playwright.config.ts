@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "playwright/test"
+import { readClerkE2eCredentials } from "./e2e/support/clerk-credentials"
 
 // `playwright` (not `@playwright/test`) is the devDependency this repo
 // declares — see docs/agents/testing.md's "driving a headless browser"
@@ -47,7 +48,13 @@ export default defineConfig({
     {
       name: "chromium-signed-in",
       grep: /@signed-in/,
-      use: { ...devices["Desktop Chrome"], trace: "off" },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: readClerkE2eCredentials(process.env)
+          ? "./playwright/.clerk/user.json"
+          : undefined,
+        trace: "off",
+      },
     },
   ],
   // Only start a local dev server when there's no already-deployed target

@@ -59,14 +59,16 @@ export function useSignedInSuite() {
 // on the landing (a guest page that calls no API) with the session active.
 export async function signInAsTestUser(page: Page) {
   requireSignedInTag()
-  const { email } = requireCredentials()
-  await setupClerkTestingToken({ page })
+  requireCredentials()
   await page.goto("/")
-  await clerk.signIn({ page, emailAddress: email })
+  await waitForClerkReady(page)
+  await page.waitForFunction(() => Boolean(window.Clerk?.user?.id))
 }
 
 export async function signInAsUser(page: Page, emailAddress: string) {
   requireSignedInTag()
+  await page.context().clearCookies()
+  await page.addInitScript(() => localStorage.clear())
   await setupClerkTestingToken({ page })
   await page.goto("/")
   await clerk.signIn({ page, emailAddress })
@@ -98,6 +100,8 @@ export async function signInThroughForm(
 ) {
   requireSignedInTag()
   const testUser = requireCredentials()
+  await page.context().clearCookies()
+  await page.addInitScript(() => localStorage.clear())
   await setupClerkTestingToken({ page })
   await page.goto(url)
 
