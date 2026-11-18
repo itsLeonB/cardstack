@@ -32,6 +32,10 @@
 - [ ] Keep ScanLink and AddCardsLink destination tests, and assert their accessible text remains. Do not assert decorative SVG structure or icon classes.
 - [ ] Exercise keyboard dismissal/focus return and rendered accessibility in both themes. Run the relevant compose frontend verification checks; this flow must also work before mobile bottom navigation lands.
 
+## Comments
+
+Implementation commits: `2cc359b`, `123e994`, `05495fc`, `b1d886c` on `t3/mobile-ui-ux-binder-setup-optional`; merge `61524d2` includes integration notes. Both apps passed static checks, unit tests, and builds. Focused binder E2E passed Escape, focus return, and accessibility in both themes. Full E2E reported 65 passed and 27 failed. Merge waits for a passing final gate. Real-device, screen-reader, landscape, and text-zoom checks did not run.
+
 ## Scope limits
 
 No populated-Collection conversion, new binder type rules, new Layout model, automatic setup prompt, scanning redesign, or dependency on another implementation ticket. Read the feature’s approved design spec before implementation.

@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright"
 import { test, expect } from "playwright/test"
 import type { Route } from "playwright/test"
 
@@ -7,9 +8,8 @@ import {
   useSignedInSuite,
 } from "./support/clerk-auth"
 
-// Issue 07: the account area lists the caller's Trades with state and age,
-// and a live Trade can be cancelled from there. The API answers from stubs;
-// the seat rules and the executed refusal are the routes tests' job (backend).
+// Trade list behavior stays in the authenticated Trades page. The API answers
+// from stubs; the seat rules and the executed refusal are backend test contracts.
 const API = "http://api:8080"
 
 // The JSON bodies the API answers with: an envelope, or an error code.
@@ -102,7 +102,7 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     })
 
     await signInAsTestUser(page)
-    await page.goto("/account")
+    await page.goto("/trades")
 
     // State and age show for every row; only a live Trade offers cancel.
     await expect(page.getByRole("link", { name: "Ash" })).toHaveAttribute(
@@ -127,6 +127,48 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   })
 
+  test("Account has no Trade controls and Trades offers Retry after a list error", async ({
+    page,
+  }) => {
+    let attempts = 0
+    await page.route(`${API}/trades`, (route) => {
+      attempts++
+      return attempts === 1
+        ? reply(route, 503, { detail: "Service unavailable." })
+        : reply(route, 200, {
+            data: [
+              tradeSummary({
+                id: "t-retry",
+                slug: "slug-retry",
+                otherName: "Ash",
+              }),
+            ],
+          })
+    })
+
+    await signInAsTestUser(page)
+    await page.goto("/account")
+    await expect(page.getByRole("heading", { name: "Account" })).toBeVisible()
+    await expect(
+      page.getByRole("button", { name: "Start a Trade" })
+    ).toHaveCount(0)
+    await expect(page.getByText("Your Trades")).toHaveCount(0)
+    await page.getByRole("link", { name: "Trades" }).click()
+    await expect(page.getByRole("link", { name: "Trades" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+
+    await expect(page.getByRole("alert")).toContainText(
+      "Could not load your Trades."
+    )
+    await page.getByRole("button", { name: "Retry" }).press("Enter")
+    await expect(page.getByRole("link", { name: "Ash" })).toBeVisible()
+    expect(attempts).toBe(2)
+    const { violations } = await new AxeBuilder({ page }).analyze()
+    expect(violations).toEqual([])
+  })
+
   test("a cancel refused as executed reports the refusal", async ({ page }) => {
     await page.route(`${API}/trades`, (route) =>
       reply(route, 200, {
@@ -148,7 +190,7 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     )
 
     await signInAsTestUser(page)
-    await page.goto("/account")
+    await page.goto("/trades")
     await page.getByRole("button", { name: "Cancel" }).click()
 
     await expect(page.getByText("This Trade already executed.")).toBeVisible()
