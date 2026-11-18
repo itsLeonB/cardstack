@@ -36,6 +36,14 @@ export function AddToWishlist({
 }) {
   const queryClient = useQueryClient()
   const save = useSetWishlistItem()
+  const [savedWanted, setSavedWanted] = useState<{
+    original: number | undefined
+    quantity: number
+  } | null>(null)
+  const currentWanted =
+    savedWanted && savedWanted.original === wanted
+      ? savedWanted.quantity
+      : wanted
   const [quantity, setQuantity] = useState(wanted ?? 1)
   const [error, setError] = useState("")
   const [open, setOpen] = useState(false)
@@ -43,7 +51,7 @@ export function AddToWishlist({
   function changeOpen(nextOpen: boolean) {
     setOpen(nextOpen)
     if (nextOpen) {
-      setQuantity(wanted ?? 1)
+      setQuantity(currentWanted ?? 1)
       setError("")
     }
   }
@@ -63,6 +71,7 @@ export function AddToWishlist({
             return
           }
           onAnnounce(`Want ${quantity} of ${cardName}.`)
+          setSavedWanted({ original: wanted, quantity })
           invalidateWishlist(queryClient)
           setOpen(false)
         },
@@ -77,11 +86,11 @@ export function AddToWishlist({
         render={
           <Button variant="outline" size="sm" className="min-h-11 gap-2" />
         }
-        aria-label={`Edit Wishlist quantity for ${cardName}${wanted === undefined ? "" : `, wanted ${wanted}`}`}
+        aria-label={`Edit Wishlist quantity for ${cardName}${currentWanted === undefined ? "" : `, wanted ${currentWanted}`}`}
       >
         Wishlist
-        {wanted !== undefined && (
-          <span className="font-medium">Wanted ×{wanted}</span>
+        {currentWanted !== undefined && (
+          <span className="font-medium">Wanted ×{currentWanted}</span>
         )}
       </PopoverTrigger>
       <PopoverContent

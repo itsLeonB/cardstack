@@ -11,6 +11,7 @@ export function LinkDelivery({
   label?: string
 }) {
   const [message, setMessage] = useState("")
+  const [copyFailureCount, setCopyFailureCount] = useState(0)
   const canShare = Boolean(globalThis.navigator?.share)
 
   async function copyLink() {
@@ -19,8 +20,10 @@ export function LinkDelivery({
       if (!navigator.clipboard?.writeText)
         throw new Error("Clipboard unavailable")
       await navigator.clipboard.writeText(link)
+      setCopyFailureCount(0)
       setMessage("Copied")
     } catch {
+      setCopyFailureCount((count) => count + 1)
       setMessage("Could not copy the link. Select it and copy it by hand.")
     }
   }
@@ -60,7 +63,9 @@ export function LinkDelivery({
         )}
       </div>
       <p role="status" aria-live="polite" className="text-sm">
-        {message}
+        {message.startsWith("Could not copy")
+          ? `${message} Attempt ${copyFailureCount}.`
+          : message}
       </p>
     </div>
   )

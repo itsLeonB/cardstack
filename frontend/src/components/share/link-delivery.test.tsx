@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import { LinkDelivery } from "@/components/share/link-delivery"
 
 const LINK = "https://cardstack.test/trades/trade-1"
@@ -25,6 +31,21 @@ describe("LinkDelivery", () => {
     fireEvent.click(copy)
     expect(await screen.findByText("Copied")).toBeTruthy()
     expect(writeText).toHaveBeenCalledTimes(2)
+  })
+
+  it("announces each failed copy attempt with new status text", async () => {
+    vi.stubGlobal("navigator", { clipboard: undefined })
+    render(<LinkDelivery link={LINK} />)
+
+    const copy = screen.getByRole("button", { name: "Copy" })
+    fireEvent.click(copy)
+    const status = screen.getByRole("status")
+    await waitFor(() => expect(status.textContent).toContain("Attempt 1"))
+    expect(status.textContent).toContain("Select it and copy it by hand")
+
+    fireEvent.click(copy)
+    await waitFor(() => expect(status.textContent).toContain("Attempt 2"))
+    expect(status.textContent).toContain("Select it and copy it by hand")
   })
 
   it.each([
