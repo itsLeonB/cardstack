@@ -22,8 +22,7 @@ import { useClerk, useUser } from "@clerk/react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { clerkUserResult } from "@/test-clerk"
 import type { ClerkState } from "@/test-clerk"
-import { SiteFooter } from "./site-footer"
-import { SiteHeader } from "./site-header"
+import { AppShell } from "./app-shell"
 
 // Clerk's hooks need a ClerkProvider talking to Clerk's servers, so they are
 // the boundary to fake; the real `useSession` runs on top of them.
@@ -53,9 +52,9 @@ function buildRouter(path: string) {
   const root = createRootRoute({
     component: () => (
       <ThemeProvider>
-        <SiteHeader />
-        <Outlet />
-        <SiteFooter />
+        <AppShell>
+          <Outlet />
+        </AppShell>
       </ThemeProvider>
     ),
   })
@@ -64,7 +63,10 @@ function buildRouter(path: string) {
       "/",
       "/catalog",
       "/collections",
+      "/collections/$collectionId/scan",
       "/inventory",
+      "/trades",
+      "/wishlist",
       "/auth/login",
       "/auth/register",
       "/account",
@@ -110,7 +112,7 @@ describe("SiteHeader", () => {
     ).toBeNull()
   })
 
-  it("shows Catalog, Collections, Wishlist and Master Inventory plus a user menu when signed in", async () => {
+  it("shows Trades with the signed-in destinations", async () => {
     mockSession("signed-in")
     const header = await renderShell()
 
@@ -118,6 +120,7 @@ describe("SiteHeader", () => {
       "Catalog",
       "Collections",
       "Wishlist",
+      "Trades",
       "Master Inventory",
     ])
     expect(
@@ -132,6 +135,9 @@ describe("SiteHeader", () => {
     expect(linkNames(within(header).getByRole("navigation"))).toEqual([
       "Catalog",
     ])
+    expect(
+      linkNames(screen.getByRole("navigation", { name: "Bottom navigation" }))
+    ).toEqual(["Catalog"])
   })
 
   it("marks the current section as the current page", async () => {
@@ -145,6 +151,11 @@ describe("SiteHeader", () => {
         .getByRole("link", { name: "Catalog" })
         .getAttribute("aria-current")
     ).toBeNull()
+    expect(
+      within(screen.getByRole("navigation", { name: "Bottom navigation" }))
+        .getByRole("link", { name: "Collections" })
+        .getAttribute("aria-current")
+    ).toBe("page")
   })
 
   it("marks the current page after hydrating a shell prerendered at another location", async () => {
@@ -165,11 +176,42 @@ describe("SiteHeader", () => {
 
     await waitFor(() =>
       expect(
-        within(container)
+        within(within(container).getByRole("navigation", { name: "Main" }))
           .getByRole("link", { name: "Collections" })
           .getAttribute("aria-current")
       ).toBe("page")
     )
+  })
+
+  it("shows guest destinations in the bottom navigation", async () => {
+    mockSession("guest")
+    await renderShell()
+
+    const nav = screen.getByRole("navigation", { name: "Bottom navigation" })
+    expect(linkNames(nav)).toEqual(["Catalog", "Log in", "Register"])
+  })
+
+  it("shows signed-in destinations and More", async () => {
+    mockSession("signed-in")
+    await renderShell()
+
+    const nav = screen.getByRole("navigation", { name: "Bottom navigation" })
+    expect(linkNames(nav)).toEqual([
+      "Catalog",
+      "Collections",
+      "Wishlist",
+      "Trades",
+    ])
+    expect(within(nav).getByRole("button", { name: "More" })).toBeTruthy()
+  })
+
+  it("keeps bottom navigation out of the scan route", async () => {
+    mockSession("signed-in")
+    await renderShell("/collections/col-1/scan")
+
+    expect(
+      screen.queryByRole("navigation", { name: "Bottom navigation" })
+    ).toBeNull()
   })
 
   it("renders the footer description without repeating nav links", async () => {

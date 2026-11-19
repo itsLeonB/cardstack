@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately after implementation approval).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-**Execution:** paused. The user approved the ticket breakdown, not implementation. Wait for a separate instruction to start.
+**Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
 ## Acceptance criteria
 
@@ -31,6 +31,14 @@
 - [ ] Adapt the existing Collection-page and binder-creation tests to open setup by clicking the action. Check initial closure, eligibility, cancel with no write, success transition, and an inline failure. Reuse existing Layout-limit tests rather than repeating every validation case through the dialog.
 - [ ] Keep ScanLink and AddCardsLink destination tests, and assert their accessible text remains. Do not assert decorative SVG structure or icon classes.
 - [ ] Exercise keyboard dismissal/focus return and rendered accessibility in both themes. Run the relevant compose frontend verification checks; this flow must also work before mobile bottom navigation lands.
+
+## Comments
+
+Implementation commits: `2cc359b`, `123e994`, `05495fc`, `b1d886c` on `t3/mobile-ui-ux-binder-setup-optional`; merge `61524d2` includes integration notes. Both apps passed static checks, unit tests, and builds. Focused binder E2E passed Escape, focus return, and accessibility in both themes. Full E2E reported 65 passed and 27 failed. Merge waits for a passing final gate. Real-device, screen-reader, landscape, and text-zoom checks did not run.
+
+## Answer
+
+Merged in `e97fd549`, including verified worker tip `3d5c04e9`. Binder setup now opens only from the eligible empty Collection’s secondary action; Scan cards and Add Cards retain their rules and gain icons. Both apps passed all verification steps: 882 frontend unit tests, 108 Admin unit tests, and 93 E2E tests. Earlier focused binder checks passed keyboard dismissal, focus return, and accessibility in both themes. Final log: `/tmp/mobile-ui-binder-final-20261118-224734.log`. Worker worktree and branch were removed safely. Real-device, Safari, and screen-reader checks did not run.
 
 ## Scope limits
 

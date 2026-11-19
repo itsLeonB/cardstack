@@ -18,6 +18,12 @@ import { decideClerkE2e, readClerkE2eCredentials } from "./clerk-credentials"
 
 export const SIGNED_IN_TAG = "@signed-in"
 
+export async function waitForClerkReady(page: Page) {
+  await page.waitForFunction(() => window.Clerk?.loaded === true, null, {
+    timeout: 20_000,
+  })
+}
+
 const credentials = readClerkE2eCredentials(process.env)
 
 function requireCredentials() {
@@ -53,14 +59,16 @@ export function useSignedInSuite() {
 // on the landing (a guest page that calls no API) with the session active.
 export async function signInAsTestUser(page: Page) {
   requireSignedInTag()
-  const { email } = requireCredentials()
-  await setupClerkTestingToken({ page })
+  requireCredentials()
   await page.goto("/")
-  await clerk.signIn({ page, emailAddress: email })
+  await waitForClerkReady(page)
+  await page.waitForFunction(() => Boolean(window.Clerk?.user?.id))
 }
 
 export async function signInAsUser(page: Page, emailAddress: string) {
   requireSignedInTag()
+  await page.context().clearCookies()
+  await page.addInitScript(() => localStorage.clear())
   await setupClerkTestingToken({ page })
   await page.goto("/")
   await clerk.signIn({ page, emailAddress })
@@ -92,6 +100,8 @@ export async function signInThroughForm(
 ) {
   requireSignedInTag()
   const testUser = requireCredentials()
+  await page.context().clearCookies()
+  await page.addInitScript(() => localStorage.clear())
   await setupClerkTestingToken({ page })
   await page.goto(url)
 

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { act, cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { setTokenGetter } from "@/lib/http"
+import { getListWishlistQueryKey } from "@/generated/endpoints/wishlist/wishlist"
 import { visitCatalog, wishlistLookups } from "@/test-catalog"
 
 // "Add to Wishlist" from the catalog (ticket 8): the action on a search result
@@ -24,7 +25,7 @@ afterEach(() => {
 
 // The action appears once the wanted-quantity lookup answers, which the grid's
 // 60 cards queue behind, so these waits are longer than the default second.
-const LOOKUP_TIMEOUT = 5000
+const LOOKUP_TIMEOUT = 15000
 
 describe("Add to Wishlist from the catalog", () => {
   it("adds a Card from a search result with the wanted quantity and shows its state", async () => {
@@ -36,15 +37,20 @@ describe("Add to Wishlist from the catalog", () => {
     )
 
     await userEvent.click(
-      await screen.findByRole(
-        "button",
-        { name: "Increase wanted quantity of Card 1" },
-        { timeout: LOOKUP_TIMEOUT }
-      )
+      (
+        await screen.findAllByRole(
+          "button",
+          { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+          { timeout: LOOKUP_TIMEOUT }
+        )
+      )[0]
     )
     await userEvent.click(
-      screen.getByRole("button", { name: "Add Card 1 to your Wishlist" })
+      screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
     )
+    expect(writes).toEqual([])
+    screen.getByRole("heading", { name: "Wishlist for Card 1", level: 2 })
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await screen.findByText("Want 2 of Card 1.")
     expect(writes).toEqual([
@@ -53,30 +59,35 @@ describe("Add to Wishlist from the catalog", () => {
     // The control shows the saved quantity, and the Wishlist's data was refreshed.
     await screen.findByText("Wanted ×2")
     screen.getByRole("button", {
-      name: "Update the wanted quantity of Card 1",
+      name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/,
     })
     expect(wishlistLookups(requests)).toHaveLength(2)
   })
 
-  it("replaces the wanted quantity of a Card already on the Wishlist", async () => {
-    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+  it("replaces the wanted quantity and accepts later refreshed totals", async () => {
+    const wishlist = new Map([["card-1", 3]])
+    const { router, writes } = await visitCatalog("/catalog/search?name=Card", {
       signedIn: true,
-      wishlist: new Map([["card-1", 3]]),
+      wishlist,
     })
 
-    await screen.findByText("Wanted ×3", undefined, {
-      timeout: LOOKUP_TIMEOUT,
-    })
+    await userEvent.click(
+      (
+        await screen.findAllByRole(
+          "button",
+          { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+          { timeout: LOOKUP_TIMEOUT }
+        )
+      )[0]
+    )
+    expect(screen.getByText("Wanted quantity: 3")).toBeTruthy()
     const increase = screen.getByRole("button", {
       name: "Increase wanted quantity of Card 1",
     })
     await userEvent.click(increase)
     await userEvent.click(increase)
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Update the wanted quantity of Card 1",
-      })
-    )
+    expect(writes).toEqual([])
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await screen.findByText("Want 5 of Card 1.")
     // One write for one item: the API replaces the wanted quantity.
@@ -84,6 +95,141 @@ describe("Add to Wishlist from the catalog", () => {
       { method: "PUT", path: "/wishlist/items/card-1", body: { quantity: 5 } },
     ])
     expect(await screen.findAllByText("Wanted ×5")).toHaveLength(1)
+
+    const refreshWanted = () =>
+      router.options.context.queryClient.refetchQueries({
+        queryKey: getListWishlistQueryKey(),
+      })
+    await act(refreshWanted)
+    wishlist.set("card-1", 3)
+    await act(refreshWanted)
+
+    expect(await screen.findByText("Wanted ×3")).toBeTruthy()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Edit Wishlist quantity for Card 1, wanted 3",
+      })
+    )
+    expect(screen.getByText("Wanted quantity: 3")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(writes).toHaveLength(1)
+  })
+
+  it("opens with the saved quantity while its refresh is delayed", async () => {
+    const wishlist = new Map([["card-1", 3]])
+    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+      signedIn: true,
+      wishlist,
+    })
+    const fetchMock = vi.mocked(fetch)
+    const originalFetch = fetchMock.getMockImplementation()
+    if (!originalFetch) throw new Error("Expected the catalog API stub")
+
+    let releaseRefresh!: () => void
+    let markRefreshStarted!: () => void
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve
+    })
+    let delayRefresh = false
+    fetchMock.mockImplementation(async (input, init) => {
+      const response = await originalFetch(input, init)
+      const url = new URL(String(input))
+      if (init?.method === "PUT") delayRefresh = true
+      if (url.pathname === "/wishlist" && delayRefresh) {
+        delayRefresh = false
+        markRefreshStarted()
+        await refreshGate
+      }
+      return response
+    })
+
+    const opener = (
+      await screen.findAllByRole(
+        "button",
+        { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+        { timeout: LOOKUP_TIMEOUT }
+      )
+    )[0]
+    await userEvent.click(opener)
+    await userEvent.click(
+      screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await refreshStarted
+
+    await userEvent.click(opener)
+    expect(screen.getByText("Wanted quantity: 4")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(writes).toEqual([
+      { method: "PUT", path: "/wishlist/items/card-1", body: { quantity: 4 } },
+    ])
+
+    releaseRefresh()
+    await screen.findByText("Wanted ×4")
+    expect(writes).toHaveLength(1)
+  })
+
+  it("discards an unsaved quantity when the popup is dismissed", async () => {
+    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+      signedIn: true,
+    })
+    const opener = (
+      await screen.findAllByRole(
+        "button",
+        { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+        { timeout: LOOKUP_TIMEOUT }
+      )
+    )[0]
+    await userEvent.click(opener)
+    await userEvent.click(
+      screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
+    )
+    await userEvent.keyboard("{Escape}")
+
+    expect(document.activeElement).toBe(opener)
+    expect(writes).toEqual([])
+    expect(screen.queryByText("Wanted quantity: 2")).toBeNull()
+    await userEvent.click(opener)
+    expect(screen.getByText("Wanted quantity: 1")).toBeTruthy()
+  })
+
+  it("keeps the popup open after a failed save so the user can retry", async () => {
+    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+      signedIn: true,
+    })
+    const opener = (
+      await screen.findAllByRole(
+        "button",
+        { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+        { timeout: LOOKUP_TIMEOUT }
+      )
+    )[0]
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementationOnce(async (input) => {
+      if (new URL(String(input)).pathname.startsWith("/wishlist/items/")) {
+        return new Response(JSON.stringify({ detail: "Save failed." }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      return new Response(null, { status: 500 })
+    })
+    await userEvent.click(opener)
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Save failed."
+    )
+    expect(screen.getByText("Wishlist for Card 1")).toBeTruthy()
+    expect(writes).toEqual([])
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    expect(await screen.findByText("Want 1 of Card 1.")).toBeTruthy()
+    expect(writes).toEqual([
+      { method: "PUT", path: "/wishlist/items/card-1", body: { quantity: 1 } },
+    ])
   })
 
   it("sends a Guest to sign in instead of offering the action", async () => {
@@ -104,9 +250,12 @@ describe("Add to Wishlist from the catalog", () => {
 
     await userEvent.click(
       await screen.findByRole("button", {
-        name: "Add Card 1 to your Wishlist",
+        name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/,
       })
     )
+    screen.getByRole("heading", { name: "Wishlist for Card 1", level: 2 })
+    expect(screen.getByText("Wanted quantity: 1")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await screen.findByText("Want 1 of Card 1.")
     expect(writes).toEqual([

@@ -1,5 +1,6 @@
 import { useId, useState } from "react"
 import { RiShareLine } from "@remixicon/react"
+import { LinkDelivery } from "@/components/share/link-delivery"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -9,7 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 
@@ -26,8 +26,6 @@ interface ShareDialogProps {
   error?: string
 }
 
-type CopyOutcome = "copied" | "failed"
-
 /**
  * Turns sharing on or off and copies the link. Holds no data of its own: the
  * caller passes the state, the link and the two callbacks, so the same dialog
@@ -43,17 +41,11 @@ export function ShareDialog({
 }: ShareDialogProps) {
   const [open, setOpen] = useState(false)
   const [confirmingOff, setConfirmingOff] = useState(false)
-  // Keyed by the link it was made for, so a new link (a re-share) starts clean.
-  const [copy, setCopy] = useState<{
-    link: string
-    outcome: CopyOutcome
-  } | null>(null)
   const switchId = useId()
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
     setConfirmingOff(false)
-    setCopy(null)
   }
 
   // Turning sharing off ends every link at once, so it asks first.
@@ -62,29 +54,14 @@ export function ShareDialog({
     else setConfirmingOff(true)
   }
 
-  // Clearing first makes a repeat copy announce again: the live region changes
-  // from empty to "Copied" each time, not from "Copied" to "Copied".
-  function copyLink() {
-    setCopy(null)
-    navigator.clipboard
-      .writeText(link)
-      .then(() => setCopy({ link, outcome: "copied" }))
-      .catch(() => setCopy({ link, outcome: "failed" }))
-  }
-
-  const outcome = copy?.link === link ? copy.outcome : null
-  const copyMessage =
-    outcome === "copied"
-      ? "Copied"
-      : outcome === "failed"
-        ? "Could not copy the link. Select it and copy it by hand."
-        : ""
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            className="h-auto min-h-11 whitespace-normal"
+          >
             <RiShareLine data-icon="inline-start" />
             {shared ? "Shared" : "Share"}
           </Button>
@@ -114,17 +91,7 @@ export function ShareDialog({
         </div>
 
         {shared && !confirmingOff && (
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <Input readOnly aria-label="Share link" value={link} />
-              <Button variant="outline" onClick={copyLink}>
-                Copy
-              </Button>
-            </div>
-            <p aria-live="polite" className="text-sm">
-              {copyMessage}
-            </p>
-          </div>
+          <LinkDelivery key={`${link}:${open}`} link={link} />
         )}
 
         {shared && confirmingOff && (

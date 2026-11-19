@@ -252,19 +252,78 @@ describe("Collection page", () => {
     )
   })
 
-  it("offers the Layout form on a plain Collection with no Cards", async () => {
-    await renderCollectionPage(fakeBinder({ exists: false, cardCount: 0 }))
+  it("resets binder setup when switching between empty Collections", async () => {
+    const binder = fakeBinder({ exists: false, cardCount: 0 })
+    const router = await renderCollectionPage(binder)
+
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Rows per Page" }),
+      {
+        target: { value: "2" },
+      }
+    )
+    expect(
+      screen.getByRole("spinbutton", { name: "Rows per Page" })
+    ).toHaveProperty("value", "2")
+
+    await act(async () => router.history.push("/collections/col-2/"))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    await act(async () => router.history.push("/collections/col-1/"))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Make this a binder" })
+    )
 
     expect(
-      screen.getByRole("heading", { name: "Make this a binder" })
+      screen.getByRole("spinbutton", { name: "Rows per Page" })
+    ).toHaveProperty("value", "3")
+    expect(
+      screen.getByRole("spinbutton", { name: "Columns per Page" })
+    ).toHaveProperty("value", "3")
+    expect(screen.getByRole("spinbutton", { name: "Leaves" })).toHaveProperty(
+      "value",
+      "10"
+    )
+    expect(
+      binder.requests.filter((request) => request.method === "POST")
+    ).toHaveLength(0)
+  })
+
+  it("offers the Layout form on a plain Collection with no Cards", async () => {
+    const binder = fakeBinder({ exists: false, cardCount: 0 })
+    await renderCollectionPage(binder)
+
+    const trigger = screen.getByRole("button", { name: "Make this a binder" })
+    expect(trigger).toBeTruthy()
+    expect(
+      screen.queryByRole("heading", { name: "Make this a binder" })
+    ).toBeNull()
+    expect(
+      binder.requests.filter((request) => request.method === "POST")
+    ).toHaveLength(0)
+
+    trigger.focus()
+    fireEvent.click(trigger)
+    expect(
+      await screen.findByRole("dialog", { name: "Make this a binder" })
     ).toBeTruthy()
+    fireEvent.keyDown(document, { key: "Escape" })
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(document.activeElement).toBe(trigger)
+
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(
+      binder.requests.filter((request) => request.method === "POST")
+    ).toHaveLength(0)
   })
 
   it("does not offer the Layout form on a plain Collection that holds Cards, and keeps its links", async () => {
     await renderCollectionPage(fakeBinder({ exists: false, cardCount: 3 }))
 
     expect(
-      screen.queryByRole("heading", { name: "Make this a binder" })
+      screen.queryByRole("button", { name: "Make this a binder" })
     ).toBeNull()
     expect(screen.getByRole("link", { name: "Scan cards" })).toBeTruthy()
     expect(screen.getByRole("link", { name: "Add Cards" })).toBeTruthy()
@@ -277,7 +336,7 @@ describe("Collection page", () => {
     expect(screen.getByRole("link", { name: "Scan cards" })).toBeTruthy()
     expect(screen.queryByRole("link", { name: "Add Cards" })).toBeNull()
     expect(
-      screen.queryByRole("heading", { name: "Make this a binder" })
+      screen.queryByRole("button", { name: "Make this a binder" })
     ).toBeNull()
   })
 
@@ -307,15 +366,35 @@ describe("Collection page", () => {
     expect(screen.queryByRole("button", { name: /^Page \d+ · row/ })).toBeNull()
   })
 
+  it("keeps setup open and shows a network error when creation fails", async () => {
+    await renderCollectionPage(fakeBinder({ exists: false, cardCount: 0 }))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch")
+      })
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create binder" }))
+
+    expect(await screen.findByRole("alert")).toBeTruthy()
+    expect(
+      screen.getByRole("dialog", { name: "Make this a binder" })
+    ).toBeTruthy()
+  })
+
   it("shows the binder view once a binder is created from the plain page", async () => {
     const binder = fakeBinder({ exists: false, cardCount: 0 })
     await renderCollectionPage(binder)
 
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
     fireEvent.click(screen.getByRole("button", { name: "Create binder" }))
 
     expect(await screen.findByText("Page 1 of 20")).toBeTruthy()
+    expect(screen.queryByRole("dialog")).toBeNull()
     expect(
-      screen.queryByRole("heading", { name: "Make this a binder" })
+      screen.queryByRole("button", { name: "Make this a binder" })
     ).toBeNull()
   })
 })

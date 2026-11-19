@@ -8,6 +8,7 @@ import {
   signInAsTestUser,
   SIGNED_IN_TAG,
   useSignedInSuite,
+  waitForClerkReady,
 } from "./support/clerk-auth"
 
 // Shell-level checks. Guest tests need no setup: Clerk loads, finds no session
@@ -37,6 +38,7 @@ async function openMenu(page: Page, name: string, item: string) {
 test.describe("App shell: guest", () => {
   test("shows guest navigation and footer", async ({ page }) => {
     await page.goto("/")
+    await waitForClerkReady(page)
 
     const header = page.getByRole("banner")
     await expect(header.getByRole("link", { name: "Catalog" })).toBeVisible()
@@ -106,6 +108,53 @@ test.describe("App shell: signed in", { tag: SIGNED_IN_TAG }, () => {
     await openMenu(page, "User menu", "Account")
     await expect(page.getByRole("menuitem", { name: "Log out" })).toBeVisible()
     await expectShowsTestUserEmail(page.getByRole("menu"))
+    await page.keyboard.press("Escape")
+
+    await page.setViewportSize({ width: 768, height: 900 })
+    await page
+      .locator('header button[aria-label="User menu"] span')
+      .evaluate((name) => {
+        name.textContent =
+          "A very long display name that must not hide navigation"
+      })
+    const nav = header.getByRole("navigation", { name: "Main" })
+    for (const destination of [
+      "Catalog",
+      "Collections",
+      "Wishlist",
+      "Trades",
+      "Master Inventory",
+    ]) {
+      await expect(nav.getByRole("link", { name: destination })).toBeVisible()
+    }
+    const headerOverflow = await header
+      .locator(":scope > div")
+      .evaluate((inner) => inner.scrollWidth - inner.clientWidth)
+    expect(headerOverflow).toBeLessThanOrEqual(0)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - innerWidth
+      )
+    ).toBeLessThanOrEqual(0)
+
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" })
+    await expect(header.locator("a").first()).toBeVisible()
+    for (const destination of [
+      "Catalog",
+      "Collections",
+      "Wishlist",
+      "Trades",
+      "Master Inventory",
+    ]) {
+      await expect(nav.getByRole("link", { name: destination })).toBeVisible()
+    }
+    await expect(
+      header.getByRole("button", { name: "User menu" })
+    ).toBeVisible()
+    const enlargedHeaderOverflow = await header
+      .locator(":scope > div")
+      .evaluate((inner) => inner.scrollWidth - inner.clientWidth)
+    expect(enlargedHeaderOverflow).toBeLessThanOrEqual(0)
   })
 
   test("passes axe on the signed-in shell", async ({ page }) => {
@@ -145,10 +194,130 @@ test.describe("App shell: signed in", { tag: SIGNED_IN_TAG }, () => {
 
     await header.getByRole("link", { name: "Master Inventory" }).click()
     await expect(page).toHaveURL(/\/inventory/)
+
+    await page.setViewportSize({ width: 375, height: 700 })
+    const nav = page.getByRole("navigation", { name: "Bottom navigation" })
+    const more = nav.getByRole("button", { name: "More" })
+    await more.click()
+    await expect(page.getByRole("menuitem", { name: "Account" })).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(page.getByRole("menuitem", { name: "Account" })).toHaveCount(0)
+    await expect(more).toBeFocused()
+
+    await more.click()
+    await page.getByRole("menuitem", { name: "Account" }).click()
+    await expect(page).toHaveURL(/\/account$/)
+    await expect(more).toHaveAttribute("aria-current", "page")
+
+    await more.click()
+    await page.getByRole("menuitem", { name: "Master Inventory" }).click()
+    await expect(page).toHaveURL(/\/inventory/)
+    await more.click()
+    await expect(page.getByRole("menuitem", { name: "Account" })).toBeVisible()
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await expect(page.getByRole("menuitem", { name: "Account" })).toHaveCount(0)
+
+    await page.setViewportSize({ width: 375, height: 700 })
+    await nav.getByRole("link", { name: "Trades" }).click()
+    await expect(page).toHaveURL(/\/trades$/)
+    await expect(
+      page.getByRole("heading", { name: "Your Trades" })
+    ).toBeVisible()
   })
 })
 
 test.describe("App shell: theme", () => {
+  test("keeps content clear of simulated horizontal safe areas", async ({
+    page,
+  }) => {
+    await page.goto("/catalog")
+    const pageContainer = page
+      .locator('#main-content div[class*="py-6"]')
+      .first()
+    await expect(pageContainer).toBeVisible()
+
+    for (const [width, contentPadding] of [
+      [375, "16px"],
+      [768, "24px"],
+    ] as const) {
+      await page.setViewportSize({ width, height: 800 })
+      const zeroInsetPadding = await page.evaluate(() => {
+        const wrapper = document.querySelector<HTMLElement>(
+          '#main-content div[class*="py-6"]'
+        )
+        if (!wrapper) throw new Error("PageContainer is missing")
+        return getComputedStyle(wrapper).paddingLeft
+      })
+      expect(zeroInsetPadding).toBe(contentPadding)
+    }
+
+    for (const width of [375, 768]) {
+      await page.setViewportSize({ width, height: 800 })
+      const result = await page.evaluate(() => {
+        const changed: {
+          rule: CSSStyleRule
+          property: string
+          value: string
+          priority: string
+        }[] = []
+        function replaceInsets(rules: CSSRuleList) {
+          for (const rule of Array.from(rules)) {
+            if (rule instanceof CSSStyleRule) {
+              for (const property of Array.from(rule.style)) {
+                const value = rule.style.getPropertyValue(property)
+                const updated = value
+                  .replace(/env\(safe-area-inset-left,\s*0px\)/g, "32px")
+                  .replace(/env\(safe-area-inset-right,\s*0px\)/g, "28px")
+                if (updated !== value) {
+                  changed.push({
+                    rule,
+                    property,
+                    value,
+                    priority: rule.style.getPropertyPriority(property),
+                  })
+                  rule.style.setProperty(property, updated)
+                }
+              }
+            } else if (rule instanceof CSSGroupingRule) {
+              replaceInsets(rule.cssRules)
+            }
+          }
+        }
+        try {
+          for (const sheet of Array.from(document.styleSheets)) {
+            replaceInsets(sheet.cssRules)
+          }
+          const wrapper = document.querySelector<HTMLElement>(
+            '#main-content div[class*="py-6"]'
+          )
+          const header = document.querySelector<HTMLElement>("header > div")
+          const footer = document.querySelector<HTMLElement>("footer > div")
+          if (!wrapper || !header || !footer)
+            throw new Error("A page shell wrapper is missing")
+          return {
+            changedRules: changed.length,
+            padding: [wrapper, header, footer].map((element) => {
+              const style = getComputedStyle(element)
+              return [style.paddingLeft, style.paddingRight]
+            }),
+            overflow: document.documentElement.scrollWidth - innerWidth,
+          }
+        } finally {
+          for (const { rule, property, value, priority } of changed) {
+            rule.style.setProperty(property, value, priority)
+          }
+        }
+      })
+      expect(result.changedRules).toBeGreaterThanOrEqual(6)
+      expect(result.padding).toEqual([
+        ["32px", "28px"],
+        ["32px", "28px"],
+        ["32px", "28px"],
+      ])
+      expect(result.overflow).toBeLessThanOrEqual(0)
+    }
+  })
+
   test("persists the chosen theme across reloads", async ({ page }) => {
     await page.goto("/")
     await openMenu(page, "Theme", "Dark")
@@ -174,33 +343,66 @@ test.describe("App shell: theme", () => {
 test.describe("App shell: mobile", () => {
   test.use({ viewport: { width: 375, height: 700 } })
 
-  test("collapses navigation into a menu that opens and closes", async ({
+  test("keeps guest destinations visible and content clear at mobile sizes", async ({
     page,
   }) => {
     await page.goto("/")
-    const header = page.getByRole("banner")
-    const toggle = header.getByRole("button", { name: "Menu" })
+    await waitForClerkReady(page)
+    const nav = page.getByRole("navigation", { name: "Bottom navigation" })
 
-    await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
-    await expect(async () => {
-      await toggle.click()
-      await expect(toggle).toHaveAttribute("aria-expanded", "true", {
-        timeout: 1000,
-      })
-    }).toPass()
-    await expect(header.getByRole("link", { name: "Log in" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Catalog" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Log in" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Register" })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Menu" })).toHaveCount(0)
 
-    await page.keyboard.press("Escape")
-    await expect(toggle).toHaveAttribute("aria-expanded", "false")
-    await expect(toggle).toBeFocused()
-    await expect(header.getByRole("link", { name: "Log in" })).toBeHidden()
+    await openMenu(page, "Theme", "Light")
+    await page.getByRole("menuitemradio", { name: "Light" }).click()
+    await page.reload()
+    await waitForClerkReady(page)
+    await expect(page.locator("html")).not.toHaveClass(/dark/)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+    await openMenu(page, "Theme", "Dark")
+    await page.getByRole("menuitemradio", { name: "Dark" }).click()
+    await page.reload()
+    await waitForClerkReady(page)
+    await expect(page.locator("html")).toHaveClass(/dark/)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+    for (const viewport of [
+      { width: 320, height: 640 },
+      { width: 375, height: 700 },
+      { width: 700, height: 375 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await expect(nav).toBeVisible()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth
+      )
+      expect(overflow).toBeLessThanOrEqual(0)
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%"
+    })
+    const zoomOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    )
+    expect(zoomOverflow).toBeLessThanOrEqual(0)
+
+    const lastAction = page.getByRole("link", { name: "Create account" }).last()
+    await lastAction.scrollIntoViewIfNeeded()
+    const actionBox = await lastAction.boundingBox()
+    const navBox = await nav.boundingBox()
+    expect(actionBox).not.toBeNull()
+    expect(navBox).not.toBeNull()
+    expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(navBox!.y)
   })
 
   for (const path of ["/", "/auth/login", "/auth/register"]) {
     test(`no horizontal scroll on ${path}`, async ({ page }) => {
       await page.goto(path)
-      // clerk-js mounts the auth form after the page loads; a slow Clerk
-      // request measured 4.6 s against this file's 5 s default.
+      await waitForClerkReady(page)
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
         timeout: 15_000,
       })

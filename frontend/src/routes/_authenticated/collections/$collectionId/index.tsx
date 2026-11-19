@@ -103,7 +103,7 @@ function CollectionPage() {
             />
           )}
           {!collection.binder && collection.cardCount === 0 && (
-            <CreateBinderPanel collectionId={collectionId} />
+            <CreateBinderPanel key={collectionId} collectionId={collectionId} />
           )}
           <CollectionEntries
             binder={collection.binder !== null}

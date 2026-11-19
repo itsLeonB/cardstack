@@ -1,8 +1,8 @@
 # Mobile UI and UX improvements
 
-Status: ready-for-agent
+Status: resolved
 
-Execution: paused. The user approved the design, not implementation. This spec does not authorize production edits.
+Execution: complete on `feat/mobile-ui-ux` through [PR #95](https://github.com/itsLeonB/cardstack/pull/95). All five implementation tickets are resolved. The user also approved shared E2E session reuse, later review fixes, matching Collection actions, and app motion/loading. See [implementation results](implementation.md) for verification and review outcomes.
 
 ## Problem Statement
 

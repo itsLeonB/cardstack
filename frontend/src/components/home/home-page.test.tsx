@@ -80,6 +80,7 @@ async function renderHome() {
     [
       "/",
       "/auth/register",
+      "/auth/login",
       "/catalog",
       "/catalog/search",
       "/inventory",
@@ -132,6 +133,12 @@ describe("guest landing", () => {
         .getByRole("link", { name: "Browse the catalog" })
         .getAttribute("href")
     ).toBe("/catalog")
+    const loginHref = new URL(
+      screen.getByRole("link", { name: "Log in" }).getAttribute("href") ?? "",
+      "http://localhost"
+    )
+    expect(loginHref.pathname).toBe("/auth/login")
+    expect(loginHref.searchParams.get("redirect")).toBe("/")
 
     const steps = within(screen.getByRole("list")).getAllByRole("heading", {
       level: 3,

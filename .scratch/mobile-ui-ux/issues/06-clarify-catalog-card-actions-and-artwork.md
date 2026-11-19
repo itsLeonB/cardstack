@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately after implementation approval).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-**Execution:** paused. The user approved the ticket breakdown, not implementation. Wait for a separate instruction to start.
+**Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
 ## Acceptance criteria
 
@@ -31,6 +31,14 @@
 - [ ] Adapt existing catalog search/detail Wishlist tests to open the popup. Cover initial saved totals, explicit Save, dismissal without a write, replacement rather than addition, Guest prompts, and error recovery. Reuse existing quantity-batching and Wishlist removal tests unless their production contract changes.
 - [ ] Extend Card tile image/fallback tests only where observable rendering behavior changes. Verify clipping and the full image in rendered checks rather than asserting CSS class strings.
 - [ ] Exercise a browse-and-edit flow with keyboard, both themes, narrow widths, and rendered accessibility checks. Sample other Card tile callers for unwanted clipping or new owner-only actions, then run relevant compose frontend verification checks.
+
+## Comments
+
+Implementation commits: `df250a0e`, `c157ee83` on `t3/clarify-catalog-card-actions-artwork`; merge `ea358c8a` includes integration notes. Both apps passed static checks, unit tests, and builds. Full E2E reported 83 passed and 9 failed; focused catalog browsing also failed to load page content. A 375px rendered artwork check and Wishlist route tests passed. The popup still needs browser checks in both themes and a rendered accessibility audit. Merge waits for a passing final gate.
+
+## Answer
+
+Merged in `ceb294cb`, including final worker commit `f1233b34`. Wishlist editing now uses a named anchored popup, saved totals, and explicit Save; the Card tile preserves complete artwork. The worker fixed popup heading order and primary-action text contrast. Both apps passed all verification steps: 878 frontend unit tests, 108 Admin unit tests, and 93 E2E tests. Rendered checks passed at 320px and 375px in both themes; Save contrast passed normal, focus, hover, and pending states. Evidence: `/tmp/mobile-ui-ux-wishlist-rendered.md`. Worker worktree and branch were removed safely. Safari, real-device, and screen-reader checks did not run.
 
 ## Scope limits
 

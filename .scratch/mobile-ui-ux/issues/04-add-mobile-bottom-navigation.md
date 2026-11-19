@@ -4,9 +4,9 @@
 
 **Blocked by:** 03 — Give Trades its own page.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-**Execution:** paused. The user approved the ticket breakdown, not implementation. Wait for a separate instruction to start.
+**Execution:** approved by the user's implement-spec request; integration branch `feat/mobile-ui-ux`.
 
 ## Acceptance criteria
 
@@ -31,6 +31,10 @@
 - [ ] Extend existing SiteHeader and app-shell prior art for signed-in, Guest, and resolving-session destinations; active state; More navigation/Escape/focus; sign-in return behavior; and transition to desktop.
 - [ ] Exercise a real route flow to the Trades page from ticket 03, plus guest Catalog and auth destinations. Use the existing Clerk and router test setup, not fake identity.
 - [ ] Run rendered accessibility and keyboard checks at small phone widths, landscape, text zoom, and both themes, including scan/content clearance. Run relevant compose frontend verification checks and report any real-device safe-area or assistive-technology checks that could not run.
+
+## Answer
+
+Merged in `c899f35c`, including navigation implementation `5518afcc`. Mobile users now have auth-aware bottom navigation, More, safe-area and content clearance, and scan-route exclusion; desktop and footer navigation remain available. Both apps passed all verification steps: 881 frontend unit tests, 108 Admin unit tests, and 93 E2E tests. Both reviews passed after the sign-in return-link fix. E2E checks cover both themes, zoom, viewport sizes, scan routes, and More-menu keyboard behavior. Worker worktree and branch were removed safely. Real-device and assistive-technology checks did not run.
 
 ## Scope limits
 
