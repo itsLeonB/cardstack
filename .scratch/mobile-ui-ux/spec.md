@@ -4,6 +4,10 @@ Status: resolved
 
 Execution: complete on `feat/mobile-ui-ux` through [PR #95](https://github.com/itsLeonB/cardstack/pull/95). All five implementation tickets are resolved. The user also approved shared E2E session reuse, later review fixes, matching Collection actions, and app motion/loading. See [implementation results](implementation.md) for verification and review outcomes.
 
+## Open follow-up work
+
+PR #95 has merged. The [follow-up spec](../mobile-ui-ux-follow-up/spec.md) and its four tickets are the single source for the remaining second-review work. Start it in a new PR from current `origin/main`; the completed scope below does not include those unverified fixes.
+
 ## Problem Statement
 
 Mobile users cannot reach Cardstack’s main tasks through clear, persistent navigation. Guests must open a menu to find Catalog, Log in, and Register. Signed-in users must look inside Account to find their Trades.

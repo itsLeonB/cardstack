@@ -2,11 +2,13 @@
 
 **What to build:** Users do not see an unstyled app during initial loading. Any necessary startup feedback stays readable and accessible, ends when required assets are ready, and does not leave a blank or endless loading page.
 
-**Blocked by:** None (can start immediately).
+Blocked by: None
 
-**Status:** ready-for-agent
+Status: ready-for-agent
 
-Follow-up to [PR #95](https://github.com/itsLeonB/cardstack/pull/95), review Group 10. The cause is not confirmed. A small staged stylesheet-delivery candidate exists, but no browser or final verification proves it works. Read the [saved-work handoff](../handoff.md) before changing it.
+Read the [follow-up spec](../spec.md). Implement in a new PR from current `origin/main`, not the merged integration branch.
+
+Follow-up to merged [PR #95](https://github.com/itsLeonB/cardstack/pull/95), review Group 10. The cause is not confirmed. A small staged stylesheet-delivery candidate exists, but no browser or final verification proves it works. Read the [saved-work handoff](../handoff.md) before changing it.
 
 ## Acceptance criteria
 
@@ -21,4 +23,8 @@ Follow-up to [PR #95](https://github.com/itsLeonB/cardstack/pull/95), review Gro
 
 ## Scope
 
-Initial document, critical styles, theme and bootstrap only where evidence requires a change. Leave the other three groups' modules alone. Report any required server, build-tool or backend change before expanding beyond frontend scope.
+Initial document, critical styles, theme and bootstrap only where evidence requires a change. Read `docs/agents/deployment.md` and the relevant asset/build guidance; inspect current HTML/head, critical CSS, hydration and deployment output. Leave the other three groups' modules alone. Report any required server, build-tool or backend change before expanding beyond frontend scope.
+
+## Historical review evidence
+
+The original user report described a brief unstyled app on first load and requested loading feedback. The old preview was https://cardstack-pr-95.vercel.app. Read-only inspection may help, but it does not prove the current main or a new preview has the same fault. Do not alter real account data or read `.env` or auth-state contents.
