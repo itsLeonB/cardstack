@@ -2,7 +2,7 @@
 
 Status: claimed
 
-Base before planning: `d1ca05b1`. PR: https://github.com/itsLeonB/cardstack/pull/95. Requested workers: OpenCode Beam Free. All four groups can start in parallel.
+Base before planning: `d1ca05b1`. PR: https://github.com/itsLeonB/cardstack/pull/95. The user first requested OpenCode Beam Free, then switched all remaining work to Mistral Vibe after the free quota stopped the workers. Continuation uses Mistral Medium 3.5 through Mistral Vibe. All four groups can run in parallel; no group is ready to merge until its missing proof and full gate pass.
 
 ## Groups
 
