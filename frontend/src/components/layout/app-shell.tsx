@@ -19,7 +19,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <SkipLink />
       <SiteHeader />
-      <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={cn(
+          "flex-1 outline-none",
+          !isScan &&
+            "[&_h1]:motion-safe:animate-in [&_h1]:motion-safe:duration-200 [&_h1]:motion-safe:slide-in-from-bottom-1"
+        )}
+      >
         {children}
       </main>
       <SiteFooter />

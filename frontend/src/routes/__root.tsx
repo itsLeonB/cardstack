@@ -11,6 +11,7 @@ import type { QueryClient } from "@tanstack/react-query"
 
 import { AppClerkProvider } from "@/components/auth/app-clerk-provider"
 import { AppShell } from "@/components/layout/app-shell"
+import { NavigationLoading } from "@/components/layout/navigation-loading"
 import { NotFound } from "@/components/layout/not-found"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
@@ -101,11 +102,17 @@ function RootLayout() {
   const isAuthRoute = useMatches({
     select: (matches) => matches.some((match) => match.routeId === "/auth"),
   })
-  if (isAuthRoute) return <Outlet />
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <>
+      <NavigationLoading />
+      {isAuthRoute ? (
+        <Outlet />
+      ) : (
+        <AppShell>
+          <Outlet />
+        </AppShell>
+      )}
+    </>
   )
 }
 
