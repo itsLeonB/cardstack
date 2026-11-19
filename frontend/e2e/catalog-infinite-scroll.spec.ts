@@ -405,7 +405,9 @@ test.describe("Catalog search grid", { tag: SIGNED_IN_TAG }, () => {
           lost: !active || active === document.body,
           inGrid: Boolean(active?.closest("[role=list]")),
           loadMore: active?.textContent === "Load more",
-          status: document.querySelector("[aria-live=polite]")?.textContent,
+          status: document
+            .querySelector("[role=list]")
+            ?.parentElement?.querySelector("p[aria-live=polite]")?.textContent,
         }
       })
 

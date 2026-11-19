@@ -75,7 +75,6 @@ test.describe("Home: signed in", { tag: SIGNED_IN_TAG }, () => {
 
   test("shows the dashboard, not the landing", async ({ page }) => {
     await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
-    await page.goto("/")
 
     await expect(
       page.getByRole("heading", { level: 1, name: "Welcome back" })
@@ -93,7 +92,6 @@ test.describe("Home: signed in", { tag: SIGNED_IN_TAG }, () => {
 
   test("passes axe", async ({ page }) => {
     await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
-    await page.goto("/")
     await expect(
       page.getByRole("heading", { name: "Welcome back" })
     ).toBeVisible()
@@ -145,7 +143,6 @@ test.describe("Home: mobile", () => {
       page,
     }) => {
       await signIn(page, [{ id: "c1", title: "Trade binder" }], 42)
-      await page.goto("/")
       await expect(
         page.getByRole("heading", { name: "Welcome back" })
       ).toBeVisible()
