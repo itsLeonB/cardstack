@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { act, cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { setTokenGetter } from "@/lib/http"
+import { getListWishlistQueryKey } from "@/generated/endpoints/wishlist/wishlist"
 import { visitCatalog, wishlistLookups } from "@/test-catalog"
 
 // "Add to Wishlist" from the catalog (ticket 8): the action on a search result
@@ -63,10 +64,11 @@ describe("Add to Wishlist from the catalog", () => {
     expect(wishlistLookups(requests)).toHaveLength(2)
   })
 
-  it("replaces the wanted quantity of a Card already on the Wishlist", async () => {
-    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+  it("replaces the wanted quantity and accepts later refreshed totals", async () => {
+    const wishlist = new Map([["card-1", 3]])
+    const { router, writes } = await visitCatalog("/catalog/search?name=Card", {
       signedIn: true,
-      wishlist: new Map([["card-1", 3]]),
+      wishlist,
     })
 
     await userEvent.click(
@@ -93,6 +95,24 @@ describe("Add to Wishlist from the catalog", () => {
       { method: "PUT", path: "/wishlist/items/card-1", body: { quantity: 5 } },
     ])
     expect(await screen.findAllByText("Wanted ×5")).toHaveLength(1)
+
+    const refreshWanted = () =>
+      router.options.context.queryClient.refetchQueries({
+        queryKey: getListWishlistQueryKey(),
+      })
+    await act(refreshWanted)
+    wishlist.set("card-1", 3)
+    await act(refreshWanted)
+
+    expect(await screen.findByText("Wanted ×3")).toBeTruthy()
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Edit Wishlist quantity for Card 1, wanted 3",
+      })
+    )
+    expect(screen.getByText("Wanted quantity: 3")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(writes).toHaveLength(1)
   })
 
   it("opens with the saved quantity while its refresh is delayed", async () => {

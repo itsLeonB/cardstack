@@ -40,6 +40,9 @@ export function AddToWishlist({
     original: number | undefined
     quantity: number
   } | null>(null)
+  if (savedWanted && savedWanted.original !== wanted) {
+    setSavedWanted(null)
+  }
   const currentWanted =
     savedWanted && savedWanted.original === wanted
       ? savedWanted.quantity

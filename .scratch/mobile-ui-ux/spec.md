@@ -2,7 +2,7 @@
 
 Status: resolved
 
-Execution: complete on `feat/mobile-ui-ux`. The user approved implementation and the shared E2E sign-in setup fix. All five implementation tickets are resolved; both integration reviews passed. See [implementation results](implementation.md). Work is committed locally, not pushed.
+Execution: complete on `feat/mobile-ui-ux` through [PR #95](https://github.com/itsLeonB/cardstack/pull/95). All five implementation tickets are resolved. The user also approved shared E2E session reuse, later review fixes, matching Collection actions, and app motion/loading. See [implementation results](implementation.md) for verification and review outcomes.
 
 ## Problem Statement
 
