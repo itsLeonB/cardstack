@@ -2,7 +2,7 @@
 
 Status: claimed
 
-Base before planning: `d1ca05b1`. PR: https://github.com/itsLeonB/cardstack/pull/95. The user first requested OpenCode Beam Free, then switched all remaining work to Mistral Vibe after the free quota stopped the workers. Continuation uses Mistral Medium 3.5 through Mistral Vibe. All four groups can run in parallel; no group is ready to merge until its missing proof and full gate pass.
+Base before planning: `d1ca05b1`. PR: https://github.com/itsLeonB/cardstack/pull/95. OpenCode Beam Free stopped at its free quota; Mistral Vibe then stopped at its budget limit. The user authorized models under Pi's `kilo/` prefix or Codebuddy. Current continuation uses Pi `kilo/particle-ai/particle-1:free`. All saved branches and edits remain intact. All four groups can run in parallel; no group is ready to merge until its missing proof and full gate pass.
 
 ## Groups
 
