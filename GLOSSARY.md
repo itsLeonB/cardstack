@@ -137,6 +137,14 @@ The readable, stable name of a profile or of a Shared Collection, as it appears 
 A two-person exchange of cards, agreed in the app and executed by both sides once the cards have physically changed hands. Its state runs `open` (link made, second seat empty), `negotiating` (both seats filled, sides editable), `locked` (both sides accepted, sides frozen), `executed`, `cancelled`.
 _Avoid_: calling its link Shared, or calling it a public inventory — a Trade shows only what each side puts in it, and no user's holdings are aggregated for strangers.
 
+**Cancel**:
+Ending a Trade after a counterparty has joined. The Trade stays in each participant's list as history with state `cancelled`, and its link stops working.
+_Avoid_: Discard — Discard is for a Trade nobody has joined and leaves no history.
+
+**Discard**:
+Ending a Trade while it is still `open` and nobody has joined. The Trade and its offered items cease to exist, its link stops working at once, and no history row is kept.
+_Avoid_: Cancel — Cancel keeps a cancelled Trade as history and is used once a counterparty has joined.
+
 **Trade Item**:
 One entry on a Trade side: a Card, a quantity, and the Collection it is meant to leave. The source Collection records intent only; execution takes the quantity from it first and from the same user's other Collections when it no longer holds enough.
 _Avoid_: conflating it with a Wishlist Item (wanted, not offered) or with an Inventory Entry (the quantity that actually exists).

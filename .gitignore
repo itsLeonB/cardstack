@@ -1,3 +1,4 @@
 .envrc
 .pi/npm/
 compose.override.yaml
+__pycache__/
