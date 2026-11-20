@@ -339,7 +339,7 @@ describe("CreateBinderPanel", () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole("combobox", { name: "Layout" }))
     await user.click(await screen.findByText("3 × 4 (rows × columns)"))
-    fireEvent.click(screen.getByRole("button", { name: "Create binder" }))
+    await user.click(screen.getByRole("button", { name: "Create binder" }))
 
     await vi.waitFor(() =>
       expect(binder.requests).toContainEqual(
