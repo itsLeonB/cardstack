@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { RiAddLine, RiSubtractLine } from "@remixicon/react"
 import { SignInLink } from "@/components/auth/sign-in-link"
@@ -26,25 +26,37 @@ export function AddToWishlist({
   cardId,
   cardName,
   wanted,
+  wantedUpdatedAt,
   onAnnounce,
 }: {
   cardId: string
   cardName: string
   /** The quantity the Wishlist already wants, absent when it has no such Card. */
   wanted?: number
+  /** Freshness marker for the lookup that supplied `wanted`; changes on a successful refresh. */
+  wantedUpdatedAt?: number
   onAnnounce: (message: string) => void
 }) {
   const queryClient = useQueryClient()
   const save = useSetWishlistItem()
+  const wantedUpdatedAtRef = useRef(wantedUpdatedAt)
+  wantedUpdatedAtRef.current = wantedUpdatedAt
   const [savedWanted, setSavedWanted] = useState<{
     original: number | undefined
     quantity: number
+    updatedAt: number | undefined
   } | null>(null)
-  if (savedWanted && savedWanted.original !== wanted) {
+  if (
+    savedWanted &&
+    (savedWanted.original !== wanted ||
+      savedWanted.updatedAt !== wantedUpdatedAt)
+  ) {
     setSavedWanted(null)
   }
   const currentWanted =
-    savedWanted && savedWanted.original === wanted
+    savedWanted &&
+    savedWanted.original === wanted &&
+    savedWanted.updatedAt === wantedUpdatedAt
       ? savedWanted.quantity
       : wanted
   const [quantity, setQuantity] = useState(wanted ?? 1)
@@ -74,7 +86,11 @@ export function AddToWishlist({
             return
           }
           onAnnounce(`Want ${quantity} of ${cardName}.`)
-          setSavedWanted({ original: wanted, quantity })
+          setSavedWanted({
+            original: wanted,
+            quantity,
+            updatedAt: wantedUpdatedAtRef.current,
+          })
           invalidateWishlist(queryClient)
           setOpen(false)
         },
@@ -201,6 +217,7 @@ export function CardWishlistAction({
         cardId={card.id}
         cardName={card.name}
         wanted={lookup.wanted[card.id]}
+        wantedUpdatedAt={lookup.updatedAt[card.id]}
         onAnnounce={setAnnouncement}
       />
     )

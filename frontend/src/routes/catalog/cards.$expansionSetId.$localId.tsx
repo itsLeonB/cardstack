@@ -81,7 +81,12 @@ function CardDetailPage() {
         <div className="grid gap-6 sm:grid-cols-[minmax(0,20rem)_1fr]">
           <CardTile card={card} imageVariant="detail" />
           <div className="flex flex-col gap-6">
-            <CardWishlistAction card={card} loginRedirect={href} />
+            {/* Remount the action when the Card changes so saved/draft editor state cannot carry over. */}
+            <CardWishlistAction
+              key={card.id}
+              card={card}
+              loginRedirect={href}
+            />
             <CardHoldings cardId={card.id} loginRedirect={href} />
           </div>
         </div>

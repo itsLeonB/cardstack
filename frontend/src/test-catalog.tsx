@@ -155,6 +155,14 @@ function stubApi(wishlist = new Map<string, number>()) {
         case "/catalog/cards": {
           const page = Number(url.searchParams.get("page") ?? 1)
           const asked = Number(url.searchParams.get("limit") ?? GUEST_PAGE)
+          // A detail route asks for one Card by its set and localId.
+          const localId = url.searchParams.get("localId")
+          if (localId) {
+            return json(200, {
+              data: [cardOf(Number(localId))],
+              meta: { total: 1, page: 1, limit: 1 },
+            })
+          }
           const locked = ["rarityId", "category", "tag"].some((key) =>
             url.searchParams.has(key)
           )

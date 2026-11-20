@@ -126,6 +126,7 @@ function CatalogSearchPage() {
         cardId={card.id}
         cardName={card.name}
         wanted={wishlist.wanted[card.id]}
+        wantedUpdatedAt={wishlist.updatedAt[card.id]}
         onAnnounce={setAnnouncement}
       />
     )

@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { BinderView } from "./binder-view"
 import { CreateBinderPanel } from "./create-binder-panel"
 import { NETWORK_ERROR } from "@/lib/collections"
+import { getGetCollectionQueryKey } from "@/generated/endpoints/collections/collections"
 import { catalogCard, fakeBinder, stubBinderApi } from "@/test-binder-api"
 
 // The Page's pending-review banner reads the signed-in user.
@@ -365,5 +366,62 @@ describe("CreateBinderPanel", () => {
       screen.getByText("A binder holds from 1 to 100 Leaves.")
     ).toBeTruthy()
     expect(binder.requests).toHaveLength(0)
+  })
+
+  it("invalidates the Collection when unmounted during a create", async () => {
+    const binder = fakeBinder({ exists: false })
+    stubBinderApi(binder)
+    const fetchMock = vi.mocked(fetch)
+    const originalFetch = fetchMock.getMockImplementation()
+    if (!originalFetch) throw new Error("Expected the binder API stub")
+
+    let releaseCreate!: () => void
+    let markCreateStarted!: () => void
+    const createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve
+    })
+    const createStarted = new Promise<void>((resolve) => {
+      markCreateStarted = resolve
+    })
+
+    fetchMock.mockImplementation(async (input, init) => {
+      const response = await originalFetch(input, init)
+      const url = new URL(String(input))
+      if (
+        init?.method === "POST" &&
+        url.pathname === "/collections/col-1/binder"
+      ) {
+        markCreateStarted()
+        await createGate
+      }
+      return response
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(getGetCollectionQueryKey("col-1"), { id: "col-1" })
+
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <CreateBinderPanel collectionId="col-1" />
+      </QueryClientProvider>
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Make this a binder" }))
+    fireEvent.change(screen.getByRole("combobox", { name: "Layout" }), {
+      target: { value: "3x4" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Create binder" }))
+
+    await createStarted
+    unmount()
+    releaseCreate()
+
+    await vi.waitFor(() =>
+      expect(
+        queryClient.getQueryState(getGetCollectionQueryKey("col-1"))
+          ?.isInvalidated
+      ).toBe(true)
+    )
   })
 })
