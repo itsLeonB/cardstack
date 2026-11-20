@@ -64,11 +64,12 @@ test.describe("App shell: guest", () => {
 
   // Startup contract (follow-up to the PR #95 "unstyled app on first load"
   // report): the document head itself carries the stylesheet link and the
-  // theme bootstrap script, so the browser holds its first paint until the
-  // stylesheet applies, even when its delivery is slow, and never paints the
-  // shell unstyled. Gating only the stylesheet request simulates a slow first
-  // visit; no production code delays anything.
-  test("first paint is styled even when the stylesheet is slow", async ({
+  // theme bootstrap script, so the stylesheet is render-blocking and the
+  // shell cannot paint before it applies, whatever its delivery speed. This
+  // test pins that delivery contract, not paint timing itself; the paint
+  // measurement lives in the ticket 04 diagnosis. Gating only the stylesheet
+  // request simulates a slow first visit; no production code delays anything.
+  test("critical CSS and theme bootstrap ship in the document", async ({
     page,
   }) => {
     await page.route(/\.css($|\?)/, (route) => {
