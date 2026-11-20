@@ -74,6 +74,13 @@ export function CollectionPicker({
         value={value ?? ""}
         onValueChange={(next) => onChange(next || undefined)}
         disabled={!isAuthenticated}
+        items={[
+          { label: "None", value: "" },
+          ...collections.map((collection) => ({
+            label: collection.title,
+            value: collection.id,
+          })),
+        ]}
       >
         <SelectTrigger id="add-to-collection">
           <SelectValue placeholder="None" />

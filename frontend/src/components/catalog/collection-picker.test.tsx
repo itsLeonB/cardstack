@@ -71,6 +71,18 @@ describe("CollectionPicker", () => {
     screen.getByText("Sign in to add cards to a Collection")
   })
 
+  it("shows the selected collection's title for a controlled value", () => {
+    render(
+      <CollectionPicker
+        isAuthenticated
+        collections={collections}
+        value="c1"
+        onChange={vi.fn()}
+      />
+    )
+    expect(screen.getByText("Binder")).toBeTruthy()
+  })
+
   it("shows no login prompt while the session loads", () => {
     render(
       <CollectionPicker

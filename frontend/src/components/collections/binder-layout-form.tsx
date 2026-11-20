@@ -104,6 +104,13 @@ export function BinderLayoutForm({
             onValueChange={(next) => {
               if (next) choosePreset(next)
             }}
+            items={[
+              ...BINDER_PRESETS.map((preset) => ({
+                label: `${preset.label} (rows × columns)`,
+                value: preset.id,
+              })),
+              { label: "Custom", value: "custom" },
+            ]}
           >
             <SelectTrigger id="binder-preset">
               <SelectValue />
