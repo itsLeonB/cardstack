@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { RiAddLine, RiSubtractLine } from "@remixicon/react"
 import { SignInLink } from "@/components/auth/sign-in-link"
@@ -39,6 +39,8 @@ export function AddToWishlist({
 }) {
   const queryClient = useQueryClient()
   const save = useSetWishlistItem()
+  const wantedUpdatedAtRef = useRef(wantedUpdatedAt)
+  wantedUpdatedAtRef.current = wantedUpdatedAt
   const [savedWanted, setSavedWanted] = useState<{
     original: number | undefined
     quantity: number
@@ -87,7 +89,7 @@ export function AddToWishlist({
           setSavedWanted({
             original: wanted,
             quantity,
-            updatedAt: wantedUpdatedAt,
+            updatedAt: wantedUpdatedAtRef.current,
           })
           invalidateWishlist(queryClient)
           setOpen(false)
