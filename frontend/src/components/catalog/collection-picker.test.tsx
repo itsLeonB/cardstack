@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import {
-  cleanup,
-  fireEvent,
-  render,
-  renderHook,
-  screen,
-} from "@testing-library/react"
+import { cleanup, render, renderHook, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type * as TanStackRouter from "@tanstack/react-router"
 import { CollectionPicker, useCatalogCollection } from "./collection-picker"
 import { useListCollections } from "@/generated/endpoints/collections/collections"
@@ -76,6 +71,18 @@ describe("CollectionPicker", () => {
     screen.getByText("Sign in to add cards to a Collection")
   })
 
+  it("shows the selected collection's title for a controlled value", () => {
+    render(
+      <CollectionPicker
+        isAuthenticated
+        collections={collections}
+        value="c1"
+        onChange={vi.fn()}
+      />
+    )
+    expect(screen.getByText("Binder")).toBeTruthy()
+  })
+
   it("shows no login prompt while the session loads", () => {
     render(
       <CollectionPicker
@@ -89,7 +96,7 @@ describe("CollectionPicker", () => {
     expect(screen.queryByText(/Log in/)).toBeNull()
   })
 
-  it("lists Collections and reports the selection when authenticated", () => {
+  it("lists Collections and reports the selection when authenticated", async () => {
     const onChange = vi.fn()
     render(
       <CollectionPicker
@@ -99,9 +106,10 @@ describe("CollectionPicker", () => {
         onChange={onChange}
       />
     )
-    fireEvent.change(screen.getByLabelText("Add to collection"), {
-      target: { value: "c1" },
-    })
+    const user = userEvent.setup()
+    await user.click(screen.getByLabelText("Add to collection"))
+    const option = await screen.findByText("Binder")
+    await user.click(option)
     expect(onChange).toHaveBeenCalledWith("c1")
     expect(screen.queryByText(/Log in/)).toBeNull()
   })

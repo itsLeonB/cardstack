@@ -2,6 +2,13 @@ import { useEffect } from "react"
 import { SignInLink } from "@/components/auth/sign-in-link"
 import { useListCollections } from "@/generated/endpoints/collections/collections"
 import { useSession } from "@/lib/session"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 /**
  * Session + the user's Collections for the public catalog (no redirecting
@@ -63,20 +70,30 @@ export function CollectionPicker({
       <label htmlFor="add-to-collection" className="text-sm font-medium">
         Add to collection
       </label>
-      <select
-        id="add-to-collection"
-        disabled={!isAuthenticated}
+      <Select
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value || undefined)}
-        className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
+        onValueChange={(next) => onChange(next || undefined)}
+        disabled={!isAuthenticated}
+        items={[
+          { label: "None", value: "" },
+          ...collections.map((collection) => ({
+            label: collection.title,
+            value: collection.id,
+          })),
+        ]}
       >
-        <option value="">None</option>
-        {collections.map((collection) => (
-          <option key={collection.id} value={collection.id}>
-            {collection.title}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id="add-to-collection">
+          <SelectValue placeholder="None" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">None</SelectItem>
+          {collections.map((collection) => (
+            <SelectItem key={collection.id} value={collection.id}>
+              {collection.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {!isAuthenticated && !isLoading && (
         <span className="text-sm">
           <SignInLink redirect={loginRedirect}>

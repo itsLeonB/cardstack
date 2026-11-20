@@ -4,7 +4,7 @@
 
 Blocked by: None
 
-Status: ready-for-agent
+Status: done
 
 Read the [follow-up spec](../spec.md). Implement in a new PR from current `origin/main`, not the merged integration branch.
 

@@ -312,7 +312,8 @@ test.describe("Page scan", { tag: SIGNED_IN_TAG }, () => {
     }
 
     await setupTrigger.click()
-    await page.getByLabel("Layout").selectOption("2x2")
+    await page.getByLabel("Layout").click()
+    await page.getByRole("option", { name: /2 × 2/ }).click()
     await page.getByRole("button", { name: "Create binder" }).click()
     await expect(page.getByText("Page 1 of 2")).toBeVisible()
 

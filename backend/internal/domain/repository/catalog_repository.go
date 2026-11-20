@@ -468,7 +468,7 @@ func listCardFacets(db *gorm.DB, filter CardFilter, base func(CardFilter) *gorm.
 	var sets []entity.ExpansionSet
 	if ids := unionIDs(setIDs, filter.ExpansionSetIDs); len(ids) > 0 {
 		if err := visibleSets(db.Where("id IN ?", ids), filter.IncludeUnpublished).
-			Order("release_date ASC NULLS LAST, name ASC").Find(&sets).Error; err != nil {
+			Order("release_date DESC NULLS LAST, name ASC").Find(&sets).Error; err != nil {
 			return CardFacets{}, ungerr.Wrap(err, "listing expansion set facet options")
 		}
 	}

@@ -742,6 +742,57 @@ func TestCatalogRepository_ListCardFacets(t *testing.T) {
 	})
 }
 
+// TestCatalogRepository_ListCardFacetsExpansionSetOrder covers the facet
+// ordering contract: release date descending, unknown dates last, stable name
+// tie-break. Sets are inserted in deliberately unsorted release-date order.
+func TestCatalogRepository_ListCardFacetsExpansionSetOrder(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	fixture := newCatalogFixture(t, db)
+	repo := NewCatalogRepository(crud.NewRepository[entity.Card](db))
+
+	date := func(y int) *time.Time {
+		d := time.Date(y, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &d
+	}
+	// Insertion order is intentionally scrambled.
+	older := fixture.newExpansionSet(t, db, nil, date(2020))
+	tieA := fixture.newExpansionSet(t, db, nil, date(2022))
+	newer := fixture.newExpansionSet(t, db, nil, date(2023))
+	unknown := fixture.newExpansionSet(t, db, nil, nil)
+	tieB := fixture.newExpansionSet(t, db, nil, date(2022))
+
+	// Give each set a card so it appears in facets.
+	for _, s := range []entity.ExpansionSet{older, tieA, newer, unknown, tieB} {
+		fixture.newCard(t, db, s.ID, func(c *entity.Card) {
+			c.LocalID = uuid.NewString()
+		})
+	}
+
+	f, err := repo.ListCardFacets(ctx, CardFilter{})
+	require.NoError(t, err)
+
+	// Keep only this test's sets, in returned order.
+	mine := map[uuid.UUID]bool{
+		older.ID: true, tieA.ID: true, newer.ID: true, unknown.ID: true, tieB.ID: true,
+	}
+	var got []uuid.UUID
+	for _, o := range f.ExpansionSets {
+		if mine[o.ID] {
+			got = append(got, o.ID)
+		}
+	}
+
+	// Expected: newer (2023), then tieA/tieB (2022, name asc), then older
+	// (2020), then unknown (nil) last.
+	tieFirst, tieSecond := tieA.ID, tieB.ID
+	if tieA.Name > tieB.Name {
+		tieFirst, tieSecond = tieB.ID, tieA.ID
+	}
+	want := []uuid.UUID{newer.ID, tieFirst, tieSecond, older.ID, unknown.ID}
+	assert.Equal(t, want, got)
+}
+
 func pick(m map[uuid.UUID]bool, keys []uuid.UUID) map[uuid.UUID]bool {
 	out := map[uuid.UUID]bool{}
 	for _, k := range keys {

@@ -7,10 +7,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { BINDER_PRESETS, MAX_GRID, MAX_LEAVES, presetIdFor } from "@/lib/binder"
-
-const SELECT_CLASS =
-  "h-9 w-full min-w-0 rounded-3xl border border-transparent bg-input/50 px-3 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50 md:text-sm [&_option]:bg-popover [&_option]:text-popover-foreground"
 
 export interface BinderLayoutValues {
   rows: number
@@ -95,19 +99,31 @@ export function BinderLayoutForm({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="binder-preset">Layout</FieldLabel>
-          <select
-            id="binder-preset"
-            className={SELECT_CLASS}
+          <Select
             value={presetIdFor(Number(rows), Number(columns))}
-            onChange={(event) => choosePreset(event.target.value)}
+            onValueChange={(next) => {
+              if (next) choosePreset(next)
+            }}
+            items={[
+              ...BINDER_PRESETS.map((preset) => ({
+                label: `${preset.label} (rows × columns)`,
+                value: preset.id,
+              })),
+              { label: "Custom", value: "custom" },
+            ]}
           >
-            {BINDER_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label} (rows × columns)
-              </option>
-            ))}
-            <option value="custom">Custom</option>
-          </select>
+            <SelectTrigger id="binder-preset">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BINDER_PRESETS.map((preset) => (
+                <SelectItem key={preset.id} value={preset.id}>
+                  {preset.label} (rows × columns)
+                </SelectItem>
+              ))}
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
         <Field>
           <FieldLabel htmlFor="binder-rows">Rows per Page</FieldLabel>
