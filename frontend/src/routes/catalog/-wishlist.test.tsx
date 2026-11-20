@@ -172,6 +172,110 @@ describe("Add to Wishlist from the catalog", () => {
     expect(writes).toHaveLength(1)
   })
 
+  it("expires the saved total when the delayed refresh returns the original quantity", async () => {
+    const wishlist = new Map([["card-1", 3]])
+    const { writes } = await visitCatalog("/catalog/search?name=Card", {
+      signedIn: true,
+      wishlist,
+    })
+    const fetchMock = vi.mocked(fetch)
+    const originalFetch = fetchMock.getMockImplementation()
+    if (!originalFetch) throw new Error("Expected the catalog API stub")
+
+    let releaseRefresh!: () => void
+    let markRefreshStarted!: () => void
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve
+    })
+    let delayRefresh = false
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input))
+      if (init?.method === "PUT") delayRefresh = true
+      if (url.pathname === "/wishlist" && delayRefresh) {
+        delayRefresh = false
+        markRefreshStarted()
+        await refreshGate
+        return new Response(
+          JSON.stringify({
+            data: [{ card: { id: "card-1" }, wantedQuantity: 3 }],
+            meta: { total: 1, page: 1, limit: 1 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      }
+      return originalFetch(input, init)
+    })
+
+    const opener = (
+      await screen.findAllByRole(
+        "button",
+        { name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/ },
+        { timeout: LOOKUP_TIMEOUT }
+      )
+    )[0]
+    await userEvent.click(opener)
+    await userEvent.click(
+      screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await refreshStarted
+
+    await userEvent.click(opener)
+    expect(screen.getByText("Wanted quantity: 4")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(writes).toHaveLength(1)
+
+    wishlist.set("card-1", 3)
+    releaseRefresh()
+    await screen.findByText("Wanted ×3")
+
+    await userEvent.click(opener)
+    expect(screen.getByText("Wanted quantity: 3")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(writes).toHaveLength(1)
+  })
+
+  it("keeps each Card's saved total separate with equal wanted totals", async () => {
+    const wishlist = new Map([
+      ["card-1", 4],
+      ["card-2", 4],
+    ])
+    // The Card's page is the real caller that keeps one editor mounted and
+    // swaps the Card under it, so it is the only place this can regress.
+    const { router } = await visitCatalog("/catalog/cards/s1/1", {
+      signedIn: true,
+      wishlist,
+    })
+    const opener = () =>
+      screen.findByRole("button", {
+        name: /^Edit Wishlist quantity for Card 1(?:, wanted \d+)?$/,
+      })
+
+    await userEvent.click(await opener())
+    await userEvent.click(
+      screen.getByRole("button", { name: "Increase wanted quantity of Card 1" })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await screen.findByText("Want 5 of Card 1.")
+
+    await router.navigate({
+      to: "/catalog/cards/$expansionSetId/$localId",
+      params: { expansionSetId: "s1", localId: "2" },
+    })
+
+    // Card 2 wants the same total as Card 1 started with: its own saved value.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /^Edit Wishlist quantity for Card 2(?:, wanted \d+)?$/,
+      })
+    )
+    expect(screen.getByText("Wanted quantity: 4")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+  })
+
   it("discards an unsaved quantity when the popup is dismissed", async () => {
     const { writes } = await visitCatalog("/catalog/search?name=Card", {
       signedIn: true,
