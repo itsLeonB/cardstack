@@ -62,6 +62,44 @@ test.describe("App shell: guest", () => {
     ).toBeFocused()
   })
 
+  // Startup contract (follow-up to the PR #95 "unstyled app on first load"
+  // report): the document head itself carries the stylesheet link and the
+  // theme bootstrap script, so the stylesheet is render-blocking and the
+  // shell cannot paint before it applies, whatever its delivery speed. This
+  // test pins that delivery contract, not paint timing itself; the paint
+  // measurement lives in the ticket 04 diagnosis. Gating only the stylesheet
+  // request simulates a slow first visit; no production code delays anything.
+  test("critical CSS and theme bootstrap ship in the document", async ({
+    page,
+  }) => {
+    await page.route(/\.css($|\?)/, (route) => {
+      setTimeout(() => route.continue(), 1500)
+    })
+    await page.goto("/", { waitUntil: "domcontentloaded" })
+
+    const startup = await page.evaluate(() => {
+      const link = document.querySelector("head link[rel=stylesheet]")
+      return {
+        stylesheetInHead: link !== null,
+        stylesheetApplied:
+          link instanceof HTMLLinkElement && link.sheet !== null,
+        themeBootstrapped: ["light", "dark"].some((theme) =>
+          document.documentElement.classList.contains(theme)
+        ),
+        bodyStyled:
+          getComputedStyle(document.body).backgroundColor !==
+          "rgba(0, 0, 0, 0)",
+      }
+    })
+
+    expect(startup).toEqual({
+      stylesheetInHead: true,
+      stylesheetApplied: true,
+      themeBootstrapped: true,
+      bodyStyled: true,
+    })
+  })
+
   test("Log in leads to the auth page, which drops the site nav", async ({
     page,
   }) => {
