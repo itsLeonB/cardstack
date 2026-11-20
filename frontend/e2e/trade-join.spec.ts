@@ -91,7 +91,7 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByText("Waiting for someone to join")).toBeVisible()
     // Sharing delivers the link without exposing a publication switch.
     const origin = new URL(page.url()).origin
-    const share = page.getByRole("button", { name: "Share" })
+    const share = page.getByRole("button", { name: "Invite" })
     for (const theme of ["Light", "Dark"]) {
       await page
         .getByRole("banner")
@@ -112,6 +112,16 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
       await expect(dialog).toBeHidden()
       await expect(share).toBeFocused()
     }
+    await page.setViewportSize({ width: 375, height: 700 })
+    await expect(share).toBeVisible()
+    await expect(
+      page.getByRole("navigation", { name: "Breadcrumb" })
+    ).toBeVisible()
+    const { violations: mobileViolations } = await new AxeBuilder({
+      page,
+    }).analyze()
+    expect(mobileViolations).toEqual([])
+
     // Trade pages stay unindexed.
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       "content",

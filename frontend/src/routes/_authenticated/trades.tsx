@@ -118,7 +118,9 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
   const cancellable =
     slug !== undefined && CANCELLABLE_STATUSES.has(trade.status)
   const age = formatAge(trade.createdAt)
-  const label = trade.otherName ?? "Waiting for someone to join"
+  const label = trade.otherName
+    ? `With ${trade.otherName}`
+    : "Waiting for someone to join"
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

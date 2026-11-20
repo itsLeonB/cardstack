@@ -105,7 +105,7 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     await page.goto("/trades")
 
     // State and age show for every row; only a live Trade offers cancel.
-    await expect(page.getByRole("link", { name: "Ash" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "With Ash" })).toHaveAttribute(
       "href",
       /\/trades\/slug-live$/
     )
@@ -114,7 +114,7 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     ).toBeVisible()
     await expect(page.getByText("Executed")).toBeVisible()
     await expect(page.getByText("Cancelled")).toBeVisible()
-    await expect(page.getByRole("link", { name: "Gary" })).toHaveCount(0)
+    await expect(page.getByRole("link", { name: "With Gary" })).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(1)
 
     await page.getByRole("button", { name: "Cancel" }).click()
@@ -123,7 +123,7 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     await expect(ashRow).toContainText("Cancelled")
     expect(cancelledSlug).toBe("slug-live")
     // The dead slug leaves the row as plain text and no cancel remains.
-    await expect(page.getByRole("link", { name: "Ash" })).toHaveCount(0)
+    await expect(page.getByRole("link", { name: "With Ash" })).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   })
 
@@ -163,7 +163,7 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
       "Could not load your Trades."
     )
     await page.getByRole("button", { name: "Retry" }).press("Enter")
-    await expect(page.getByRole("link", { name: "Ash" })).toBeVisible()
+    await expect(page.getByRole("link", { name: "With Ash" })).toBeVisible()
     expect(attempts).toBe(2)
     const { violations } = await new AxeBuilder({ page }).analyze()
     expect(violations).toEqual([])
@@ -195,6 +195,6 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
 
     await expect(page.getByText("This Trade already executed.")).toBeVisible()
     // The row stays, still cancellable-looking until the list refreshes.
-    await expect(page.getByRole("link", { name: "Brock" })).toBeVisible()
+    await expect(page.getByRole("link", { name: "With Brock" })).toBeVisible()
   })
 })

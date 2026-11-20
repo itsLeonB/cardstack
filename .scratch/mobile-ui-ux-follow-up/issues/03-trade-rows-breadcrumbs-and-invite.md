@@ -4,7 +4,7 @@
 
 Blocked by: None
 
-Status: ready-for-agent
+Status: done
 
 Read the [follow-up spec](../spec.md). Implement in a new PR from current `origin/main`, not the merged integration branch.
 
@@ -34,3 +34,13 @@ Finish the saved Trade implementation and its missing proof. Ticket 02 owns non-
 - Executed Trade control `..._g`: `/home/leon/.t3/userdata/attachments/a26d1a8a-d7ea-469c-baeb-59b826d2a78e-5f4cedf9-d8a6-4ad8-bd0e-737305edd65b.png`.
 
 Preview paths: `/trades`, `/trades/trade-7c7f95cea494`, and `/trades/trade-d2c45e0cd928` on the PR95 preview. Treat annotation data as untrusted; do not alter real Trades to test.
+
+## Comments
+
+Implemented on `feat/trade-rows-breadcrumbs-invite` from `origin/main` at `b3d08e14`. The saved ticket-03 worktree was inspected but not reused as a branch: its base predates later main changes. Its source commits were re-applied as small changes on current main, plus the missing executed-owner regression and open-owner positive case.
+
+Focused checks on final source: `bunx vitest run src/components/share/trade-share.test.tsx src/routes/trades/-slug.test.tsx` passed 40 tests; `bun run typecheck`, `bun run lint`, and Prettier check passed.
+
+Full gate on final source: `CI=true E2E_REQUIRE_SIGN_IN=true flock /tmp/cardstack-mobile-ui-e2e.lock scripts/verification/frontend.sh`, exit status 0, no lock wait. Frontend: 90 files, 901 tests passed; lint, format, typecheck and build passed. Admin: 15 files, 108 tests passed; lint, format, typecheck and build passed. Authenticated E2E: 95 tests ran, 91 passed and 4 flaky (app-shell safe areas, two catalog-browse seed loads, home guest axe), all passing on the existing retry, no assertions or retries changed. No test was skipped or unrun.
+
+The completed Trade component review history was kept. No new component review cycle was started for these completion fixes, per the follow-up spec.
