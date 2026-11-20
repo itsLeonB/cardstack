@@ -197,16 +197,21 @@ export function useWishlistWanted(cardIds: string[], enabled: boolean) {
     combine: (queries) => {
       const wanted: Record<string, number> = {}
       const loaded: Record<string, true> = {}
+      const updatedAt: Record<string, number> = {}
       queries.forEach((query, index) => {
         if (query.data?.status !== 200) return
         for (const item of query.data.data.data ?? []) {
           wanted[item.card.id] = item.wantedQuantity
         }
-        for (const cardId of slices[index] ?? []) loaded[cardId] = true
+        for (const cardId of slices[index] ?? []) {
+          loaded[cardId] = true
+          updatedAt[cardId] = query.dataUpdatedAt
+        }
       })
       return {
         wanted,
         loaded,
+        updatedAt,
         failed: queries.some(
           (query) => query.isError || (query.data && query.data.status !== 200)
         ),

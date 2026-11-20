@@ -20,7 +20,15 @@ export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const createMutation = useCreateBinder()
+  const createMutation = useCreateBinder({
+    mutation: {
+      onSuccess: (response, variables) => {
+        if (response.status === 201) {
+          invalidateBinder(queryClient, variables.id)
+        }
+      },
+    },
+  })
 
   function createBinder(values: BinderLayoutValues) {
     setErrorMessage(null)
@@ -41,7 +49,6 @@ export function CreateBinderPanel({ collectionId }: { collectionId: string }) {
             )
             return
           }
-          invalidateBinder(queryClient, collectionId)
           setOpen(false)
         },
         onError: () => setErrorMessage(NETWORK_ERROR),
