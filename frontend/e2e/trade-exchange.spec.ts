@@ -127,14 +127,12 @@ async function deleteDisposableUser(
     )
 }
 
-async function addOffer(
-  page: Page,
-  collectionId: string,
-  cardId: string,
-  cardName: string
-) {
-  await page.getByLabel("Source Collection").selectOption(collectionId)
-  await page.getByLabel("Card", { exact: true }).selectOption(cardId)
+async function addOffer(page: Page, collectionTitle: string, cardName: string) {
+  await page.getByRole("combobox", { name: "Source Collection" }).click()
+  await page.getByRole("option", { name: collectionTitle }).click()
+  await page.getByLabel("Search Cards").fill(cardName)
+  await page.getByRole("combobox", { name: "Card" }).click()
+  await page.getByRole("option").filter({ hasText: cardName }).first().click()
   await page.getByLabel("Quantity", { exact: true }).fill("1")
   const itemResponse = page.waitForResponse(
     (response) =>
@@ -214,13 +212,12 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       expect(catalog.status).toBe(200)
       expect(cards.length).toBeGreaterThanOrEqual(2)
       const [ownerCard, partnerCard] = cards
-      const ownerCollection = await createCollection(
-        page,
-        `Trade ${randomUUID()}`
-      )
+      const ownerCollectionTitle = `Trade ${randomUUID()}`
+      const ownerCollection = await createCollection(page, ownerCollectionTitle)
+      const partnerCollectionTitle = `Trade ${randomUUID()}`
       const partnerCollection = await createCollection(
         partner,
-        `Trade ${randomUUID()}`
+        partnerCollectionTitle
       )
       for (const [userPage, collectionId, cardId] of [
         [page, ownerCollection, ownerCard.id],
@@ -248,13 +245,8 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
         partner.getByText("Negotiating", { exact: true })
       ).toBeVisible()
       await page.reload()
-      await addOffer(page, ownerCollection, ownerCard.id, ownerCard.name)
-      await addOffer(
-        partner,
-        partnerCollection,
-        partnerCard.id,
-        partnerCard.name
-      )
+      await addOffer(page, ownerCollectionTitle, ownerCard.name)
+      await addOffer(partner, partnerCollectionTitle, partnerCard.name)
       const inboxTitle = (
         await partner.getByRole("heading", { level: 2 }).first().textContent()
       )?.trim()
@@ -310,13 +302,8 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
         partner.getByText("Negotiating", { exact: true })
       ).toBeVisible()
       await page.reload()
-      await addOffer(page, ownerCollection, ownerCard.id, ownerCard.name)
-      await addOffer(
-        partner,
-        partnerCollection,
-        partnerCard.id,
-        partnerCard.name
-      )
+      await addOffer(page, ownerCollectionTitle, ownerCard.name)
+      await addOffer(partner, partnerCollectionTitle, partnerCard.name)
       await lockTrade(page, partner)
       await partner.reload()
       await expect(

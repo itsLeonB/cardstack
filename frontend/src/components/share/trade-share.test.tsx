@@ -9,7 +9,7 @@ describe("TradeShare", () => {
     const link = "https://cardstack.test/trades/trade-1"
     render(<TradeShare link={link} />)
 
-    fireEvent.click(screen.getByRole("button", { name: "Share" }))
+    fireEvent.click(screen.getByRole("button", { name: "Invite" }))
 
     expect(
       screen.getByRole("dialog", { name: "Share Trade link" })

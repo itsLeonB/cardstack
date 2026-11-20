@@ -15,9 +15,9 @@ export function TradeShare({ link }: { link: string }) {
     <Dialog>
       <DialogTrigger
         render={
-          <Button variant="outline" className="min-h-11">
+          <Button className="min-h-11">
             <RiShareLine data-icon="inline-start" />
-            Share
+            Invite
           </Button>
         }
       />

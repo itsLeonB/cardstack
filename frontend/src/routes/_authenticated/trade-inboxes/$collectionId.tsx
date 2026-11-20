@@ -20,6 +20,13 @@ import { SessionChangedError, readInSession } from "@/lib/session"
 import { pageHead } from "@/lib/site"
 import { Button } from "@/components/ui/button"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -227,17 +234,25 @@ function TradeInboxPage() {
               Choose the Collection to file this card into.
             </DialogDescription>
           </DialogHeader>
-          <select
-            className="w-full rounded border px-2 py-1"
-            value={destinationId}
-            onChange={(e) => setDestinationId(e.target.value)}
+          <Select
+            value={destinationId === "" ? null : destinationId}
+            onValueChange={(value) => setDestinationId(value ?? "")}
+            items={collections.map((c) => ({ label: c.title, value: c.id }))}
           >
-            {collections.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              className="w-full"
+              aria-label="Destination Collection"
+            >
+              <SelectValue placeholder="Choose a Collection" />
+            </SelectTrigger>
+            <SelectContent>
+              {collections.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {fileError && (
             <p role="alert" className="text-sm text-destructive">
               {fileError}

@@ -7,6 +7,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { SignInLink } from "@/components/auth/sign-in-link"
 import { TradeShare } from "@/components/share/trade-share"
 import { NotFoundView } from "@/components/layout/not-found"
+import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { pageHead, NOINDEX_META } from "@/lib/site"
@@ -14,6 +15,13 @@ import { NETWORK_ERROR } from "@/lib/collections"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
 import { clerkAuth } from "@/lib/clerk-auth"
@@ -171,6 +179,15 @@ function TradePage() {
   }
   return (
     <PageContainer>
+      <Breadcrumbs
+        crumbs={[
+          {
+            label: "Trades",
+            link: trade.isParticipant ? { to: "/trades" } : undefined,
+          },
+          { label: "Trade" },
+        ]}
+      />
       <PageHeader title="Trade" description={tradeStatusLabel(trade.status)} />
       <TradeSide
         key={`${sessionVersion}:${trade.slug}:owner`}
@@ -210,7 +227,9 @@ function TradePage() {
           )}
         </>
       )}
-      {trade.isOwner && <TradeShareLink slug={trade.slug} />}
+      {trade.isOwner && trade.status !== "executed" && (
+        <TradeShareLink slug={trade.slug} />
+      )}
       <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
     </PageContainer>
   )
@@ -408,23 +427,32 @@ function TradeSide({
           >
             <div className="grid gap-1">
               <label htmlFor={`collection-${slug}`}>Source Collection</label>
-              <select
-                id={`collection-${slug}`}
-                value={collectionId}
-                className="h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-                onChange={(event) => {
-                  setCollectionId(event.target.value)
+              <Select
+                value={collectionId === "" ? null : collectionId}
+                onValueChange={(value) => {
+                  setCollectionId(value ?? "")
                   setCardId("")
                 }}
-                required
+                items={[
+                  { label: "Choose a Collection", value: null },
+                  ...collections.map((collection) => ({
+                    label: collection.title,
+                    value: collection.id,
+                  })),
+                ]}
               >
-                <option value="">Choose a Collection</option>
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.title}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id={`collection-${slug}`} className="w-full">
+                  <SelectValue placeholder="Choose a Collection" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Choose a Collection</SelectItem>
+                  {collections.map((collection) => (
+                    <SelectItem key={collection.id} value={collection.id}>
+                      {collection.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1">
               <label htmlFor={`card-search-${slug}`}>Search Cards</label>
@@ -441,22 +469,31 @@ function TradeSide({
             </div>
             <div className="grid gap-1">
               <label htmlFor={`card-${slug}`}>Card</label>
-              <select
-                id={`card-${slug}`}
-                value={cardId}
-                className="h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50"
-                onChange={(event) => setCardId(event.target.value)}
-                required
+              <Select
+                value={cardId === "" ? null : cardId}
+                onValueChange={(value) => setCardId(value ?? "")}
                 disabled={!collectionId || entriesQuery.isPending}
+                items={[
+                  { label: "Choose a Card", value: null },
+                  ...entries.map((entry) => ({
+                    label: `${entry.card.name} — ${entry.card.expansionSet.name} — ${entry.card.rarity.name}`,
+                    value: entry.card.id,
+                  })),
+                ]}
               >
-                <option value="">Choose a Card</option>
-                {entries.map((entry) => (
-                  <option key={entry.card.id} value={entry.card.id}>
-                    {entry.card.name} — {entry.card.expansionSet.name} —{" "}
-                    {entry.card.rarity.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id={`card-${slug}`} className="w-full">
+                  <SelectValue placeholder="Choose a Card" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Choose a Card</SelectItem>
+                  {entries.map((entry) => (
+                    <SelectItem key={entry.card.id} value={entry.card.id}>
+                      {entry.card.name} — {entry.card.expansionSet.name} —{" "}
+                      {entry.card.rarity.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1">
               <label htmlFor={`quantity-${slug}`}>Quantity</label>

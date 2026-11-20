@@ -561,17 +561,21 @@ describe("Trade page", () => {
     await renderTradePage()
     const user = userEvent.setup()
 
-    await screen.findByRole("option", { name: "Binder" })
-    await user.selectOptions(
-      await screen.findByLabelText("Source Collection"),
-      "collection-1"
+    expect(await screen.findByRole("button", { name: "Invite" })).toBeTruthy()
+    expect(
+      await screen.findByRole("navigation", { name: "Breadcrumb" })
+    ).toBeTruthy()
+    await user.click(
+      await screen.findByRole("combobox", { name: "Source Collection" })
     )
+    await user.click(await screen.findByRole("option", { name: "Binder" }))
     await waitFor(() =>
       expect(requests).toContain("GET /collections/collection-1/entries")
     )
-    fireEvent.change(await screen.findByLabelText("Card"), {
-      target: { value: "pikachu" },
-    })
+    await user.click(await screen.findByRole("combobox", { name: "Card" }))
+    await user.click(
+      await screen.findByRole("option", { name: "Pikachu — Base Set — Rare" })
+    )
     fireEvent.change(screen.getByLabelText("Quantity"), {
       target: { value: "3" },
     })
@@ -620,14 +624,14 @@ describe("Trade page", () => {
 
     await screen.findByText("Could not load your Collections.")
     await user.click(screen.getByRole("button", { name: "Retry Collections" }))
-    await screen.findByRole("option", { name: "Binder" })
-    await user.selectOptions(
-      screen.getByLabelText("Source Collection"),
-      "collection-1"
+    await user.click(
+      await screen.findByRole("combobox", { name: "Source Collection" })
     )
+    await user.click(await screen.findByRole("option", { name: "Binder" }))
     await screen.findByText("Could not load Cards from this Collection.")
     await user.click(screen.getByRole("button", { name: "Retry Cards" }))
 
+    await user.click(await screen.findByRole("combobox", { name: "Card" }))
     expect(
       await screen.findByRole("option", {
         name: "Pikachu — Base Set — Rare",
@@ -1086,6 +1090,8 @@ describe("Trade page", () => {
     )
     const { queryClient } = await renderTradePage()
     expect(await screen.findByText("Negotiating")).toBeTruthy()
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeTruthy()
+    expect(screen.queryByRole("link", { name: "Trades" })).toBeNull()
 
     // The poll observer is mounted but disabled for a non-participant, so
     // no interval ever schedules another read.
@@ -1234,6 +1240,38 @@ describe("Trade page", () => {
       await screen.findByRole("heading", { name: "Trade not found" })
     ).toBeTruthy()
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull()
+  })
+
+  it("hides Invite from an owner only after the Trade is visibly executed", async () => {
+    clerkState("signed-in")
+    stubTradeApi({
+      get: {
+        status: 200,
+        body: {
+          data: tradeView({
+            status: "executed",
+            isParticipant: true,
+            isOwner: true,
+            otherName: "Misty",
+            inboxId: "inbox-1",
+            ownerItems: [tradeItem("item-1", 2)],
+            otherItems: [tradeItem("item-2", 3)],
+          }),
+        },
+      },
+    })
+    await renderTradePage()
+
+    expect(await screen.findByText("Executed")).toBeTruthy()
+    expect(screen.getByText("The exchange is complete.")).toBeTruthy()
+    expect(screen.getByText("Ash Ketchum")).toBeTruthy()
+    expect(screen.getByText("Misty")).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "View your Trade Inbox" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Invite" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull()
   })
 })
 
