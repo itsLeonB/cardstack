@@ -89,10 +89,16 @@ export const Route = createFileRoute("/trades/$slug")({
   },
   head: ({ loaderData }) => {
     const trade = loaderData?.trade
+    // The body hides stale session data; the document title needs the same gate.
+    const staleSession =
+      loaderData?.sessionVersion !== clerkAuth.currentSessionVersion()
     return {
       meta: [
-        ...pageHead(!trade || trade === "missing" ? "Trade" : tradeTitle(trade))
-          .meta,
+        ...pageHead(
+          staleSession || !trade || trade === "missing"
+            ? "Trade"
+            : tradeTitle(trade)
+        ).meta,
         NOINDEX_META,
       ],
     }

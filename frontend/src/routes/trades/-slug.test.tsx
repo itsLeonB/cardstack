@@ -1395,4 +1395,26 @@ describe("Trade loader", () => {
     expect(gets).toBe(2)
     expect(result).toMatchObject({ trade: "missing" })
   })
+
+  it("keeps the title generic while the new session reload is pending", () => {
+    const sessionVersion = clerkAuth.currentSessionVersion()
+    const loaderData = {
+      sessionVersion,
+      trade: tradeView({
+        status: "negotiating",
+        isOwner: true,
+        isParticipant: true,
+        otherName: "Misty",
+      }),
+    }
+    // SAFETY: the route head only reads loaderData and the session version.
+    const head = Route.options.head as any
+    const title = () => head({ loaderData }).meta[0].title
+
+    expect(title()).toBe("Misty · Cardstack")
+
+    clerkAuth.publish(fakeClerk("sess_2"))
+
+    expect(title()).toBe("Trade · Cardstack")
+  })
 })
