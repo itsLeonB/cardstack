@@ -15,11 +15,8 @@ import { Button } from "@/components/ui/button"
 import { PageCorners } from "@/components/scan/page-corners"
 import { PageReview } from "@/components/scan/page-review"
 import { PhotoUseNotice } from "@/components/scan/photo-use-notice"
+import { ScanCamera, ScanHeader, ScanLayer } from "@/components/scan/scan-layer"
 import { ScanFilterBar, useScanFilter } from "@/components/scan/scan-filter-bar"
-import {
-  cameraMessage,
-  ChoosePhotoButton,
-} from "@/components/scan/photo-source-controls"
 import { useReplaceBinderPage } from "@/generated/endpoints/binder/binder"
 import type {
   BinderPage,
@@ -312,17 +309,17 @@ export function ScanPageFlow({
     if (blocker.status === "blocked") blocker.proceed()
   }
 
-  const hasCamera = source.camera === "starting" || source.camera === "ready"
-
   return (
-    <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 overflow-y-auto bg-background">
+    <ScanLayer scroll>
       <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-medium">Scan Page {page.page}</h2>
-          <Button variant="outline" size="sm" onClick={() => leave(onClose)}>
-            Back to binder
-          </Button>
-        </div>
+        <ScanHeader
+          title={`Scan Page ${page.page}`}
+          back={
+            <Button variant="outline" size="sm" onClick={() => leave(onClose)}>
+              Back to binder
+            </Button>
+          }
+        />
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -426,37 +423,16 @@ export function ScanPageFlow({
               collectionId={collectionId}
               onChange={scanFilter.setFilter}
             />
-            {hasCamera ? (
-              <div className="aspect-[3/4] overflow-hidden bg-black">
-                <video
-                  ref={source.videoRef}
-                  playsInline
-                  muted
-                  aria-label="Camera viewfinder"
-                  className="size-full object-contain"
-                />
-              </div>
-            ) : (
-              <p className="text-sm">{cameraMessage(source.camera)}</p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {hasCamera && (
-                <Button
-                  size="lg"
-                  disabled={source.camera !== "ready"}
-                  onClick={() =>
-                    void takeFrame(() => source.captureFrame(longSide))
-                  }
-                >
-                  Capture
-                </Button>
-              )}
-              <ChoosePhotoButton
-                onFile={(file) =>
-                  void takeFrame(() => source.frameFromFile(file, longSide))
-                }
-              />
-            </div>
+            <ScanCamera
+              source={source}
+              contain
+              onCapture={() =>
+                void takeFrame(() => source.captureFrame(longSide))
+              }
+              onFile={(file) =>
+                void takeFrame(() => source.frameFromFile(file, longSide))
+              }
+            />
           </div>
         )}
 
@@ -483,6 +459,6 @@ export function ScanPageFlow({
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </div>
+    </ScanLayer>
   )
 }
