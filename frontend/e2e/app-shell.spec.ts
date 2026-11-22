@@ -8,7 +8,7 @@ import {
   signInAsTestUser,
   SIGNED_IN_TAG,
   useSignedInSuite,
-  waitForClerkReady,
+  waitForAppReady,
 } from "./support/clerk-auth"
 
 // Shell-level checks. Guest tests need no setup: Clerk loads, finds no session
@@ -38,7 +38,7 @@ async function openMenu(page: Page, name: string, item: string) {
 test.describe("App shell: guest", () => {
   test("shows guest navigation and footer", async ({ page }) => {
     await page.goto("/")
-    await waitForClerkReady(page)
+    await waitForAppReady(page)
 
     const header = page.getByRole("banner")
     await expect(header.getByRole("link", { name: "Catalog" })).toBeVisible()
@@ -385,7 +385,7 @@ test.describe("App shell: mobile", () => {
     page,
   }) => {
     await page.goto("/")
-    await waitForClerkReady(page)
+    await waitForAppReady(page)
     const nav = page.getByRole("navigation", { name: "Bottom navigation" })
 
     await expect(nav.getByRole("link", { name: "Catalog" })).toBeVisible()
@@ -396,14 +396,14 @@ test.describe("App shell: mobile", () => {
     await openMenu(page, "Theme", "Light")
     await page.getByRole("menuitemradio", { name: "Light" }).click()
     await page.reload()
-    await waitForClerkReady(page)
+    await waitForAppReady(page)
     await expect(page.locator("html")).not.toHaveClass(/dark/)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 
     await openMenu(page, "Theme", "Dark")
     await page.getByRole("menuitemradio", { name: "Dark" }).click()
     await page.reload()
-    await waitForClerkReady(page)
+    await waitForAppReady(page)
     await expect(page.locator("html")).toHaveClass(/dark/)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 
@@ -440,7 +440,7 @@ test.describe("App shell: mobile", () => {
   for (const path of ["/", "/auth/login", "/auth/register"]) {
     test(`no horizontal scroll on ${path}`, async ({ page }) => {
       await page.goto(path)
-      await waitForClerkReady(page)
+      await waitForAppReady(page)
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
         timeout: 15_000,
       })
