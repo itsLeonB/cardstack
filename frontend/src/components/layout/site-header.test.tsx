@@ -19,6 +19,7 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import { useClerk, useUser } from "@clerk/react"
+import { ScanLayer } from "@/components/scan/scan-layer"
 import { ThemeProvider } from "@/components/theme-provider"
 import { clerkUserResult } from "@/test-clerk"
 import type { ClerkState } from "@/test-clerk"
@@ -58,8 +59,17 @@ function buildRouter(path: string) {
       </ThemeProvider>
     ),
   })
-  const routeTree = root.addChildren(
-    [
+  const scanLayer = createRoute({
+    getParentRoute: () => root,
+    path: "/scan-layer",
+    component: () => (
+      <ScanLayer>
+        <p>Scan layer</p>
+      </ScanLayer>
+    ),
+  })
+  const routeTree = root.addChildren([
+    ...[
       "/",
       "/catalog",
       "/collections",
@@ -70,8 +80,9 @@ function buildRouter(path: string) {
       "/auth/login",
       "/auth/register",
       "/account",
-    ].map((p) => createRoute({ getParentRoute: () => root, path: p }))
-  )
+    ].map((p) => createRoute({ getParentRoute: () => root, path: p })),
+    scanLayer,
+  ])
   return createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -209,6 +220,16 @@ describe("SiteHeader", () => {
     mockSession("signed-in")
     await renderShell("/collections/col-1/scan")
 
+    expect(
+      screen.queryByRole("navigation", { name: "Bottom navigation" })
+    ).toBeNull()
+  })
+
+  it("keeps bottom navigation out while a scan layer is open", async () => {
+    mockSession("signed-in")
+    await renderShell("/scan-layer")
+
+    expect(await screen.findByText("Scan layer")).toBeTruthy()
     expect(
       screen.queryByRole("navigation", { name: "Bottom navigation" })
     ).toBeNull()

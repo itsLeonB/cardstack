@@ -318,6 +318,9 @@ test.describe("Page scan", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByText("Page 1 of 2")).toBeVisible()
 
     await page.getByRole("button", { name: "Scan this Page" }).click()
+    await expect(
+      page.getByRole("navigation", { name: "Bottom navigation" })
+    ).toHaveCount(0)
     await page.locator('input[type="file"]').setInputFiles({
       name: "page.png",
       mimeType: "image/png",

@@ -1,13 +1,11 @@
 import { useRef, useState } from "react"
 import type { ReactNode } from "react"
-import { Button } from "@/components/ui/button"
-import { cameraMessage, ChoosePhotoButton } from "./photo-source-controls"
 import { PhotoUseNotice } from "./photo-use-notice"
 import { ReviewStep } from "./review-step"
 import type { CommitResult, Decline } from "./review-step"
+import { ScanCamera, ScanHeader, ScanLayer } from "./scan-layer"
 import { ScanFilterBar, useScanFilter } from "./scan-filter-bar"
 import { ScanSheet } from "./scan-sheet"
-import { CARD_ASPECT, GUIDE_HEIGHT, VIEW_ASPECT } from "@/lib/frame-crop"
 import type { FrameSource } from "@/lib/frame-source"
 import { feedbackChoice, sendScanFeedback } from "@/lib/scan-feedback"
 import type { PendingFeedbackRow } from "@/lib/scan-feedback"
@@ -93,9 +91,9 @@ export function ScanScreen({
   // page's footer never shows behind the scan screen.
   if (reviewing) {
     return (
-      <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 overflow-y-auto bg-background">
+      <ScanLayer scroll>
         <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
-          {backLink}
+          <ScanHeader title="Scan cards" back={backLink} />
           {status}
           <PhotoUseNotice />
           <ReviewStep
@@ -108,75 +106,36 @@ export function ScanScreen({
             onBack={() => setReviewing(false)}
           />
         </div>
-      </div>
+      </ScanLayer>
     )
   }
 
-  const hasCamera = source.camera === "starting" || source.camera === "ready"
-
   return (
-    <div className="fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-0 z-30 bg-background">
+    <ScanLayer>
       <div className="mx-auto flex h-full w-full max-w-md flex-col">
         {status}
+        <ScanHeader
+          title="Scan cards"
+          back={backLink}
+          className="px-4 pt-4 pb-2"
+        />
         <ScanFilterBar
           filter={scanFilter.filter}
           facets={scanFilter.facets}
           collectionId={collectionId}
           onChange={scanFilter.setFilter}
         />
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-black text-white">
-          {hasCamera ? (
-            // The box and the guide are sized from the constants `lib/frame-crop.ts` crops to.
-            <div
-              className="relative w-full overflow-hidden"
-              style={{ aspectRatio: VIEW_ASPECT }}
-            >
-              <video
-                ref={source.videoRef}
-                playsInline
-                muted
-                aria-label="Camera viewfinder"
-                className="size-full object-cover"
-              />
-              <div
-                aria-hidden
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
-                style={{
-                  height: `${GUIDE_HEIGHT * 100}%`,
-                  aspectRatio: CARD_ASPECT,
-                }}
-              />
-            </div>
-          ) : (
-            <p role="alert" className="px-4 pt-20 text-center text-sm">
-              {cameraMessage(source.camera)}
-            </p>
-          )}
-          {backLink && <div className="absolute top-3 left-3">{backLink}</div>}
-          {error && (
-            <p
-              role="alert"
-              className="absolute inset-x-3 top-14 rounded-lg bg-background p-2 text-sm text-destructive"
-            >
-              {error}
-            </p>
-          )}
-          <div className="absolute inset-x-0 bottom-3 flex flex-wrap justify-center gap-2 px-4">
-            {hasCamera && (
-              <Button
-                size="lg"
-                disabled={source.camera !== "ready"}
-                onClick={() => void capture(source.captureCamera)}
-              >
-                Capture
-              </Button>
-            )}
-            <ChoosePhotoButton
-              onFile={(file) => void capture(() => source.fromFile(file))}
-            />
-          </div>
+        <ScanCamera
+          source={source}
+          error={error}
+          guide
+          overlay
+          onCapture={() => void capture(source.captureCamera)}
+          onFile={(file) => void capture(() => source.fromFile(file))}
+        />
+        <div className="px-4">
+          <PhotoUseNotice />
         </div>
-        <PhotoUseNotice />
         <ScanSheet
           scans={draft.scans}
           seen={draft.seen}
@@ -214,7 +173,7 @@ export function ScanScreen({
           onReview={() => setReviewing(true)}
         />
       </div>
-    </div>
+    </ScanLayer>
   )
 }
 
