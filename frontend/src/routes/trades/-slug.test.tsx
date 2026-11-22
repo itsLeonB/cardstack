@@ -427,7 +427,7 @@ describe("Trade page", () => {
     )
 
     expect(await screen.findByText("Negotiating")).toBeTruthy()
-    expect(screen.getByText("Misty")).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "You", level: 2 })).toBeTruthy()
     expect(screen.queryByText("This Trade is already full.")).toBeNull()
     expect(screen.queryByRole("button", { name: "Join this Trade" })).toBeNull()
   })
@@ -561,7 +561,6 @@ describe("Trade page", () => {
     await renderTradePage()
     const user = userEvent.setup()
 
-    expect(await screen.findByRole("button", { name: "Invite" })).toBeTruthy()
     expect(
       await screen.findByRole("navigation", { name: "Breadcrumb" })
     ).toBeTruthy()
@@ -1242,7 +1241,7 @@ describe("Trade page", () => {
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull()
   })
 
-  it("hides Invite from an owner only after the Trade is visibly executed", async () => {
+  it("hides Invite from an owner once the Trade is no longer open", async () => {
     clerkState("signed-in")
     stubTradeApi({
       get: {
@@ -1262,10 +1261,15 @@ describe("Trade page", () => {
     })
     await renderTradePage()
 
-    expect(await screen.findByText("Executed")).toBeTruthy()
+    expect(
+      await screen.findByRole("heading", { name: "Misty", level: 1 })
+    ).toBeTruthy()
+    expect(screen.getByText("Executed")).toBeTruthy()
     expect(screen.getByText("The exchange is complete.")).toBeTruthy()
-    expect(screen.getByText("Ash Ketchum")).toBeTruthy()
-    expect(screen.getByText("Misty")).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "You", level: 2 })).toBeTruthy()
+    expect(
+      screen.getByRole("heading", { name: "Misty", level: 2 })
+    ).toBeTruthy()
     expect(
       screen.getByRole("link", { name: "View your Trade Inbox" })
     ).toBeTruthy()
@@ -1390,5 +1394,27 @@ describe("Trade loader", () => {
 
     expect(gets).toBe(2)
     expect(result).toMatchObject({ trade: "missing" })
+  })
+
+  it("keeps the title generic while the new session reload is pending", () => {
+    const sessionVersion = clerkAuth.currentSessionVersion()
+    const loaderData = {
+      sessionVersion,
+      trade: tradeView({
+        status: "negotiating",
+        isOwner: true,
+        isParticipant: true,
+        otherName: "Misty",
+      }),
+    }
+    // SAFETY: the route head only reads loaderData and the session version.
+    const head = Route.options.head as any
+    const title = () => head({ loaderData }).meta[0].title
+
+    expect(title()).toBe("Misty · Cardstack")
+
+    clerkAuth.publish(fakeClerk("sess_2"))
+
+    expect(title()).toBe("Trade · Cardstack")
   })
 })

@@ -159,7 +159,7 @@ async function startTrade(page: Page): Promise<string> {
   await page.goto("/trades")
   await page.getByRole("button", { name: "Start a Trade" }).click()
   await expect(
-    page.getByRole("heading", { name: "Trade", level: 1, exact: true })
+    page.getByRole("heading", { name: "New trade", level: 1, exact: true })
   ).toBeVisible()
   await expect(page).toHaveURL(/\/trades\/[^/]+$/)
   const slug = new URL(page.url()).pathname.split("/").at(-1)
@@ -265,7 +265,7 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
       await expect(partner.getByText("The exchange is complete.")).toBeVisible()
       await partner.getByRole("link", { name: "View your Trade Inbox" }).click()
       await expect(
-        partner.getByRole("heading", { name: inboxTitle! })
+        partner.getByRole("heading", { name: inboxTitle!, level: 1 })
       ).toBeVisible()
       await expect(
         partner.getByRole("link", { name: ownerCard.name })

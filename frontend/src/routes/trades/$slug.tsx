@@ -40,6 +40,13 @@ import {
 import { getListCollectionsQueryOptions } from "@/generated/endpoints/collections/collections"
 import { getListCollectionEntriesQueryOptions } from "@/generated/endpoints/inventory/inventory"
 
+/** The Trade's name follows the counterparty once one joins; an open seat has no name yet. */
+function tradeTitle(trade: TradeView): string {
+  if (trade.status === "open") return "New trade"
+  const counterparty = trade.isOwner ? trade.otherName : trade.ownerName
+  return counterparty ?? "Trade"
+}
+
 /**
  * Outside `_authenticated/`: the API answers a Guest's read with the same
  * not-found as an unknown slug, so the link leaks nothing and no guard
@@ -80,9 +87,22 @@ export const Route = createFileRoute("/trades/$slug")({
     }
     return { sessionVersion: clerkAuth.currentSessionVersion(), trade: null }
   },
-  head: ({ params }) => ({
-    meta: [...pageHead(params.slug).meta, NOINDEX_META],
-  }),
+  head: ({ loaderData }) => {
+    const trade = loaderData?.trade
+    // The body hides stale session data; the document title needs the same gate.
+    const staleSession =
+      loaderData?.sessionVersion !== clerkAuth.currentSessionVersion()
+    return {
+      meta: [
+        ...pageHead(
+          staleSession || !trade || trade === "missing"
+            ? "Trade"
+            : tradeTitle(trade)
+        ).meta,
+        NOINDEX_META,
+      ],
+    }
+  },
   component: TradePage,
 })
 
@@ -188,10 +208,13 @@ function TradePage() {
           { label: "Trade" },
         ]}
       />
-      <PageHeader title="Trade" description={tradeStatusLabel(trade.status)} />
+      <PageHeader
+        title={tradeTitle(trade)}
+        description={tradeStatusLabel(trade.status)}
+      />
       <TradeSide
         key={`${sessionVersion}:${trade.slug}:owner`}
-        name={trade.ownerName}
+        name={trade.isOwner ? "You" : trade.ownerName}
         items={trade.ownerItems ?? []}
         slug={trade.slug}
         editable={negotiating && trade.isOwner}
@@ -199,7 +222,11 @@ function TradePage() {
       />
       <TradeSide
         key={`${sessionVersion}:${trade.slug}:other`}
-        name={trade.otherName ?? null}
+        name={
+          trade.isParticipant && !trade.isOwner
+            ? "You"
+            : (trade.otherName ?? null)
+        }
         items={trade.otherItems ?? []}
         slug={trade.slug}
         editable={trade.isParticipant && negotiating && !trade.isOwner}
@@ -227,7 +254,7 @@ function TradePage() {
           )}
         </>
       )}
-      {trade.isOwner && trade.status !== "executed" && (
+      {trade.isOwner && trade.status === "open" && (
         <TradeShareLink slug={trade.slug} />
       )}
       <JoinSeat key={`${sessionVersion}:${trade.slug}`} trade={trade} />
