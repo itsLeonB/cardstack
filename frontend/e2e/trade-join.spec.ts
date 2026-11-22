@@ -84,11 +84,15 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
     await page.getByRole("button", { name: "Start a Trade" }).click()
 
     await expect(
-      page.getByRole("heading", { name: "Trade", level: 1 })
+      page.getByRole("heading", { name: "New trade", level: 1 })
     ).toBeVisible()
-    await expect(page.getByText("Ash Ketchum")).toBeVisible()
+    await expect(page).toHaveTitle("New trade · Cardstack")
     await expect(page.getByText("Open")).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "You", level: 2 })
+    ).toBeVisible()
     await expect(page.getByText("Waiting for someone to join")).toBeVisible()
+    await expect(page.getByText("Ash Ketchum")).toHaveCount(0)
     // Sharing delivers the link without exposing a publication switch.
     const origin = new URL(page.url()).origin
     const share = page.getByRole("button", { name: "Invite" })
@@ -99,7 +103,14 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
         .click()
       await page.getByRole("menuitemradio", { name: theme }).click()
       await page.keyboard.press("Escape")
-      await share.click()
+      await expect(
+        page.getByRole("heading", { name: "New trade", level: 1 })
+      ).toBeVisible()
+      await expect(
+        page.getByRole("heading", { name: "You", level: 2 })
+      ).toBeVisible()
+      await expect(page.getByText("Open")).toBeVisible()
+      await share.press("Enter")
       const dialog = page.getByRole("dialog", { name: "Share Trade link" })
       await expect(
         dialog.getByRole("textbox", { name: "Trade link" })
@@ -113,6 +124,13 @@ test.describe("Trade owner", { tag: SIGNED_IN_TAG }, () => {
       await expect(share).toBeFocused()
     }
     await page.setViewportSize({ width: 375, height: 700 })
+    await expect(
+      page.getByRole("heading", { name: "New trade", level: 1 })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "You", level: 2 })
+    ).toBeVisible()
+    await expect(page.getByText("Open")).toBeVisible()
     await expect(share).toBeVisible()
     await expect(
       page.getByRole("navigation", { name: "Breadcrumb" })
@@ -196,8 +214,72 @@ test.describe("Trade joiner", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByText("Negotiating")).toBeVisible()
     await expect(page.getByText("Ash Ketchum").nth(1)).toBeVisible()
     await expect(
+      page.getByRole("heading", { name: "You", level: 2 })
+    ).toBeVisible()
+    await expect(page.getByRole("button", { name: "Invite" })).toHaveCount(0)
+    await expect(
       page.getByRole("button", { name: "Join this Trade" })
     ).toHaveCount(0)
+  })
+
+  test("names the counterparty and hides Invite once someone joins", async ({
+    page,
+  }) => {
+    await page.route(`${API}/trades/${SLUG}`, (route) =>
+      reply(route, 200, {
+        data: tradeView({
+          status: "negotiating",
+          isOwner: true,
+          isParticipant: true,
+          otherName: "Misty",
+        }),
+      })
+    )
+
+    await signInAsTestUser(page)
+    await page.goto(`/trades/${SLUG}`)
+
+    // The Trade is visibly present before the absent action is judged.
+    await expect(
+      page.getByRole("heading", { name: "Misty", level: 1 })
+    ).toBeVisible()
+    await expect(page).toHaveTitle("Misty · Cardstack")
+    await expect(page.getByText("Negotiating")).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "You", level: 2 })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "Misty", level: 2 })
+    ).toBeVisible()
+    await expect(page.getByText("Waiting for someone to join")).toHaveCount(0)
+
+    await expect(page.getByRole("button", { name: "Invite" })).toHaveCount(0)
+
+    for (const theme of ["Light", "Dark"]) {
+      await page
+        .getByRole("banner")
+        .getByRole("button", { name: "Theme" })
+        .click()
+      await page.getByRole("menuitemradio", { name: theme }).click()
+      await page.keyboard.press("Escape")
+      await expect(
+        page.getByRole("heading", { name: "Misty", level: 1 })
+      ).toBeVisible()
+      await expect(
+        page.getByRole("heading", { name: "You", level: 2 })
+      ).toBeVisible()
+      await expect(page.getByText("Negotiating")).toBeVisible()
+      await expect(page.getByRole("button", { name: "Invite" })).toHaveCount(0)
+    }
+
+    await page.setViewportSize({ width: 375, height: 700 })
+    await expect(
+      page.getByRole("heading", { name: "Misty", level: 1 })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "You", level: 2 })
+    ).toBeVisible()
+    await expect(page.getByRole("button", { name: "Invite" })).toHaveCount(0)
   })
 
   test("a join that loses the seat is told the Trade is full", async ({
