@@ -1,12 +1,10 @@
-import type { FormEvent } from "react"
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { useEffect, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 
-import { SignInLink } from "@/components/auth/sign-in-link"
 import { TradeShare } from "@/components/share/trade-share"
-import { NotFoundView } from "@/components/layout/not-found"
+import { useTradeSessionGate } from "@/components/trade/use-trade-session-gate"
 import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
@@ -14,31 +12,20 @@ import { pageHead, NOINDEX_META } from "@/lib/site"
 import { NETWORK_ERROR } from "@/lib/collections"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
 import { clerkAuth } from "@/lib/clerk-auth"
+import { loadTradeForSession } from "@/lib/trade-loader"
 import { tradeStatusLabel } from "@/lib/trade-status"
-import { useIsGuest } from "@/lib/session"
 import {
   getTrade,
   getGetTradeQueryKey,
   getGetTradeQueryOptions,
   useJoinTrade,
-  useAddTradeItem,
   useRemoveTradeItem,
   useAcceptTrade,
   useConfirmTrade,
 } from "@/generated/endpoints/trades/trades"
-import { getListCollectionsQueryOptions } from "@/generated/endpoints/collections/collections"
-import { getListCollectionEntriesQueryOptions } from "@/generated/endpoints/inventory/inventory"
 
 /** The Trade's name follows the counterparty once one joins; an open seat has no name yet. */
 function tradeTitle(trade: TradeView): string {
@@ -58,35 +45,8 @@ export const Route = createFileRoute("/trades/$slug")({
   ssr: false,
   // Read fresh on every visit: a cached view would keep offering a seat
   // someone took since.
-  loader: async ({ context: { queryClient }, params }) => {
-    const read = () =>
-      queryClient.fetchQuery({
-        ...getGetTradeQueryOptions(params.slug),
-        staleTime: 0,
-      })
-    // Check both attempts: even the retry can cross another session change.
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const sessionVersion = clerkAuth.currentSessionVersion()
-      const response = await read()
-      if (clerkAuth.currentSessionVersion() !== sessionVersion) {
-        queryClient.removeQueries({
-          queryKey: getGetTradeQueryKey(params.slug),
-        })
-        continue
-      }
-      if (response.status === 404) {
-        queryClient.removeQueries({
-          queryKey: getGetTradeQueryKey(params.slug),
-        })
-        return { sessionVersion, trade: "missing" as const }
-      }
-      return {
-        sessionVersion,
-        trade: response.status === 200 ? response.data.data : null,
-      }
-    }
-    return { sessionVersion: clerkAuth.currentSessionVersion(), trade: null }
-  },
+  loader: ({ context: { queryClient }, params }) =>
+    loadTradeForSession(queryClient, params.slug),
   head: ({ loaderData }) => {
     const trade = loaderData?.trade
     // The body hides stale session data; the document title needs the same gate.
@@ -108,14 +68,8 @@ export const Route = createFileRoute("/trades/$slug")({
 
 function TradePage() {
   const { trade, sessionVersion } = Route.useLoaderData()
-  const currentVersion = useSyncExternalStore(
-    clerkAuth.subscribeSession,
-    clerkAuth.currentSessionVersion,
-    clerkAuth.currentSessionVersion
-  )
   const router = useRouter()
   const queryClient = useQueryClient()
-  const isGuest = useIsGuest()
   const tradeQuery = useQuery({
     ...getGetTradeQueryOptions(trade && trade !== "missing" ? trade.slug : ""),
     enabled:
@@ -150,44 +104,8 @@ function TradePage() {
     }
   }, [trade, tradeQuery.data, router, queryClient])
 
-  if (sessionVersion !== currentVersion)
-    return (
-      <PageContainer>
-        <PageHeader title="Trade" />
-        <p role="status">Loading Trade...</p>
-      </PageContainer>
-    )
-  if (trade === "missing") {
-    const { pathname, searchStr } = router.state.location
-    return (
-      <NotFoundView resource="Trade">
-        {isGuest && (
-          <p className="text-sm">
-            <SignInLink redirect={pathname + searchStr}>Sign in</SignInLink> to
-            see this Trade.
-          </p>
-        )}
-      </NotFoundView>
-    )
-  }
-  function retry() {
-    if (clerkAuth.currentSessionVersion() === sessionVersion)
-      void router.invalidate()
-  }
-  if (!trade)
-    return (
-      <PageContainer>
-        <PageHeader title="Trade" />
-        <p role="alert" className="text-sm text-destructive">
-          Could not load this Trade.
-        </p>
-        <div>
-          <Button variant="outline" onClick={retry}>
-            Retry
-          </Button>
-        </div>
-      </PageContainer>
-    )
+  const gate = useTradeSessionGate({ trade, sessionVersion, title: "Trade" })
+  if (gate || !trade || trade === "missing") return gate
 
   const negotiating = trade.isParticipant && trade.status === "negotiating"
   const ownerAccepted = trade.isOwner ? trade.accepted : trade.otherAccepted
@@ -276,66 +194,8 @@ function TradeSide({
   acceptLabel: string | null
 }) {
   const router = useRouter()
-  const [collectionId, setCollectionId] = useState("")
-  const [cardId, setCardId] = useState("")
-  const [cardName, setCardName] = useState("")
-  const [quantity, setQuantity] = useState("1")
   const [error, setError] = useState("")
-  const collectionsQuery = useQuery({
-    ...getListCollectionsQueryOptions(),
-    enabled: editable,
-  })
-  const entriesQuery = useQuery({
-    ...getListCollectionEntriesQueryOptions(collectionId, {
-      name: cardName || undefined,
-      limit: 100,
-    }),
-    enabled: editable && collectionId !== "",
-  })
-  const addMutation = useAddTradeItem()
   const removeMutation = useRemoveTradeItem()
-  const collections =
-    collectionsQuery.data?.status === 200
-      ? (collectionsQuery.data.data.data ?? [])
-      : []
-  const entries =
-    entriesQuery.data?.status === 200 ? (entriesQuery.data.data.data ?? []) : []
-
-  function addItem(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const count = Number(quantity)
-    if (
-      !collectionId ||
-      !cardId ||
-      !Number.isInteger(count) ||
-      count < 1 ||
-      count > 2147483647
-    ) {
-      setError(
-        "Choose a Collection and Card, and enter a quantity of at least 1."
-      )
-      return
-    }
-    setError("")
-    addMutation.mutate(
-      {
-        slug,
-        data: { cardId, quantity: count, sourceCollectionId: collectionId },
-      },
-      {
-        onSuccess: (response) => {
-          if (response.status === 200) {
-            setCardId("")
-            setQuantity("1")
-            void router.invalidate()
-          } else {
-            setError("Could not add this Card. Check the Trade and try again.")
-          }
-        },
-        onError: () => setError(NETWORK_ERROR),
-      }
-    )
-  }
 
   function removeItem(itemId: string) {
     setError("")
@@ -416,157 +276,19 @@ function TradeSide({
             ))}
           </ul>
         )}
+        {editable && (
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link to="/trades/$slug/add-item" params={{ slug }} />}
+          >
+            Add Card
+          </Button>
+        )}
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
-        )}
-        {editable &&
-          !collectionsQuery.isPending &&
-          (collectionsQuery.isError ||
-            collectionsQuery.data?.status !== 200) && (
-            <div
-              role="alert"
-              className="flex flex-col items-start gap-2 text-sm text-destructive"
-            >
-              <p>Could not load your Collections.</p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void collectionsQuery.refetch()}
-              >
-                Retry Collections
-              </Button>
-            </div>
-          )}
-        {editable &&
-          collectionsQuery.data?.status === 200 &&
-          collections.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Create a Collection before adding a Card.
-            </p>
-          )}
-        {editable && (
-          <form
-            onSubmit={addItem}
-            className="grid gap-3 border-t pt-4 sm:grid-cols-2"
-          >
-            <div className="grid gap-1">
-              <label htmlFor={`collection-${slug}`}>Source Collection</label>
-              <Select
-                value={collectionId === "" ? null : collectionId}
-                onValueChange={(value) => {
-                  setCollectionId(value ?? "")
-                  setCardId("")
-                }}
-                items={[
-                  { label: "Choose a Collection", value: null },
-                  ...collections.map((collection) => ({
-                    label: collection.title,
-                    value: collection.id,
-                  })),
-                ]}
-              >
-                <SelectTrigger id={`collection-${slug}`} className="w-full">
-                  <SelectValue placeholder="Choose a Collection" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>Choose a Collection</SelectItem>
-                  {collections.map((collection) => (
-                    <SelectItem key={collection.id} value={collection.id}>
-                      {collection.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <label htmlFor={`card-search-${slug}`}>Search Cards</label>
-              <Input
-                id={`card-search-${slug}`}
-                value={cardName}
-                onChange={(event) => {
-                  setCardName(event.target.value)
-                  setCardId("")
-                }}
-                placeholder="Type a Card name"
-                disabled={!collectionId}
-              />
-            </div>
-            <div className="grid gap-1">
-              <label htmlFor={`card-${slug}`}>Card</label>
-              <Select
-                value={cardId === "" ? null : cardId}
-                onValueChange={(value) => setCardId(value ?? "")}
-                disabled={!collectionId || entriesQuery.isPending}
-                items={[
-                  { label: "Choose a Card", value: null },
-                  ...entries.map((entry) => ({
-                    label: `${entry.card.name} — ${entry.card.expansionSet.name} — ${entry.card.rarity.name}`,
-                    value: entry.card.id,
-                  })),
-                ]}
-              >
-                <SelectTrigger id={`card-${slug}`} className="w-full">
-                  <SelectValue placeholder="Choose a Card" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>Choose a Card</SelectItem>
-                  {entries.map((entry) => (
-                    <SelectItem key={entry.card.id} value={entry.card.id}>
-                      {entry.card.name} — {entry.card.expansionSet.name} —{" "}
-                      {entry.card.rarity.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <label htmlFor={`quantity-${slug}`}>Quantity</label>
-              <Input
-                id={`quantity-${slug}`}
-                type="number"
-                min={1}
-                max={2147483647}
-                step={1}
-                required
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </div>
-            {!entriesQuery.isPending &&
-              (entriesQuery.isError ||
-                (entriesQuery.data !== undefined &&
-                  entriesQuery.data.status !== 200)) &&
-              collectionId !== "" && (
-                <div
-                  role="alert"
-                  className="flex flex-col items-start gap-2 text-sm text-destructive sm:col-span-2"
-                >
-                  <p>Could not load Cards from this Collection.</p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void entriesQuery.refetch()}
-                  >
-                    Retry Cards
-                  </Button>
-                </div>
-              )}
-            <Button
-              type="submit"
-              disabled={
-                addMutation.isPending ||
-                collectionsQuery.isPending ||
-                !collections.length
-              }
-              className="sm:col-span-2 sm:justify-self-start"
-            >
-              {addMutation.isPending ? "Adding..." : "Add Card"}
-            </Button>
-          </form>
         )}
       </CardContent>
     </Card>
