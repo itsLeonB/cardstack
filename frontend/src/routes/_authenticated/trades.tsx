@@ -164,7 +164,7 @@ function DiscardTradeDialog({ slug }: { slug: string }) {
           <Button
             variant="outline"
             size="sm"
-            className="min-h-11 text-destructive"
+            className="pointer-events-auto min-h-11 text-destructive"
           />
         }
       >
@@ -228,13 +228,13 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
         {age ? ` · started ${age}` : ""}
       </span>
       {(discardable || cancellable) && (
-        <div className="relative z-10 flex w-full justify-end border-t pt-2">
+        <div className="pointer-events-none relative z-10 flex w-full justify-end border-t pt-2">
           {discardable ? (
             <DiscardTradeDialog slug={slug} />
           ) : (
             <Button
               type="button"
-              className="min-h-11"
+              className="pointer-events-auto min-h-11"
               size="sm"
               variant="outline"
               disabled={cancelTrade.isPending}
