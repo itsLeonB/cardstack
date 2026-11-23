@@ -67,6 +67,11 @@ export async function signInAsTestUser(page: Page) {
   requireCredentials()
   await page.goto("/")
   await waitForAppReady(page)
+  // The h1 also exists for a restored guest session; the menu proves auth.
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "User menu" })
+    .waitFor({ state: "visible", timeout: 20_000 })
 }
 
 export async function signInAsUser(page: Page, emailAddress: string) {
