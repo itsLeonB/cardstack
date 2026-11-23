@@ -6,13 +6,25 @@
 
 **Status:** ready-for-agent
 
-- [ ] The owner of an `open` Trade sees a Discard action; a participant in a `negotiating` or `locked` Trade keeps Cancel; neither action is offered for an `executed` Trade.
-- [ ] Discard asks for confirmation in the house destructive dialog, names the destructive action, uses danger emphasis, and puts focus on the safe action by default.
-- [ ] Discard and Cancel are visually separated from ordinary Trade actions such as Edit and Accept.
-- [ ] Confirming Discard deletes the Trade and its Trade Items; the Slug answers not found at once and no cancelled row appears in the Trades list.
-- [ ] Cancelling from `negotiating` and `locked` keeps the existing cancelled state, dead Slug and history row; cancelling from `executed` is still refused with the same stable refusal.
-- [ ] The Trades list refreshes after a Discard, and a failed delete is reported plainly with the Trade still present.
-- [ ] The backend gains a delete operation for an `open` Trade that removes the Trade and its Trade Items, while the existing status-update path for Cancel is unchanged.
-- [ ] A backend route case proves an `open` Trade is deleted and its old Slug answers not found; the existing cancel-from-each-state cases stay as the proof for joined Trades.
-- [ ] Guest and non-participant access rules, private indexing and the no-notification behaviour are unchanged.
-- [ ] Focused checks and the full backend, frontend and authenticated E2E results are recorded on final source with actual exit status and any retries.
+- [x] The owner of an `open` Trade sees a Discard action; a participant in a `negotiating` or `locked` Trade keeps Cancel; neither action is offered for an `executed` Trade.
+- [x] Discard asks for confirmation in the house destructive dialog, names the destructive action, uses danger emphasis, and puts focus on the safe action by default.
+- [x] Discard and Cancel are visually separated from ordinary Trade actions such as Edit and Accept.
+- [x] Confirming Discard deletes the Trade and its Trade Items; the Slug answers not found at once and no cancelled row appears in the Trades list.
+- [x] Cancelling from `negotiating` and `locked` keeps the existing cancelled state, dead Slug and history row; cancelling from `executed` is still refused with the same stable refusal.
+- [x] The Trades list refreshes after a Discard, and a failed delete is reported plainly with the Trade still present.
+- [x] The backend gains a delete operation for an `open` Trade that removes the Trade and its Trade Items, while the existing status-update path for Cancel is unchanged.
+- [x] A backend route case proves an `open` Trade is deleted and its old Slug answers not found; the existing cancel-from-each-state cases stay as the proof for joined Trades.
+- [x] Guest and non-participant access rules, private indexing and the no-notification behaviour are unchanged.
+- [x] Focused checks and the full backend, frontend and authenticated E2E results are recorded on final source with actual exit status and any retries.
+
+## Verification
+
+Focused checks on final source: `docker compose exec backend-tools go test ./internal/adapters/http/routes -run 'TestTradeDiscardOpen' -count=1` → ok, exit 0. The full trade-list authenticated suite (`bunx playwright test e2e/trade-list.spec.ts --project=chromium-signed-in` in `frontend-tools`) → 5 passed, exit 0.
+
+Full gates on final source: `scripts/verification/backend.sh` → build, vet, format, lint and all tests, exit 0. `scripts/verification/frontend.sh --package frontend` → lint, format, typecheck, 91 test files / 903 tests, build and 106 Playwright tests, exit 0.
+
+Retries: the first full frontend gate exited 1 on Prettier formatting of `e2e/trade-list.spec.ts`; `bun run format` fixed it and the next full run passed. A later focused rerun of the three trade E2E specs had one unrelated failure in "a locked Trade's picker refuses the add before any request"; the test passed alone, exit 0. The backend gate ran again after the final test-comment edit and passed. A later nitpick added `db.WithContext(t.Context())` to the route test; the focused route test and the full backend gate both passed again, exit 0. No source change followed those clean runs.
+
+## Review
+
+Two-axis review against `main` ran in parallel. The Standards axis flagged a stale comment in `TestTradeCancelFromEachState` that still named `open` after that case moved to the Discard test; it was updated. A later nitpick asked the test's database operations to carry `t.Context()`; one `db.WithContext(t.Context())` line covers all three. Three judgement calls were left as-is: the destructive dialog repeats a small state-and-error shape from the Collection delete dialog (the two mutate different operations, so extraction would add an abstraction for two callers), the `Slug` + `ProfileID` request shapes repeat across trade DTOs as they already do in the file, and `"open"` appears in the status helper and in the action check (two short expressions are smaller than a new status→action map). The Spec axis found no missing behaviour or scope creep and asked for this verification record.

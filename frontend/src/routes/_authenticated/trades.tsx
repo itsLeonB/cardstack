@@ -1,15 +1,28 @@
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   getListTradesQueryKey,
   useCancelTrade,
   useCreateTrade,
+  useDiscardTrade,
   useListTrades,
 } from "@/generated/endpoints/trades/trades"
 import type { TradeSummary } from "@/generated/models"
@@ -111,10 +124,85 @@ function TradesList() {
   )
 }
 
+function DiscardTradeDialog({ slug }: { slug: string }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const discard = useDiscardTrade()
+
+  function confirm() {
+    setError(null)
+    discard.mutate(
+      { slug },
+      {
+        onSuccess: async (response) => {
+          if (response.status !== 204) {
+            setError(response.data.detail ?? "Could not discard this Trade.")
+            return
+          }
+          setOpen(false)
+          await queryClient.invalidateQueries({
+            queryKey: getListTradesQueryKey(),
+          })
+        },
+        onError: () => setError(NETWORK_ERROR),
+      }
+    )
+  }
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (nextOpen) setError(null)
+      }}
+    >
+      <AlertDialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-11 text-destructive"
+          />
+        }
+      >
+        Discard
+      </AlertDialogTrigger>
+      <AlertDialogContent initialFocus={cancelRef}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard this Trade?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently deletes the Trade and its Cards. This cannot be
+            undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel ref={cancelRef}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={discard.isPending}
+            onClick={confirm}
+          >
+            {discard.isPending ? "Discarding..." : "Discard"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
 function TradeRow({ trade }: { trade: TradeSummary }) {
   const queryClient = useQueryClient()
   const cancelTrade = useCancelTrade()
   const slug = trade.slug
+  const discardable = slug !== undefined && trade.status === "open"
   const cancellable =
     slug !== undefined && CANCELLABLE_STATUSES.has(trade.status)
   const age = formatAge(trade.createdAt)
@@ -139,34 +227,40 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
         {tradeStatusLabel(trade.status)}
         {age ? ` · started ${age}` : ""}
       </span>
-      {cancellable && (
-        <Button
-          type="button"
-          className="min-h-11"
-          size="sm"
-          variant="outline"
-          disabled={cancelTrade.isPending}
-          onClick={() => {
-            if (!slug) return
-            cancelTrade.mutate(
-              { slug },
-              {
-                onSuccess: (response) => {
-                  void queryClient.invalidateQueries({
-                    queryKey: getListTradesQueryKey(),
-                  })
-                  if (response.status === 204) return
-                  toast.error(
-                    response.data.detail ?? "Could not cancel this Trade."
-                  )
-                },
-                onError: () => toast.error(NETWORK_ERROR),
-              }
-            )
-          }}
-        >
-          {cancelTrade.isPending ? "Cancelling..." : "Cancel"}
-        </Button>
+      {(discardable || cancellable) && (
+        <div className="flex w-full justify-end border-t pt-2">
+          {discardable ? (
+            <DiscardTradeDialog slug={slug} />
+          ) : (
+            <Button
+              type="button"
+              className="min-h-11"
+              size="sm"
+              variant="outline"
+              disabled={cancelTrade.isPending}
+              onClick={() => {
+                if (!slug) return
+                cancelTrade.mutate(
+                  { slug },
+                  {
+                    onSuccess: (response) => {
+                      void queryClient.invalidateQueries({
+                        queryKey: getListTradesQueryKey(),
+                      })
+                      if (response.status === 204) return
+                      toast.error(
+                        response.data.detail ?? "Could not cancel this Trade."
+                      )
+                    },
+                    onError: () => toast.error(NETWORK_ERROR),
+                  }
+                )
+              }}
+            >
+              {cancelTrade.isPending ? "Cancelling..." : "Cancel"}
+            </Button>
+          )}
+        </div>
       )}
     </li>
   )

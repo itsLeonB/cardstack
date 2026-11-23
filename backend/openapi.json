@@ -8438,6 +8438,57 @@
         ]
       }
     },
+    "/trades/{slug}/discard": {
+      "delete": {
+        "operationId": "discard-trade",
+        "parameters": [
+          {
+            "description": "The Trade's Slug.",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "description": "The Trade's Slug.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Service Unavailable: a handler returned a deadline error before the response started."
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Discard an open Trade the caller owns: delete it and its Trade Items so its slug dies and no cancelled row is left; a joined Trade refuses",
+        "tags": [
+          "trades"
+        ]
+      }
+    },
     "/trades/{slug}/items": {
       "post": {
         "operationId": "add-trade-item",

@@ -48,7 +48,7 @@ export const GetTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -73,11 +73,11 @@ export const GetTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -102,7 +102,7 @@ export const GetTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -134,7 +134,7 @@ export const AcceptTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -159,11 +159,11 @@ export const AcceptTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -188,7 +188,7 @@ export const AcceptTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -225,7 +225,7 @@ export const ConfirmTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -250,11 +250,11 @@ export const ConfirmTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -279,7 +279,7 @@ export const ConfirmTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -289,6 +289,15 @@ export const ConfirmTradeResponse = zod.object({
   "waitingOnOther": zod.boolean().describe('Whether the Trade is negotiating and the other side has not accepted yet — it is waiting on them.')
 })
 })
+
+/**
+ * @summary Discard an open Trade the caller owns: delete it and its Trade Items so its slug dies and no cancelled row is left; a joined Trade refuses
+ */
+export const DiscardTradeParams = zod.object({
+  "slug": zod.string().describe('The Trade\'s Slug.')
+})
+
+export const DiscardTradeResponse = zod.void()
 
 /**
  * @summary Add a Card and source Collection to the caller's side while negotiating
@@ -313,7 +322,7 @@ export const AddTradeItemResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -338,11 +347,11 @@ export const AddTradeItemResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -367,7 +376,7 @@ export const AddTradeItemResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -396,7 +405,7 @@ export const RemoveTradeItemResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -421,11 +430,11 @@ export const RemoveTradeItemResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -450,7 +459,7 @@ export const RemoveTradeItemResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),
@@ -478,7 +487,7 @@ export const JoinTradeResponse = zod.object({
   "otherAccepted": zod.boolean().describe('Whether the other seat has accepted the deal as it stands; false while the second seat is empty.'),
   "otherConfirmed": zod.boolean(),
   "otherItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -503,11 +512,11 @@ export const JoinTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "otherName": zod.string().optional().describe('The second seat\'s display name once joined; absent while the seat is empty.'),
   "ownerItems": zod.array(zod.object({
-  "available": zod.int().describe('How many of the Card the offering participant currently holds across all their Collections.'),
+  "available": zod.int().describe('Copies available for this item after earlier offers of the same Card, capped at its offered quantity.'),
   "card": zod.object({
   "category": zod.string(),
   "expansionSet": zod.object({
@@ -532,7 +541,7 @@ export const JoinTradeResponse = zod.object({
   "collection": zod.string().optional().describe('The title of the Collection the Card is meant to leave; absent when that Collection was deleted.'),
   "id": zod.string(),
   "quantity": zod.int(),
-  "short": zod.boolean().describe('True when Available is below the offered Quantity: the Trade Item can no longer be satisfied.')
+  "short": zod.boolean().describe('True when Available is below this item\'s offered quantity.')
 })).nullable(),
   "ownerName": zod.string().describe('The owner\'s display name, never their email.'),
   "revision": zod.iso.datetime({"offset":true}).describe('The offer revision this view shows: pass it back on accept so a stale view cannot lock a deal that changed since.'),

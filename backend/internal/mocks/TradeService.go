@@ -297,6 +297,53 @@ func (_c *MockTradeService_Create_Call) RunAndReturn(run func(context.Context, d
 	return _c
 }
 
+// Discard provides a mock function with given fields: ctx, req
+func (_m *MockTradeService) Discard(ctx context.Context, req dto.TradeDiscardRequest) error {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Discard")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, dto.TradeDiscardRequest) error); ok {
+		r0 = rf(ctx, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockTradeService_Discard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Discard'
+type MockTradeService_Discard_Call struct {
+	*mock.Call
+}
+
+// Discard is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req dto.TradeDiscardRequest
+func (_e *MockTradeService_Expecter) Discard(ctx interface{}, req interface{}) *MockTradeService_Discard_Call {
+	return &MockTradeService_Discard_Call{Call: _e.mock.On("Discard", ctx, req)}
+}
+
+func (_c *MockTradeService_Discard_Call) Run(run func(ctx context.Context, req dto.TradeDiscardRequest)) *MockTradeService_Discard_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(dto.TradeDiscardRequest))
+	})
+	return _c
+}
+
+func (_c *MockTradeService_Discard_Call) Return(_a0 error) *MockTradeService_Discard_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockTradeService_Discard_Call) RunAndReturn(run func(context.Context, dto.TradeDiscardRequest) error) *MockTradeService_Discard_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function with given fields: ctx, req
 func (_m *MockTradeService) Get(ctx context.Context, req dto.TradeLookup) (dto.TradeView, error) {
 	ret := _m.Called(ctx, req)

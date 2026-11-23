@@ -37,6 +37,10 @@ type tradeCancelInput struct {
 	Slug string `path:"slug" doc:"The Trade's Slug."`
 }
 
+type tradeDiscardInput struct {
+	Slug string `path:"slug" doc:"The Trade's Slug."`
+}
+
 type tradeAcceptInput struct {
 	Slug string `path:"slug" doc:"The Trade's Slug."`
 	Body struct {
@@ -102,6 +106,15 @@ func (h *TradeHandler) cancel(ctx context.Context, in tradeCancelInput) error {
 	return h.tradeSvc.Cancel(ctx, dto.TradeCancelRequest{Slug: in.Slug, ProfileID: profileID})
 }
 
+func (h *TradeHandler) discard(ctx context.Context, in tradeDiscardInput) error {
+	profileID, err := requireProfileID(ctx)
+	if err != nil {
+		return err
+	}
+
+	return h.tradeSvc.Discard(ctx, dto.TradeDiscardRequest{Slug: in.Slug, ProfileID: profileID})
+}
+
 func (h *TradeHandler) join(ctx context.Context, in tradeJoinInput) (dto.TradeView, error) {
 	profileID, err := requireProfileID(ctx)
 	if err != nil {
@@ -160,6 +173,7 @@ func (h *TradeHandler) Routes() []endpoint.Registrable {
 		endpoint.New(endpoint.Endpoint[tradeSlugInput, dto.TradeSlug]{OperationID: "create-trade", Method: http.MethodPost, Path: "/trades", Summary: "Start a Trade and get its link Slug; the caller takes the owner seat in state open", Tags: []string{"trades"}, SuccessCode: http.StatusCreated, Secured: true, HandlerFunc: h.create}),
 		endpoint.NewList(endpoint.ListEndpoint[tradeListInput, dto.TradeSummary]{OperationID: "list-trades", Method: http.MethodGet, Path: "/trades", Summary: "List the Trades the caller participates in, newest first, including executed and cancelled history; each row carries its state and age", Tags: []string{"trades"}, Secured: true, HandlerFunc: h.list}),
 		endpoint.NewNoBody(endpoint.NoBodyEndpoint[tradeCancelInput]{OperationID: "cancel-trade", Method: http.MethodDelete, Path: "/trades/{slug}/cancel", Summary: "Cancel a Trade the caller participates in while it is open, negotiating or locked; the slug dies with it and an executed Trade refuses with trade_executed", Tags: []string{"trades"}, Secured: true, HandlerFunc: h.cancel}),
+		endpoint.NewNoBody(endpoint.NoBodyEndpoint[tradeDiscardInput]{OperationID: "discard-trade", Method: http.MethodDelete, Path: "/trades/{slug}/discard", Summary: "Discard an open Trade the caller owns: delete it and its Trade Items so its slug dies and no cancelled row is left; a joined Trade refuses", Tags: []string{"trades"}, Secured: true, HandlerFunc: h.discard}),
 		endpoint.New(endpoint.Endpoint[tradeJoinInput, dto.TradeView]{OperationID: "join-trade", Method: http.MethodPost, Path: "/trades/{slug}/join", Summary: "Take the Trade's second seat once, moving it to negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.join}),
 		endpoint.New(endpoint.Endpoint[tradeItemInput, dto.TradeView]{OperationID: "add-trade-item", Method: http.MethodPost, Path: "/trades/{slug}/items", Summary: "Add a Card and source Collection to the caller's side while negotiating", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.addItem}),
 		endpoint.New(endpoint.Endpoint[tradeAcceptInput, dto.TradeView]{OperationID: "accept-trade", Method: http.MethodPost, Path: "/trades/{slug}/accept", Summary: "Accept the Trade as the caller's view showed it, identified by its offer revision; the second acceptance locks the Trade", Tags: []string{"trades"}, SuccessCode: http.StatusOK, Secured: true, HandlerFunc: h.accept}),
