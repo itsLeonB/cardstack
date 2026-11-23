@@ -61,6 +61,28 @@ function hoursAgo(hours: number) {
 test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
   useSignedInSuite()
 
+  test("opens a Trade from empty space beside its action", async ({ page }) => {
+    await page.route(`${API}/trades`, (route) =>
+      reply(route, 200, {
+        data: [
+          tradeSummary({
+            id: "t-live",
+            slug: "slug-live",
+            status: "negotiating",
+            otherName: "Ash",
+          }),
+        ],
+      })
+    )
+    await signInAsTestUser(page)
+    await page.goto("/trades")
+    const row = page.getByRole("listitem").filter({ hasText: "Ash" })
+    const box = await row.boundingBox()
+    if (!box) throw new Error("Trade row is not visible")
+    await page.mouse.click(box.x + 24, box.y + box.height - 22)
+    await expect(page).toHaveURL(/\/trades\/slug-live$/)
+  })
+
   test("lists each Trade's state and age, and cancels a live one", async ({
     page,
   }) => {

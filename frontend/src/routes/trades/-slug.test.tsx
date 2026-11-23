@@ -520,7 +520,7 @@ describe("Trade page", () => {
     await renderTradePage()
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Remove Pikachu" })
+      await screen.findByRole("button", { name: /Remove Pikachu from/ })
     )
 
     await waitFor(() =>
@@ -535,7 +535,9 @@ describe("Trade page", () => {
         status: 200,
         body: {
           data: tradeView({
+            status: "negotiating",
             isParticipant: true,
+            isOwner: true,
             ownerItems: [
               tradeItem("item-1", 2),
               { ...tradeItem("item-2", 1), collection: "Binder" },
@@ -551,6 +553,14 @@ describe("Trade page", () => {
     expect(screen.getByText("Pikachu × 1")).toBeTruthy()
     expect(screen.getByText("From Binder")).toBeTruthy()
     expect(screen.getAllByText("Base Set · Rare")).toHaveLength(2)
+    expect(
+      screen.getByRole("button", {
+        name: "Remove Pikachu from a deleted Collection, item 1",
+      })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Remove Pikachu from Binder, item 2" })
+    ).toBeTruthy()
   })
 
   it("accepts the deal for the caller's side and locks when the other side already accepted", async () => {
@@ -1043,7 +1053,7 @@ describe("Trade page", () => {
       screen.queryByRole("button", { name: "Accept the Trade" })
     ).toBeNull()
     expect(screen.queryByRole("link", { name: "Add Card" })).toBeNull()
-    expect(screen.queryByRole("button", { name: "Remove Pikachu" })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Remove Pikachu/ })).toBeNull()
   })
 
   it("marks a Trade Item that went short with what is actually available", async () => {

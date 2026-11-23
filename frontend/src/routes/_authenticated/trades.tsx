@@ -164,7 +164,7 @@ function DiscardTradeDialog({ slug }: { slug: string }) {
           <Button
             variant="outline"
             size="sm"
-            className="min-h-11 text-destructive"
+            className="pointer-events-auto min-h-11 text-destructive"
           />
         }
       >
@@ -211,12 +211,12 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
     : "Waiting for someone to join"
 
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+    <li className="relative flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border p-3 text-sm">
       {slug ? (
         <Link
           to="/trades/$slug"
           params={{ slug }}
-          className="inline-flex min-h-11 min-w-11 items-center text-foreground underline"
+          className="inline-flex min-h-11 min-w-11 items-center text-foreground underline after:absolute after:inset-0"
         >
           {label}
         </Link>
@@ -228,13 +228,13 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
         {age ? ` · started ${age}` : ""}
       </span>
       {(discardable || cancellable) && (
-        <div className="flex w-full justify-end border-t pt-2">
+        <div className="pointer-events-none relative z-10 flex w-full justify-end border-t pt-2">
           {discardable ? (
             <DiscardTradeDialog slug={slug} />
           ) : (
             <Button
               type="button"
-              className="min-h-11"
+              className="pointer-events-auto min-h-11"
               size="sm"
               variant="outline"
               disabled={cancelTrade.isPending}

@@ -519,7 +519,7 @@ test.describe("Trade item picker", { tag: SIGNED_IN_TAG }, () => {
       })
     }
     await expect(
-      page.getByRole("button", { name: "Remove Pikachu", exact: true })
+      page.getByRole("button", { name: /Remove Pikachu from/ })
     ).toHaveCount(2)
   })
 
