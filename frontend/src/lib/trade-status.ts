@@ -13,12 +13,11 @@ export function tradeStatusLabel(status: string): string {
 }
 
 /**
- * The states a participant may still cancel; executed and cancelled are
- * history. Mirrors the backend's rule — the API still refuses the rest, so a
+ * The joined states a participant may still cancel. An open Trade is discarded
+ * instead; executed and cancelled are history. The API refuses the rest, so a
  * stale entry here only hides or shows a button, never allows a cancel.
  */
 export const CANCELLABLE_STATUSES: ReadonlySet<string> = new Set([
-  "open",
   "negotiating",
   "locked",
 ])

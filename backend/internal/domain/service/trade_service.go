@@ -59,6 +59,7 @@ type TradeService interface {
 	Accept(ctx context.Context, req dto.TradeAcceptRequest) (dto.TradeView, error)
 	Confirm(ctx context.Context, req dto.TradeConfirmRequest) (dto.TradeView, error)
 	Cancel(ctx context.Context, req dto.TradeCancelRequest) error
+	Discard(ctx context.Context, req dto.TradeDiscardRequest) error
 }
 
 type inventoryTransfer interface {
@@ -683,5 +684,20 @@ func (s *tradeService) Cancel(ctx context.Context, req dto.TradeCancelRequest) e
 			return apperr.WithCode(ungerr.ConflictError("a Trade that executed cannot be cancelled"), apperr.CodeTradeExecuted)
 		}
 		return s.trades.Cancel(ctx, trade)
+	})
+}
+
+// Discard hard-deletes an open Trade nobody joined, so the link dies and no
+// cancelled row is left. Joined states keep the soft-cancel path.
+func (s *tradeService) Discard(ctx context.Context, req dto.TradeDiscardRequest) error {
+	return s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		trade, err := s.trades.FindBySlugForUpdate(ctx, req.Slug)
+		if err != nil {
+			return err
+		}
+		if trade.IsZero() || trade.Status != entity.TradeStatusOpen || trade.OwnerProfileID != req.ProfileID {
+			return ungerr.NotFoundError(tradeNotFoundMsg)
+		}
+		return s.trades.Delete(ctx, trade)
 	})
 }

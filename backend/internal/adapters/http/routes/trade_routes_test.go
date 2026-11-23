@@ -1032,6 +1032,10 @@ func cancelTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
 	return api.Delete("/trades/"+slug+"/cancel", bearer(token))
 }
 
+func discardTrade(api testAPI, token, slug string) *httptest.ResponseRecorder {
+	return api.Delete("/trades/"+slug+"/discard", bearer(token))
+}
+
 func decodeTradeList(t *testing.T, resp *httptest.ResponseRecorder) tradeListEnvelope {
 	t.Helper()
 	var out tradeListEnvelope
@@ -1088,41 +1092,26 @@ func TestTradeListScopingAndHistory(t *testing.T) {
 	assert.Equal(t, "negotiating", rows[0].Status)
 	assert.NotNil(t, rows[0].OtherName)
 
-	// Cancelling keeps the Trade in the list as cancelled history, and its
-	// row hands out no slug: the link is dead.
-	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, openSlug).Code)
+	// Discarding the open Trade deletes it: no cancelled row is left, and
+	// the joined Trade stays.
+	require.Equal(t, http.StatusNoContent, discardTrade(api, owner, openSlug).Code)
 	resp = listTrades(api, owner)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	rows = decodeTradeList(t, resp).Data
-	require.Len(t, rows, 2)
-	statusCounts := map[string]int{}
-	slugs := map[string]bool{}
-	for _, row := range rows {
-		statusCounts[row.Status]++
-		if row.Slug != nil {
-			slugs[*row.Slug] = true
-		}
-	}
-	assert.Equal(t, 1, statusCounts["cancelled"])
-	assert.Equal(t, 1, statusCounts["negotiating"])
-	assert.False(t, slugs[openSlug])
-	assert.True(t, slugs[liveSlug])
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].Slug)
+	assert.Equal(t, "negotiating", rows[0].Status)
+	assert.Equal(t, liveSlug, *rows[0].Slug)
 }
 
-// TestTradeCancelFromEachState: either participant cancels from open,
-// negotiating and locked; a non-participant gets the same 404 as an unknown
-// slug and changes nothing.
+// TestTradeCancelFromEachState: either participant cancels from a joined
+// Trade in negotiating or locked; a non-participant gets the same 404 as an
+// unknown slug and changes nothing. An open Trade is discarded instead.
 func TestTradeCancelFromEachState(t *testing.T) {
 	api := newTestAPI(t)
 	owner := api.newUserToken(t)
 	joiner := api.newUserToken(t)
 	outsider := api.newUserToken(t)
-
-	// open: the owner cancels.
-	openSlug := createTrade(t, api, owner)
-	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, openSlug).Code)
-	assert.Equal(t, http.StatusNotFound, getTrade(api, owner, openSlug).Code)
-	assert.Equal(t, http.StatusNotFound, joinTrade(api, joiner, openSlug).Code)
 
 	// negotiating: the participant cancels.
 	negSlug := createTrade(t, api, owner)
@@ -1137,11 +1126,11 @@ func TestTradeCancelFromEachState(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, cancelTrade(api, owner, lockSlug).Code)
 	assert.Equal(t, http.StatusNotFound, getTrade(api, joiner, lockSlug).Code)
 
-	// All three stay in the owner's list as cancelled history.
+	// Both joined Trades stay in the owner's list as cancelled history.
 	resp := listTrades(api, owner)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	rows := decodeTradeList(t, resp).Data
-	require.Len(t, rows, 3)
+	require.Len(t, rows, 2)
 	for _, row := range rows {
 		assert.Equal(t, "cancelled", row.Status)
 	}
@@ -1152,6 +1141,42 @@ func TestTradeCancelFromEachState(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, resp.Code, resp.Body.String())
 	assert.Equal(t, getTrade(api, outsider, "no-such-trade").Body.String(), resp.Body.String())
 	assert.Equal(t, http.StatusOK, getTrade(api, owner, liveSlug).Code)
+}
+
+func TestTradeDiscardOpen(t *testing.T) {
+	api := newTestAPI(t)
+	owner := api.newUserToken(t)
+	outsider := api.newUserToken(t)
+	slug := createTrade(t, api, owner)
+
+	// Seed an offered Card directly: the API cannot add items while open, but
+	// a discarded Trade must take its items with it through the FK cascade.
+	db, _ := openTestDB(t)
+	var tradeID string
+	require.NoError(t, db.Raw(`SELECT id FROM trades WHERE slug = ?`, slug).Scan(&tradeID).Error)
+	cardID := newTestCards(t, 1)[0]
+	require.NoError(t, db.Exec(`INSERT INTO trade_items (trade_id, side, card_id, quantity) VALUES (?, ?, ?, 1)`, tradeID, 0, cardID).Error)
+
+	// A signed-in non-participant gets the same answer as an unknown slug,
+	// and the Trade survives.
+	refused := discardTrade(api, outsider, slug)
+	require.Equal(t, http.StatusNotFound, refused.Code, refused.Body.String())
+	assert.Equal(t, getTrade(api, owner, "no-such-trade").Body.String(), refused.Body.String())
+	require.Equal(t, http.StatusOK, getTrade(api, owner, slug).Code)
+
+	// The owner discards: the old link dies with the same 404 as an unknown
+	// slug, its item is gone, and no cancelled row is left behind.
+	require.Equal(t, http.StatusNoContent, discardTrade(api, owner, slug).Code)
+	dead := getTrade(api, owner, slug)
+	assert.Equal(t, http.StatusNotFound, dead.Code)
+	assert.Equal(t, getTrade(api, owner, "no-such-trade").Body.String(), dead.Body.String())
+	var items int64
+	require.NoError(t, db.Raw(`SELECT count(*) FROM trade_items WHERE trade_id = ?`, tradeID).Scan(&items).Error)
+	assert.Zero(t, items)
+
+	resp := listTrades(api, owner)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Empty(t, decodeTradeList(t, resp).Data)
 }
 
 // TestTradeCancelExecutedRefusedAndSlugDies: an executed Trade refuses

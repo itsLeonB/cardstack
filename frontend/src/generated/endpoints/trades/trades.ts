@@ -713,6 +713,103 @@ export const useConfirmTrade = <TError = ErrorModel,
       > => {
       return useMutation(getConfirmTradeMutationOptions(options), queryClient);
     }
+    export type discardTradeResponse204 = {
+  data: void
+  status: 204
+}
+
+export type discardTradeResponse503 = {
+  data: ErrorModel
+  status: 503
+}
+
+export type discardTradeResponseDefault = {
+  data: ErrorModel
+  status: Exclude<HTTPStatusCodes, 204 | 503>
+}
+
+export type discardTradeResponseSuccess = (discardTradeResponse204) & {
+  headers: Headers;
+};
+export type discardTradeResponseError = (discardTradeResponse503 | discardTradeResponseDefault) & {
+  headers: Headers;
+};
+
+export type discardTradeResponse = (discardTradeResponseSuccess | discardTradeResponseError)
+
+export const getDiscardTradeUrl = (slug: string,) => {
+
+
+
+
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/trades/${slug}/discard`
+}
+
+/**
+ * @summary Discard an open Trade the caller owns: delete it and its Trade Items so its slug dies and no cancelled row is left; a joined Trade refuses
+ */
+export const discardTrade = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<discardTradeResponse> => {
+
+  return customFetch<discardTradeResponse>(getDiscardTradeUrl(slug),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDiscardTradeMutationKey = () => ['discardTrade'] as const;
+
+export const getDiscardTradeMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardTrade>>, TError,DiscardTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discardTrade>>, TError,DiscardTradeMutationVariables, TContext> => {
+
+const mutationKey = getDiscardTradeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discardTrade>>, DiscardTradeMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  discardTrade(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscardTradeMutationResult = NonNullable<Awaited<ReturnType<typeof discardTrade>>>
+
+    export type DiscardTradeMutationError = ErrorModel
+    export type DiscardTradeMutationVariables = {slug: string}
+
+    /**
+ * @summary Discard an open Trade the caller owns: delete it and its Trade Items so its slug dies and no cancelled row is left; a joined Trade refuses
+ */
+export const useDiscardTrade = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardTrade>>, TError,DiscardTradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof discardTrade>>,
+        TError,
+        DiscardTradeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDiscardTradeMutationOptions(options), queryClient);
+    }
     export type addTradeItemResponse200 = {
   data: EnvelopeTradeView
   status: 200

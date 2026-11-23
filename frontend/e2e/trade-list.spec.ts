@@ -127,6 +127,105 @@ test.describe("Trades list", { tag: SIGNED_IN_TAG }, () => {
     await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   })
 
+  test("discards an open Trade after confirmation and refreshes the list", async ({
+    page,
+  }) => {
+    const trades = [
+      tradeSummary({ id: "t-open", slug: "slug-open", createdAt: hoursAgo(1) }),
+      tradeSummary({
+        id: "t-live",
+        slug: "slug-live",
+        status: "negotiating",
+        otherName: "Ash",
+        createdAt: hoursAgo(2),
+      }),
+      tradeSummary({
+        id: "t-done",
+        slug: "slug-done",
+        status: "executed",
+        otherName: "Misty",
+        createdAt: hoursAgo(50),
+      }),
+    ]
+    let listCalls = 0
+    let discardedSlug: string | null = null
+    await page.route(`${API}/trades`, (route) => {
+      listCalls++
+      return reply(route, 200, { data: trades })
+    })
+    await page.route(`${API}/trades/slug-open/discard`, (route) => {
+      discardedSlug = "slug-open"
+      const index = trades.findIndex((trade) => trade.id === "t-open")
+      trades.splice(index, 1)
+      return reply(route, 204, {})
+    })
+
+    await signInAsTestUser(page)
+    await page.goto("/trades")
+
+    // Discard belongs to the open Trade only; Cancel belongs to the joined
+    // one, and neither is offered for an executed Trade.
+    const openRow = page
+      .getByRole("listitem")
+      .filter({ hasText: "Waiting for someone to join" })
+    await expect(openRow.getByRole("button", { name: "Discard" })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Discard" })).toHaveCount(1)
+    await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(1)
+
+    await openRow.getByRole("button", { name: "Discard" }).click()
+    const dialog = page.getByRole("alertdialog", {
+      name: "Discard this Trade?",
+    })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText("permanently deletes")
+    await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused()
+
+    // A stray Enter on the focused safe action closes without deleting.
+    await page.keyboard.press("Enter")
+    await expect(dialog).toBeHidden()
+    expect(discardedSlug).toBeNull()
+
+    await openRow.getByRole("button", { name: "Discard" }).click()
+    await dialog.getByRole("button", { name: "Discard" }).click()
+    await expect(dialog).toBeHidden()
+    expect(discardedSlug).toBe("slug-open")
+    await expect(
+      page
+        .getByRole("listitem")
+        .filter({ hasText: "Waiting for someone to join" })
+    ).toHaveCount(0)
+    expect(listCalls).toBeGreaterThan(1)
+  })
+
+  test("reports a failed Discard and leaves the Trade in place", async ({
+    page,
+  }) => {
+    await page.route(`${API}/trades`, (route) =>
+      reply(route, 200, {
+        data: [tradeSummary({ id: "t-open", slug: "slug-open" })],
+      })
+    )
+    await page.route(`${API}/trades/slug-open/discard`, (route) =>
+      reply(route, 503, { detail: "Service unavailable." })
+    )
+
+    await signInAsTestUser(page)
+    await page.goto("/trades")
+    await page.getByRole("button", { name: "Discard" }).click()
+    const dialog = page.getByRole("alertdialog", {
+      name: "Discard this Trade?",
+    })
+    await dialog.getByRole("button", { name: "Discard" }).click()
+
+    await expect(dialog.getByRole("alert")).toContainText(
+      "Service unavailable."
+    )
+    await dialog.getByRole("button", { name: "Cancel" }).click()
+    await expect(
+      page.getByRole("link", { name: "Waiting for someone to join" })
+    ).toBeVisible()
+  })
+
   test("Account has no Trade controls and Trades offers Retry after a list error", async ({
     page,
   }) => {

@@ -71,6 +71,12 @@ type TradeCancelRequest struct {
 	ProfileID uuid.UUID
 }
 
+// TradeDiscardRequest identifies the open Trade an owner removes completely.
+type TradeDiscardRequest struct {
+	Slug      string
+	ProfileID uuid.UUID
+}
+
 // TradeSummary is one row of the Trades list: enough to find the Trade again
 // — its state, age and who the other seat is — without opening it. Slug is
 // absent once the Trade is cancelled: the link is dead, so the row is
