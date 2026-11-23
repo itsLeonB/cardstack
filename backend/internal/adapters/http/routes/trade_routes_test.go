@@ -1152,6 +1152,7 @@ func TestTradeDiscardOpen(t *testing.T) {
 	// Seed an offered Card directly: the API cannot add items while open, but
 	// a discarded Trade must take its items with it through the FK cascade.
 	db, _ := openTestDB(t)
+	db = db.WithContext(t.Context())
 	var tradeID string
 	require.NoError(t, db.Raw(`SELECT id FROM trades WHERE slug = ?`, slug).Scan(&tradeID).Error)
 	cardID := newTestCards(t, 1)[0]
