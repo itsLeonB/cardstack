@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { toast } from "sonner"
-import userEvent from "@testing-library/user-event"
 import { NETWORK_ERROR } from "@/lib/collections"
 import {
   act,
@@ -342,47 +341,6 @@ describe("Trade page", () => {
     expect(screen.queryByText("This Trade is already full.")).toBeNull()
   })
 
-  it.each([true, false])(
-    "clears the draft when navigating to another Trade (owner: %s)",
-    async (isOwner) => {
-      clerkState("signed-in")
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async (input: RequestInfo | URL) => {
-          const path = new URL(String(input)).pathname
-          const data =
-            path === "/collections"
-              ? [{ id: "collection-1", title: "Binder" }]
-              : tradeView({
-                  slug: path.split("/").at(-1),
-                  status: "negotiating",
-                  isParticipant: true,
-                  isOwner,
-                })
-          return new Response(JSON.stringify({ data }), {
-            headers: { "content-type": "application/json" },
-          })
-        })
-      )
-      const { router } = await renderTradePage()
-      fireEvent.change(await screen.findByLabelText("Quantity"), {
-        target: { value: "7" },
-      })
-
-      await act(async () => {
-        await router.navigate({
-          to: "/trades/$slug",
-          params: { slug: "trade-2" },
-        })
-      })
-
-      expect(await screen.findByLabelText("Quantity")).toHaveProperty(
-        "value",
-        "1"
-      )
-    }
-  )
-
   it("keeps the offer and says the Trade is full when the seat is taken", async () => {
     clerkState("signed-in")
     const { requests } = stubTradeApi({
@@ -543,100 +501,6 @@ describe("Trade page", () => {
       expect(fetch).toHaveBeenCalledTimes(readsBeforeReply)
     }
   )
-
-  it("adds a Card from one of the participant's Collections while negotiating", async () => {
-    clerkState("signed-in")
-    const { requests } = stubTradeApi({
-      get: {
-        status: 200,
-        body: {
-          data: tradeView({
-            status: "negotiating",
-            isParticipant: true,
-            isOwner: true,
-          }),
-        },
-      },
-    })
-    await renderTradePage()
-    const user = userEvent.setup()
-
-    expect(
-      await screen.findByRole("navigation", { name: "Breadcrumb" })
-    ).toBeTruthy()
-    await user.click(
-      await screen.findByRole("combobox", { name: "Source Collection" })
-    )
-    await user.click(await screen.findByRole("option", { name: "Binder" }))
-    await waitFor(() =>
-      expect(requests).toContain("GET /collections/collection-1/entries")
-    )
-    await user.click(await screen.findByRole("combobox", { name: "Card" }))
-    await user.click(
-      await screen.findByRole("option", { name: "Pikachu — Base Set — Rare" })
-    )
-    fireEvent.change(screen.getByLabelText("Quantity"), {
-      target: { value: "3" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Add Card" }))
-
-    await waitFor(() =>
-      expect(requests).toContain(
-        `POST ${TRADE_PATH}/items ${JSON.stringify({ cardId: "pikachu", quantity: 3, sourceCollectionId: "collection-1" })}`
-      )
-    )
-  })
-
-  it("can retry failed Collection and Card loads", async () => {
-    clerkState("signed-in")
-    stubTradeApi({
-      get: {
-        status: 200,
-        body: {
-          data: tradeView({
-            status: "negotiating",
-            isParticipant: true,
-            isOwner: true,
-          }),
-        },
-      },
-      collectionReplies: [
-        { status: 503, body: { detail: "Unavailable" } },
-        {
-          status: 200,
-          body: { data: [{ id: "collection-1", title: "Binder" }] },
-        },
-      ],
-      entryReplies: [
-        { status: 503, body: { detail: "Unavailable" } },
-        {
-          status: 200,
-          body: {
-            data: [{ card: pikachu, quantity: 2 }],
-            meta: { total: 1, page: 1, limit: 100 },
-          },
-        },
-      ],
-    })
-    await renderTradePage()
-    const user = userEvent.setup()
-
-    await screen.findByText("Could not load your Collections.")
-    await user.click(screen.getByRole("button", { name: "Retry Collections" }))
-    await user.click(
-      await screen.findByRole("combobox", { name: "Source Collection" })
-    )
-    await user.click(await screen.findByRole("option", { name: "Binder" }))
-    await screen.findByText("Could not load Cards from this Collection.")
-    await user.click(screen.getByRole("button", { name: "Retry Cards" }))
-
-    await user.click(await screen.findByRole("combobox", { name: "Card" }))
-    expect(
-      await screen.findByRole("option", {
-        name: "Pikachu — Base Set — Rare",
-      })
-    ).toBeTruthy()
-  })
 
   it("removes the participant's own Trade Item while negotiating", async () => {
     clerkState("signed-in")
@@ -1178,7 +1042,7 @@ describe("Trade page", () => {
     expect(
       screen.queryByRole("button", { name: "Accept the Trade" })
     ).toBeNull()
-    expect(screen.queryByRole("button", { name: "Add Card" })).toBeNull()
+    expect(screen.queryByRole("link", { name: "Add Card" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Remove Pikachu" })).toBeNull()
   })
 

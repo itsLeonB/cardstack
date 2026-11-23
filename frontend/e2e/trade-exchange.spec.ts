@@ -11,7 +11,14 @@ import {
 
 const API = "http://api:8080"
 const cardsSchema = z.object({
-  data: z.array(z.object({ id: z.string(), name: z.string() })),
+  data: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      localId: z.string(),
+      expansionSet: z.object({ code: z.string() }),
+    })
+  ),
 })
 const collectionSchema = z.object({
   data: z.object({ id: z.string() }),
@@ -127,12 +134,24 @@ async function deleteDisposableUser(
     )
 }
 
-async function addOffer(page: Page, collectionTitle: string, cardName: string) {
+async function addOffer(
+  page: Page,
+  collectionTitle: string,
+  card: z.infer<typeof cardsSchema>["data"][number]
+) {
+  const tradeUrl = page.url()
+  await page.getByRole("link", { name: "Add Card", exact: true }).click()
+  await expect(page).toHaveURL(/\/add-item$/)
+  await page.getByLabel("Card name").fill(card.name)
+  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await page
+    .getByRole("button", {
+      name: `Offer ${card.name}, ${card.expansionSet.code} No. ${card.localId}`,
+      exact: true,
+    })
+    .click()
   await page.getByRole("combobox", { name: "Source Collection" }).click()
   await page.getByRole("option", { name: collectionTitle }).click()
-  await page.getByLabel("Search Cards").fill(cardName)
-  await page.getByRole("combobox", { name: "Card" }).click()
-  await page.getByRole("option").filter({ hasText: cardName }).first().click()
   await page.getByLabel("Quantity", { exact: true }).fill("1")
   const itemResponse = page.waitForResponse(
     (response) =>
@@ -150,8 +169,9 @@ async function addOffer(page: Page, collectionTitle: string, cardName: string) {
       `Trade offer failed (${response.status()}): ${problem.success ? problem.data.detail : "API error"}`
     )
   }
+  await expect(page).toHaveURL(tradeUrl)
   await expect(
-    page.getByRole("button", { name: `Remove ${cardName}`, exact: true })
+    page.getByRole("button", { name: `Remove ${card.name}`, exact: true })
   ).toBeVisible()
 }
 
@@ -245,8 +265,8 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
         partner.getByText("Negotiating", { exact: true })
       ).toBeVisible()
       await page.reload()
-      await addOffer(page, ownerCollectionTitle, ownerCard.name)
-      await addOffer(partner, partnerCollectionTitle, partnerCard.name)
+      await addOffer(page, ownerCollectionTitle, ownerCard)
+      await addOffer(partner, partnerCollectionTitle, partnerCard)
       const inboxTitle = (
         await partner.getByRole("heading", { level: 2 }).first().textContent()
       )?.trim()
@@ -302,8 +322,8 @@ test.describe("Trade exchange", { tag: SIGNED_IN_TAG }, () => {
         partner.getByText("Negotiating", { exact: true })
       ).toBeVisible()
       await page.reload()
-      await addOffer(page, ownerCollectionTitle, ownerCard.name)
-      await addOffer(partner, partnerCollectionTitle, partnerCard.name)
+      await addOffer(page, ownerCollectionTitle, ownerCard)
+      await addOffer(partner, partnerCollectionTitle, partnerCard)
       await lockTrade(page, partner)
       await partner.reload()
       await expect(
