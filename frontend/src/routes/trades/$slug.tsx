@@ -230,7 +230,10 @@ function TradeSide({
         ) : (
           <ul className="flex flex-col gap-3 text-sm">
             {items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3">
+              <li
+                key={item.id}
+                className="flex items-center gap-3 rounded-lg border p-3"
+              >
                 <img
                   src={item.card.imageUrl}
                   alt=""
@@ -266,10 +269,12 @@ function TradeSide({
                     type="button"
                     size="sm"
                     variant="outline"
+                    className="min-h-11"
+                    aria-label={`Remove ${item.card.name}`}
                     disabled={removeMutation.isPending}
                     onClick={() => removeItem(item.id)}
                   >
-                    Remove {item.card.name}
+                    Remove
                   </Button>
                 )}
               </li>

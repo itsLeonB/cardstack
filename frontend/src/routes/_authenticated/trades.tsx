@@ -211,7 +211,7 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
     : "Waiting for someone to join"
 
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border p-3 text-sm">
       {slug ? (
         <Link
           to="/trades/$slug"
