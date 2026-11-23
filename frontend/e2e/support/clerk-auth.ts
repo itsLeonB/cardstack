@@ -18,10 +18,15 @@ import { decideClerkE2e, readClerkE2eCredentials } from "./clerk-credentials"
 
 export const SIGNED_IN_TAG = "@signed-in"
 
-export async function waitForClerkReady(page: Page) {
-  await page.waitForFunction(() => window.Clerk?.loaded === true, null, {
-    timeout: 20_000,
-  })
+export async function waitForAppReady(page: Page) {
+  await clerk.loaded({ page })
+  // The landmark proves the shell rendered after Clerk resolved: an h1 on
+  // guest pages, the header user menu once a session is present.
+  await page
+    .getByRole("heading", { level: 1 })
+    .or(page.getByRole("banner").getByRole("button", { name: "User menu" }))
+    .first()
+    .waitFor({ state: "visible", timeout: 20_000 })
 }
 
 const credentials = readClerkE2eCredentials(process.env)
@@ -61,8 +66,12 @@ export async function signInAsTestUser(page: Page) {
   requireSignedInTag()
   requireCredentials()
   await page.goto("/")
-  await waitForClerkReady(page)
-  await page.waitForFunction(() => Boolean(window.Clerk?.user?.id))
+  await waitForAppReady(page)
+  // The h1 also exists for a restored guest session; the menu proves auth.
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "User menu" })
+    .waitFor({ state: "visible", timeout: 20_000 })
 }
 
 export async function signInAsUser(page: Page, emailAddress: string) {
