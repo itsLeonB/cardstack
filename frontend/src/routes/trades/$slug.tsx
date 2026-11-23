@@ -229,7 +229,7 @@ function TradeSide({
           <p className="text-sm text-muted-foreground">No Cards offered yet.</p>
         ) : (
           <ul className="flex flex-col gap-3 text-sm">
-            {items.map((item) => (
+            {items.map((item, index) => (
               <li
                 key={item.id}
                 className="flex items-center gap-3 rounded-lg border p-3"
@@ -270,7 +270,7 @@ function TradeSide({
                     size="sm"
                     variant="outline"
                     className="min-h-11"
-                    aria-label={`Remove ${item.card.name}`}
+                    aria-label={`Remove ${item.card.name} from ${item.collection ?? "a deleted Collection"}, item ${index + 1}`}
                     disabled={removeMutation.isPending}
                     onClick={() => removeItem(item.id)}
                   >

@@ -171,7 +171,9 @@ async function addOffer(
   }
   await expect(page).toHaveURL(tradeUrl)
   await expect(
-    page.getByRole("button", { name: `Remove ${card.name}`, exact: true })
+    page.getByRole("button", {
+      name: `Remove ${card.name} from ${collectionTitle}`,
+    })
   ).toBeVisible()
 }
 
