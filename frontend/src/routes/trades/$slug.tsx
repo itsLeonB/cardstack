@@ -7,7 +7,6 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs"
 import { PageContainer } from "@/components/layout/page-container"
 import { PageHeader } from "@/components/layout/page-header"
 import { pageHead, NOINDEX_META } from "@/lib/site"
-import { NETWORK_ERROR } from "@/lib/collections"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,13 +15,12 @@ import { clerkAuth } from "@/lib/clerk-auth"
 import {
   loadTradeForSession,
   useTradePolling,
-  useTradeItemSync,
+  useRemoveTradeItemAction,
   useJoinTradeAction,
   useAcceptTradeAction,
   useConfirmTradeAction,
 } from "@/lib/trade-loader"
 import { tradeStatusLabel } from "@/lib/trade-status"
-import { useRemoveTradeItem } from "@/generated/endpoints/trades/trades"
 
 /** The Trade's name follows the counterparty once one joins; an open seat has no name yet. */
 function tradeTitle(trade: TradeView): string {
@@ -164,29 +162,12 @@ function TradeSide({
   editable: boolean
   acceptLabel: string | null
 }) {
-  const startSync = useTradeItemSync()
   const [error, setError] = useState("")
-  const removeMutation = useRemoveTradeItem()
+  const action = useRemoveTradeItemAction(slug, setError)
 
   function removeItem(itemId: string) {
     setError("")
-    const sync = startSync()
-    removeMutation.mutate(
-      { slug, itemId },
-      {
-        onSuccess: (response) => {
-          if (!sync.current()) return
-          if (response.status === 200) void sync.refresh(slug, response)
-          else
-            setError(
-              "Could not remove this Card. Check the Trade and try again."
-            )
-        },
-        onError: () => {
-          if (sync.current()) setError(NETWORK_ERROR)
-        },
-      }
-    )
+    action.remove(itemId)
   }
 
   return (
@@ -246,7 +227,7 @@ function TradeSide({
                     variant="outline"
                     className="min-h-11"
                     aria-label={`Remove ${item.card.name} from ${item.collection ?? "a deleted Collection"}, item ${index + 1}`}
-                    disabled={removeMutation.isPending}
+                    disabled={action.pending}
                     onClick={() => removeItem(item.id)}
                   >
                     Remove
