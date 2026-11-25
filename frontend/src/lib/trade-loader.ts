@@ -6,6 +6,7 @@ import { useRouter } from "@tanstack/react-router"
 import { clerkAuth } from "@/lib/clerk-auth"
 import {
   getTrade,
+  getListTradesQueryKey,
   getGetTradeQueryKey,
   getGetTradeQueryOptions,
 } from "@/generated/endpoints/trades/trades"
@@ -101,4 +102,34 @@ export function useTradePolling({ trade, sessionVersion }: SessionTrade) {
     router,
     slug,
   ])
+}
+
+export function useTradeItemSync() {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+
+  return () => {
+    const version = clerkAuth.currentSessionVersion()
+    const current = () => clerkAuth.currentSessionVersion() === version
+    return {
+      current,
+      async refresh(
+        slug: string,
+        response: Awaited<ReturnType<typeof getTrade>>
+      ) {
+        if (!current()) return false
+        await queryClient.cancelQueries({ queryKey: ["trade-poll", slug] })
+        if (!current()) return false
+        await queryClient.cancelQueries({ queryKey: getGetTradeQueryKey(slug) })
+        if (!current()) return false
+        queryClient.setQueryData(getGetTradeQueryKey(slug), response)
+        await queryClient.invalidateQueries({
+          queryKey: getListTradesQueryKey(),
+        })
+        if (!current()) return false
+        await router.invalidate()
+        return current()
+      },
+    }
+  }
 }
