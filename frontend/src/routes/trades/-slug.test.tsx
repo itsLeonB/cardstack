@@ -200,10 +200,12 @@ function pick(options: {
 
 function deferredResponse() {
   let resolve!: (response: Response) => void
-  const promise = new Promise<Response>((done) => {
+  let reject!: (error: Error) => void
+  const promise = new Promise<Response>((done, fail) => {
     resolve = done
+    reject = fail
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 async function renderTradePage(path = PAGE) {
@@ -647,75 +649,90 @@ describe("Trade page", () => {
     expect(screen.queryByText("Pikachu × 2")).toBeNull()
   })
 
-  it("ignores a delayed add after switching sessions away and back", async () => {
-    clerkState("signed-in")
-    const clerk = fakeClerk("sess_1")
-    clerkAuth.publish(clerk)
-    stubGridLayout()
-    const addition = deferredResponse()
-    const current = tradeView({
-      status: "negotiating",
-      isParticipant: true,
-      isOwner: true,
-    })
-    let posts = 0
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const path = new URL(String(input)).pathname
-        if (path === `${TRADE_PATH}/items` && init?.method === "POST") {
-          posts++
-          return addition.promise
-        }
-        const body =
-          path === "/collections"
-            ? { data: [{ id: "collection-1", title: "Binder" }] }
-            : path === "/catalog/series"
-              ? { data: { series: [], ungroupedExpansionSets: [] } }
-              : path === "/catalog/facets"
-                ? {
-                    data: {
-                      categories: [],
-                      expansionSets: [],
-                      rarities: [],
-                      tags: [],
-                    },
-                  }
-                : path === "/catalog/cards"
-                  ? { data: [pikachu], meta: { total: 1, page: 1, limit: 24 } }
-                  : { data: current }
-        return new Response(JSON.stringify(body), {
-          headers: { "content-type": "application/json" },
-        })
+  it.each([200, 409, "network"] as const)(
+    "ignores a delayed add result %s after switching sessions away and back",
+    async (status) => {
+      clerkState("signed-in")
+      const clerk = fakeClerk("sess_1")
+      clerkAuth.publish(clerk)
+      stubGridLayout()
+      const addition = deferredResponse()
+      const current = tradeView({
+        status: "negotiating",
+        isParticipant: true,
+        isOwner: true,
       })
-    )
-    const { router } = await renderTradePage(`${PAGE}/add-item`)
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Offer Pikachu/ })
-    )
-    const user = userEvent.setup()
-    await user.click(await screen.findByLabelText("Source Collection"))
-    await user.click(await screen.findByRole("option", { name: "Binder" }))
-    expect(screen.getByText("Chosen Card: Pikachu")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Add Card" }))
-    expect(screen.queryByRole("alert")?.textContent).toBeUndefined()
-    await waitFor(() => expect(posts).toBe(1))
-    act(() => clerk.emit("sess_2"))
-    act(() => clerk.emit("sess_1"))
-    await act(async () => {
-      addition.resolve(
-        new Response(
-          JSON.stringify({
-            data: { ...current, ownerItems: [tradeItem("item-1", 1)] },
-          }),
-          { headers: { "content-type": "application/json" } }
-        )
+      let posts = 0
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const path = new URL(String(input)).pathname
+          if (path === `${TRADE_PATH}/items` && init?.method === "POST") {
+            posts++
+            return addition.promise
+          }
+          const body =
+            path === "/collections"
+              ? { data: [{ id: "collection-1", title: "Binder" }] }
+              : path === "/catalog/series"
+                ? { data: { series: [], ungroupedExpansionSets: [] } }
+                : path === "/catalog/facets"
+                  ? {
+                      data: {
+                        categories: [],
+                        expansionSets: [],
+                        rarities: [],
+                        tags: [],
+                      },
+                    }
+                  : path === "/catalog/cards"
+                    ? {
+                        data: [pikachu],
+                        meta: { total: 1, page: 1, limit: 24 },
+                      }
+                    : { data: current }
+          return new Response(JSON.stringify(body), {
+            headers: { "content-type": "application/json" },
+          })
+        })
       )
-    })
-    expect(router.state.location.pathname).toBe(`${PAGE}/add-item`)
-    expect(screen.queryByRole("alert")).toBeNull()
-    expect(screen.getByRole("heading", { name: "Add a Card" })).toBeTruthy()
-  })
+      const { router } = await renderTradePage(`${PAGE}/add-item`)
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Offer Pikachu/ })
+      )
+      const user = userEvent.setup()
+      await user.click(await screen.findByLabelText("Source Collection"))
+      await user.click(await screen.findByRole("option", { name: "Binder" }))
+      expect(screen.getByText("Chosen Card: Pikachu")).toBeTruthy()
+      fireEvent.click(screen.getByRole("button", { name: "Add Card" }))
+      expect(screen.queryByRole("alert")?.textContent).toBeUndefined()
+      await waitFor(() => expect(posts).toBe(1))
+      act(() => clerk.emit("sess_2"))
+      act(() => clerk.emit("sess_1"))
+      await act(async () => {
+        if (status === "network") addition.reject(new Error("offline"))
+        else
+          addition.resolve(
+            new Response(
+              JSON.stringify(
+                status === 200
+                  ? {
+                      data: {
+                        ...current,
+                        ownerItems: [tradeItem("item-1", 1)],
+                      },
+                    }
+                  : { detail: "Trade locked" }
+              ),
+              { status, headers: { "content-type": "application/json" } }
+            )
+          )
+      })
+      expect(router.state.location.pathname).toBe(`${PAGE}/add-item`)
+      expect(screen.queryByRole("alert")).toBeNull()
+      expect(screen.getByRole("heading", { name: "Add a Card" })).toBeTruthy()
+    }
+  )
 
   it("ignores a delayed removal after switching sessions away and back", async () => {
     clerkState("signed-in")

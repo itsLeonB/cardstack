@@ -26,12 +26,11 @@ import {
 } from "@/components/ui/select"
 import { catalogFilterSchema } from "@/lib/catalog-search"
 import type { CatalogFilters } from "@/lib/catalog-search"
-import { NETWORK_ERROR } from "@/lib/collections"
 import {
   useInfiniteCardResultsProps,
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
-import { loadTradeForSession, useTradeItemSync } from "@/lib/trade-loader"
+import { loadTradeForSession, useAddTradeItemAction } from "@/lib/trade-loader"
 import { NOINDEX_META, pageHead } from "@/lib/site"
 import { useIsGuest } from "@/lib/session"
 import {
@@ -39,7 +38,6 @@ import {
   useListCatalogSeries,
 } from "@/generated/endpoints/catalog/catalog"
 import { getListCollectionsQueryOptions } from "@/generated/endpoints/collections/collections"
-import { useAddTradeItem } from "@/generated/endpoints/trades/trades"
 import type { CardSummary } from "@/generated/models"
 
 const TITLE = "Add a Card"
@@ -99,7 +97,6 @@ function TradeItemPicker({ slug }: { slug: string }) {
   const search = Route.useSearch()
   const router = useRouter()
   const navigate = useNavigate({ from: Route.fullPath })
-  const startSync = useTradeItemSync()
   const isGuest = useIsGuest()
   const href = useLocation({ select: (location) => location.href })
 
@@ -116,7 +113,9 @@ function TradeItemPicker({ slug }: { slug: string }) {
   const cardsQuery = useInfiniteCatalogCards(search)
   const cardResults = useInfiniteCardResultsProps(cardsQuery)
   const collectionsQuery = useQuery(getListCollectionsQueryOptions())
-  const addMutation = useAddTradeItem()
+  const action = useAddTradeItemAction(slug, setError, () =>
+    router.history.push(`/trades/${slug}`)
+  )
 
   const series =
     seriesQuery.data?.status === 200
@@ -179,30 +178,7 @@ function TradeItemPicker({ slug }: { slug: string }) {
       return
     }
     setError("")
-    const sync = startSync()
-    addMutation.mutate(
-      {
-        slug,
-        data: { cardId, quantity: count, sourceCollectionId: collectionId },
-      },
-      {
-        onSuccess: async (response) => {
-          if (!sync.current()) return
-          if (response.status === 200) {
-            if ((await sync.refresh(slug, response)) && sync.current())
-              router.history.push(`/trades/${slug}`)
-          } else {
-            setError(
-              response.data.detail ??
-                "Could not add this Card. Check the Trade and try again."
-            )
-          }
-        },
-        onError: () => {
-          if (sync.current()) setError(NETWORK_ERROR)
-        },
-      }
-    )
+    action.add({ cardId, quantity: count, sourceCollectionId: collectionId })
   }
 
   return (
@@ -295,13 +271,13 @@ function TradeItemPicker({ slug }: { slug: string }) {
             <Button
               type="submit"
               disabled={
-                addMutation.isPending ||
+                action.pending ||
                 collectionsQuery.isPending ||
                 !collections.length
               }
               className="sm:col-span-2 sm:justify-self-start"
             >
-              {addMutation.isPending ? "Adding..." : "Add Card"}
+              {action.pending ? "Adding..." : "Add Card"}
             </Button>
           </form>
         </CardContent>

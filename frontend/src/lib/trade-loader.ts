@@ -14,8 +14,10 @@ import {
   useJoinTrade,
   useAcceptTrade,
   useConfirmTrade,
+  useAddTradeItem,
+  useRemoveTradeItem,
 } from "@/generated/endpoints/trades/trades"
-import type { TradeView } from "@/generated/models"
+import type { TradeItemInputBody, TradeView } from "@/generated/models"
 import type {
   acceptTradeResponse,
   confirmTradeResponse,
@@ -113,7 +115,7 @@ export function useTradePolling({ trade, sessionVersion }: SessionTrade) {
   ])
 }
 
-export function useTradeItemSync() {
+function useTradeItemSync() {
   const router = useRouter()
   const queryClient = useQueryClient()
 
@@ -140,6 +142,71 @@ export function useTradeItemSync() {
         return current()
       },
     }
+  }
+}
+
+export function useAddTradeItemAction(
+  slug: string,
+  onError: (message: string) => void,
+  onAdded: () => void
+) {
+  const startSync = useTradeItemSync()
+  const mutation = useAddTradeItem()
+  return {
+    pending: mutation.isPending,
+    add(data: TradeItemInputBody) {
+      const sync = startSync()
+      mutation.mutate(
+        { slug, data },
+        {
+          onSuccess: async (response) => {
+            if (!sync.current()) return
+            if (response.status !== 200) {
+              onError(
+                response.data.detail ??
+                  "Could not add this Card. Check the Trade and try again."
+              )
+              return
+            }
+            if ((await sync.refresh(slug, response)) && sync.current())
+              onAdded()
+          },
+          onError: () => {
+            if (sync.current()) onError(NETWORK_ERROR)
+          },
+        }
+      )
+    },
+  }
+}
+
+export function useRemoveTradeItemAction(
+  slug: string,
+  onError: (message: string) => void
+) {
+  const startSync = useTradeItemSync()
+  const mutation = useRemoveTradeItem()
+  return {
+    pending: mutation.isPending,
+    remove(itemId: string) {
+      const sync = startSync()
+      mutation.mutate(
+        { slug, itemId },
+        {
+          onSuccess: (response) => {
+            if (!sync.current()) return
+            if (response.status === 200) void sync.refresh(slug, response)
+            else
+              onError(
+                "Could not remove this Card. Check the Trade and try again."
+              )
+          },
+          onError: () => {
+            if (sync.current()) onError(NETWORK_ERROR)
+          },
+        }
+      )
+    },
   }
 }
 
