@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths:
       - "docs/agents/conventions/**"
+      - "docs/agents/workers.md"
+      - ".pi/extensions/**"
+      - "scripts/tests/worker-contract/**"
+      - "scripts/tests/deny-shell-code-read/**"
+      - "scripts/tests/deny-big-output/**"
+      - "scripts/tests/block-commit-hooks/**"
       - "scripts/check-conventions.sh"
       - ".github/workflows/conventions-ci.yml"
 
@@ -20,3 +26,20 @@ jobs:
         with:
           persist-credentials: false
       - run: scripts/check-conventions.sh
+
+  worker-contract:
+    name: Agent workflow checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Check worker and tool guards
+        run: |
+          bash scripts/tests/worker-contract/run.sh
+          bash scripts/tests/deny-shell-code-read/run.sh
+          bash scripts/tests/deny-big-output/run.sh
+          bash scripts/tests/block-commit-hooks/run.sh

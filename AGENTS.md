@@ -4,6 +4,10 @@ Validate YAML with `yamllint`, and never hand-wrap lines in markdown (one line p
 
 ## Agent skills
 
+### Delegated workers
+
+For delegated work, preflight, handback acceptance and retries, read `docs/agents/workers.md`. Pi enforces the worker role through `.pi/extensions/worker-contract.ts`.
+
 ### Issue tracker
 
 Issues live as markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
