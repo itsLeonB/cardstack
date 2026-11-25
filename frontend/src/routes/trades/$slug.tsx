@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
 import { toast } from "sonner"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 
@@ -15,12 +14,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
 import { clerkAuth } from "@/lib/clerk-auth"
-import { loadTradeForSession } from "@/lib/trade-loader"
+import { loadTradeForSession, useTradePolling } from "@/lib/trade-loader"
 import { tradeStatusLabel } from "@/lib/trade-status"
 import {
   getTrade,
-  getGetTradeQueryKey,
-  getGetTradeQueryOptions,
   useJoinTrade,
   useRemoveTradeItem,
   useAcceptTrade,
@@ -68,41 +65,7 @@ export const Route = createFileRoute("/trades/$slug")({
 
 function TradePage() {
   const { trade, sessionVersion } = Route.useLoaderData()
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const tradeQuery = useQuery({
-    ...getGetTradeQueryOptions(trade && trade !== "missing" ? trade.slug : ""),
-    enabled:
-      trade !== null && trade !== "missing" && trade.isParticipant === true,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchInterval: 10_000,
-  })
-  useEffect(() => {
-    if (!trade || trade === "missing") return
-    if (tradeQuery.data?.status === 404) {
-      void router.invalidate()
-      return
-    }
-    const polled =
-      tradeQuery.data?.status === 200 ? tradeQuery.data.data.data : null
-    if (!polled) return
-    if (
-      polled.revision !== trade.revision ||
-      polled.status !== trade.status ||
-      polled.accepted !== trade.accepted ||
-      polled.otherAccepted !== trade.otherAccepted ||
-      polled.confirmed !== trade.confirmed ||
-      polled.otherConfirmed !== trade.otherConfirmed ||
-      JSON.stringify(polled.ownerItems) !== JSON.stringify(trade.ownerItems) ||
-      JSON.stringify(polled.otherItems) !== JSON.stringify(trade.otherItems)
-    ) {
-      void queryClient
-        .invalidateQueries({ queryKey: getGetTradeQueryKey(trade.slug) })
-        .then(() => router.invalidate())
-    }
-  }, [trade, tradeQuery.data, router, queryClient])
+  useTradePolling({ trade, sessionVersion })
 
   const gate = useTradeSessionGate({ trade, sessionVersion, title: "Trade" })
   if (gate || !trade || trade === "missing") return gate
