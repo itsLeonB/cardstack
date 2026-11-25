@@ -1,6 +1,6 @@
 # Decks and match records
 
-Status: awaiting final design approval; do not implement yet.
+Status: design approved by the user on 2026-11-25; implementation not started.
 
 ## Scope
 
@@ -58,4 +58,4 @@ The catalog code review confirmed Card name/category/image fields and filter DTO
 
 ## Approval
 
-All interview decisions are settled. Await the user's confirmation of shared understanding before marking this spec approved. Approval authorizes the design only, not an implementation run.
+The user confirmed shared understanding and approved this design on 2026-11-25. Approval authorizes the design only, not an implementation run.
