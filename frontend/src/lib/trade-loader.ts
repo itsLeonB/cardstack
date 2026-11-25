@@ -16,6 +16,10 @@ import {
   useConfirmTrade,
 } from "@/generated/endpoints/trades/trades"
 import type { TradeView } from "@/generated/models"
+import type {
+  acceptTradeResponse,
+  confirmTradeResponse,
+} from "@/generated/endpoints/trades/trades"
 
 type SessionTrade = {
   sessionVersion: number
@@ -204,6 +208,24 @@ export function useJoinTradeAction(slug: string) {
   }
 }
 
+function participationResultHandlers(
+  sync: ReturnType<typeof useTradeParticipationSync>,
+  slug: string,
+  errorMessage: string
+) {
+  return {
+    onSuccess: (response: acceptTradeResponse | confirmTradeResponse) => {
+      if (!sync.current()) return
+      if (response.status !== 200)
+        toast.error(response.data.detail ?? errorMessage)
+      void sync.refresh(slug)
+    },
+    onError: () => {
+      if (sync.current()) toast.error(NETWORK_ERROR)
+    },
+  }
+}
+
 export function useAcceptTradeAction(trade: TradeView) {
   const sync = useTradeParticipationSync()
   const mutation = useAcceptTrade()
@@ -212,17 +234,11 @@ export function useAcceptTradeAction(trade: TradeView) {
     accept() {
       mutation.mutate(
         { slug: trade.slug, data: { revision: trade.revision } },
-        {
-          onSuccess: (response) => {
-            if (!sync.current()) return
-            if (response.status !== 200)
-              toast.error(response.data.detail ?? "Could not accept the Trade.")
-            void sync.refresh(trade.slug)
-          },
-          onError: () => {
-            if (sync.current()) toast.error(NETWORK_ERROR)
-          },
-        }
+        participationResultHandlers(
+          sync,
+          trade.slug,
+          "Could not accept the Trade."
+        )
       )
     },
   }
@@ -240,19 +256,11 @@ export function useConfirmTradeAction(slug: string) {
     confirm() {
       mutation.mutate(
         { slug },
-        {
-          onSuccess: (response) => {
-            if (!sync.current()) return
-            if (response.status !== 200)
-              toast.error(
-                response.data.detail ?? "Could not confirm the handover."
-              )
-            void sync.refresh(slug)
-          },
-          onError: () => {
-            if (sync.current()) toast.error(NETWORK_ERROR)
-          },
-        }
+        participationResultHandlers(
+          sync,
+          slug,
+          "Could not confirm the handover."
+        )
       )
     },
   }
