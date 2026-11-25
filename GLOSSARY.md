@@ -63,6 +63,17 @@ _Avoid_: calling a Card "custom" or "manual" — those say how it was typed, not
 **Collection**:
 A user-owned, named grouping of Cards with quantities (a binder, box, or deck). Has a user-given title, an optional description, and an optional maximum card-count limit (a Collection with a Layout has none: its capacity is its Slot count). May carry an informal type label (binder/box/deck) for the owner's own organization; MVP applies no type-specific rules (no deck-size enforcement). May optionally carry a Layout, which makes it a binder-style Collection: one physical binder is one Collection. Private to its owner until the owner shares it (see Shared).
 
+**Deck**:
+A user's named playing build, separate from the physical card ownership recorded in a Collection.
+_Avoid_: using Deck and Collection as synonyms — a Collection can hold a physical deck, but a Deck does not establish ownership.
+
+**Match**:
+A contest between the user and an opponent, played with their chosen Decks as best-of-one or best-of-three.
+
+**Match Game**:
+One individual game within a Match.
+_Avoid_: Game alone in domain documents — Game already names the trading card game, such as Pokémon TCG.
+
 **Move**:
 Taking the chosen Cards out of one Collection and into another as whole Inventory Entries, every copy of each. A Card the destination already holds adds its quantity to the existing entry. A binder can be the source, which empties the Slots holding those Cards, but never the destination, since a Move chooses no Slot. A Move that would pass the destination's maximum card-count limit is refused whole, and nothing moves.
 _Avoid_: using it for rearranging Slots inside one binder — that moves a Slot's card, not an Inventory Entry between Collections.
