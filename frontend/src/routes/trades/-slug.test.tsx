@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { toast } from "sonner"
+import userEvent from "@testing-library/user-event"
 import { NETWORK_ERROR } from "@/lib/collections"
 import {
   act,
@@ -27,6 +28,8 @@ import { clerkUserResult } from "@/test-clerk"
 import type { ClerkLike } from "@/lib/clerk-auth"
 import { clerkAuth } from "@/lib/clerk-auth"
 import { Route } from "./$slug"
+import { Route as PickerRoute } from "../trades_.$slug.add-item"
+import { stubGridLayout } from "@/test-grid-layout"
 
 // The Trade page with only the network and Clerk faked: the generated client,
 // the query cache, the router and the session handling are the app's own.
@@ -215,8 +218,14 @@ async function renderTradePage(path = PAGE) {
     path: "/trades/$slug",
     ...pick(Route.options),
   })
+  const picker = createRoute({
+    getParentRoute: () => root,
+    path: "/trades/$slug/add-item",
+    ...pick(PickerRoute.options),
+    validateSearch: PickerRoute.options.validateSearch,
+  })
   const router = createRouter({
-    routeTree: root.addChildren([trade]),
+    routeTree: root.addChildren([trade, picker]),
     history: createMemoryHistory({ initialEntries: [path] }),
     context: { queryClient },
   })
@@ -585,6 +594,164 @@ describe("Trade page", () => {
       expect(fetch).toHaveBeenCalledTimes(readsBeforeReply)
     }
   )
+
+  it("keeps a removed item gone when an earlier poll returns", async () => {
+    clerkState("signed-in")
+    const poll = deferredResponse()
+    const before = tradeView({
+      status: "negotiating",
+      isParticipant: true,
+      isOwner: true,
+      ownerItems: [tradeItem("item-1", 2)],
+    })
+    const after = { ...before, ownerItems: [] }
+    const reply = (data: ReturnType<typeof tradeView>) =>
+      new Response(JSON.stringify({ data }), {
+        headers: { "content-type": "application/json" },
+      })
+    let reads = 0
+    let removed = false
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "DELETE") {
+          removed = true
+          return reply(after)
+        }
+        reads++
+        if (reads === 2) return poll.promise
+        return reply(removed ? after : before)
+      })
+    )
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    await renderTradePage()
+    const remove = await screen.findByRole("button", {
+      name: /Remove Pikachu from/,
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+    await waitFor(() => expect(reads).toBe(2))
+    vi.useRealTimers()
+    fireEvent.click(remove)
+    await waitFor(() => expect(screen.queryByText("Pikachu × 2")).toBeNull())
+    await act(async () => {
+      poll.resolve(reply(before))
+    })
+    expect(screen.queryByText("Pikachu × 2")).toBeNull()
+  })
+
+  it("ignores a delayed add after switching sessions away and back", async () => {
+    clerkState("signed-in")
+    const clerk = fakeClerk("sess_1")
+    clerkAuth.publish(clerk)
+    stubGridLayout()
+    const addition = deferredResponse()
+    const current = tradeView({
+      status: "negotiating",
+      isParticipant: true,
+      isOwner: true,
+    })
+    let posts = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname
+        if (path === `${TRADE_PATH}/items` && init?.method === "POST") {
+          posts++
+          return addition.promise
+        }
+        const body =
+          path === "/collections"
+            ? { data: [{ id: "collection-1", title: "Binder" }] }
+            : path === "/catalog/series"
+              ? { data: { series: [], ungroupedExpansionSets: [] } }
+              : path === "/catalog/facets"
+                ? {
+                    data: {
+                      categories: [],
+                      expansionSets: [],
+                      rarities: [],
+                      tags: [],
+                    },
+                  }
+                : path === "/catalog/cards"
+                  ? { data: [pikachu], meta: { total: 1, page: 1, limit: 24 } }
+                  : { data: current }
+        return new Response(JSON.stringify(body), {
+          headers: { "content-type": "application/json" },
+        })
+      })
+    )
+    const { router } = await renderTradePage(`${PAGE}/add-item`)
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Offer Pikachu/ })
+    )
+    const user = userEvent.setup()
+    await user.click(await screen.findByLabelText("Source Collection"))
+    await user.click(await screen.findByRole("option", { name: "Binder" }))
+    expect(screen.getByText("Chosen Card: Pikachu")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Add Card" }))
+    expect(screen.queryByRole("alert")?.textContent).toBeUndefined()
+    await waitFor(() => expect(posts).toBe(1))
+    act(() => clerk.emit("sess_2"))
+    act(() => clerk.emit("sess_1"))
+    await act(async () => {
+      addition.resolve(
+        new Response(
+          JSON.stringify({
+            data: { ...current, ownerItems: [tradeItem("item-1", 1)] },
+          }),
+          { headers: { "content-type": "application/json" } }
+        )
+      )
+    })
+    expect(router.state.location.pathname).toBe(`${PAGE}/add-item`)
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(screen.getByRole("heading", { name: "Add a Card" })).toBeTruthy()
+  })
+
+  it("ignores a delayed removal after switching sessions away and back", async () => {
+    clerkState("signed-in")
+    const clerk = fakeClerk("sess_1")
+    clerkAuth.publish(clerk)
+    const removal = deferredResponse()
+    const current = tradeView({
+      status: "negotiating",
+      isParticipant: true,
+      isOwner: true,
+      ownerItems: [tradeItem("item-1", 2)],
+    })
+    let reads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "DELETE") return removal.promise
+        reads++
+        return new Response(JSON.stringify({ data: current }), {
+          headers: { "content-type": "application/json" },
+        })
+      })
+    )
+    await renderTradePage()
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Remove Pikachu from/ })
+    )
+    act(() => clerk.emit("sess_2"))
+    await screen.findByText("Pikachu × 2")
+    act(() => clerk.emit("sess_1"))
+    await screen.findByText("Pikachu × 2")
+    const readsBeforeReply = reads
+    await act(async () => {
+      removal.resolve(
+        new Response(JSON.stringify({ data: { ...current, ownerItems: [] } }), {
+          headers: { "content-type": "application/json" },
+        })
+      )
+    })
+    expect(screen.getByText("Pikachu × 2")).toBeTruthy()
+    expect(reads).toBe(readsBeforeReply)
+  })
 
   it("removes the participant's own Trade Item while negotiating", async () => {
     clerkState("signed-in")

@@ -14,7 +14,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TradeItemView, TradeView } from "@/generated/models"
 import { clerkAuth } from "@/lib/clerk-auth"
-import { loadTradeForSession, useTradePolling } from "@/lib/trade-loader"
+import {
+  loadTradeForSession,
+  useTradePolling,
+  useTradeItemSync,
+} from "@/lib/trade-loader"
 import { tradeStatusLabel } from "@/lib/trade-status"
 import {
   getTrade,
@@ -156,23 +160,27 @@ function TradeSide({
   editable: boolean
   acceptLabel: string | null
 }) {
-  const router = useRouter()
+  const startSync = useTradeItemSync()
   const [error, setError] = useState("")
   const removeMutation = useRemoveTradeItem()
 
   function removeItem(itemId: string) {
     setError("")
+    const sync = startSync()
     removeMutation.mutate(
       { slug, itemId },
       {
         onSuccess: (response) => {
-          if (response.status === 200) void router.invalidate()
+          if (!sync.current()) return
+          if (response.status === 200) void sync.refresh(slug, response)
           else
             setError(
               "Could not remove this Card. Check the Trade and try again."
             )
         },
-        onError: () => setError(NETWORK_ERROR),
+        onError: () => {
+          if (sync.current()) setError(NETWORK_ERROR)
+        },
       }
     )
   }

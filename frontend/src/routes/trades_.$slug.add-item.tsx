@@ -1,10 +1,6 @@
 import { useCallback, useState } from "react"
 import type { FormEvent } from "react"
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import {
   createFileRoute,
   useLocation,
@@ -35,7 +31,7 @@ import {
   useInfiniteCardResultsProps,
   useInfiniteCatalogCards,
 } from "@/lib/infinite-catalog-cards"
-import { loadTradeForSession } from "@/lib/trade-loader"
+import { loadTradeForSession, useTradeItemSync } from "@/lib/trade-loader"
 import { NOINDEX_META, pageHead } from "@/lib/site"
 import { useIsGuest } from "@/lib/session"
 import {
@@ -43,10 +39,7 @@ import {
   useListCatalogSeries,
 } from "@/generated/endpoints/catalog/catalog"
 import { getListCollectionsQueryOptions } from "@/generated/endpoints/collections/collections"
-import {
-  getGetTradeQueryKey,
-  useAddTradeItem,
-} from "@/generated/endpoints/trades/trades"
+import { useAddTradeItem } from "@/generated/endpoints/trades/trades"
 import type { CardSummary } from "@/generated/models"
 
 const TITLE = "Add a Card"
@@ -106,7 +99,7 @@ function TradeItemPicker({ slug }: { slug: string }) {
   const search = Route.useSearch()
   const router = useRouter()
   const navigate = useNavigate({ from: Route.fullPath })
-  const queryClient = useQueryClient()
+  const startSync = useTradeItemSync()
   const isGuest = useIsGuest()
   const href = useLocation({ select: (location) => location.href })
 
@@ -186,20 +179,18 @@ function TradeItemPicker({ slug }: { slug: string }) {
       return
     }
     setError("")
+    const sync = startSync()
     addMutation.mutate(
       {
         slug,
         data: { cardId, quantity: count, sourceCollectionId: collectionId },
       },
       {
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
+          if (!sync.current()) return
           if (response.status === 200) {
-            // The add response is the fresh Trade view; seed it so the detail
-            // page's polling read starts from the item just added.
-            queryClient.setQueryData(getGetTradeQueryKey(slug), response)
-            void router
-              .invalidate()
-              .then(() => router.history.push(`/trades/${slug}`))
+            if ((await sync.refresh(slug, response)) && sync.current())
+              router.history.push(`/trades/${slug}`)
           } else {
             setError(
               response.data.detail ??
@@ -207,7 +198,9 @@ function TradeItemPicker({ slug }: { slug: string }) {
             )
           }
         },
-        onError: () => setError(NETWORK_ERROR),
+        onError: () => {
+          if (sync.current()) setError(NETWORK_ERROR)
+        },
       }
     )
   }
