@@ -6,26 +6,28 @@ Status: design interview in progress; not approved for implementation.
 
 - First release: Pokémon TCG, Indonesian Standard play.
 - Deck management starts with named personal Decks, without card lists or changes to owned quantities. The user confirmed separate named Decks in round 2.
-- The user describes deck names as one or two main archetypes: Dragapult Blaziken or Ceruledge. The meaning of archetype versus a name's component remains open pending further research; do not assume the initial label model is accepted.
+- Each Deck has structured Key Pokémon choices that produce its default descriptive name, such as Dragapult Blaziken or Ceruledge. The user may override the displayed name; when they do, still show the Key Pokémon below it in smaller text. No separate archetype field is agreed.
 - Record every individual game in a match, not only the overall match result.
 - Support best-of-one and best-of-three matches, with the match result determined from game results.
 - Record the opponent's Deck (described by the user as one or two main archetypes), plus an optional person's name. No opponent Cardstack account is required.
 - Allow match entry during or after play; unfinished matches can be saved and resumed.
 - Each match has a date, optional event name and optional notes. Structured tournament management is a future goal, outside this release.
 - Decks and match records are private to their owner in this release.
+- Each Match Game has a result, optional who-went-first (user, opponent or unknown), and optional notes.
+- MVP shows match history only, without performance summaries or matchup statistics.
+- Completed matches can be edited, including Deck choices and individual game results; update the resulting match outcome when affected.
 - Future deck lists must allow Proxies, which are not catalog Cards. Proxy support is outside this first release.
 
 ## Research
 
-See [archetype research](research/archetypes.md) and [deck naming research](research/deck-naming.md). Directly checked pages verify Ceruledge and Dragapult Blaziken as published whole-deck labels. They do not establish that each named Pokémon is a separate archetype or that names have at most two components. Naming terms remain a user decision. Match-outcome rules are under research.
+See [archetype research](research/archetypes.md) and [deck naming research](research/deck-naming.md). Directly checked pages verify Ceruledge and Dragapult Blaziken as published whole-deck labels. They do not establish that each named Pokémon is a separate archetype or that names have at most two components. The user chose Key Pokémon as the component term. See [match-result research](research/match-results.md) for directly checked regional general rules and the event-specific gaps.
 
 ## Open decisions
 
-- How deck names, archetypes and key Pokémon relate, including whether one or two components is a naming convention or a product limit.
-- Who creates and maintains the naming choices, and how to handle custom or unknown choices.
-- Game outcomes, time limits, incomplete matches and how to determine match results.
-- Unknown opponent Decks, game-level details and how many unfinished matches may exist at once.
-- Editing and deleting records, historical labels and desired summaries.
+- Who creates and maintains Key Pokémon choices, how many each Deck can have, and how to handle unknown opponent Decks.
+- Game outcomes, time limits, exceptions to computed match results and how to finish a match.
+- How many unfinished matches may exist at once, history order and filters.
+- Deleting matches, archiving Decks, duplicate Deck names and preserving Deck details in past matches.
 
 ## Design constraint
 

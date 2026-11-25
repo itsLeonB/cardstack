@@ -67,6 +67,10 @@ A user-owned, named grouping of Cards with quantities (a binder, box, or deck). 
 A user's named playing build, separate from the physical card ownership recorded in a Collection.
 _Avoid_: using Deck and Collection as synonyms — a Collection can hold a physical deck, but a Deck does not establish ownership.
 
+**Key Pokémon**:
+A Pokémon chosen to describe a Deck's identity; the chosen names form its default descriptive name even when the owner gives it a different display name.
+_Avoid_: calling each Key Pokémon an archetype or treating it as one specific printed Card.
+
 **Match**:
 A contest between the user and an opponent, played with their chosen Decks as best-of-one or best-of-three.
 
