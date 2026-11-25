@@ -68,7 +68,7 @@ A user's named playing build, separate from the physical card ownership recorded
 _Avoid_: using Deck and Collection as synonyms — a Collection can hold a physical deck, but a Deck does not establish ownership.
 
 **Key Pokémon**:
-A Pokémon chosen to describe a Deck's identity; the chosen names form its default descriptive name even when the owner gives it a different display name.
+A Pokémon chosen from the catalog to describe a Deck's identity, shared by Cards with the same full printed name across art and Expansion Sets; suffixes, forms and owner names remain distinct. The chosen names form the Deck's default descriptive name even when the owner gives it a different display name.
 _Avoid_: calling each Key Pokémon an archetype or treating it as one specific printed Card.
 
 **Match**:
