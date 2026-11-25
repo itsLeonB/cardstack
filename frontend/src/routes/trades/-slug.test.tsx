@@ -10,7 +10,6 @@ import {
   waitFor,
 } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { getGetTradeQueryKey } from "@/generated/endpoints/trades/trades"
 import {
   Outlet,
   RouterProvider,
@@ -177,6 +176,7 @@ function clerkState(state: ClerkState) {
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   clerkAuth.onSessionChange(null)
   clerkAuth.publish(null)
   vi.unstubAllGlobals()
@@ -233,6 +233,90 @@ async function renderTradePage(path = PAGE) {
 }
 
 describe("Trade page", () => {
+  it("does not restore an old poll after sessions change from A to B to A", async () => {
+    clerkState("signed-in")
+    const clerk = fakeClerk("sess_1")
+    clerkAuth.publish(clerk)
+    const poll = deferredResponse()
+    const secondSession = deferredResponse()
+    let gets = 0
+    const response = (ownerName: string, otherName: string) =>
+      new Response(
+        JSON.stringify({
+          data: tradeView({
+            ownerName,
+            otherName,
+            status: "negotiating",
+            isParticipant: true,
+            isOwner: true,
+          }),
+        }),
+        {
+          headers: { "content-type": "application/json" },
+        }
+      )
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname
+        if (path !== TRADE_PATH)
+          return new Response(JSON.stringify({ data: [] }), {
+            headers: { "content-type": "application/json" },
+          })
+        gets += 1
+        if (gets === 1) return response("Initial owner", "Initial partner")
+        if (gets === 2) return poll.promise
+        if (gets === 3) return secondSession.promise
+        return response("Current owner", "Current partner")
+      })
+    )
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    const { router } = await renderTradePage()
+    expect(
+      await screen.findByRole("heading", { name: "Initial partner", level: 1 })
+    ).toBeTruthy()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+    await waitFor(() => expect(gets).toBe(2))
+    vi.useRealTimers()
+    act(() => clerk.emit("sess_2"))
+    expect(
+      screen.queryByRole("heading", { name: "Initial partner", level: 1 })
+    ).toBeNull()
+    await waitFor(() => expect(gets).toBe(3))
+    act(() => clerk.emit("sess_1"))
+    expect(
+      await screen.findByRole("heading", { name: "Current partner", level: 1 })
+    ).toBeTruthy()
+    await act(async () => {
+      poll.resolve(response("Stale poll owner", "Stale poll partner"))
+      secondSession.resolve(
+        response("Stale session owner", "Stale session partner")
+      )
+    })
+    expect(
+      screen.getByRole("heading", { name: "Current partner", level: 1 })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("heading", { name: "Stale poll partner", level: 1 })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("heading", { name: "Stale session partner", level: 1 })
+    ).toBeNull()
+    const match = router.state.matches.find((m) =>
+      m.routeId.endsWith("/trades/$slug")
+    )
+    expect(
+      match?.meta?.some(
+        (entry) =>
+          entry &&
+          "title" in entry &&
+          entry.title === "Current partner · Cardstack"
+      )
+    ).toBe(true)
+  }, 15000)
+
   it.each(["sess_3", "sess_1", null])(
     "hides old data across stalled reads and repeated changes to %s",
     async (lastSession) => {
@@ -753,15 +837,12 @@ describe("Trade page", () => {
         })
       })
     )
-    const { queryClient } = await renderTradePage()
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    await renderTradePage()
     expect(await screen.findByText("Negotiating")).toBeTruthy()
 
-    // The poll's 10s tick is the trigger; refetching the Trade's query is
-    // the same cache write the tick produces.
     await act(async () => {
-      await queryClient.invalidateQueries({
-        queryKey: getGetTradeQueryKey("trade-1"),
-      })
+      await vi.advanceTimersByTimeAsync(10_000)
     })
 
     expect(await screen.findByText("Locked")).toBeTruthy()
@@ -818,13 +899,12 @@ describe("Trade page", () => {
         )
       })
     )
-    const { queryClient } = await renderTradePage()
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    await renderTradePage()
     expect(await screen.findByText("Negotiating")).toBeTruthy()
 
     await act(async () => {
-      await queryClient.invalidateQueries({
-        queryKey: getGetTradeQueryKey("trade-1"),
-      })
+      await vi.advanceTimersByTimeAsync(10_000)
     })
 
     // The poll's 404 reran the loader, whose fresh read also answers 404,
@@ -884,13 +964,12 @@ describe("Trade page", () => {
         })
       })
     )
-    const { queryClient } = await renderTradePage()
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    await renderTradePage()
     expect(await screen.findByText("Waiting on Misty to accept.")).toBeTruthy()
 
     await act(async () => {
-      await queryClient.invalidateQueries({
-        queryKey: getGetTradeQueryKey("trade-1"),
-      })
+      await vi.advanceTimersByTimeAsync(10_000)
     })
 
     expect(await screen.findByText("Locked")).toBeTruthy()
@@ -923,7 +1002,8 @@ describe("Trade page", () => {
           )
       )
     )
-    const { queryClient } = await renderTradePage()
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    await renderTradePage()
     expect(
       await screen.findByRole("button", { name: "Confirm handover" })
     ).toBeTruthy()
@@ -931,21 +1011,59 @@ describe("Trade page", () => {
 
     available = 1
     await act(async () => {
-      await queryClient.invalidateQueries({
-        queryKey: getGetTradeQueryKey("trade-1"),
-      })
+      await vi.advanceTimersByTimeAsync(10_000)
     })
     expect(await screen.findByText("only 1 of 2 available")).toBeTruthy()
 
     available = 2
     await act(async () => {
-      await queryClient.invalidateQueries({
-        queryKey: getGetTradeQueryKey("trade-1"),
-      })
+      await vi.advanceTimersByTimeAsync(10_000)
     })
     await waitFor(() =>
       expect(screen.queryByText("only 1 of 2 available")).toBeNull()
     )
+  })
+
+  it("does not repeat route reads when a refresh is newer than the last poll", async () => {
+    clerkState("signed-in")
+    let gets = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (new URL(String(input)).pathname !== TRADE_PATH)
+          return new Response(JSON.stringify({ data: [] }))
+        gets += 1
+        return new Response(
+          JSON.stringify({
+            data: tradeView({
+              status: "negotiating",
+              isParticipant: true,
+              isOwner: true,
+              otherName: gets < 3 ? "Misty" : "Brock",
+            }),
+          }),
+          { headers: { "content-type": "application/json" } }
+        )
+      })
+    )
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    const { router } = await renderTradePage()
+    expect(
+      await screen.findByRole("heading", { name: "Misty", level: 1 })
+    ).toBeTruthy()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+    await waitFor(() => expect(gets).toBe(2))
+
+    await act(async () => {
+      await router.invalidate()
+    })
+    expect(
+      await screen.findByRole("heading", { name: "Brock", level: 1 })
+    ).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(gets).toBe(3)
   })
 
   it("does not poll a Trade the viewer is not part of", async () => {
@@ -961,19 +1079,15 @@ describe("Trade page", () => {
         )
       })
     )
-    const { queryClient } = await renderTradePage()
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    await renderTradePage()
     expect(await screen.findByText("Negotiating")).toBeTruthy()
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeTruthy()
     expect(screen.queryByRole("link", { name: "Trades" })).toBeNull()
 
-    // The poll observer is mounted but disabled for a non-participant, so
-    // no interval ever schedules another read.
-    const observers = queryClient
-      .getQueryCache()
-      .findAll({ queryKey: getGetTradeQueryKey("trade-1") })
-      .flatMap((query) => [...query.observers])
-    expect(observers.length).toBeGreaterThan(0)
-    expect(observers.every((o) => o.options.enabled === false)).toBe(true)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000)
+    })
     expect(gets).toBe(1)
   })
 
