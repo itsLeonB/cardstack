@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { toast } from "sonner"
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 
 import { TradeShare } from "@/components/share/trade-share"
 import { useTradeSessionGate } from "@/components/trade/use-trade-session-gate"
@@ -18,15 +17,12 @@ import {
   loadTradeForSession,
   useTradePolling,
   useTradeItemSync,
+  useJoinTradeAction,
+  useAcceptTradeAction,
+  useConfirmTradeAction,
 } from "@/lib/trade-loader"
 import { tradeStatusLabel } from "@/lib/trade-status"
-import {
-  getTrade,
-  useJoinTrade,
-  useRemoveTradeItem,
-  useAcceptTrade,
-  useConfirmTrade,
-} from "@/generated/endpoints/trades/trades"
+import { useRemoveTradeItem } from "@/generated/endpoints/trades/trades"
 
 /** The Trade's name follows the counterparty once one joins; an open seat has no name yet. */
 function tradeTitle(trade: TradeView): string {
@@ -121,9 +117,17 @@ function TradePage() {
           trade.otherName ?? "the other participant"
         )}
       />
-      {trade.isParticipant && negotiating && <AcceptTrade trade={trade} />}
+      {trade.isParticipant && negotiating && (
+        <AcceptTrade
+          key={`${sessionVersion}:${trade.slug}:accept`}
+          trade={trade}
+        />
+      )}
       {trade.isParticipant && trade.status === "locked" && (
-        <ConfirmTrade trade={trade} />
+        <ConfirmTrade
+          key={`${sessionVersion}:${trade.slug}:confirm`}
+          trade={trade}
+        />
       )}
       {trade.status === "executed" && (
         <>
@@ -277,64 +281,17 @@ function TradeShareLink({ slug }: { slug: string }) {
 }
 
 function JoinSeat({ trade }: { trade: TradeView }) {
-  const router = useRouter()
-  const joinMutation = useJoinTrade()
-  const sessionVersion = clerkAuth.currentSessionVersion()
-  // Keep the offer if another participant's seat makes the fresh read a 404.
-  const [seatTaken, setSeatTaken] = useState(false)
-
+  const action = useJoinTradeAction(trade.slug)
   if (trade.isParticipant || trade.status !== "open") return null
-
-  if (seatTaken)
+  if (action.seatTaken)
     return (
       <p role="status" className="text-sm">
         This Trade is already full.
       </p>
     )
-
   return (
-    <Button
-      disabled={joinMutation.isPending}
-      onClick={() =>
-        joinMutation.mutate(
-          { slug: trade.slug },
-          {
-            onSuccess: async (response) => {
-              if (clerkAuth.currentSessionVersion() !== sessionVersion) return
-              if (response.status === 200) {
-                void router.invalidate()
-                return
-              }
-              if (response.data.code === "trade_seat_taken") {
-                setSeatTaken(true)
-                try {
-                  const current = await getTrade(trade.slug)
-                  if (clerkAuth.currentSessionVersion() !== sessionVersion)
-                    return
-                  if (current.status === 200) {
-                    void router.invalidate()
-                  } else if (current.status !== 404) {
-                    toast.error(
-                      current.data.detail ?? "Could not load this Trade."
-                    )
-                  }
-                } catch {
-                  if (clerkAuth.currentSessionVersion() === sessionVersion)
-                    toast.error(NETWORK_ERROR)
-                }
-                return
-              }
-              toast.error(response.data.detail ?? "Could not join this Trade.")
-            },
-            onError: () => {
-              if (clerkAuth.currentSessionVersion() === sessionVersion)
-                toast.error(NETWORK_ERROR)
-            },
-          }
-        )
-      }
-    >
-      {joinMutation.isPending ? "Joining..." : "Join this Trade"}
+    <Button disabled={action.pending} onClick={action.join}>
+      {action.pending ? "Joining..." : "Join this Trade"}
     </Button>
   )
 }
@@ -342,47 +299,17 @@ function JoinSeat({ trade }: { trade: TradeView }) {
 /** The caller's one acceptance of the deal as it stands; the second
  * acceptance locks the Trade server-side. */
 function AcceptTrade({ trade }: { trade: TradeView }) {
-  const router = useRouter()
-  const acceptMutation = useAcceptTrade()
-  const sessionVersion = clerkAuth.currentSessionVersion()
-
+  const action = useAcceptTradeAction(trade)
   if (trade.accepted)
     return (
       <p role="status" className="text-sm">
         You accepted the deal as it stands.
       </p>
     )
-
   return (
     <div className="flex flex-col items-start gap-2">
-      <Button
-        disabled={acceptMutation.isPending}
-        onClick={() =>
-          acceptMutation.mutate(
-            { slug: trade.slug, data: { revision: trade.revision } },
-            {
-              onSuccess: (response) => {
-                if (clerkAuth.currentSessionVersion() !== sessionVersion) return
-                if (response.status === 200) {
-                  void router.invalidate()
-                  return
-                }
-                toast.error(
-                  response.data.detail ?? "Could not accept the Trade."
-                )
-                // The Trade may have moved on (locked, cancelled, or its
-                // offer changed under this view): resync.
-                void router.invalidate()
-              },
-              onError: () => {
-                if (clerkAuth.currentSessionVersion() === sessionVersion)
-                  toast.error(NETWORK_ERROR)
-              },
-            }
-          )
-        }
-      >
-        {acceptMutation.isPending ? "Accepting..." : "Accept the Trade"}
+      <Button disabled={action.pending} onClick={action.accept}>
+        {action.pending ? "Accepting..." : "Accept the Trade"}
       </Button>
       <p className="text-sm text-muted-foreground">
         Accept the deal as it stands. The Trade locks when both sides accept.
@@ -392,9 +319,7 @@ function AcceptTrade({ trade }: { trade: TradeView }) {
 }
 
 function ConfirmTrade({ trade }: { trade: TradeView }) {
-  const router = useRouter()
-  const mutation = useConfirmTrade()
-  const sessionVersion = clerkAuth.currentSessionVersion()
+  const action = useConfirmTradeAction(trade.slug)
   if (trade.confirmed)
     return (
       <p role="status">
@@ -409,34 +334,13 @@ function ConfirmTrade({ trade }: { trade: TradeView }) {
           exchange.
         </p>
       )}
-      {mutation.data?.status && mutation.data.status !== 200 && (
+      {action.error && (
         <p role="alert" className="text-sm text-destructive">
-          {mutation.data.data.detail ?? "Could not confirm the handover."}
+          {action.error}
         </p>
       )}
-      <Button
-        disabled={mutation.isPending}
-        onClick={() =>
-          mutation.mutate(
-            { slug: trade.slug },
-            {
-              onSuccess: (response) => {
-                if (clerkAuth.currentSessionVersion() !== sessionVersion) return
-                if (response.status !== 200)
-                  toast.error(
-                    response.data.detail ?? "Could not confirm the handover."
-                  )
-                void router.invalidate()
-              },
-              onError: () => {
-                if (clerkAuth.currentSessionVersion() === sessionVersion)
-                  toast.error(NETWORK_ERROR)
-              },
-            }
-          )
-        }
-      >
-        {mutation.isPending ? "Confirming..." : "Confirm handover"}
+      <Button disabled={action.pending} onClick={action.confirm}>
+        {action.pending ? "Confirming..." : "Confirm handover"}
       </Button>
       <p className="text-sm">The exchange happens after both sides confirm.</p>
     </div>

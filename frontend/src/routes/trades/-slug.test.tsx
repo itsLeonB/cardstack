@@ -29,6 +29,7 @@ import type { ClerkLike } from "@/lib/clerk-auth"
 import { clerkAuth } from "@/lib/clerk-auth"
 import { Route } from "./$slug"
 import { Route as PickerRoute } from "../trades_.$slug.add-item"
+import { Route as TradesRoute } from "../_authenticated/trades"
 import { stubGridLayout } from "@/test-grid-layout"
 
 // The Trade page with only the network and Clerk faked: the generated client,
@@ -224,8 +225,13 @@ async function renderTradePage(path = PAGE) {
     ...pick(PickerRoute.options),
     validateSearch: PickerRoute.options.validateSearch,
   })
+  const list = createRoute({
+    getParentRoute: () => root,
+    path: "/trades",
+    ...pick(TradesRoute.options),
+  })
   const router = createRouter({
-    routeTree: root.addChildren([trade, picker]),
+    routeTree: root.addChildren([list, trade, picker]),
     history: createMemoryHistory({ initialEntries: [path] }),
     context: { queryClient },
   })
@@ -840,12 +846,19 @@ describe("Trade page", () => {
       accept: { status: 200, body: { data: locked } },
       getAfterAccept: [{ status: 200, body: { data: locked } }],
     })
-    await renderTradePage()
+    const { queryClient } = await renderTradePage()
+    const { getListTradesQueryKey } =
+      await import("@/generated/endpoints/trades/trades")
+    const listKey = getListTradesQueryKey()
+    queryClient.setQueryData(listKey, { data: [] })
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Accept the Trade" })
     )
 
+    await waitFor(() =>
+      expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(true)
+    )
     await waitFor(() =>
       expect(
         requests.some((r) => r.startsWith(`POST ${TRADE_PATH}/accept`))
@@ -856,6 +869,176 @@ describe("Trade page", () => {
       screen.queryByRole("button", { name: "Accept the Trade" })
     ).toBeNull()
   })
+
+  it("keeps the accepted Trade when an older detail read finishes late", async () => {
+    clerkState("signed-in")
+    const before = tradeView({
+      status: "negotiating",
+      isParticipant: true,
+      isOwner: true,
+    })
+    const after = {
+      ...before,
+      status: "locked",
+      accepted: true,
+      otherAccepted: true,
+    }
+    stubTradeApi({
+      get: { status: 200, body: { data: before } },
+      accept: { status: 200, body: { data: after } },
+      getAfterAccept: [{ status: 200, body: { data: after } }],
+    })
+    const { queryClient } = await renderTradePage()
+    const button = await screen.findByRole("button", {
+      name: "Accept the Trade",
+    })
+    const pending = deferredResponse()
+    vi.mocked(fetch).mockReturnValueOnce(pending.promise)
+    const { getGetTradeQueryOptions } =
+      await import("@/generated/endpoints/trades/trades")
+    const oldRead = queryClient
+      .fetchQuery({ ...getGetTradeQueryOptions("trade-1"), staleTime: 0 })
+      .catch(() => undefined)
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+    fireEvent.click(button)
+    expect(await screen.findByText("Locked")).toBeTruthy()
+    await act(async () => {
+      pending.resolve(
+        new Response(JSON.stringify({ data: before }), { status: 200 })
+      )
+      await oldRead
+    })
+    expect(screen.getByText("Locked")).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Accept the Trade" })
+    ).toBeNull()
+  })
+
+  it("shows the current Trade status when returning to the visited list", async () => {
+    clerkState("signed-in")
+    const negotiating = tradeView({
+      status: "negotiating",
+      isParticipant: true,
+      isOwner: true,
+      otherName: "Misty",
+    })
+    const locked = {
+      ...negotiating,
+      status: "locked",
+      accepted: true,
+      otherAccepted: true,
+    }
+    const { fetchMock } = stubTradeApi({
+      get: { status: 200, body: { data: negotiating } },
+      accept: { status: 200, body: { data: locked } },
+      getAfterAccept: [{ status: 200, body: { data: locked } }],
+    })
+    let accepted = false
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname
+        if (path === `${TRADE_PATH}/accept`) accepted = true
+        if (path === "/trades")
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: [
+                  {
+                    id: "trade-1",
+                    slug: "trade-1",
+                    otherName: "Misty",
+                    status: accepted ? "locked" : "negotiating",
+                    createdAt: "2026-01-01T00:00:00Z",
+                  },
+                ],
+              }),
+              { status: 200, headers: { "content-type": "application/json" } }
+            )
+          )
+        return fetchMock(input, init)
+      })
+    )
+    const { router } = await renderTradePage("/trades")
+    const link = await screen.findByRole("link", { name: "With Misty" })
+    expect(screen.getByText(/Negotiating/)).toBeTruthy()
+    fireEvent.click(link)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Accept the Trade" })
+    )
+    await screen.findByText("Locked")
+    act(() => router.history.back())
+    expect(await screen.findByRole("link", { name: "With Misty" })).toBeTruthy()
+    await waitFor(() => expect(screen.getByText(/Locked/)).toBeTruthy())
+  })
+
+  it.each(
+    [
+      { action: "Join this Trade", view: tradeView() },
+      {
+        action: "Confirm handover",
+        view: tradeView({
+          status: "locked",
+          isParticipant: true,
+          isOwner: true,
+        }),
+      },
+      {
+        action: "Accept the Trade",
+        view: tradeView({
+          status: "negotiating",
+          isParticipant: true,
+          isOwner: true,
+        }),
+      },
+    ].flatMap((test) => [200, 409].map((status) => ({ ...test, status })))
+  )(
+    "ignores delayed $action reply $status after sessions change away and back",
+    async ({ action, view, status }) => {
+      clerkState("signed-in")
+      const clerk = fakeClerk("sess_1")
+      clerkAuth.publish(clerk)
+      const errorToast = vi.spyOn(toast, "error")
+      stubTradeApi({ get: { status: 200, body: { data: view } } })
+      const { queryClient } = await renderTradePage()
+      const button = await screen.findByRole("button", { name: action })
+      const pending = deferredResponse()
+      vi.mocked(fetch).mockReturnValueOnce(pending.promise)
+      fireEvent.click(button)
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+      act(() => {
+        clerk.emit("sess_2")
+        clerk.emit("sess_1")
+      })
+      await screen.findByRole("button", { name: action })
+      const { getListTradesQueryKey } =
+        await import("@/generated/endpoints/trades/trades")
+      const listKey = getListTradesQueryKey()
+      queryClient.setQueryData(listKey, { data: [] })
+      const calls = vi.mocked(fetch).mock.calls.length
+      await act(async () => {
+        pending.resolve(
+          new Response(
+            JSON.stringify(
+              status === 200
+                ? { data: view }
+                : {
+                    detail: "Old session error",
+                    code: "trade_seat_taken",
+                  }
+            ),
+            { status }
+          )
+        )
+      })
+      expect(errorToast).not.toHaveBeenCalled()
+      expect(fetch).toHaveBeenCalledTimes(calls)
+      expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(false)
+      expect(screen.queryByText("Old session error")).toBeNull()
+      expect(screen.queryByText("This Trade is already full.")).toBeNull()
+      expect(screen.getByRole("button", { name: action })).toBeTruthy()
+    }
+  )
 
   it("sends the displayed offer revision when accepting", async () => {
     clerkState("signed-in")
