@@ -41,6 +41,10 @@ _Avoid_: confusing this with Card Rarity — both are short, cryptic-looking per
 Zero or more secondary classification labels a Card carries beyond its Category — Pokémon TCG's Trainer/Energy subtype markers (`Item`/`Supporter`/`Stadium`/`Pokémon Tool`/`Energi Dasar`/`Energi Spesial`) are what's actually modeled here, one structurally-exposed value per Card. Vocabulary is entirely Game-defined; what generalizes across Games is the mechanism (an arbitrary, multi-valued label set per Card), not the labels themselves.
 _Avoid_: conflating Card Tag with Card Variant — a Tag describes what a card *is* (its kind/subtype), a Variant would describe how a specific physical copy was *printed*. Also avoid assuming Pokémon's own special/promotional markers (`ex`/`GX`/`V`/`VMAX`/...) live here in MVP — the source doesn't expose them as structured data (only baked into the card's display name), so they're captured best-effort into Card's Game-specific `attributes` instead, not as a Tag, until a source exposes them cleanly enough to filter on.
 
+**Proxy**:
+A stand-in used in place of a Card when playing a deck; it is not a catalog Card.
+_Avoid_: treating a Proxy as a Card or as proof that the player owns the Card it represents.
+
 **Card Variant**:
 Not modeled in MVP. A specific print finish of a Card (normal, reverse holo, holo, first edition, ...) — dropped from the schema because no data source currently ingested supplies finish/variant data. Inventory Entry and Master Inventory track against Card directly until a source that carries finish data is actually added. Do not conflate with Card Tag (see above).
 
