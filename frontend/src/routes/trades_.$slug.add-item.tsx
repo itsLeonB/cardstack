@@ -189,7 +189,7 @@ function TradeItemPicker({ slug }: { slug: string }) {
         onSuccess: async (response) => {
           if (!sync.current()) return
           if (response.status === 200) {
-            if (await sync.refresh(slug, response))
+            if ((await sync.refresh(slug, response)) && sync.current())
               router.history.push(`/trades/${slug}`)
           } else {
             setError(
