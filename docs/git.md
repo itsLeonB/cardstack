@@ -12,6 +12,8 @@ Example: `feat(backend): add users api`
 
 `core.hooksPath` lives in the shared repository config, so a worktree created with `git worktree add` already has the tracked hooks active: `git -C <worktree> config --get core.hooksPath` prints `.githooks`. A fresh clone has no config of its own and prints nothing, so `scripts/setup-environment.sh` sets it once.
 
+Checkpoint commits record work after the fast checks pass; they do not assert merge readiness. Run affected tests and record their results. Full component verification and required CI checks must pass before merge. Failure handling and the exact gates live in `docs/agents/testing.md`.
+
 ## Branch naming
 
 `<type>/<name>`

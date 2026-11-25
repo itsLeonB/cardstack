@@ -15,7 +15,7 @@ Research behind this: `.scratch/agent-tooling/research/serena-per-worktree-subag
 ## Reaching the tools
 
 - Serena's tools have Serena's own names (`initial_instructions`, `get_symbols_overview`, `find_symbol`, `replace_symbol_body`, ...). A harness adds its own prefix or namespace to them, so find each tool by its Serena name whatever the prefix, in your tool list or with the harness's tool search. If the harness puts MCP tools behind a proxy tool, call Serena's through it by the Serena name.
-- If no Serena tool is listed, the server is not connected yet. Connect or enable it through the harness's own MCP mechanism (its connect command or MCP settings) and look again. Fall back to the built-in tools only after that fails, and say so in your report.
+- If no Serena tool is listed, search for `serena initial_instructions` with the harness's tool search; tools can be deferred rather than absent. Use the Serena server, not another server's namespace. If discovery fails, try the harness's MCP connection mechanism and look again. If connection fails or the harness exposes no connection mechanism, record the failed operation and use built-in tools with absolute paths in the target checkout. Do not ask the user to enable tools before trying this fallback.
 - Before your first code tool call, call `initial_instructions`.
 - Call the project-activation tool (`activate_project`) only if it exists. Under a single-project setup the project is already active and the tool is absent.
 

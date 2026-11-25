@@ -1,6 +1,6 @@
 # Test environment: the compose stack
 
-One compose stack (`compose.yaml` at the repository root) gives agents and CI the same database, API, apps and tooling. A host toolchain (`go`, `gofmt`, `bun`) is fine for the inner loop, because it is faster; the rule it must not break is the gate: before any commit or merge, the change passes `scripts/verification/<component>.sh`, and that run's output is what the handoff reports. Never install a toolchain or provision a database of your own: for the gate, and for anything needing Postgres, use the stack (`docker compose exec`, or the script that brings up what the step needs). How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
+One compose stack (`compose.yaml` at the repository root) gives agents and CI the same database, API, apps and tooling. A host toolchain (`go`, `gofmt`, `bun`) is fine for the inner loop, because it is faster. Before a checkpoint commit, pass the affected package's fast checks through `scripts/verification/<component>.sh`: frontend/admin lint, format and typecheck; backend format, vet and lint. Run the affected tests and report their results, including failures. Before merge, the full component verification gate, including required authenticated end-to-end tests, must pass on the final source. A checkpoint commit records work; it does not mean the change is ready to merge. Never install a toolchain or provision a database of your own: for the gate, and for anything needing Postgres, use the stack (`docker compose exec`, or the script that brings up what the step needs). How to write the tests (mocking, real Postgres, repository interfaces) lives in `docs/agents/conventions/backend.md`, under "Testing".
 
 ## The stack
 
@@ -14,6 +14,12 @@ One compose stack (`compose.yaml` at the repository root) gives agents and CI th
 | `seed` | Profile `seed`: loads the end-to-end fixture, `backend/internal/adapters/db/postgres/testdata/e2e_seed.sql`. |
 
 Each worktree gets its own stack (the built images carry fixed tags such as `cardstack-web:local`, shared by every worktree: each script run rebuilds its own, so a bare `docker compose up` without `--build` may pick up another worktree's image): the project name is the directory's name, and no host port is published, so containers reach each other by service name (`db`, `api:8080`, `web:3000`, `admin:3001`) and two worktrees can run at once. `docker compose down` leaves nothing behind but the named package caches (`cardstack-go-cache`, `cardstack-bun-cache`, shared by every worktree).
+
+## Checkpoint commits and merge readiness
+
+The pre-commit hook and `docs/git.md` define the fast commit checks. A failing full browser suite does not prohibit a checkpoint commit when those checks pass. Include failed commands and log locations in the handoff; do not claim that the gate passed or merge with required checks red. Never bypass the pre-commit hook.
+
+When a broad check fails outside the changed flow, keep the result red until you establish its cause. Inspect the first failure and run a focused reproduction. If you suspect an existing failure, compare with the unchanged base in a separate prepared checkout. Do not loop over the full suite hoping for a green result, weaken assertions or disable required checks. Report whether the cause is confirmed, unresolved, or tied to the change.
 
 ## Run the checks
 
